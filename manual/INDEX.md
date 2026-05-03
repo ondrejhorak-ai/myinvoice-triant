@@ -1,6 +1,6 @@
 # MyInvoice.cz — uživatelský manuál
 
-> Verze: 1.4 · Datum: 2026-05-03 · Vyvíjí [MyWebdesign.cz s.r.o.](https://mywebdesign.cz/)
+> Verze: 1.4 · Datum: 2026-05-05 · Vyvíjí [MyWebdesign.cz s.r.o.](https://mywebdesign.cz/)
 
 Vítej v manuálu k fakturačnímu systému **MyInvoice.cz**. Manuál pokrývá vše, co
 v aplikaci uděláš — od prvního přihlášení, přes vystavení faktury a její

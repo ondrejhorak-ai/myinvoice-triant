@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-05-05
+
+### Added
+
+- **Faktury v cizí měně (EUR / USD / …) — automatický přepočet do CZK.**
+  Při uložení EUR faktury si systém stáhne **denní devizový kurz z ČNB**
+  pro `issue_date` a uloží na fakturu (`invoices.exchange_rate` +
+  `exchange_rate_date`). Kurz se pak používá pro přepočet **základů DPH
+  a DPH** do CZK v detailu, PDF i exportech. Položky se nepřepočítávají
+  (per spec). Zaokrouhlování HALF_UP per VAT skupina (přes bcmath kvůli
+  float precision pro `*.x5` hodnoty).
+- **Cache + day-back fallback.** Tabulka `exchange_rates` cachuje
+  všechny kurzy z feedu (jeden HTTP call zaplní celý den). Pokud kurz
+  pro daný den není dostupný (víkend, svátek, pozdě večer), zkusí
+  až 7 dní zpět. Když ČNB nedostupné a žádný cache záznam neexistuje,
+  použije se **last-known kurz** s warning toastem v UI.
+- **Lazy backfill.** Starší faktury bez kurzu (legacy data) ho automaticky
+  doplní při příštím otevření detailu / PDF — `ExchangeRateApplier::ensureRate`.
+- **Editace kurzu uživatelem.** Pod polem „Splatnost" v editoru
+  (jen pro non-CZK) je editovatelný input kurzu. Manuálně nastavená
+  hodnota má prioritu před auto-fetch z ČNB. Kurz se po prvním nastavení
+  automaticky **nemění** — refetch jen při změně `currency` nebo
+  `issue_date` na draftu; vystavené faktury (force-edit) kurz nikdy
+  nepřepisují.
+- **CZK přepočet v PDF.** Samostatná tabulka „Přepočet do CZK" pod
+  hlavním sumářem se světle šedým podbarvením + drobná řádka kurzu
+  pod hlavním celkem. Per-VAT-rate breakdown v CZK.
+- **CZK přepočet v ISDOC 6.0.2.** `LocalCurrencyCode=CZK` (účetní měna
+  dodavatele), `CurrencyCode=EUR` (faktur. měna), `CurrRate=24.360000`,
+  `RefCurrRate=1`. Účetní soft přepočet dopočítá z `CurrRate`.
+- **CZK přepočet v Pohoda XML.** Pro non-CZK faktury obsahuje summary
+  oba bloky: `inv:homeCurrency` v CZK (z `czk_recap`) a `inv:foreignCurrency`
+  s měnou + kurzem + EUR totals. Položky používají `inv:foreignCurrency`.
+- **VAT 0 % rozlišení v editoru.** Dropdown sazeb DPH dříve zobrazoval
+  „0 %" pro Osvobozeno i Reverse charge — teď `0 % (osvob.)` resp.
+  `0 % (RC)` (locale-aware).
+- **SEPA EPC QR pro koncepty bez VS.** Faktury v EUR (a dalších non-CZK
+  měnách) v draft stavu nyní mají QR kód i bez variabilního symbolu —
+  SEPA EPC ho jako identifikátor nepoužívá (jen v poznámce). CZK SPAYD
+  stále VS vyžaduje (povinné pole standardu).
+- 13 nových PHPUnit testů: `CzkRecapTest` (5) + `CnbExchangeRateClientTest`
+  (8) — parser, day-back fallback, normalizace `množství` (JPY/100), CRLF
+  line endings, malformed input. Total **132 testů, 245 assertions**.
+
+### Changed
+
+- **Memory rule pro i18n rozšířený o backend.** Pravidlo „all multilanguage
+  by default" teď pokrývá i Twig šablony (`t('cs','en')` helper) a
+  `I18n\ErrorCatalog::MAP` pro API hlášky.
+- **Manuál bumped na v1.4** (2026-05-05). Nové sekce: § 9.4.2 (faktura
+  v cizí měně + přepočet), § 10.2.1 (CZK recap v PDF), § 10.3 (SEPA QR
+  pro drafts), § 13.5 (kurz CZK v ISDOC + Pohoda XML exportech).
+
 ### Fixed
 
 - **GPC parser: Air Bank výpisy s diakritikou v názvu účtu** ([#1]). Pole
