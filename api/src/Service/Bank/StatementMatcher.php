@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MyInvoice\Service\Bank;
 
 use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Service\Invoice\FinalFromProformaCreator;
 use PDO;
 
 /**
@@ -23,7 +24,10 @@ use PDO;
  */
 final class StatementMatcher
 {
-    public function __construct(private readonly Connection $db) {}
+    public function __construct(
+        private readonly Connection $db,
+        private readonly FinalFromProformaCreator $finalCreator,
+    ) {}
 
     public function match(int $transactionId): array
     {
@@ -68,15 +72,16 @@ final class StatementMatcher
             return ['status' => 'unmatched', 'reason' => 'unknown_supplier_for_account'];
         }
 
-        // Najdi fakturu s VS = transakce.VS, supplier scope, status in (issued, sent, reminded), amount_to_pay sedí
+        // Najdi fakturu s VS = transakce.VS, supplier scope, status in (issued, sent, reminded), amount_to_pay sedí.
+        // Proformu povolujeme — zaplacená proforma se označí paid a navíc vytvoří DRAFT finální faktury.
         $stmt = $pdo->prepare(
-            "SELECT i.id, i.varsymbol, i.amount_to_pay, i.status, cur.code AS currency
+            "SELECT i.id, i.varsymbol, i.amount_to_pay, i.status, i.invoice_type, cur.code AS currency
                FROM invoices i
                JOIN currencies cur ON cur.id = i.currency_id
               WHERE i.supplier_id = ?
                 AND i.varsymbol = ?
                 AND i.status IN ('issued', 'sent', 'reminded')
-                AND i.invoice_type = 'invoice'
+                AND i.invoice_type IN ('invoice', 'proforma')
               LIMIT 1"
         );
         $stmt->execute([$supplierId, $vs]);
@@ -87,16 +92,33 @@ final class StatementMatcher
 
         $diff = abs($amount - (float) $inv['amount_to_pay']);
         if ($diff < 0.01) {
-            // Exact match — automaticky označit jako paid
-            $pdo->prepare(
-                "UPDATE invoices SET status = 'paid', paid_at = ? WHERE id = ?"
-            )->execute([$row['posted_at'], $inv['id']]);
-            $pdo->prepare(
-                "UPDATE bank_transactions
-                    SET matched_invoice_id = ?, match_status = 'auto_exact', matched_at = NOW()
-                  WHERE id = ?"
-            )->execute([$inv['id'], $transactionId]);
-            return ['status' => 'auto_exact', 'invoice_id' => (int) $inv['id'], 'varsymbol' => $vs];
+            // Exact match — automaticky označit jako paid (transakce zajišťuje konzistenci s případným final draftem)
+            $pdo->beginTransaction();
+            try {
+                $pdo->prepare(
+                    "UPDATE invoices SET status = 'paid', paid_at = ? WHERE id = ?"
+                )->execute([$row['posted_at'], $inv['id']]);
+                $pdo->prepare(
+                    "UPDATE bank_transactions
+                        SET matched_invoice_id = ?, match_status = 'auto_exact', matched_at = NOW()
+                      WHERE id = ?"
+                )->execute([$inv['id'], $transactionId]);
+
+                $finalDraftId = null;
+                if ($inv['invoice_type'] === 'proforma') {
+                    $finalDraftId = $this->finalCreator->create((int) $inv['id'], 0);
+                }
+                $pdo->commit();
+            } catch (\Throwable $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                throw $e;
+            }
+
+            $result = ['status' => 'auto_exact', 'invoice_id' => (int) $inv['id'], 'varsymbol' => $vs];
+            if ($finalDraftId !== null) {
+                $result['final_draft_id'] = $finalDraftId;
+            }
+            return $result;
         }
         if ($diff <= 1.0) {
             // Partial match — flag, ale nepaint paid (uživatel rozhodne)

@@ -15,6 +15,7 @@ use MyInvoice\Service\Bank\GpcParser;
 use MyInvoice\Service\Bank\StatementImporter;
 use MyInvoice\Service\Bank\StatementMatcher;
 use MyInvoice\Service\Bank\StatementScanner;
+use MyInvoice\Service\Invoice\FinalFromProformaCreator;
 use MyInvoice\Service\IpMatcher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -41,6 +42,7 @@ final class BankStatementAction
         private readonly IpMatcher $ipMatcher,
         private readonly InvoiceRepository $invoices,
         private readonly GpcParser $parser,
+        private readonly FinalFromProformaCreator $finalCreator,
     ) {}
 
     public function scan(Request $request, Response $response): Response
@@ -268,10 +270,16 @@ final class BankStatementAction
             )->execute([$invoiceId, $userId ?: null, $txId]);
 
             // Pokud faktura ještě není paid/cancelled, označ ji jako paid s datem z výpisu
+            $finalDraftId = null;
             if (in_array($invoice['status'], ['issued', 'sent', 'reminded'], true)) {
                 $pdo->prepare(
                     "UPDATE invoices SET status = 'paid', paid_at = ? WHERE id = ?"
                 )->execute([$postedAt, $invoiceId]);
+
+                // Zaplacená proforma → vytvoř DRAFT finální faktury (daňový doklad k záloze)
+                if (($invoice['invoice_type'] ?? '') === 'proforma') {
+                    $finalDraftId = $this->finalCreator->create($invoiceId, $userId ?: 0);
+                }
             }
 
             // Recompute matched_count na výpisu (pro UI badge "12/14")
@@ -294,10 +302,21 @@ final class BankStatementAction
 
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $this->logger->log('bank.tx_manual_match', $userId ?: null, 'bank_transaction', $txId, [
-            'invoice_id' => $invoiceId,
-            'paid_at'    => $postedAt,
+            'invoice_id'     => $invoiceId,
+            'paid_at'        => $postedAt,
+            'final_draft_id' => $finalDraftId,
         ], $ip, $request->getHeaderLine('User-Agent'));
-        return Json::ok($response, ['matched' => true, 'paid_at' => $postedAt]);
+        if ($finalDraftId !== null) {
+            $this->logger->log('proforma.final_issued', $userId ?: null, 'invoice', $invoiceId, [
+                'final_invoice_id' => $finalDraftId,
+                'trigger'          => 'bank_match_manual',
+            ], $ip, $request->getHeaderLine('User-Agent'));
+        }
+        $result = ['matched' => true, 'paid_at' => $postedAt];
+        if ($finalDraftId !== null) {
+            $result['final_draft_id'] = $finalDraftId;
+        }
+        return Json::ok($response, $result);
     }
 
     public function unmatch(Request $request, Response $response, array $args): Response

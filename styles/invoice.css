@@ -211,10 +211,8 @@ table.totals-table tr.grand td {
     padding: 3mm;
 }
 table.totals-table tr.grand td.tot-label { color: #FFFFFF; }
-table.totals-table tr.advance td {
-    color: #5A5470;
-    font-style: italic;
-}
+table.totals-table tr.advance td { color: #5A5470; }
+table.totals-table tr.advance td.tot-label { font-style: italic; }
 table.totals-table tr.to-pay td {
     border-top: 1pt solid #3B2D83;
     background: #F4F2F8;

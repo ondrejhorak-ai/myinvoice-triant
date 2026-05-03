@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-05-05
+
+### Added
+
+- **Daňový doklad k zaplacené záloze — automaticky i ručně.**
+  Zaplacení zálohové faktury (proforma) teď vede k vystavení **konceptu
+  finální faktury** s parent-child vazbou (`parent_invoice_id`),
+  zkopírovanými položkami a vyplněným odečtem zálohy
+  (`advance_paid_amount = proforma.total_with_vat`). Caller pak fakturu
+  jen zkontroluje a vystaví standardním tlačítkem „Vystavit". Tři vstupní
+  body:
+  - **Tlačítko „Vystavit fakturu k záloze"** v detailu proformy ve stavu
+    `paid` — `POST /api/invoices/{id}/issue-final` redirectne do editoru.
+  - **Auto-match bankovní transakce** v `StatementMatcher`. Filtr rozšířen
+    z `invoice_type='invoice'` na `IN ('invoice','proforma')`. Po
+    `auto_exact` na proformě v jedné transakci: `paid` + spárovat TX +
+    vytvořit final draft. Audit `proforma.final_issued` s `trigger='bank_match_auto'`.
+  - **Manual-match bankovní transakce** v `BankStatementAction::manualMatch`.
+    Stejný flow, response navíc obsahuje `final_draft_id`.
+- **Sdílená služba `Service/Invoice/FinalFromProformaCreator`** —
+  pure logika tvorby draftu, **idempotentní** (opakované volání nebo
+  unmatch+rematch nevytvoří duplikát, vrátí id existujícího child draftu),
+  **bezpečná na vnořené transakce** (`inTransaction()` detekce,
+  vlastní commit jen když ji sama otevřela).
+- **PDF poznámka u proformy** — automaticky pod položkami (před totals,
+  ve stejném stylu jako reverse-charge note): „Nejedná se o daňový doklad,
+  ten bude vystaven po připsání platby." / „This is not a tax document.
+  The tax document will be issued after payment is received."
+- i18n: `invoice.issue_final`, `invoice.issue_final_confirm`,
+  `invoice.issue_final_failed`, `invoice.actions.proforma_final_issued`
+  (CS + EN). `note_above_items` na vytvořeném draftu se ukládá
+  v jazyce proformy (CS / EN switch dle `proforma.language`).
+
+### Changed
+
+- **DUZP skryto na zálohové faktuře.** Detail faktury (`InvoiceDetail.vue`)
+  i PDF (`invoice.twig`) — pro `invoice_type='proforma'` se DUZP ani
+  v hlavičce datumové karty, ani v meta-grid PDF nezobrazuje.
+  Web UI: hlavička karty je teď „Vystavení / Splatnost" místo
+  „Vystavení / DUZP / Splatnost" pro proformy.
+- **`IssueFinalFromProformaAction` zrefaktorován** — deleguje na
+  `FinalFromProformaCreator`, ponechává jen HTTP validaci
+  (`SupplierGuard::owns`, `status='paid'`, `invoice_type='proforma'`)
+  a activity log s `trigger='manual'`.
+
+### Fixed
+
+- **PDF rendering selhával na fakturách s odečtem zálohy** —
+  `Cannot find TTF TrueType font file "DejaVuSansMono-BoldOblique.ttf"`.
+  Skript `cleanup-mpdf-fonts.php` ponechává jen Regular + Bold variantu
+  DejaVu Sans Mono kvůli velikosti repa, ale CSS na `.advance` řádku
+  v `totals-table` aplikoval `font-style: italic` na celý řádek včetně
+  numerické buňky `td.tot-num` (mono+bold), což po kombinaci s italic
+  vyžadovalo BoldOblique mono. Italic teď platí jen na popisek
+  („Odečet zálohy"), číselná buňka zůstane regular bold mono. Projevilo se
+  až po přidání tlačítka „Vystavit fakturu k záloze" — daňový doklad
+  k záloze je první případ, kde `advance_paid_amount > 0`.
+
 ## [1.4.0] — 2026-05-05
 
 ### Added

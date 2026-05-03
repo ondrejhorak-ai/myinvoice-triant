@@ -6,11 +6,10 @@ namespace MyInvoice\Action\Invoice;
 
 use MyInvoice\Http\Json;
 use MyInvoice\Http\SupplierGuard;
-use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Middleware\AuthMiddleware;
 use MyInvoice\Repository\InvoiceRepository;
 use MyInvoice\Service\ActivityLogger;
-use MyInvoice\Service\Invoice\InvoiceCalculator;
+use MyInvoice\Service\Invoice\FinalFromProformaCreator;
 use MyInvoice\Service\IpMatcher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -29,8 +28,7 @@ final class IssueFinalFromProformaAction
 {
     public function __construct(
         private readonly InvoiceRepository $repo,
-        private readonly Connection $db,
-        private readonly InvoiceCalculator $calc,
+        private readonly FinalFromProformaCreator $creator,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
     ) {}
@@ -50,78 +48,25 @@ final class IssueFinalFromProformaAction
         }
 
         $body = (array) ($request->getParsedBody() ?? []);
-        $taxDate = (string) ($body['tax_date'] ?? date('Y-m-d'));
-        $dueDate = (string) ($body['due_date'] ?? date('Y-m-d'));
+        $taxDate = isset($body['tax_date']) && $body['tax_date'] !== '' ? (string) $body['tax_date'] : null;
+        $dueDate = isset($body['due_date']) && $body['due_date'] !== '' ? (string) $body['due_date'] : null;
         $advance = isset($body['advance_paid_amount']) && $body['advance_paid_amount'] !== null && $body['advance_paid_amount'] !== ''
             ? (float) $body['advance_paid_amount']
-            : (float) $proforma['total_with_vat'];
-
-        if ($advance < 0) {
-            return Json::error($response, 'invalid_advance', 'Záloha nesmí být záporná.', 400);
-        }
+            : null;
 
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
         $userId = (int) ($user['id'] ?? 0);
 
-        $pdo = $this->db->pdo();
-        $pdo->beginTransaction();
         try {
-            $stmt = $pdo->prepare(
-                'INSERT INTO invoices
-                   (invoice_type, parent_invoice_id, client_id, project_id, supplier_id,
-                    issue_date, tax_date, due_date, currency_id, reverse_charge, language,
-                    note_above_items, advance_paid_amount, status, created_by)
-                 VALUES ("invoice", ?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, "draft", ?)'
-            );
-            $stmt->execute([
-                $proformaId,
-                $proforma['client_id'],
-                $proforma['project_id'],
-                (int) $proforma['supplier_id'],
-                $taxDate,
-                $dueDate,
-                (int) $proforma['currency_id'],
-                $proforma['reverse_charge'] ? 1 : 0,
-                $proforma['language'],
-                "Daňový doklad k zálohové faktuře {$proforma['varsymbol']}",
-                $advance,
-                $userId,
-            ]);
-            $finalId = (int) $pdo->lastInsertId();
-
-            // Zkopíruj všechny položky z proformy
-            $itemStmt = $pdo->prepare(
-                'INSERT INTO invoice_items
-                   (invoice_id, description, quantity, unit, unit_price_without_vat,
-                    vat_rate_id, vat_rate_snapshot,
-                    total_without_vat, total_vat, total_with_vat, order_index)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?)'
-            );
-            foreach ($proforma['items'] as $item) {
-                $itemStmt->execute([
-                    $finalId,
-                    $item['description'],
-                    $item['quantity'],
-                    $item['unit'],
-                    $item['unit_price_without_vat'],
-                    $item['vat_rate_id'],
-                    $item['vat_rate_snapshot'],
-                    $item['order_index'],
-                ]);
-            }
-
-            $pdo->commit();
+            $finalId = $this->creator->create($proformaId, $userId, $taxDate, $dueDate, $advance);
         } catch (\Throwable $e) {
-            $pdo->rollBack();
             return Json::error($response, 'create_failed', $e->getMessage(), 500);
         }
 
-        $this->calc->recompute($finalId);
-
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $this->logger->log('proforma.final_issued', $userId, 'invoice', $proformaId, [
-            'final_invoice_id'    => $finalId,
-            'advance_paid_amount' => $advance,
+            'final_invoice_id' => $finalId,
+            'trigger'          => 'manual',
         ], $ip, $request->getHeaderLine('User-Agent'));
 
         return Json::ok($response, [

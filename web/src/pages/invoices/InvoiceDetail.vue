@@ -83,6 +83,7 @@ function actionLabel(a: string): string {
     'invoice.approval_approved':      'invoice.actions.approval_approved',
     'invoice.approval_rejected':      'invoice.actions.approval_rejected',
     'invoice.approval_reset':         'invoice.actions.approval_reset',
+    'proforma.final_issued':          'invoice.actions.proforma_final_issued',
   }
   return map[a] ? (t(map[a]) as string) : a
 }
@@ -170,6 +171,25 @@ async function cancel() {
     }
   } catch (e: any) {
     toast.error( e?.response?.data?.error?.message || t('invoice.cancel_failed'))
+  } finally {
+    busy.value = null
+  }
+}
+
+async function issueFinalFromProforma() {
+  if (!invoice.value) return
+  if (invoice.value.invoice_type !== 'proforma' || invoice.value.status !== 'paid') return
+  if (!confirm(t('invoice.issue_final_confirm', { varsymbol: invoice.value.varsymbol || `#${invoice.value.id}` }))) return
+  busy.value = 'issue-final'
+  try {
+    const r = await invoicesApi.issueFinal(invoice.value.id)
+    if (!r?.final_invoice_id) {
+      toast.error(t('invoice.invalid_response'))
+      return
+    }
+    router.push(r.edit_url || `/invoices/${r.final_invoice_id}/edit`)
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error?.message || t('invoice.issue_final_failed'))
   } finally {
     busy.value = null
   }
@@ -266,6 +286,8 @@ async function send() {
 }
 
 const isDraft = computed(() => invoice.value?.status === 'draft')
+const isProforma = computed(() => invoice.value?.invoice_type === 'proforma')
+const canIssueFinal = computed(() => isProforma.value && invoice.value?.status === 'paid')
 const isIssued = computed(() => invoice.value && ['issued', 'sent', 'reminded'].includes(invoice.value.status))
 const canCancel = computed(() => invoice.value && ['issued', 'sent', 'reminded', 'paid'].includes(invoice.value.status)
   && !['credit_note', 'cancellation'].includes(invoice.value.invoice_type))
@@ -492,6 +514,11 @@ async function updateApprovalStatus() {
           <svg class="w-4 h-4 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
           {{ t('invoice.mark_paid') }}
         </button>
+        <button v-if="canIssueFinal" @click="issueFinalFromProforma" :disabled="busy !== null"
+          class="cursor-pointer px-3 h-9 text-sm bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white font-medium rounded-md inline-flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+          {{ busy === 'issue-final' ? '…' : t('invoice.issue_final') }}
+        </button>
       </div>
     </div>
 
@@ -617,10 +644,14 @@ async function updateApprovalStatus() {
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="bg-white border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.issue_date') }} / {{ t('invoice.tax_date') }} / {{ t('invoice.due_date') }}</h3>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">
+          {{ t('invoice.issue_date') }}
+          <template v-if="!isProforma"> / {{ t('invoice.tax_date') }}</template>
+          / {{ t('invoice.due_date') }}
+        </h3>
         <dl class="space-y-1.5 text-sm">
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('invoice.issue_date') }}</dt><dd>{{ formatDate(invoice.issue_date) }}</dd></div>
-          <div v-if="invoice.tax_date" class="flex justify-between"><dt class="text-neutral-500">{{ t('invoice.tax_date') }}</dt><dd>{{ formatDate(invoice.tax_date) }}</dd></div>
+          <div v-if="invoice.tax_date && !isProforma" class="flex justify-between"><dt class="text-neutral-500">{{ t('invoice.tax_date') }}</dt><dd>{{ formatDate(invoice.tax_date) }}</dd></div>
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('invoice.due_date') }}</dt><dd>{{ formatDate(invoice.due_date) }}</dd></div>
           <div v-if="invoice.paid_at" class="flex justify-between"><dt class="text-neutral-500">{{ t('status.paid') }}</dt><dd>{{ formatDate(invoice.paid_at) }}</dd></div>
         </dl>

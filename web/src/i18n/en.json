@@ -150,7 +150,8 @@
       "approval_request_test": "Test approval email",
       "approval_approved": "Approved by customer",
       "approval_rejected": "Rejected by customer",
-      "approval_reset": "Approval status reset"
+      "approval_reset": "Approval status reset",
+      "proforma_final_issued": "Final tax document issued from proforma"
     },
     "approval": {
       "badge": "Approval",
@@ -223,6 +224,9 @@
     "draft_id": "draft #{id}",
     "back_to_list": "← Back to list",
     "issue": "Issue",
+    "issue_final": "Issue final invoice",
+    "issue_final_confirm": "Issue the final tax document for paid proforma {varsymbol}?\n\nA draft invoice will be created with items copied from the proforma and the advance payment deducted. You'll be redirected to the editor afterwards.",
+    "issue_final_failed": "Failed to issue the final tax document",
     "delete_draft": "Delete",
     "pdf": "PDF",
     "send_test": "Send test",

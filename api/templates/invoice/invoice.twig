@@ -299,6 +299,13 @@
 <div class="note">{{ invoice.note_below_items|nl2br }}</div>
 {% endif %}
 
+{% if invoice.invoice_type == 'proforma' %}
+<div class="note proforma-note">
+  {{ t('Nejedná se o daňový doklad, ten bude vystaven po připsání platby.',
+       'This is not a tax document. The tax document will be issued after payment is received.') }}
+</div>
+{% endif %}
+
 {% if supplier.commercial_register %}
 <div class="commercial-register">{{ supplier.commercial_register }}</div>
 {% endif %}

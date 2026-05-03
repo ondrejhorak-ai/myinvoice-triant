@@ -150,7 +150,8 @@
       "approval_request_test": "Test schvalovacího emailu",
       "approval_approved": "Schváleno zákazníkem",
       "approval_rejected": "Zamítnuto zákazníkem",
-      "approval_reset": "Stav schválení resetován"
+      "approval_reset": "Stav schválení resetován",
+      "proforma_final_issued": "Vystaven daňový doklad k záloze"
     },
     "approval": {
       "badge": "Schválení",
@@ -223,6 +224,9 @@
     "draft_id": "koncept #{id}",
     "back_to_list": "← Zpět na seznam",
     "issue": "Vystavit",
+    "issue_final": "Vystavit fakturu k záloze",
+    "issue_final_confirm": "Vystavit daňový doklad k zaplacené záloze {varsymbol}?\n\nVytvoří se koncept faktury s položkami zkopírovanými z proformy a odečtem zaplacené zálohy. Po vytvoření tě přesměruji do editoru.",
+    "issue_final_failed": "Vystavení daňového dokladu selhalo",
     "delete_draft": "Smazat",
     "pdf": "PDF",
     "send_test": "Test odeslání",
