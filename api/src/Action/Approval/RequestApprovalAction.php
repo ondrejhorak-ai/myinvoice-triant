@@ -6,6 +6,7 @@ namespace MyInvoice\Action\Approval;
 
 use MyInvoice\Http\Json;
 use MyInvoice\Http\SupplierGuard;
+use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Middleware\AuthMiddleware;
 use MyInvoice\Repository\InvoiceRepository;
@@ -42,6 +43,7 @@ final class RequestApprovalAction
         private readonly ApprovalEmailVarsBuilder $varsBuilder,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
+        private readonly Config $config,
     ) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
@@ -71,8 +73,9 @@ final class RequestApprovalAction
             return Json::error($response, 'pdf_failed', 'Nepodařilo se vygenerovat PDF výkazu: ' . $e->getMessage(), 500);
         }
 
-        // Vygeneruj nový token (přepíše dřívější requested/rejected)
-        $token = $this->repo->setApprovalRequested($id);
+        // Vygeneruj nový token (přepíše dřívější requested/rejected). TTL z config.
+        $ttlDays = (int) $this->config->get('approval.token_ttl_days', 30);
+        $token = $this->repo->setApprovalRequested($id, $ttlDays);
         $invoice = $this->repo->find($id);
 
         $locale = (string) ($invoice['language'] ?? 'cs');

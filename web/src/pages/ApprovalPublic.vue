@@ -15,7 +15,8 @@ const loadError = ref<string>('')
 type Mode = 'review' | 'reject_form' | 'done'
 const mode = ref<Mode>('review')
 const decidedBy = ref('')
-const reason = ref('')
+const reason = ref('')          // povinný pro reject
+const comment = ref('')         // volitelný pro approve
 const submitting = ref(false)
 const submitError = ref('')
 const result = ref<{ decision: 'approved' | 'rejected'; message: string } | null>(null)
@@ -106,6 +107,7 @@ async function submit(decision: 'approve' | 'reject') {
       decision,
       decided_by_email: decidedBy.value.trim() || null,
       rejection_reason: decision === 'reject' ? reason.value.trim() : null,
+      comment: decision === 'approve' ? (comment.value.trim() || null) : null,
       cf_turnstile_response: turnstile.token.value || null,
     })
     result.value = { decision: r.decision, message: r.message }
@@ -242,13 +244,26 @@ async function submit(decision: 'approve' | 'reject') {
                        'After approval, an invoice will be sent to you immediately. Everything is automated — no reply needed.') }}
             </p>
 
-            <!-- Decided by email (volitelné, pro audit) -->
-            <div v-if="mode === 'review'" class="mb-4">
-              <label class="block text-xs font-medium text-neutral-600 mb-1">
-                {{ tt('Váš email (volitelně, pro audit)', 'Your email (optional, for audit)') }}
-              </label>
-              <input v-model="decidedBy" type="email" :placeholder="tt('jana@firma.cz', 'jane@company.com')"
-                class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm" />
+            <!-- Decided by email + komentář (volitelné, pro audit) -->
+            <div v-if="mode === 'review'" class="mb-4 space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1">
+                  {{ tt('Váš email (volitelně, pro audit)', 'Your email (optional, for audit)') }}
+                </label>
+                <input v-model="decidedBy" type="email" :placeholder="tt('jana@firma.cz', 'jane@company.com')"
+                  class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1">
+                  {{ tt('Komentář ke schválení (volitelně)', 'Comment with approval (optional)') }}
+                </label>
+                <textarea v-model="comment" rows="2"
+                  :placeholder="tt('Např. „Schvaluji, prosím vystavit fakturu až 1.6.“', 'E.g. “Approved, but please issue the invoice on June 1.”')"
+                  class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
+                <p class="text-xs text-neutral-500 mt-1">
+                  {{ tt('Při zamítnutí je důvod povinný v dalším kroku.', 'When rejecting, a reason will be required in the next step.') }}
+                </p>
+              </div>
             </div>
 
             <!-- Reject form -->

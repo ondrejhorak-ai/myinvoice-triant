@@ -30,6 +30,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/codebooks',        name: 'admin-codebooks', component: () => import('@/pages/admin/Codebooks.vue'),  meta: { adminOnly: true } },
       { path: 'admin/export',           name: 'admin-export',    component: () => import('@/pages/admin/Export.vue'),     meta: { adminOnly: true } },
       { path: 'admin/email-templates',  name: 'admin-email-templates', component: () => import('@/pages/admin/EmailTemplates.vue'), meta: { adminOnly: true } },
+      { path: 'admin/approvals',        name: 'admin-approvals', component: () => import('@/pages/admin/Approvals.vue'), meta: { adminOnly: true } },
       { path: 'profile/totp',           name: 'profile-totp',          component: () => import('@/pages/TotpSetup.vue') },
     ],
   },

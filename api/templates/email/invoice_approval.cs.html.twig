@@ -2,8 +2,14 @@
 
 {% block content %}
 <h1 style="margin:0 0 16px;font-size:22px;font-weight:600;color:#15131D;">
-  {% if is_test %}<span style="color:#E8A547;">[TEST] </span>{% endif %}Dobrý den,
+  {% if is_test %}<span style="color:#E8A547;">[TEST] </span>{% endif %}{% if is_reminder %}<span style="color:#E8A547;">Připomínka</span> — {% endif %}Dobrý den,
 </h1>
+
+{% if is_reminder %}
+<p style="margin:0 0 16px;padding:10px 14px;background:#FDF6E9;border-left:3px solid #E8A547;border-radius:4px;">
+  Tohle je <strong>upomínka</strong> — již jsme Vás žádali o schválení tohoto výkazu, ale zatím jsme nedostali odpověď.
+</p>
+{% endif %}
 
 <p style="margin:0 0 16px;">
   v příloze posíláme <strong>výkaz víceprací</strong> za zakázku

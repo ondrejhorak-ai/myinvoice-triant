@@ -321,7 +321,14 @@ const approvalStatus = computed(() => invoice.value?.approval_status ?? 'none')
 const canRequestApproval = computed(() =>
   requiresApproval.value && invoice.value?.status === 'draft'
 )
+const approvalTokenExpired = computed(() => {
+  if (approvalStatus.value !== 'requested') return false
+  const exp = invoice.value?.approval_token_expires_at
+  if (!exp) return false
+  return new Date(exp) < new Date()
+})
 const approvalBadgeClass = computed(() => {
+  if (approvalTokenExpired.value) return 'bg-warning-50 text-warning-600'
   switch (approvalStatus.value) {
     case 'requested': return 'bg-primary-100 text-primary-700'
     case 'approved':  return 'bg-success-50 text-success-600'
@@ -374,10 +381,14 @@ async function updateApprovalStatus() {
   }
   busy.value = 'approval-status'
   try {
+    // approved: komentář volitelný, rejected: reason povinný, none: nic neposílat (reset)
+    const text = approvalStatusDraft.value === 'none'
+      ? undefined
+      : (approvalRejectReason.value.trim() || undefined)
     const r = await invoicesApi.updateApprovalStatus(
       invoice.value.id,
       approvalStatusDraft.value,
-      approvalStatusDraft.value === 'rejected' ? approvalRejectReason.value.trim() : undefined,
+      text,
     )
     invoice.value = r.invoice
     approvalStatusOpen.value = false
@@ -414,7 +425,10 @@ async function updateApprovalStatus() {
         </span>
         <span v-if="requiresApproval"
           class="text-xs px-2 py-0.5 rounded font-normal" :class="approvalBadgeClass">
-          {{ t('invoice.approval.badge') }}: {{ t('invoice.approval.status_' + approvalStatus) }}
+          {{ t('invoice.approval.badge') }}:
+          {{ approvalTokenExpired
+              ? t('invoice.approval.status_expired')
+              : t('invoice.approval.status_' + approvalStatus) }}
         </span>
       </h1>
       <div class="flex flex-wrap gap-2 justify-end">
@@ -761,6 +775,23 @@ async function updateApprovalStatus() {
               <dt class="text-neutral-500 w-32">{{ t('invoice.approval.requested_at') }}</dt>
               <dd class="font-mono text-xs">{{ invoice.approval_requested_at }}</dd>
             </div>
+            <div v-if="invoice.approval_token_expires_at && approvalStatus === 'requested'" class="flex items-baseline gap-3">
+              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.expires_at') }}</dt>
+              <dd class="font-mono text-xs"
+                :class="approvalTokenExpired ? 'text-warning-600 font-semibold' : ''">
+                {{ invoice.approval_token_expires_at }}
+                <span v-if="approvalTokenExpired" class="ml-1">({{ t('invoice.approval.status_expired') }})</span>
+              </dd>
+            </div>
+            <div v-if="invoice.approval_reminder_count > 0" class="flex items-baseline gap-3">
+              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.reminders_sent') }}</dt>
+              <dd class="text-xs">
+                {{ invoice.approval_reminder_count }}×
+                <span v-if="invoice.approval_reminder_at" class="text-neutral-500">
+                  ({{ t('invoice.approval.last_reminder') }}: {{ invoice.approval_reminder_at }})
+                </span>
+              </dd>
+            </div>
             <div v-if="invoice.approval_decided_at" class="flex items-baseline gap-3">
               <dt class="text-neutral-500 w-32">{{ t('invoice.approval.decided_at') }}</dt>
               <dd class="font-mono text-xs">{{ invoice.approval_decided_at }}</dd>
@@ -770,8 +801,15 @@ async function updateApprovalStatus() {
               <dd class="text-xs">{{ invoice.approval_decided_by_email }}</dd>
             </div>
             <div v-if="invoice.approval_rejection_reason" class="flex items-baseline gap-3">
-              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.rejection_reason') }}</dt>
-              <dd class="text-sm text-danger-600 whitespace-pre-wrap">{{ invoice.approval_rejection_reason }}</dd>
+              <dt class="text-neutral-500 w-32">
+                {{ approvalStatus === 'rejected'
+                    ? t('invoice.approval.rejection_reason')
+                    : t('invoice.approval.comment') }}
+              </dt>
+              <dd class="text-sm whitespace-pre-wrap"
+                :class="approvalStatus === 'rejected' ? 'text-danger-600' : 'text-neutral-700'">
+                {{ invoice.approval_rejection_reason }}
+              </dd>
             </div>
           </dl>
           <button v-if="isAdmin" @click="openApprovalStatusModal" :disabled="busy !== null"
@@ -801,6 +839,14 @@ async function updateApprovalStatus() {
         <div v-if="approvalStatusDraft === 'rejected'" class="mb-4">
           <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.approval.rejection_reason') }} *</label>
           <textarea v-model="approvalRejectReason" rows="2" required
+            class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
+        </div>
+        <div v-else-if="approvalStatusDraft === 'approved'" class="mb-4">
+          <label class="block text-sm font-medium text-neutral-700 mb-1">
+            {{ t('invoice.approval.comment') }}
+            <span class="text-xs text-neutral-500 font-normal">({{ t('invoice.approval.comment_optional') }})</span>
+          </label>
+          <textarea v-model="approvalRejectReason" rows="2"
             class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
         </div>
         <div class="flex justify-end gap-2">

@@ -13,6 +13,8 @@ nasazuje). Zbytek je psaný pro běžného uživatele — bez programátorského
 
 ---
 
+![Přehled (dashboard)](img/01_dashboard.webp)
+
 ### Začínáme
 
 1. [Úvod — co MyInvoice.cz umí](01_Uvod.md)

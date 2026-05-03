@@ -1,8 +1,12 @@
 {% extends '_layout.txt.twig' %}
 
 {% block content %}
-{% if is_test %}[TEST] {% endif %}Dobrý den,
+{% if is_test %}[TEST] {% endif %}{% if is_reminder %}[PŘIPOMÍNKA] {% endif %}Dobrý den,
 ------------
+
+{% if is_reminder %}>>> UPOMÍNKA: již jsme Vás žádali o schválení tohoto výkazu, ale zatím jsme nedostali odpověď. <<<
+
+{% endif %}
 
 v příloze posíláme výkaz víceprací{% if invoice.project_name %} za zakázku „{{ invoice.project_name }}"{% endif %}{% if invoice.client_company_name %} pro {{ invoice.client_company_name }}{% endif %} ke schválení.
 

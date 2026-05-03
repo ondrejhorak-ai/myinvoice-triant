@@ -22,9 +22,15 @@ final class ApprovalEmailVarsBuilder
     /**
      * @param string $approvalToken  Token uložený v invoices.approval_token
      * @param bool   $isTest         True = TEST odeslání, používá dummy token v URL
+     * @param bool   $isReminder     True = upomínka (cron-send-approval-reminders), jiný subject + nadpis
      */
-    public function build(array $invoice, string $approvalToken, bool $isTest, string $locale): array
-    {
+    public function build(
+        array $invoice,
+        string $approvalToken,
+        bool $isTest,
+        string $locale,
+        bool $isReminder = false,
+    ): array {
         $appUrl = rtrim((string) $this->config->get('app.url', ''), '/');
         $approvalUrl = $appUrl . '/approval/' . $approvalToken;
 
@@ -33,9 +39,16 @@ final class ApprovalEmailVarsBuilder
         $invoice['varsymbol_or_id'] = $varsymbolOrId;
 
         $supplierName = $this->resolveSupplierName($invoice);
-        $subject = $locale === 'en'
-            ? "Work report — please approve ({$varsymbolOrId})"
-            : "Žádost o schválení výkazu práce ({$varsymbolOrId})";
+
+        if ($isReminder) {
+            $subject = $locale === 'en'
+                ? "Reminder: please approve work report ({$varsymbolOrId})"
+                : "Připomínka: žádost o schválení výkazu ({$varsymbolOrId})";
+        } else {
+            $subject = $locale === 'en'
+                ? "Work report — please approve ({$varsymbolOrId})"
+                : "Žádost o schválení výkazu práce ({$varsymbolOrId})";
+        }
         if ($isTest) $subject = '[TEST] ' . $subject;
         if ($supplierName !== '') $subject .= " — {$supplierName}";
 
@@ -44,6 +57,7 @@ final class ApprovalEmailVarsBuilder
             'work_report'   => $this->workReports->findByInvoice((int) $invoice['id']),
             'approval_url'  => $approvalUrl,
             'is_test'       => $isTest,
+            'is_reminder'   => $isReminder,
             'subject'       => $subject,
             'supplier'      => $this->loadSupplierFooter($invoice),
         ];

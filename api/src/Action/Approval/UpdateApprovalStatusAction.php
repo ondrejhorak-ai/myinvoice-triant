@@ -81,11 +81,14 @@ final class UpdateApprovalStatusAction
             return Json::ok($response, ['invoice' => $this->repo->find($id)]);
         }
 
-        // approved → uložit status, vystavit + poslat fakturu
-        $this->repo->setApprovalDecision($id, 'approved', (string) ($user['email'] ?? null), null);
+        // approved → uložit status (volitelný komentář sdílí sloupec rejection_reason),
+        // vystavit + poslat fakturu
+        $approveComment = $reason !== '' ? $reason : null;
+        $this->repo->setApprovalDecision($id, 'approved', (string) ($user['email'] ?? null), $approveComment);
         $this->logger->log('invoice.approval_approved', $user['id'] ?? null, 'invoice', $id, [
             'by' => 'admin',
             'decided_by_email' => $user['email'] ?? null,
+            'comment' => $approveComment,
         ], $ip, $ua);
 
         // Auto-issue + send (idempotentní pokud faktura už není draft)

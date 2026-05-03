@@ -184,6 +184,13 @@ return [
         'fail_open'   => true,                       // pokud Cloudflare API timeoutuje: true=povolit login, false=odmítnout
         'action'      => 'login',                    // pro Turnstile analytics, lze rozlišit per route
     ],
+    'approval' => [
+        // Schvalování výkazu zákazníkem přes veřejný odkaz s tokenem.
+        'token_ttl_days'        => 30,               // za kolik dní token vyprší (přesměrovat „odeslat znovu" v UI)
+        'reminder_after_days'   => 5,                // cron: kolik dní bez reakce → poslat upomínku
+        'max_reminders'         => 3,                // max počet upomínek na 1 token, pak přestat
+        'cc_supplier_on_reminder' => true,           // BCC dodavateli při každé upomínce (audit)
+    ],
     'ip_allowlist' => [
         // Volitelný IP firewall na úrovni aplikace (mimo Apache/IIS).
         'enabled' => false,                          // true = blokovat mimo allow seznam

@@ -61,7 +61,8 @@ export interface PublicApprovalData {
 export interface DecidePayload {
   decision: 'approve' | 'reject'
   decided_by_email?: string | null
-  rejection_reason?: string | null
+  rejection_reason?: string | null  // povinné pro reject
+  comment?: string | null            // volitelné pro approve (sdílí sloupec)
   cf_turnstile_response?: string | null
 }
 

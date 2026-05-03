@@ -4,8 +4,6 @@ MyInvoice.cz je **český fakturační systém pro freelancery, OSVČ a malé fi
 Běží na vlastním serveru (nebo v Dockeru) — žádné měsíční poplatky, žádný
 externí cloud, tvoje data jsou jen u tebe.
 
-![Přehled (dashboard)](img/01_dashboard.webp)
-
 ## 1.1 Hlavní funkce
 
 - **Vystavování faktur** — faktura, zálohová (proforma), opravný daňový doklad

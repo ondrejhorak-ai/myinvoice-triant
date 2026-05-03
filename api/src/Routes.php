@@ -14,6 +14,7 @@ use MyInvoice\Action\Client\GetClientAction;
 use MyInvoice\Action\Client\ListClientsAction;
 use MyInvoice\Action\Client\UpdateClientAction;
 use MyInvoice\Action\Codebook\CodebookAction;
+use MyInvoice\Action\Admin\ApprovalListAction;
 use MyInvoice\Action\Admin\EmailTemplateAction;
 use MyInvoice\Action\Approval\PublicApprovalDecideAction;
 use MyInvoice\Action\Approval\PublicApprovalGetAction;
@@ -166,6 +167,9 @@ final class Routes
         $app->post   ('/api/admin/users',           [UserAdminAction::class, 'create']);
         $app->put    ('/api/admin/users/{id:[0-9]+}', [UserAdminAction::class, 'update']);
         $app->delete ('/api/admin/users/{id:[0-9]+}', [UserAdminAction::class, 'delete']);
+
+        // Approval inbox (admin only) — globální seznam schvalování
+        $app->get    ('/api/admin/approvals',       ApprovalListAction::class);
 
         // Email šablony (admin only)
         $app->get    ('/api/admin/email-templates',                                  [EmailTemplateAction::class, 'list']);

@@ -98,11 +98,16 @@ final class PublicApprovalDecideAction
             ]);
         }
 
-        // approve
-        $this->repo->setApprovalDecision($invoiceId, 'approved', $decidedBy, null);
+        // approve — komentář je volitelný (sdílí sloupec approval_rejection_reason)
+        $approveComment = isset($body['comment']) ? trim((string) $body['comment']) : '';
+        if ($approveComment !== '' && mb_strlen($approveComment) > 2000) {
+            $approveComment = mb_substr($approveComment, 0, 2000);
+        }
+        $this->repo->setApprovalDecision($invoiceId, 'approved', $decidedBy, $approveComment !== '' ? $approveComment : null);
         $this->logger->log('invoice.approval_approved', null, 'invoice', $invoiceId, [
             'by' => 'public',
             'decided_by_email' => $decidedBy,
+            'comment' => $approveComment !== '' ? $approveComment : null,
         ], $ip, $ua);
 
         try {

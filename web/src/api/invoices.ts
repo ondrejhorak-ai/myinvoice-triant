@@ -63,10 +63,13 @@ export interface Invoice {
   status: InvoiceStatus
   approval_status: ApprovalStatus
   approval_token: string | null
+  approval_token_expires_at: string | null
   approval_requested_at: string | null
   approval_decided_at: string | null
   approval_decided_by_email: string | null
   approval_rejection_reason: string | null
+  approval_reminder_at: string | null
+  approval_reminder_count: number
   project_requires_approval?: boolean
   sent_at: string | null
   last_reminder_at: string | null

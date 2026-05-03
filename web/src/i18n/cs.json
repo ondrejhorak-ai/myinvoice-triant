@@ -4,7 +4,7 @@
     "dashboard": "Přehled", "invoices": "Faktury", "clients": "Klienti",
     "projects": "Zakázky", "bank": "Banka", "system": "Systém",
     "settings": "Nastavení", "supplier_current": "Dodavatel", "suppliers": "Dodavatelé", "codebooks": "Číselníky", "users": "Uživatelé",
-    "log": "Log", "exports": "Exporty", "email_templates": "Email šablony", "help": "Nápověda", "logout": "Odhlásit"
+    "log": "Log", "exports": "Exporty", "email_templates": "Email šablony", "approvals": "Schvalování", "help": "Nápověda", "logout": "Odhlásit"
   },
   "auth": {
     "login": "Přihlásit", "login_title": "Přihlášení", "login_subtitle": "Přihlaste se ke svému účtu",
@@ -32,6 +32,18 @@
     "totp_enable_btn": "Aktivovat TOTP",
     "totp_enabled_done": "TOTP aktivováno. Při dalším přihlášení budeš požádán o kód.",
     "totp_disable_hint": "Pro deaktivaci kontaktuj admina (reset se provádí ručně v DB)."
+  },
+  "approval_inbox": {
+    "title": "Schvalování výkazů",
+    "subtitle": "Globální přehled faktur, kde zákazník schvaluje výkaz víceprací.",
+    "filter_requested": "Vyžádán",
+    "filter_approved": "Schválen",
+    "filter_rejected": "Zamítnut",
+    "filter_all": "Vše",
+    "overdue_only": "Jen po 5 dnech bez reakce",
+    "counts": "Vyžádán: {requested} · Schválen: {approved} · Zamítnut: {rejected} · Celkem: {total}",
+    "empty": "Žádné záznamy odpovídající filtru.",
+    "days_ago": "před {n} dny"
   },
   "common": {
     "loading": "Načítám…", "save": "Uložit", "cancel": "Zrušit",
@@ -138,10 +150,16 @@
       "decided_at": "Rozhodnuto",
       "decided_by": "Rozhodnuto kým",
       "rejection_reason": "Důvod zamítnutí",
+      "comment": "Komentář",
+      "comment_optional": "volitelné",
       "status_none": "Neurčeno",
       "status_requested": "Vyžádán",
       "status_approved": "Schválen",
       "status_rejected": "Zamítnut",
+      "status_expired": "Vypršel",
+      "expires_at": "Platnost odkazu do",
+      "reminders_sent": "Upomínky",
+      "last_reminder": "naposledy",
       "send_request": "Odeslat ke schválení",
       "test_send": "Test schválení",
       "request_confirm": "Odeslat výkaz zákazníkovi ke schválení? Bude mu vygenerován jednorázový odkaz.",

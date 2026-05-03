@@ -44,6 +44,10 @@ export const adminApi = {
     api.put<AdminUser>(`/admin/users/${id}`, payload).then(r => r.data),
   deleteUser: (id: number) => api.delete(`/admin/users/${id}`),
 
+  // Approvals inbox
+  listApprovals: (params: { status?: 'requested' | 'approved' | 'rejected' | 'all'; overdue_days?: number } = {}) =>
+    api.get<{ data: ApprovalInboxItem[] }>('/admin/approvals', { params }).then(r => r.data.data),
+
   // Email templates
   listEmailTemplates: () =>
     api.get<{ data: EmailTemplateListItem[] }>('/admin/email-templates').then(r => r.data.data),
@@ -53,6 +57,30 @@ export const adminApi = {
     api.put(`/admin/email-templates/${code}/${locale}`, payload),
   resetEmailTemplate: (code: string, locale: string) =>
     api.delete(`/admin/email-templates/${code}/${locale}`),
+}
+
+export interface ApprovalInboxItem {
+  id: number
+  varsymbol: string | null
+  invoice_type: 'invoice' | 'proforma' | 'credit_note' | 'cancellation'
+  status: string
+  client_id: number
+  project_id: number | null
+  client_company_name: string
+  client_main_email: string | null
+  project_name: string | null
+  currency: string
+  total_with_vat: number
+  amount_to_pay: number
+  approval_status: 'none' | 'requested' | 'approved' | 'rejected'
+  approval_token: string | null
+  approval_token_expires_at: string | null
+  approval_requested_at: string | null
+  approval_decided_at: string | null
+  approval_decided_by_email: string | null
+  approval_rejection_reason: string | null
+  approval_reminder_at: string | null
+  approval_reminder_count: number
 }
 
 export interface EmailTemplateListItem {

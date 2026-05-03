@@ -1,8 +1,12 @@
 {% extends '_layout.txt.twig' %}
 
 {% block content %}
-{% if is_test %}[TEST] {% endif %}Hello,
+{% if is_test %}[TEST] {% endif %}{% if is_reminder %}[REMINDER] {% endif %}Hello,
 ------------
+
+{% if is_reminder %}>>> REMINDER: we already asked for your approval of this work report but haven't received a response yet. <<<
+
+{% endif %}
 
 please find attached a work report{% if invoice.project_name %} for project "{{ invoice.project_name }}"{% endif %}{% if invoice.client_company_name %} on behalf of {{ invoice.client_company_name }}{% endif %} awaiting your approval.
 

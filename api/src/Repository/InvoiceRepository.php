@@ -399,6 +399,9 @@ final class InvoiceRepository
         }
         if (isset($row['client_reverse_charge'])) $row['client_reverse_charge'] = (bool) $row['client_reverse_charge'];
         if (array_key_exists('reminder_count', $row)) $row['reminder_count'] = (int) $row['reminder_count'];
+        if (array_key_exists('approval_reminder_count', $row)) {
+            $row['approval_reminder_count'] = (int) $row['approval_reminder_count'];
+        }
         if (array_key_exists('project_requires_approval', $row)) {
             $row['project_requires_approval'] = $row['project_requires_approval'] !== null
                 ? (bool) $row['project_requires_approval']
@@ -408,21 +411,26 @@ final class InvoiceRepository
     }
 
     /**
-     * Vygeneruje a uloží nový approval_token, nastaví status='requested'.
+     * Vygeneruje a uloží nový approval_token, nastaví status='requested',
+     * vyresetuje předchozí decision/reminder pole. TTL je v dnech (cfg.approval.token_ttl_days).
      * Vrací nový token.
      */
-    public function setApprovalRequested(int $invoiceId): string
+    public function setApprovalRequested(int $invoiceId, int $ttlDays = 30): string
     {
         $token = bin2hex(random_bytes(24)); // 48 hex chars
+        $expiresExpr = 'DATE_ADD(NOW(), INTERVAL ' . max(1, $ttlDays) . ' DAY)';
         $this->db->pdo()->prepare(
-            'UPDATE invoices
-                SET approval_status = "requested",
+            "UPDATE invoices
+                SET approval_status = 'requested',
                     approval_token = ?,
+                    approval_token_expires_at = $expiresExpr,
                     approval_requested_at = NOW(),
                     approval_decided_at = NULL,
                     approval_decided_by_email = NULL,
-                    approval_rejection_reason = NULL
-              WHERE id = ?'
+                    approval_rejection_reason = NULL,
+                    approval_reminder_at = NULL,
+                    approval_reminder_count = 0
+              WHERE id = ?"
         )->execute([$token, $invoiceId]);
         return $token;
     }
@@ -456,22 +464,107 @@ final class InvoiceRepository
             'UPDATE invoices
                 SET approval_status = "none",
                     approval_token = NULL,
+                    approval_token_expires_at = NULL,
                     approval_requested_at = NULL,
                     approval_decided_at = NULL,
                     approval_decided_by_email = NULL,
-                    approval_rejection_reason = NULL
+                    approval_rejection_reason = NULL,
+                    approval_reminder_at = NULL,
+                    approval_reminder_count = 0
               WHERE id = ?'
         )->execute([$invoiceId]);
     }
 
-    /** Najde fakturu podle approval_token (jen aktivní — token nesmí být null). */
+    /**
+     * Najde fakturu podle approval_token. Pokud token expiroval (token_expires_at < NOW()),
+     * vrátí null — pro caller je to stejný case jako neexistující token.
+     */
     public function findByApprovalToken(string $token): ?array
     {
-        $stmt = $this->db->pdo()->prepare('SELECT id FROM invoices WHERE approval_token = ?');
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT id FROM invoices
+              WHERE approval_token = ?
+                AND (approval_token_expires_at IS NULL OR approval_token_expires_at > NOW())'
+        );
         $stmt->execute([$token]);
         $id = $stmt->fetchColumn();
         if ($id === false) return null;
         return $this->find((int) $id);
+    }
+
+    /**
+     * Pro admin „Approval inbox" + reminder cron. Vrací requested faktury filtrované
+     * podle dní od poslední upomínky/žádosti.
+     *
+     * @param int|null $supplierId  null = všichni dodavatelé (cron)
+     * @param int|null $minDaysSince  minimum dní od poslední aktivity (NULL = bez filtru)
+     * @param int|null $maxReminders  filtr: vyber jen ty s reminder_count < limit
+     * @return list<array<string,mixed>>
+     */
+    public function listForApprovalInbox(
+        ?int $supplierId = null,
+        ?string $statusFilter = null,
+        ?int $minDaysSince = null,
+        ?int $maxReminders = null,
+    ): array {
+        $where = ['1=1'];
+        $params = [];
+
+        if ($supplierId !== null) {
+            $where[] = 'i.supplier_id = ?';
+            $params[] = $supplierId;
+        }
+        if ($statusFilter !== null) {
+            $where[] = 'i.approval_status = ?';
+            $params[] = $statusFilter;
+        } else {
+            // default = jen non-none (vše co prošlo schvalovacím flow)
+            $where[] = "i.approval_status != 'none'";
+        }
+        if ($minDaysSince !== null) {
+            $where[] = 'COALESCE(i.approval_reminder_at, i.approval_requested_at) <= DATE_SUB(NOW(), INTERVAL ? DAY)';
+            $params[] = $minDaysSince;
+        }
+        if ($maxReminders !== null) {
+            $where[] = 'i.approval_reminder_count < ?';
+            $params[] = $maxReminders;
+        }
+
+        $whereSql = implode(' AND ', $where);
+        $sql = "SELECT i.id, i.varsymbol, i.invoice_type, i.status, i.supplier_id,
+                       i.client_id, i.project_id, i.currency_id, i.language,
+                       i.total_with_vat, i.amount_to_pay,
+                       i.approval_status, i.approval_token, i.approval_token_expires_at,
+                       i.approval_requested_at, i.approval_decided_at,
+                       i.approval_decided_by_email, i.approval_rejection_reason,
+                       i.approval_reminder_at, i.approval_reminder_count,
+                       c.company_name AS client_company_name, c.main_email AS client_main_email,
+                       p.name AS project_name,
+                       cur.code AS currency
+                  FROM invoices i
+                  JOIN clients c ON c.id = i.client_id
+             LEFT JOIN projects p ON p.id = i.project_id
+                  JOIN currencies cur ON cur.id = i.currency_id
+                 WHERE $whereSql
+                 ORDER BY i.approval_requested_at DESC";
+
+        $stmt = $this->db->pdo()->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(fn (array $r) => $this->castInvoice($r), $rows);
+    }
+
+    /**
+     * Označ že upomínka byla poslána (cron-send-approval-reminders.php).
+     */
+    public function markApprovalReminderSent(int $invoiceId): void
+    {
+        $this->db->pdo()->prepare(
+            'UPDATE invoices
+                SET approval_reminder_at = NOW(),
+                    approval_reminder_count = approval_reminder_count + 1
+              WHERE id = ?'
+        )->execute([$invoiceId]);
     }
 
     private function castItem(array $row): array
