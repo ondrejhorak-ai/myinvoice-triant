@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-05-04
+
+### Added
+
+- **Upomínky — per-supplier + per-klient přepínač** automatického odesílání.
+  Globální cron upomínek (po splatnosti / před splatností) lze nyní vypnout
+  na úrovni dodavatele i jednotlivého klienta. Manuální odeslání zůstává
+  vždy dostupné.
+- **Klient — výchozí hodinová sazba** se ukládá na klientovi a
+  předvyplňuje se při vytváření nové zakázky i při přidávání řádku
+  výkazu víceprací do faktury.
+
+### Changed
+
+- **VIES ověření CZ DIČ** používá ARES místo VIES (rychlejší, spolehlivější),
+  cache TTL zkrácena na 3 hodiny.
+- **Editor faktury** — při změně klienta/zakázky se osvěží sazba (DPH i
+  hodinová) u prázdné položky a u řádku výkazu víceprací, takže nově
+  zadávané položky vždy reflektují aktuální nastavení.
+
+### Fixed
+
+- Předvyplnění hodinové sazby v editoru faktury nerespektovalo default
+  z klienta — opraveno.
+
 ## [1.7.0] — 2026-05-04
 
 ### Added

@@ -103,8 +103,6 @@ Tlačítko **Odeslat e-mailem** (na detailu faktury). E-mail jde na:
 Předmět + tělo e-mailu se vezme ze šablony `invoice_new` (CZ / EN podle jazyka
 klienta) — viz [15. Nastavení → § 15.5](15_Nastaveni.md).
 
-![Náhled odeslaného e-mailu klientovi](img/09_email.webp)
-
 Po odeslání:
 
 - Status faktury → `sent`
