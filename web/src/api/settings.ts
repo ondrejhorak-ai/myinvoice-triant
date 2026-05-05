@@ -75,6 +75,16 @@ export interface Country {
   uses_count?: number
 }
 
+export interface Unit {
+  id: number
+  code: string
+  label_cs: string
+  label_en: string
+  is_default: boolean
+  display_order: number
+  items_count?: number
+}
+
 export const settingsApi = {
   getSupplier: () => api.get<Supplier>('/settings/supplier').then(r => r.data),
   updateSupplier: (payload: Partial<Supplier>) => api.put<Supplier>('/settings/supplier', payload).then(r => r.data),
@@ -95,4 +105,9 @@ export const settingsApi = {
   createCountry:  (p: Partial<Country>) => api.post('/settings/countries', p).then(r => r.data),
   updateCountry:  (id: number, p: Partial<Country>) => api.put(`/settings/countries/${id}`, p).then(r => r.data),
   deleteCountry:  (id: number) => api.delete(`/settings/countries/${id}`).then(r => r.data),
+
+  listUnits:  () => api.get<Unit[]>('/settings/units').then(r => r.data),
+  createUnit: (p: Partial<Unit>) => api.post('/settings/units', p).then(r => r.data),
+  updateUnit: (id: number, p: Partial<Unit>) => api.put(`/settings/units/${id}`, p).then(r => r.data),
+  deleteUnit: (id: number) => api.delete(`/settings/units/${id}`).then(r => r.data),
 }

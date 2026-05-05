@@ -104,6 +104,7 @@ final class Routes
         $app->get('/api/codebooks/countries',  [CodebookAction::class, 'countries']);
         $app->get('/api/codebooks/currencies', [CodebookAction::class, 'currencies']);
         $app->get('/api/codebooks/vat-rates',  [CodebookAction::class, 'vatRates']);
+        $app->get('/api/codebooks/units',      [CodebookAction::class, 'units']);
 
         // Clients
         $app->get   ('/api/clients',                 ListClientsAction::class);
@@ -207,6 +208,11 @@ final class Routes
         $app->post   ('/api/settings/countries',                      [SettingsAction::class, 'createCountry']);
         $app->put    ('/api/settings/countries/{id:[0-9]+}',          [SettingsAction::class, 'updateCountry']);
         $app->delete ('/api/settings/countries/{id:[0-9]+}',          [SettingsAction::class, 'deleteCountry']);
+
+        $app->get    ('/api/settings/units',                          [SettingsAction::class, 'listUnits']);
+        $app->post   ('/api/settings/units',                          [SettingsAction::class, 'createUnit']);
+        $app->put    ('/api/settings/units/{id:[0-9]+}',              [SettingsAction::class, 'updateUnit']);
+        $app->delete ('/api/settings/units/{id:[0-9]+}',              [SettingsAction::class, 'deleteUnit']);
 
         // Bank statements (M5b)
         $app->post ('/api/bank-statements/upload',           [BankStatementAction::class, 'upload']);

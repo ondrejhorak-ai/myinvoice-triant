@@ -56,6 +56,22 @@ final class CodebookAction
         ], $rows));
     }
 
+    public function units(Request $request, Response $response): Response
+    {
+        $rows = $this->db->pdo()->query(
+            'SELECT id, code, label_cs, label_en, is_default, display_order
+               FROM units ORDER BY display_order, code'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+        return Json::ok($response, array_map(fn (array $r) => [
+            'id'            => (int) $r['id'],
+            'code'          => $r['code'],
+            'label_cs'      => $r['label_cs'],
+            'label_en'      => $r['label_en'],
+            'is_default'    => (bool) $r['is_default'],
+            'display_order' => (int) $r['display_order'],
+        ], $rows));
+    }
+
     public function vatRates(Request $request, Response $response): Response
     {
         $q = $request->getQueryParams();

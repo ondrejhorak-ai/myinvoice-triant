@@ -653,6 +653,109 @@ final class SettingsAction
         return Json::ok($response, ['deleted' => true]);
     }
 
+    // ============================================================================
+    // UNITS (číselník měrných jednotek — globální, ne per-supplier)
+    // ============================================================================
+
+    public function listUnits(Request $request, Response $response): Response
+    {
+        $rows = $this->db->pdo()->query(
+            'SELECT u.id, u.code, u.label_cs, u.label_en, u.is_default, u.display_order,
+                    (SELECT COUNT(*) FROM invoice_items i WHERE i.unit = u.code) AS items_count
+               FROM units u ORDER BY u.display_order, u.code'
+        )->fetchAll(\PDO::FETCH_ASSOC);
+        foreach ($rows as &$r) {
+            $r['id']            = (int) $r['id'];
+            $r['is_default']    = (bool) $r['is_default'];
+            $r['display_order'] = (int) $r['display_order'];
+            $r['items_count']   = (int) $r['items_count'];
+        }
+        return Json::ok($response, $rows);
+    }
+
+    public function createUnit(Request $request, Response $response): Response
+    {
+        if (!$this->guard($request, $response, $err)) return $err;
+        $b = (array) ($request->getParsedBody() ?? []);
+        $code = trim((string) ($b['code'] ?? ''));
+        if ($code === '' || mb_strlen($code) > 20) {
+            return Json::error($response, 'validation_failed', 'code je povinný (max 20 znaků).', 400);
+        }
+        try {
+            $this->db->pdo()->prepare(
+                'INSERT INTO units (code, label_cs, label_en, is_default, display_order)
+                 VALUES (?,?,?,?,?)'
+            )->execute([
+                $code,
+                (string) ($b['label_cs'] ?? $code),
+                (string) ($b['label_en'] ?? $code),
+                !empty($b['is_default']) ? 1 : 0,
+                (int) ($b['display_order'] ?? 0),
+            ]);
+        } catch (\PDOException $e) {
+            return Json::error($response, 'duplicate', 'Jednotka s tímto kódem už existuje.', 409);
+        }
+        $id = (int) $this->db->pdo()->lastInsertId();
+        if (!empty($b['is_default'])) $this->makeOnlyDefaultUnit($id);
+        $this->log($request, 'unit.created', $id, ['code' => $code]);
+        return Json::ok($response, ['id' => $id], 201);
+    }
+
+    public function updateUnit(Request $request, Response $response, array $args): Response
+    {
+        if (!$this->guard($request, $response, $err)) return $err;
+        $id = (int) ($args['id'] ?? 0);
+        if ($id <= 0) return Json::error($response, 'validation_failed', 'Neplatné id.', 400);
+        $b = (array) ($request->getParsedBody() ?? []);
+        $allowed = ['code', 'label_cs', 'label_en', 'is_default', 'display_order'];
+        $sets = []; $params = [];
+        foreach ($allowed as $f) {
+            if (array_key_exists($f, $b)) {
+                $sets[] = "$f = ?";
+                $params[] = $f === 'is_default'
+                    ? ((int) (bool) $b[$f])
+                    : ($f === 'display_order' ? (int) $b[$f] : $b[$f]);
+            }
+        }
+        if (empty($sets)) return Json::ok($response, ['ok' => true]);
+        $params[] = $id;
+        try {
+            $this->db->pdo()->prepare('UPDATE units SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+        } catch (\PDOException $e) {
+            return Json::error($response, 'duplicate', 'Jednotka s tímto kódem už existuje.', 409);
+        }
+        if (!empty($b['is_default'])) $this->makeOnlyDefaultUnit($id);
+        $this->log($request, 'unit.updated', $id, ['fields' => array_keys($b)]);
+        return Json::ok($response, ['ok' => true]);
+    }
+
+    public function deleteUnit(Request $request, Response $response, array $args): Response
+    {
+        if (!$this->guard($request, $response, $err)) return $err;
+        $id = (int) ($args['id'] ?? 0);
+        $pdo = $this->db->pdo();
+        $stmt = $pdo->prepare('SELECT code FROM units WHERE id = ?');
+        $stmt->execute([$id]);
+        $code = (string) $stmt->fetchColumn();
+        if ($code === '') return Json::error($response, 'not_found', 'Jednotka nenalezena.', 404);
+
+        $stmt = $pdo->prepare('SELECT COUNT(*) FROM invoice_items WHERE unit = ?');
+        $stmt->execute([$code]);
+        $count = (int) $stmt->fetchColumn();
+        if ($count > 0) {
+            return Json::error($response, 'has_dependencies',
+                "Jednotku nelze smazat — používá ji $count položek faktur.", 409);
+        }
+        $pdo->prepare('DELETE FROM units WHERE id = ?')->execute([$id]);
+        $this->log($request, 'unit.deleted', $id, ['code' => $code]);
+        return Json::ok($response, ['deleted' => true]);
+    }
+
+    private function makeOnlyDefaultUnit(int $id): void
+    {
+        $this->db->pdo()->prepare('UPDATE units SET is_default = 0 WHERE id <> ?')->execute([$id]);
+    }
+
     private function guard(Request $request, Response $response, ?Response &$err): bool
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);

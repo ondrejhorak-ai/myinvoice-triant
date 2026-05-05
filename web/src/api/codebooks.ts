@@ -35,9 +35,19 @@ export interface VatRate {
   display_order: number
 }
 
+export interface Unit {
+  id: number
+  code: string
+  label_cs: string
+  label_en: string
+  is_default: boolean
+  display_order: number
+}
+
 export const codebooksApi = {
   countries:  () => api.get<Country[]>('/codebooks/countries').then((r) => r.data),
   currencies: () => api.get<Currency[]>('/codebooks/currencies').then((r) => r.data),
   vatRates:   (country = 'CZ') =>
     api.get<VatRate[]>('/codebooks/vat-rates', { params: { country } }).then((r) => r.data),
+  units:      () => api.get<Unit[]>('/codebooks/units').then((r) => r.data),
 }

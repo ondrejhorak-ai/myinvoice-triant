@@ -12,7 +12,7 @@ const toast = useToast()
 useHotkey('ctrl+s', (e) => { e.preventDefault(); submit() })
 import { clientsApi, type Client, type ViesLookupResult } from '@/api/clients'
 import { projectsApi, type Project } from '@/api/projects'
-import { codebooksApi, type VatRate, type Currency } from '@/api/codebooks'
+import { codebooksApi, type VatRate, type Currency, type Unit } from '@/api/codebooks'
 import { formatMoney, formatPercent } from '@/composables/useFormat'
 import { apiErrorMessage } from '@/api/errors'
 import { useSupplierStore } from '@/stores/supplier'
@@ -38,6 +38,12 @@ const clients = ref<Client[]>([])
 const projects = ref<Project[]>([])
 const vatRates = ref<VatRate[]>([])
 const currencies = ref<Currency[]>([])
+const units = ref<Unit[]>([])
+
+// Default jednotka pro běžnou položku — z číselníku (is_default), fallback 'ks'.
+function defaultItemUnit(): string {
+  return units.value.find(u => u.is_default)?.code || units.value[0]?.code || 'ks'
+}
 
 // Aktivní dodavatel — pokud není plátce DPH, fakturuje bez DPH (žádné DPH UI ani v PDF).
 const supplierIsVatPayer = computed(() => supplierStore.currentSupplier?.is_vat_payer ?? true)
@@ -137,7 +143,7 @@ function blankItem(): InvoiceItem {
   return {
     description: '',
     quantity: qty,
-    unit: 'h',
+    unit: defaultItemUnit(),
     unit_price_without_vat: rate,
     vat_rate_id: defaultVatRateId(form.value.reverse_charge),
     order_index: form.value.items.length,
@@ -165,9 +171,10 @@ watch(() => form.value.invoice_type, (newType, oldType) => {
 })
 
 onMounted(async () => {
-  const [vr, cur] = await Promise.all([codebooksApi.vatRates('CZ'), codebooksApi.currencies()])
+  const [vr, cur, un] = await Promise.all([codebooksApi.vatRates('CZ'), codebooksApi.currencies(), codebooksApi.units()])
   vatRates.value = vr
   currencies.value = cur
+  units.value = un
   if (form.value.currency_id === 0) {
     const def = cur.find(c => c.is_default && c.code === 'CZK') || cur[0]
     if (def) {
@@ -273,7 +280,7 @@ async function applyClientDefaults(clientId: number) {
   if (!form.value.project_id && c.hourly_rate && c.hourly_rate > 0) {
     if (form.value.items.length === 1 && (form.value.items[0].description || '').trim() === '') {
       form.value.items[0].unit_price_without_vat = c.hourly_rate
-      form.value.items[0].unit = 'h'
+      form.value.items[0].unit = defaultItemUnit()
     }
     if (wrItems.value.length === 1 && (wrItems.value[0].description || '').trim() === '') {
       wrItems.value[0].rate = c.hourly_rate
@@ -320,7 +327,7 @@ async function applyProjectDefaults(projectId: number) {
   // Pokud má jen jednu prázdnou položku (bez popisu), refresh sazby z projektu.
   if (form.value.items.length === 1 && (form.value.items[0].description || '').trim() === '') {
     form.value.items[0].unit_price_without_vat = p.hourly_rate
-    form.value.items[0].unit = 'h'
+    form.value.items[0].unit = defaultItemUnit()
   }
   if (wrItems.value.length === 1 && (wrItems.value[0].description || '').trim() === '') {
     wrItems.value[0].rate = p.hourly_rate
@@ -544,6 +551,13 @@ function checkWorkReportSync(): string | null {
 }
 
 async function submit() {
+  // Tiše vyhoď prázdné řádky (bez popisu i bez ceny) — uživatel přidal řádek a nezapsal ho.
+  // Zároveň smaž z form.value.items, ať checkWorkReportSync vidí stejnou množinu jako payload.
+  form.value.items = form.value.items.filter(it =>
+    (it.description || '').trim() !== '' || (Number(it.unit_price_without_vat) || 0) !== 0
+  )
+  form.value.items.forEach((it, i) => (it.order_index = i))
+
   // Detekce nesouladu mezi výkazem a položkou faktury — uživatel má šanci se vrátit
   const wrWarning = checkWorkReportSync()
   if (wrWarning && !confirm(wrWarning)) return
@@ -822,8 +836,10 @@ async function deleteDraft() {
                   class="w-full h-9 px-2 border border-neutral-200 rounded text-right font-mono text-sm" />
               </td>
               <td class="px-3 py-2">
-                <input v-model="item.unit"
-                  class="w-full h-9 px-2 border border-neutral-200 rounded text-sm" />
+                <select v-model="item.unit" class="w-full h-9 px-1 border border-neutral-200 rounded text-sm bg-white">
+                  <option v-for="u in units" :key="u.id" :value="u.code">{{ u.code }}</option>
+                  <option v-if="item.unit && !units.some(u => u.code === item.unit)" :value="item.unit">{{ item.unit }}</option>
+                </select>
               </td>
               <td class="px-3 py-2">
                 <input v-model.number="item.unit_price_without_vat" type="number" step="0.01" min="0"
@@ -877,8 +893,10 @@ async function deleteDraft() {
               </div>
               <div>
                 <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.items_table.unit') }}</label>
-                <input v-model="item.unit"
-                  class="w-full h-10 px-3 border border-neutral-200 rounded text-sm" />
+                <select v-model="item.unit" class="w-full h-10 px-2 border border-neutral-200 rounded text-sm bg-white">
+                  <option v-for="u in units" :key="u.id" :value="u.code">{{ u.code }}</option>
+                  <option v-if="item.unit && !units.some(u => u.code === item.unit)" :value="item.unit">{{ item.unit }}</option>
+                </select>
               </div>
             </div>
             <div :class="supplierIsVatPayer ? 'grid grid-cols-2 gap-2' : ''">

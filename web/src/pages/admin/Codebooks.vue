@@ -1,28 +1,30 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { settingsApi, type VatRate, type Country, type CurrencyAccount } from '@/api/settings'
+import { settingsApi, type VatRate, type Country, type CurrencyAccount, type Unit } from '@/api/settings'
 import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
 const toast = useToast()
 
-type Tab = 'currencies' | 'vat' | 'countries'
+type Tab = 'currencies' | 'vat' | 'countries' | 'units'
 const tab = ref<Tab>('currencies')
 
 const currencies = ref<CurrencyAccount[]>([])
 const vatRates   = ref<VatRate[]>([])
 const countries  = ref<Country[]>([])
+const units      = ref<Unit[]>([])
 const loading    = ref(false)
 
 async function loadAll() {
   loading.value = true
   try {
-    [currencies.value, vatRates.value, countries.value] = await Promise.all([
+    [currencies.value, vatRates.value, countries.value, units.value] = await Promise.all([
       settingsApi.listCurrencies(),
       settingsApi.listVatRates(),
       settingsApi.listCountries(),
+      settingsApi.listUnits(),
     ])
   } finally { loading.value = false }
 }
@@ -132,7 +134,44 @@ useHotkey('escape', () => {
   if (currencyOpen.value) currencyOpen.value = false
   else if (vatOpen.value) vatOpen.value = false
   else if (countryOpen.value) countryOpen.value = false
+  else if (unitOpen.value) unitOpen.value = false
 })
+
+// ─── Units ─────────────────────────────────────────────────
+const unitDraft = reactive<Partial<Unit> & { _new?: boolean }>({})
+const unitOpen = ref(false)
+function newUnit() {
+  Object.assign(unitDraft, {
+    id: undefined, code: '', label_cs: '', label_en: '',
+    is_default: false, display_order: 0, _new: true,
+  })
+  unitOpen.value = true
+}
+function editUnit(u: Unit) {
+  Object.assign(unitDraft, { ...u, _new: false })
+  unitOpen.value = true
+}
+async function saveUnit() {
+  try {
+    if (unitDraft._new) await settingsApi.createUnit(unitDraft)
+    else if (unitDraft.id) await settingsApi.updateUnit(unitDraft.id, unitDraft)
+    unitOpen.value = false
+    toast.success(t('common.saved'))
+    await loadAll()
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error?.message || t('common.error'))
+  }
+}
+async function deleteUnit(u: Unit) {
+  if (!confirm(`Smazat jednotku ${u.code}?`)) return
+  try {
+    await settingsApi.deleteUnit(u.id)
+    toast.success(t('common.deleted'))
+    await loadAll()
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error?.message || t('common.error'))
+  }
+}
 function newCountry() {
   Object.assign(countryDraft, { id: undefined, iso2: '', iso3: '', name_cs: '', name_en: '', is_eu: false, _new: true })
   countryOpen.value = true
@@ -173,13 +212,16 @@ async function deleteCountry(c: Country) {
 
     <!-- Tabs -->
     <div class="border-b border-neutral-200 mb-4 flex gap-1">
-      <button v-for="tt in (['currencies', 'vat', 'countries'] as const)" :key="tt"
+      <button v-for="tt in (['currencies', 'vat', 'countries', 'units'] as const)" :key="tt"
         @click="tab = tt"
         class="cursor-pointer px-4 py-2 text-sm border-b-2 transition"
         :class="tab === tt
           ? 'border-primary-600 text-primary-700 font-medium'
           : 'border-transparent text-neutral-600 hover:text-neutral-900'">
-        {{ tt === 'currencies' ? t('codebooks.tab_currencies') : tt === 'vat' ? t('codebooks.tab_vat') : t('codebooks.tab_countries') }}
+        {{ tt === 'currencies' ? t('codebooks.tab_currencies')
+          : tt === 'vat' ? t('codebooks.tab_vat')
+          : tt === 'countries' ? t('codebooks.tab_countries')
+          : t('codebooks.tab_units') }}
       </button>
     </div>
 
@@ -357,7 +399,7 @@ async function deleteCountry(c: Country) {
     </section>
 
     <!-- ====== COUNTRIES ====== -->
-    <section v-else>
+    <section v-else-if="tab === 'countries'">
       <div class="flex justify-end mb-3">
         <button @click="newCountry"
           class="cursor-pointer h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md inline-flex items-center gap-1.5">
@@ -420,6 +462,73 @@ async function deleteCountry(c: Country) {
                   {{ t('common.delete') }}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== UNITS ====== -->
+    <section v-else>
+      <div class="flex justify-end mb-3">
+        <button @click="newUnit"
+          class="cursor-pointer h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md inline-flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          {{ t('codebooks.new_unit') }}
+        </button>
+      </div>
+      <div class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+        <!-- Desktop: tabulka -->
+        <div class="hidden md:block overflow-x-auto">
+        <table class="w-full text-sm table-sticky-first">
+          <thead class="bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
+            <tr>
+              <th class="px-3 py-2 text-left font-medium">{{ t('codebooks.code') }}</th>
+              <th class="px-3 py-2 text-left font-medium">{{ t('codebooks.name_cs') }}</th>
+              <th class="px-3 py-2 text-left font-medium">{{ t('codebooks.name_en') }}</th>
+              <th class="px-3 py-2 text-center font-medium">{{ t('codebooks.is_default') }}</th>
+              <th class="px-3 py-2 text-center font-medium">{{ t('codebooks.display_order') }}</th>
+              <th class="px-3 py-2 w-32"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-100">
+            <tr v-for="u in units" :key="u.id">
+              <td class="px-3 py-2 font-mono">{{ u.code }}</td>
+              <td class="px-3 py-2">{{ u.label_cs }}</td>
+              <td class="px-3 py-2 text-neutral-500">{{ u.label_en }}</td>
+              <td class="px-3 py-2 text-center"><span v-if="u.is_default" class="text-primary-600">✓</span></td>
+              <td class="px-3 py-2 text-center font-mono text-xs">{{ u.display_order }}</td>
+              <td class="px-3 py-2 text-right text-xs">
+                <button @click="editUnit(u)" class="cursor-pointer text-primary-600 hover:text-primary-700 mr-3">{{ t('common.edit') }}</button>
+                <button @click="deleteUnit(u)" :disabled="(u.items_count ?? 0) > 0"
+                  class="cursor-pointer text-danger-500 hover:text-danger-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                  :title="(u.items_count ?? 0) > 0 ? t('codebooks.in_use_unit', { n: u.items_count }) : t('common.delete')">
+                  {{ t('common.delete') }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+
+        <!-- Mobile: karty -->
+        <div class="md:hidden divide-y divide-neutral-100">
+          <div v-for="u in units" :key="`m-${u.id}`" class="p-3 space-y-1.5">
+            <div class="flex items-baseline justify-between gap-2">
+              <div class="flex items-baseline gap-2">
+                <span class="font-mono font-semibold">{{ u.code }}</span>
+                <span class="text-sm text-neutral-700">{{ u.label_cs }}</span>
+                <span class="text-xs text-neutral-500">· {{ u.label_en }}</span>
+              </div>
+              <span v-if="u.is_default" class="text-primary-600 text-xs">✓ {{ t('codebooks.is_default') }}</span>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button @click="editUnit(u)" class="cursor-pointer h-8 px-3 text-xs border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded">{{ t('common.edit') }}</button>
+              <button @click="deleteUnit(u)" :disabled="(u.items_count ?? 0) > 0"
+                class="cursor-pointer h-8 px-3 text-xs border border-danger-500/40 text-danger-500 hover:bg-danger-50 disabled:opacity-30 disabled:cursor-not-allowed rounded"
+                :title="(u.items_count ?? 0) > 0 ? t('codebooks.in_use_unit', { n: u.items_count }) : t('common.delete')">
+                {{ t('common.delete') }}
+              </button>
             </div>
           </div>
         </div>
@@ -509,6 +618,37 @@ async function deleteCountry(c: Country) {
           <div class="flex justify-end gap-2 pt-2">
             <button @click="vatOpen = false" class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 rounded-md hover:bg-neutral-50">{{ t('common.cancel') }}</button>
             <button @click="saveVat" class="cursor-pointer px-4 h-9 text-sm bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md">{{ t('common.save') }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="unitOpen" class="fixed inset-0 bg-neutral-900/40 z-50 flex items-center justify-center p-4" @click.self="unitOpen = false">
+      <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-5">
+        <h3 class="text-lg font-semibold mb-3">{{ unitDraft._new ? t('codebooks.new_unit') : unitDraft.code }}</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ t('codebooks.code') }} *</label>
+            <input v-model="unitDraft.code" :disabled="!unitDraft._new" type="text" maxlength="20" placeholder="ks"
+              class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm font-mono disabled:bg-neutral-50" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-sm font-medium mb-1">{{ t('codebooks.name_cs') }}</label>
+              <input v-model="unitDraft.label_cs" type="text" placeholder="kus" class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm" /></div>
+            <div><label class="block text-sm font-medium mb-1">{{ t('codebooks.name_en') }}</label>
+              <input v-model="unitDraft.label_en" type="text" placeholder="piece" class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm" /></div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">{{ t('codebooks.display_order') }}</label>
+            <input v-model.number="unitDraft.display_order" type="number" class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm font-mono" />
+          </div>
+          <label class="flex items-center gap-2 text-sm">
+            <input v-model="unitDraft.is_default" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
+            {{ t('codebooks.is_default_unit_hint') }}
+          </label>
+          <div class="flex justify-end gap-2 pt-2">
+            <button @click="unitOpen = false" class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 rounded-md hover:bg-neutral-50">{{ t('common.cancel') }}</button>
+            <button @click="saveUnit" class="cursor-pointer px-4 h-9 text-sm bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md">{{ t('common.save') }}</button>
           </div>
         </div>
       </div>
