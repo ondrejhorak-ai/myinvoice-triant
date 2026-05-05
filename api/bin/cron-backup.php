@@ -181,12 +181,16 @@ echo "[" . date('Y-m-d H:i:s') . "] backup: " . basename($file) . " ({$size} KB)
 
 // Retention: smaž denní starší 30 dní (kromě 1. v měsíci, ty drž 365 dní)
 // Bere v potaz i staré .sql.gz formáty z dřívějška.
+// Filtrujeme jen DB dumpy "{dbName}-YYYY-MM-DD.{zip,sql.gz}" — PDF backup
+// (cron-backup-pdf) má vlastní prefix "{dbName}-pdf-" a vlastní retention.
 $files = array_merge(
-    glob($backupDir . '/*.zip')    ?: [],
-    glob($backupDir . '/*.sql.gz') ?: []
+    glob($backupDir . '/' . $dbName . '-2*.zip')    ?: [],
+    glob($backupDir . '/' . $dbName . '-2*.sql.gz') ?: []
 );
 $now = time();
 foreach ($files as $f) {
+    $base = basename($f);
+    if (str_starts_with($base, $dbName . '-pdf-')) continue;
     if (!preg_match('/-(\d{4}-\d{2}-\d{2})\.(zip|sql\.gz)$/', $f, $m)) continue;
     $age = $now - strtotime($m[1]);
     $isMonthly = str_ends_with($m[1], '-01');
