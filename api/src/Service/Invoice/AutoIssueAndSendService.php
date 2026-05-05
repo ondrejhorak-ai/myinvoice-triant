@@ -11,6 +11,7 @@ use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\Mail\InvoiceEmailVarsBuilder;
 use MyInvoice\Service\Mail\Mailer;
 use MyInvoice\Service\Pdf\InvoicePdfRenderer;
+use MyInvoice\Service\Pdf\PdfArchiveService;
 use MyInvoice\Service\Stats\StatsRecomputer;
 
 /**
@@ -38,6 +39,7 @@ final class AutoIssueAndSendService
         private readonly ActivityLogger $logger,
         private readonly StatsRecomputer $stats,
         private readonly Config $config,
+        private readonly PdfArchiveService $pdfArchive,
     ) {}
 
     /**
@@ -90,7 +92,7 @@ final class AutoIssueAndSendService
             // Invalidate cache: draft PDF (s pdf_path = "Faktura-draft-NN.pdf") by zůstal
             // platný a renderer by vrátil starý draft PDF místo nového se správným
             // varsymbolem, snapshoty a všemi 2. stránkami (např. výkazem víceprací).
-            $this->renderer->invalidate($invoiceId);
+            $this->renderer->invalidate($invoiceId, 'invalidate_issue');
             $invoice = $this->repo->find($invoiceId);
         }
 
@@ -135,9 +137,14 @@ final class AutoIssueAndSendService
         $this->db->pdo()->prepare('UPDATE invoices SET status = ?, sent_at = NOW() WHERE id = ?')
             ->execute([$newStatus, $invoiceId]);
 
+        // Archivuj kopii PDF jako 'sent' verzi — viz SendEmailAction
+        $sentToAll = array_values(array_unique(array_merge($to, $cc)));
+        $archiveId = $this->pdfArchive->archiveCopy($invoiceId, $pdfPath, 'sent', wasSent: true, sentTo: $sentToAll);
+
         $this->logger->log('invoice.sent', $userId, 'invoice', $invoiceId, [
             'to' => $to, 'cc' => $cc,
             'pdf_path' => basename($pdfPath),
+            'pdf_archive_id' => $archiveId,
             'auto_reason' => 'work_report_approved',
         ], $ip, $ua);
 

@@ -15,6 +15,7 @@ use MyInvoice\Service\IpMatcher;
 use MyInvoice\Service\Mail\InvoiceEmailVarsBuilder;
 use MyInvoice\Service\Mail\Mailer;
 use MyInvoice\Service\Pdf\InvoicePdfRenderer;
+use MyInvoice\Service\Pdf\PdfArchiveService;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -29,6 +30,7 @@ final class SendEmailAction
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
         private readonly Config $config,
+        private readonly PdfArchiveService $pdfArchive,
     ) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
@@ -103,11 +105,17 @@ final class SendEmailAction
         $this->db->pdo()->prepare('UPDATE invoices SET status = ?, sent_at = NOW() WHERE id = ?')
             ->execute([$newStatus, $id]);
 
+        // Archivuj kopii PDF jako 'sent' verzi — důkaz toho, co klient skutečně dostal
+        // (zachová se i kdyby se faktura později editovala). Aktivní cache zůstává nedotčená.
+        $sentToAll = array_values(array_unique(array_merge($to, $cc, $bcc)));
+        $archiveId = $this->pdfArchive->archiveCopy($id, $pdfPath, 'sent', wasSent: true, sentTo: $sentToAll);
+
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $this->logger->log('invoice.sent', $user['id'] ?? null, 'invoice', $id, [
             'to' => $to, 'cc' => $cc, 'bcc' => $bcc,
             'pdf_path' => basename($pdfPath),
+            'pdf_archive_id' => $archiveId,
         ], $ip, $request->getHeaderLine('User-Agent'));
 
         return Json::ok($response, [

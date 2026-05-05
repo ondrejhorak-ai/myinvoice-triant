@@ -121,7 +121,7 @@ final class IssueInvoiceAction
         $this->stats->recomputeForInvoiceId($id);
         // Smaž cached draft PDF (Faktura-draft-NN.pdf) — po vystavení má faktura nový
         // varsymbol a snapshoty, takže staré cached PDF už neodpovídá.
-        $this->pdfRenderer->invalidate($id);
+        $this->pdfRenderer->invalidate($id, 'invalidate_issue');
 
         return Json::ok($response, $this->repo->find($id));
     }

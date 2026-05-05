@@ -35,6 +35,7 @@ final class InvoicePdfRenderer
         private readonly QrPaymentGenerator $qr,
         private readonly WorkReportRepository $workReports,
         private readonly SnapshotBuilder $snapshots,
+        private readonly PdfArchiveService $archive,
     ) {}
 
     /**
@@ -324,10 +325,18 @@ final class InvoicePdfRenderer
      * forceRegenerate, aby `regenerate=1` propsalo i změny v supplier/client/banku.
      * Drafty (bez existujících snapshotů) přeskoč — ty stejně renderují z live.
      *
+     * Defensive guard: pro non-draft fakturu (issued/sent/reminded/paid) NIKDY
+     * nepřepisuj snapshot, i když si někdo vynutí ?regenerate=1. Snapshoty u
+     * vystavených faktur jsou immutable audit trail toho, co bylo na dokladu.
+     *
      * @return array  invoice array s aktualizovanými snapshoty (in-memory)
      */
     private function refreshSnapshots(array $invoice): array
     {
+        $status = (string) ($invoice['status'] ?? 'draft');
+        if ($status !== 'draft') {
+            return $invoice;
+        }
         $hasAny = !empty($invoice['supplier_snapshot'])
             || !empty($invoice['client_snapshot'])
             || !empty($invoice['bank_snapshot']);
@@ -359,10 +368,14 @@ final class InvoicePdfRenderer
     }
 
     /**
-     * Smaže cached PDF + vynuluje invoices.pdf_path. Volat po změnách, které
-     * ovlivní obsah PDF nad rámec items (např. work_report).
+     * Archivuje cached PDF (pokud existuje) a vynuluje invoices.pdf_path.
+     * Volá se po změnách, které ovlivní obsah PDF nad rámec items
+     * (např. work_report, edit faktury, vystavení).
+     *
+     * Reason je uložen do invoice_pdfs.reason a pomáhá v UI rozlišit,
+     * proč se historická verze archivovala (edit / issue / workreport / ...).
      */
-    public function invalidate(int $invoiceId): void
+    public function invalidate(int $invoiceId, string $reason = 'invalidate_manual'): void
     {
         $invoice = $this->repo->find($invoiceId);
         if ($invoice === null) return;
@@ -372,7 +385,11 @@ final class InvoicePdfRenderer
             $this->cachePath($invoice),
         ]));
         foreach ($paths as $p) {
-            if (is_file($p)) @unlink($p);
+            if (is_file($p)) {
+                // Archivuj místo unlink — zachová verzi pro audit a UI historii.
+                // archive() přesune soubor do _archive/ (atomic rename, fallback copy+unlink).
+                $this->archive->archive($invoiceId, $p, $reason);
+            }
         }
         $this->db->pdo()->prepare('UPDATE invoices SET pdf_path = NULL, pdf_generated_at = NULL WHERE id = ?')
             ->execute([$invoiceId]);
@@ -392,7 +409,7 @@ final class InvoicePdfRenderer
         );
         $stmt->execute([$currencyId]);
         $ids = array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
-        foreach ($ids as $id) $this->invalidate($id);
+        foreach ($ids as $id) $this->invalidate($id, 'invalidate_currency');
         return count($ids);
     }
 

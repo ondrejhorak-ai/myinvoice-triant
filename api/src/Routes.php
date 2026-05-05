@@ -42,6 +42,8 @@ use MyInvoice\Action\Invoice\BulkReissueAction;
 use MyInvoice\Action\Invoice\CloneInvoiceAction;
 use MyInvoice\Action\Invoice\IssueFinalFromProformaAction;
 use MyInvoice\Action\Invoice\PdfAction;
+use MyInvoice\Action\Invoice\ListPdfsAction;
+use MyInvoice\Action\Invoice\DownloadArchivedPdfAction;
 use MyInvoice\Action\Invoice\SendEmailAction;
 use MyInvoice\Action\Invoice\SendReminderAction;
 use MyInvoice\Action\Invoice\BulkSendRemindersAction;
@@ -134,6 +136,8 @@ final class Routes
         $app->post   ('/api/invoices/{id:[0-9]+}/mark-paid', MarkPaidAction::class);
         $app->post   ('/api/invoices/{id:[0-9]+}/cancel',    CancelInvoiceAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/pdf',       PdfAction::class);
+        $app->get    ('/api/invoices/{id:[0-9]+}/pdfs',      ListPdfsAction::class);
+        $app->get    ('/api/invoices/{id:[0-9]+}/pdfs/{archiveId:[0-9]+}', DownloadArchivedPdfAction::class);
         $app->post   ('/api/invoices/{id:[0-9]+}/send',      SendEmailAction::class);
         $app->post   ('/api/invoices/{id:[0-9]+}/send-test', SendTestEmailAction::class);
         $app->post   ('/api/invoices/{id:[0-9]+}/reminder',  SendReminderAction::class);

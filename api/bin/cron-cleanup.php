@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 /**
  * Denní cleanup — login_attempts (>24h), expirované sessions, použité password_resets,
- * staré PDF cache, log files >90 dní.
+ * log files >90 dní.
+ *
+ * POZN: PDF se NEMAŽE. Aktivní cache může pominout (renderer ji znovu vytvoří),
+ * ale archivovaná historie (storage/invoices/sup-N/_archive) obsahuje verze
+ * skutečně odeslané klientovi a je důkazem fakturace.
  *
  * Použití (Windows Task Scheduler):
  *   php api/bin/cron-cleanup.php
@@ -42,21 +46,7 @@ $report['ares_cache'] = (int) $n;
 $n = $pdo->exec("DELETE FROM vies_cache WHERE fetched_at < NOW() - INTERVAL 30 DAY");
 $report['vies_cache'] = (int) $n;
 
-// 5) PDF cache — starší 90 dní (faktury jdou přerenderovat z DB)
-$pdfDir = $rootDir . '/storage/invoices';
-$pdfDeleted = 0;
-if (is_dir($pdfDir)) {
-    $iter = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($pdfDir, \FilesystemIterator::SKIP_DOTS));
-    $threshold = time() - (90 * 86400);
-    foreach ($iter as $f) {
-        if ($f->isFile() && $f->getMTime() < $threshold) {
-            if (@unlink($f->getPathname())) $pdfDeleted++;
-        }
-    }
-}
-$report['pdf_cache'] = $pdfDeleted;
-
-// 6) Log files — Monolog rotuje, ale když je config zapnutý max_files, držíme se ho
+// 5) Log files — Monolog rotuje, ale když je config zapnutý max_files, držíme se ho
 $logDir = (string) $config->get('logging.path', $rootDir . '/log/app.log');
 $logDir = dirname($logDir);
 $maxFiles = (int) $config->get('logging.max_files', 90);

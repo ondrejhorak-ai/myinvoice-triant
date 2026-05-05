@@ -296,6 +296,27 @@ export const invoicesApi = {
     return `/api/invoices/${id}/pdf${qs ? '?' + qs : ''}`
   },
 
+  listPdfs: (id: number) =>
+    api.get<{ items: Array<{
+      id: number
+      filename: string
+      size_bytes: number
+      sha256: string
+      was_sent: boolean
+      sent_to: string[] | null
+      reason: string
+      archived_at: string
+    }> }>(`/invoices/${id}/pdfs`).then(r => r.data.items),
+
+  archivedPdfUrl: (id: number, archiveId: number, download: boolean = false) => {
+    const sid = localStorage.getItem('myinvoice.current_supplier_id')
+    const params = new URLSearchParams()
+    if (download) params.set('download', '1')
+    if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+    const qs = params.toString()
+    return `/api/invoices/${id}/pdfs/${archiveId}${qs ? '?' + qs : ''}`
+  },
+
   send: (id: number, payload?: { to?: string[]; cc?: string[]; bcc?: string[]; subject_override?: string | null }) =>
     api.post<{ sent_to: string[]; cc: string[]; bcc: string[]; sent_at: string; is_test: false }>(
       `/invoices/${id}/send`,

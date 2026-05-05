@@ -183,16 +183,19 @@ final class InvoiceImportService
         // Currency
         $currencyId = $this->currencyId($supplierId, (string) ($inv['currency'] ?? 'CZK'));
 
-        // Status: due_date starší než 30 dní → paid, jinak issued.
-        // Logika: u importu starých dokladů typicky už byly zaplacené; čerstvé faktury,
-        // které jsou stále v lhůtě splatnosti, importujeme jako jen vystavené,
-        // aby uživatel mohl spárovat platbu standardním flow.
+        // Status: due_date starší než 30 dní → paid, jinak sent.
+        // Logika: importované doklady už klient prokazatelně dostal (jinak by je
+        // nezaznamenali v původním systému), takže status='sent' je správnější
+        // než 'issued'. Staré splatné → 'paid' (předpoklad zaplaceno).
+        // sent_at = issue_date — nemáme přesnější údaj z původního systému,
+        // den vystavení je nejlepší aproximace okamžiku odeslání.
         $taxDate = $inv['tax_date'] ?? null;
         $dueDate = (string) $inv['due_date'];
         $threshold = (new \DateTimeImmutable('today'))->modify('-30 days');
         $isPaid = $dueDate !== '' && new \DateTimeImmutable($dueDate) < $threshold;
-        $status = $isPaid ? 'paid' : 'issued';
+        $status = $isPaid ? 'paid' : 'sent';
         $paidAt = $isPaid ? ($taxDate ?: $inv['issue_date']) : null;
+        $sentAt = (string) $inv['issue_date'] . ' 12:00:00';
 
         // Insert invoice
         $pdo = $this->db->pdo();
@@ -201,8 +204,8 @@ final class InvoiceImportService
              issue_date, tax_date, due_date, currency_id, exchange_rate, exchange_rate_date,
              reverse_charge, language,
              total_without_vat, total_vat, total_with_vat,
-             status, paid_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?)';
+             status, sent_at, paid_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?)';
 
         $pdo->prepare($sql)->execute([
             $supplierId,
@@ -219,6 +222,7 @@ final class InvoiceImportService
             !empty($inv['reverse_charge']) ? 1 : 0,
             'cs',
             $status,
+            $sentAt,
             $paidAt,
             $userId,
         ]);

@@ -48,6 +48,7 @@ const approvalStatusDraft = ref<ApprovalStatus>('none')
 const approvalRejectReason = ref('')
 
 const activity = ref<Array<{ id: number; user_email: string | null; user_name: string | null; action: string; payload: any; ip: string | null; created_at: string }>>([])
+const pdfHistory = ref<Array<{ id: number; filename: string; size_bytes: number; sha256: string; was_sent: boolean; sent_to: string[] | null; reason: string; archived_at: string }>>([])
 const workReport = ref<WorkReport | null>(null)
 const wrHasDates = computed(() => !!workReport.value?.items.some(i => !!i.work_date))
 
@@ -55,13 +56,35 @@ async function load() {
   loading.value = true
   invoice.value = await invoicesApi.get(Number(route.params.id))
   loading.value = false
-  // Activity log + work report (parallel, ne blokuje UI)
+  // Activity log + work report + PDF historie (parallel, ne blokuje UI)
   invoicesApi.activity(Number(route.params.id))
     .then(a => { activity.value = a })
     .catch(() => {})
   invoicesApi.getWorkReport(Number(route.params.id))
     .then(wr => { workReport.value = wr })
     .catch(() => {})
+  invoicesApi.listPdfs(Number(route.params.id))
+    .then(items => { pdfHistory.value = items })
+    .catch(() => {})
+}
+
+function pdfReasonLabel(reason: string): string {
+  const map: Record<string, string> = {
+    'sent': 'invoice.pdf_history.reason.sent',
+    'invalidate_update': 'invoice.pdf_history.reason.update',
+    'invalidate_issue': 'invoice.pdf_history.reason.issue',
+    'invalidate_workreport': 'invoice.pdf_history.reason.workreport',
+    'invalidate_currency': 'invoice.pdf_history.reason.currency',
+    'invalidate_manual': 'invoice.pdf_history.reason.manual',
+    'backfill_sent': 'invoice.pdf_history.reason.backfill_sent',
+  }
+  return map[reason] ? (t(map[reason]) as string) : reason
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return n + ' B'
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB'
+  return (n / (1024 * 1024)).toFixed(2) + ' MB'
 }
 
 onMounted(load)
@@ -1000,6 +1023,37 @@ async function updateApprovalStatus() {
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Historie PDF -->
+    <div v-if="pdfHistory.length > 0" class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+      <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.pdf_history.title') }}</h3>
+        <span class="text-xs text-neutral-400">{{ pdfHistory.length }}</span>
+      </header>
+      <ul class="divide-y divide-neutral-100">
+        <li v-for="p in pdfHistory" :key="p.id" class="px-5 py-2.5 text-sm flex items-center gap-3">
+          <span v-if="p.was_sent" class="text-xs px-2 py-0.5 rounded font-medium bg-success-50 text-success-600 inline-flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
+            {{ t('invoice.pdf_history.sent') }}
+          </span>
+          <span v-else class="text-xs px-2 py-0.5 rounded font-medium bg-neutral-100 text-neutral-600">{{ pdfReasonLabel(p.reason) }}</span>
+          <span class="text-neutral-700 text-xs flex-1 truncate" :title="p.filename">{{ p.filename }}</span>
+          <span class="text-neutral-400 text-xs whitespace-nowrap">{{ formatBytes(p.size_bytes) }}</span>
+          <span class="text-neutral-400 text-xs whitespace-nowrap">{{ p.archived_at.replace('T', ' ').slice(0, 19) }}</span>
+          <span v-if="p.was_sent && p.sent_to && p.sent_to.length" class="text-neutral-500 text-xs truncate max-w-xs" :title="p.sent_to.join(', ')">→ {{ p.sent_to.join(', ') }}</span>
+          <a :href="invoicesApi.archivedPdfUrl(invoice!.id, p.id, false)" target="_blank"
+             class="text-xs text-primary-600 hover:text-primary-700 font-medium inline-flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            {{ t('common.view') }}
+          </a>
+          <a :href="invoicesApi.archivedPdfUrl(invoice!.id, p.id, true)"
+             class="text-xs text-primary-600 hover:text-primary-700 font-medium inline-flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            {{ t('common.download') }}
+          </a>
+        </li>
+      </ul>
     </div>
 
     <!-- Aktivita -->

@@ -54,7 +54,7 @@
     "delete": "Smazat", "edit": "Upravit", "back": "← Zpět", "yes": "Ano", "no": "Ne",
     "create": "Vytvořit", "search": "Hledat…", "no_data": "Žádná data",
     "actions": "Akce", "detail": "Detail", "archive": "Archivovat", "restore": "Obnovit",
-    "all": "Všechny", "filter": "Filtrovat", "export": "Export", "preview": "Náhled",
+    "all": "Všechny", "filter": "Filtrovat", "export": "Export", "preview": "Náhled", "view": "Zobrazit",
     "send": "Odeslat", "download": "Stáhnout", "confirm": "Potvrdit", "close": "Zavřít",
     "of": "z", "from": "Od", "to": "Do", "ok": "OK", "saving": "Ukládám…",
     "deleting": "Mažu…", "saved": "Uloženo.", "deleted": "Smazáno.",
@@ -241,6 +241,19 @@
     "summary": "Sumace",
     "note": "Poznámka",
     "activity": "Aktivita",
+    "pdf_history": {
+      "title": "Historie PDF",
+      "sent": "Odesláno klientovi",
+      "reason": {
+        "sent": "Odesláno",
+        "update": "Úprava faktury",
+        "issue": "Vystavení",
+        "workreport": "Změna výkazu",
+        "currency": "Změna bank. údajů",
+        "manual": "Ruční invalidace",
+        "backfill_sent": "Doplněno zpětně"
+      }
+    },
     "bulk_reissue": "Vystavit znovu ({n})",
     "bulk_send": "Odeslat klientovi ({n})",
     "edit_title": "Upravit fakturu",

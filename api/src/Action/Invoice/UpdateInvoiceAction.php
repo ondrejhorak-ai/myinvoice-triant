@@ -102,7 +102,7 @@ final class UpdateInvoiceAction
         // Invalidate cached PDF — data faktury se změnila, starý soubor je nepoužitelný.
         // Cache freshness check v rendereru zohledňuje jen mtime šablon/CSS, ne dat,
         // takže bez explicit invalidate by se starý PDF dál servíroval.
-        $this->pdf->invalidate($id);
+        $this->pdf->invalidate($id, 'invalidate_update');
 
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $action = ($existing['status'] !== 'draft') ? 'invoice.force_updated' : 'invoice.updated';

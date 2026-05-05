@@ -79,7 +79,7 @@ final class SaveWorkReportAction
 
         $id = $this->repo->save($invoiceId, $projectId, $title, $items);
         $wr = $this->repo->findByInvoice($invoiceId);
-        $this->pdf->invalidate($invoiceId);
+        $this->pdf->invalidate($invoiceId, 'invalidate_workreport');
 
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $action = ($invoice['status'] !== 'draft') ? 'work_report.force_saved' : 'work_report.saved';
