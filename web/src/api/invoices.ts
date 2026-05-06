@@ -280,6 +280,8 @@ export const invoicesApi = {
   issue:    (id: number) => api.post<Invoice>(`/invoices/${id}/issue`).then(r => r.data),
   markPaid: (id: number, paidAt?: string) =>
     api.post<Invoice>(`/invoices/${id}/mark-paid`, { paid_at: paidAt || new Date().toISOString().slice(0, 10) }).then(r => r.data),
+  unmarkPaid: (id: number) =>
+    api.post<Invoice>(`/invoices/${id}/unmark-paid`, {}).then(r => r.data),
   cancel: (id: number, mode: 'internal' | 'credit_note', reason: string = '') =>
     api.post<{ cancellation_id?: number; credit_note_id?: number; edit_url?: string; invoice?: Invoice }>(
       `/invoices/${id}/cancel`,

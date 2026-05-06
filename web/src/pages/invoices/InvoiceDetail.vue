@@ -235,6 +235,20 @@ async function markPaid() {
   }
 }
 
+async function unmarkPaid() {
+  if (!invoice.value) return
+  if (!window.confirm(t('invoice.unmark_paid_confirm', { varsymbol: invoice.value.varsymbol || '' }))) return
+  busy.value = 'unmark-paid'
+  try {
+    invoice.value = await invoicesApi.unmarkPaid(invoice.value.id)
+    toast.success(t('invoice.unmark_paid_done'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error?.message || t('invoice.operation_failed'))
+  } finally {
+    busy.value = null
+  }
+}
+
 async function cancel() {
   if (!invoice.value) return
   busy.value = 'cancel'
@@ -1231,6 +1245,12 @@ async function updateApprovalStatus() {
           class="cursor-pointer px-3 h-9 text-sm border border-warning-500/50 text-warning-600 hover:bg-warning-50 rounded-md inline-flex items-center gap-1.5">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
           {{ t('invoice.edit_admin') }}
+        </button>
+
+        <button v-if="isAdmin && invoice.status === 'paid'" @click="unmarkPaid" :disabled="busy !== null"
+          class="cursor-pointer px-3 h-9 text-sm border border-warning-500/50 text-warning-600 hover:bg-warning-50 rounded-md inline-flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 4l8 16"/></svg>
+          {{ busy === 'unmark-paid' ? '…' : t('invoice.unmark_paid') }}
         </button>
 
         <button v-if="canCancel" @click="cancelOpen = true" :disabled="busy !== null"

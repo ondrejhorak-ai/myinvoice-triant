@@ -39,6 +39,7 @@ use MyInvoice\Action\Invoice\IssueInvoiceAction;
 use MyInvoice\Action\Invoice\ListInvoicesAction;
 use MyInvoice\Action\Invoice\PreviewVarsymbolAction;
 use MyInvoice\Action\Invoice\MarkPaidAction;
+use MyInvoice\Action\Invoice\UnmarkPaidAction;
 use MyInvoice\Action\Invoice\BulkReissueAction;
 use MyInvoice\Action\Invoice\CloneInvoiceAction;
 use MyInvoice\Action\Invoice\IssueFinalFromProformaAction;
@@ -141,6 +142,7 @@ final class Routes
         $app->delete ('/api/invoices/{id:[0-9]+}',  DeleteInvoiceAction::class);
         $app->post   ('/api/invoices/{id:[0-9]+}/issue',     IssueInvoiceAction::class);
         $app->post   ('/api/invoices/{id:[0-9]+}/mark-paid', MarkPaidAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/unmark-paid', UnmarkPaidAction::class);
         $app->post   ('/api/invoices/{id:[0-9]+}/cancel',    CancelInvoiceAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/pdf',       PdfAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/pdfs',      ListPdfsAction::class);
