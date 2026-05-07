@@ -411,9 +411,13 @@ const canSendTestReminder = computed(() => invoice.value && invoice.value.invoic
 
 function openSendModal() {
   if (!invoice.value) return
-  // Pre-fill recipients: client_main_email + project billing emails
-  // backend defaultně použije resolveRecipients, ale ukážeme to v poli pro úpravu
-  sendTo.value = invoice.value.client_main_email || ''
+  // Pre-fill recipients: client_main_email + project billing emails (de-duplikováno).
+  // Stejná logika jako backend SendEmailAction::resolveRecipients — ať uživatel
+  // v modalu vidí přesně to, co se odešle (a může to libovolně upravit).
+  const main = invoice.value.client_main_email || ''
+  const billing = (invoice.value.project_billing_emails || []).map(b => b.email)
+  const all = [main, ...billing].filter(Boolean)
+  sendTo.value = Array.from(new Set(all)).join(', ')
   sendOpen.value = true
 }
 
