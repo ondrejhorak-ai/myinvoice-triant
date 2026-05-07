@@ -1,4 +1,4 @@
-MyInvoice.cz — {{ locale == 'en' ? 'Invoicing system' : 'Fakturační systém' }}
+{% if supplier and supplier.email_branding_enabled %}{{ supplier.display_name|default(supplier.company_name) }}{% if supplier.tagline %} — {{ supplier.tagline }}{% endif %}{% else %}MyInvoice.cz — {{ locale == 'en' ? 'Invoicing system' : 'Fakturační systém' }}{% endif %}
 ================================
 
 {% block content %}{% endblock %}
@@ -16,3 +16,5 @@ MyInvoice.cz — {{ locale == 'en' ? 'Invoicing system' : 'Fakturační systém'
 {% if supplier.phone %}{{ supplier.phone }}
 {% endif %}{% if supplier.web %}{{ supplier.web }}
 {% endif %}{% endif %}
+--
+{{ locale == 'en' ? 'Powered by MyInvoice.cz invoicing system — https://myinvoice.cz/' : 'Používá fakturační systém MyInvoice.cz — https://myinvoice.cz/' }}

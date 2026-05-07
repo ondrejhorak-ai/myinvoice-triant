@@ -101,10 +101,55 @@ NOVÝCH fakturách. Vystavené mají vlastní snapshot.
 
 ### 16.5.2 E-mail branding
 
+**From / Reply-To** se odvozuje automaticky:
+
 | Pole | Význam |
 |---|---|
-| From: jméno | Jak se zobrazí odesílatel u příjemce („Faktury MyWebdesign" místo „myinvoice@server") |
-| Reply-To | Adresa pro odpověď klienta („fakturace@mywebdesign.cz") |
+| From: jméno | `display_name` dodavatele (fallback `company_name`) — místo „myinvoice@server" |
+| Reply-To | `email` dodavatele — odpovědi klientů jdou rovnou na firemní mail |
+
+**Vlastní branding emailů + PDF (od v2.1.0)** — **Systém → Nastavení →
+Branding emailů**. Nahraď default „M" logo MyInvoice vlastním logem firmy
+a navol akcent barvu napříč emailem. Když je branding **zapnutý**, použije
+se stejné logo i v hlavičce **PDF faktur** (místo textového jména firmy).
+Když je **vypnutý**, e-mail vrátí default MyInvoice „M" branding a PDF
+zobrazí jméno firmy textem — toggle gatuje obojí konzistentně.
+
+| Pole | Co dělá |
+|---|---|
+| **Použít vlastní branding** | Toggle (default vypnuto = MyInvoice branding). Pokud zapnuté, hlavička se sestaví ze tří polí níže. |
+| **Logo** | Upload PNG / JPG / SVG (max 1 MiB). SVG se serverstrana převede na transparentní PNG — primárně přes PHP `Imagick` extension (cross-platform — Windows i Linux), fallback na `rsvg-convert` CLI (`librsvg2-bin`). Cílová výška v emailu je 48 px (2× retina = uloží se 480 px tall). Logo se připojí jako CID inline image, takže se zobrazí bez „Display images" promptu v Gmailu/Outlooku. |
+| **Akcent barva** | Hex `#RRGGBB` — barva náhradního „M" boxu (pokud nemáš logo) a všech odkazů v emailu. Default `#3B2D83` (fialová MyInvoice). Color picker + textový input pro přesné zadání. |
+
+V hlavičce se pak vykreslí:
+
+- **Logo** vlevo (místo fialového „M" boxu) — `<img>` s `max-height: 48px`
+- **Brand name** = `display_name` dodavatele (fallback `company_name`)
+- **Subtitle** = `tagline` dodavatele (pokud vyplněno)
+
+**Live preview** — vpravo iframe se zkušebním emailem (faktura `2026005`,
+Kč částka, sample odstavec). Tlačítka **CS / EN** přepínají jazyk. Po změně
+barvy nebo toggle ulož „Uložit dodavatele" a klikni **↻** pro obnovení preview.
+Logo se ukládá automaticky při uploadu.
+
+**Patička emailu** vždy obsahuje malý šedý text „Používá fakturační systém
+[MyInvoice.cz](https://myinvoice.cz/)" jako attribution — nezakrývá tvoji
+firemní identitu, jen drobně označuje použitou platformu.
+
+> 🛈 **Snapshot vs live branding** — fakturační údaje (název firmy, adresa,
+> kontakt) se v emailu berou ze **snapshotu** zachyceného při vystavení faktury
+> (immutable, kvůli auditu). Naopak **branding** (logo, barva, toggle) se vždy
+> bere **live** z aktuálního stavu dodavatele — pokud změníš logo, projeví se
+> okamžitě i v emailech ke starým fakturám.
+
+> ⚠️ **SVG na hostu bez Imagick i `rsvg-convert`** — SVG upload selže
+> s hláškou „SVG konverze není dostupná". Buď nainstaluj jedno z toho:
+> - **PHP `imagick` extension** (cross-platform — Windows: `pecl install imagick`,
+>   Linux: `apt install php-imagick`, macOS: `pecl install imagick`) — preferované
+> - **`librsvg2-bin`** (Linux: `apt install librsvg2-bin`, macOS: `brew install librsvg`)
+>
+> Docker image `ghcr.io/radekhulan/myinvoice` má `librsvg2-bin` zabalené, takže
+> SVG funguje out-of-the-box. PNG / JPG funguje vždy přes GD (built-in).
 
 ### 16.5.3 Číslování faktur
 

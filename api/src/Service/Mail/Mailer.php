@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MyInvoice\Service\Mail;
 
+use MyInvoice\Bootstrap;
 use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\EmailTemplateRepository;
@@ -29,6 +30,7 @@ use Twig\Sandbox\SecurityPolicy;
 final class Mailer
 {
     private ?SymfonyMailer $mailer = null;
+    private mixed $transport = null;
     private ?Environment $twig = null;
     private ?array $supplierFooter = null;
 
@@ -45,6 +47,9 @@ final class Mailer
      * @param string[]      $cc
      * @param string[]      $bcc
      * @param array<int,array{path:string,name:string,contentType:string}> $attachments
+     * @return string Krátký SMTP server response z poslední odpovědi (např.
+     *               „250 2.0.0 Ok: queued as ABCDEF"). Plný transcript jde
+     *               do log/myinvoice-*.log na úrovni info.
      */
     public function sendTemplate(
         string $code,
@@ -55,7 +60,7 @@ final class Mailer
         array $cc = [],
         array $bcc = [],
         array $attachments = [],
-    ): void {
+    ): string {
         $twig = $this->twig();
 
         $vars['locale'] = $locale;
@@ -103,6 +108,18 @@ final class Mailer
             ->html($html)
             ->text($text);
 
+        // Per-supplier branding logo jako CID inline image — je-li `email_branding_enabled`
+        // a logo soubor existuje. Twig používá `cid:supplier_logo` jako image src.
+        if ($supplier !== null
+            && !empty($supplier['email_branding_enabled'])
+            && !empty($supplier['logo_path'])
+        ) {
+            $logoAbs = Bootstrap::rootDir() . '/' . ltrim((string) $supplier['logo_path'], '/');
+            if (is_file($logoAbs)) {
+                $email->embedFromPath($logoAbs, 'supplier_logo', 'image/png');
+            }
+        }
+
         foreach ($to as $addr)  $email->addTo($addr);
         foreach ($cc as $addr)  $email->addCc($addr);
         foreach ($bcc as $addr) $email->addBcc($addr);
@@ -142,17 +159,70 @@ final class Mailer
             }
         }
 
-        $this->mailer()->send($email);
+        // POZOR: high-level `Symfony\Component\Mailer\Mailer::send()` vrací void
+        // (od 5.x). Pro získání SentMessage s debug transcriptem musíme volat
+        // transport->send() napřímo. Stejný transport instance jako $this->mailer().
+        $sent = $this->transport()->send($email);
+        $debug = $sent !== null ? $sent->getDebug() : '';
+        $smtpResponse = $this->extractLastServerResponse($debug);
+
+        $this->logger->info('mail.sent', [
+            'template'      => $code,
+            'locale'        => $locale,
+            'to'            => $to,
+            'cc'            => $cc,
+            'bcc'           => $bcc,
+            'attachments'   => count($attachments),
+            'smtp_response' => $smtpResponse,
+            // Plný SMTP transcript — užitečný pro debugging delivery problémů.
+            // Pokud je log moc velký, dá se filtrovat na úrovni Monolog handleru.
+            'smtp_debug'    => $debug,
+        ]);
+
+        return $smtpResponse;
+    }
+
+    /**
+     * Vytáhne z SMTP transcriptu poslední řádek odpovědi serveru (`<<< 250 …`).
+     * Používá se pro logování do activity_log payload — uživatel vidí, co
+     * SMTP server poslední řekl, a pozná, jestli zpráva byla přijata
+     * (`2xx`), odmítnuta (`5xx`) nebo dočasně failnula (`4xx`).
+     */
+    private function extractLastServerResponse(string $debug): string
+    {
+        if ($debug === '') return '';
+        // Symfony Mailer 8.x prefixuje řádky timestampem `[YYYY-MM-DDTHH:MM:SS] < …`.
+        // Server odpovědi používají `< ` (s mezerou) nebo `<<<` (starší verze).
+        // Najdeme poslední match přes celý transcript.
+        $lines = preg_split('/\r?\n/', $debug) ?: [];
+        $last = '';
+        foreach ($lines as $line) {
+            // Strip timestamp prefix `[2026-05-07T11:43:39.349662+02:00] `
+            $stripped = (string) preg_replace('/^\[[^\]]+\]\s*/', '', $line);
+            $stripped = trim($stripped);
+            if ($stripped === '') continue;
+            if (str_starts_with($stripped, '< ') || str_starts_with($stripped, '<<<')) {
+                $last = $stripped;
+            }
+        }
+        $last = (string) preg_replace('/^(?:<<<\s*|<\s+)/', '', $last);
+        return $last !== '' ? $last : '(no SMTP debug — possibly non-SMTP transport)';
     }
 
     private function mailer(): SymfonyMailer
     {
         if ($this->mailer === null) {
-            $dsn = $this->buildDsn();
-            $transport = Transport::fromDsn($dsn);
-            $this->mailer = new SymfonyMailer($transport);
+            $this->mailer = new SymfonyMailer($this->transport());
         }
         return $this->mailer;
+    }
+
+    private function transport(): \Symfony\Component\Mailer\Transport\TransportInterface
+    {
+        if ($this->transport === null) {
+            $this->transport = Transport::fromDsn($this->buildDsn());
+        }
+        return $this->transport;
     }
 
     private function buildDsn(): string
@@ -251,13 +321,19 @@ final class Mailer
         try {
             $stmt = $this->db->pdo()->prepare(
                 'SELECT s.company_name, s.display_name, s.tagline, s.street, s.city, s.zip,
-                        s.email, s.phone, s.web, co.name_cs AS country
+                        s.email, s.phone, s.web,
+                        s.email_branding_enabled, s.email_accent_color, s.logo_path,
+                        co.name_cs AS country
                    FROM supplier s
               LEFT JOIN countries co ON co.id = s.country_id
                   WHERE s.id = (SELECT MIN(id) FROM supplier)'
             );
             $stmt->execute();
             $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if ($row !== false) {
+                $row['email_branding_enabled'] = (bool) ($row['email_branding_enabled'] ?? false);
+                $row['email_accent_color']     = (string) ($row['email_accent_color'] ?: '#3B2D83');
+            }
             $this->supplierFooter = $row !== false ? $row : [];
             return $this->supplierFooter ?: null;
         } catch (\Throwable $e) {

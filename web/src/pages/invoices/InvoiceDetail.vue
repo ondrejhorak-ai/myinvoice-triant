@@ -688,7 +688,7 @@ async function updateApprovalStatus() {
         </div>
         <div v-if="invoice.client_main_email || invoice.project_billing_emails?.length" class="text-xs text-neutral-500 flex flex-wrap gap-x-3 gap-y-0.5">
           <span v-if="invoice.client_main_email">✉ {{ invoice.client_main_email }}</span>
-          <span v-for="b in invoice.project_billing_emails || []" :key="b.email">
+          <span v-for="b in (invoice.project_billing_emails || []).filter(b => b.email !== invoice!.client_main_email)" :key="b.email">
             ✉ {{ b.email }}<span v-if="b.label" class="text-neutral-400"> ({{ b.label }})</span>
           </span>
         </div>
@@ -794,7 +794,7 @@ async function updateApprovalStatus() {
         <div v-if="invoice && (invoice.client_main_email || invoice.project_billing_emails?.length)" class="bg-neutral-50 border border-neutral-200 rounded-md px-3 py-2 mb-4 text-xs">
           <div class="text-neutral-500 mb-0.5">{{ t('invoice.modals.reminder_recipients') }}</div>
           <div v-if="invoice.client_main_email" class="font-mono">✉ {{ invoice.client_main_email }}</div>
-          <div v-for="b in invoice.project_billing_emails || []" :key="b.email" class="font-mono">
+          <div v-for="b in (invoice.project_billing_emails || []).filter(b => b.email !== invoice!.client_main_email)" :key="b.email" class="font-mono">
             ✉ {{ b.email }}<span v-if="b.label" class="text-neutral-400"> ({{ b.label }})</span>
           </div>
         </div>
@@ -1275,16 +1275,24 @@ async function updateApprovalStatus() {
       <header class="px-5 py-3 border-b border-neutral-200">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.activity') }}</h3>
       </header>
-      <ul class="divide-y divide-neutral-100">
-        <li v-for="a in activity" :key="a.id" class="px-5 py-2.5 text-sm flex items-center gap-3">
-          <span class="text-xs px-2 py-0.5 rounded font-medium" :class="actionColor(a.action)">{{ actionLabel(a.action) }}</span>
-          <span class="text-neutral-500 text-xs">{{ a.user_name || a.user_email || '—' }}</span>
-          <span class="text-neutral-400 text-xs flex-1">{{ a.created_at.replace('T', ' ').slice(0, 19) }}</span>
-          <span v-if="a.payload" class="text-xs text-neutral-500 truncate max-w-md">
-            {{ Object.entries(a.payload).map(([k, v]) => k + '=' + (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(' · ') }}
-          </span>
-        </li>
-      </ul>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-neutral-100">
+            <tr v-for="a in activity" :key="a.id" class="hover:bg-neutral-50 align-top">
+              <td class="px-5 py-2 whitespace-nowrap">
+                <span class="text-xs px-2 py-0.5 rounded font-medium" :class="actionColor(a.action)">{{ actionLabel(a.action) }}</span>
+              </td>
+              <td class="px-3 py-2 text-xs text-neutral-500 whitespace-nowrap">{{ a.user_name || a.user_email || '—' }}</td>
+              <td class="px-3 py-2 font-mono text-xs text-neutral-400 whitespace-nowrap">{{ a.created_at.replace('T', ' ').slice(0, 19) }}</td>
+              <td class="px-3 py-2 text-xs text-neutral-600 break-all whitespace-pre-wrap leading-snug">
+                <template v-if="a.payload">
+                  {{ Object.entries(a.payload).map(([k, v]) => k + '=' + (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(' · ') }}
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Sekundární akce — pod fakturou (Test odeslání + admin/destrukční).

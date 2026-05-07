@@ -169,13 +169,14 @@ final class InvoiceEmailVarsBuilder
      */
     private function loadSupplierFooter(array $invoice): ?array
     {
-        // 1. Snapshot
+        $row = null;
+        // 1. Snapshot — frozen footer text (company_name, address, contact)
         if (!empty($invoice['supplier_snapshot'])) {
             $snap = is_string($invoice['supplier_snapshot'])
                 ? json_decode($invoice['supplier_snapshot'], true)
                 : $invoice['supplier_snapshot'];
             if (is_array($snap)) {
-                return [
+                $row = [
                     'company_name' => $snap['company_name'] ?? '',
                     'display_name' => $snap['display_name'] ?? null,
                     'tagline'      => $snap['tagline'] ?? null,
@@ -189,18 +190,37 @@ final class InvoiceEmailVarsBuilder
                 ];
             }
         }
-        // 2. Live
+        // 2. Live fallback pro footer text (pokud chybí snapshot)
         $sid = (int) ($invoice['supplier_id'] ?? 0);
-        if ($sid <= 0) return null;
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT s.company_name, s.display_name, s.tagline, s.street, s.city, s.zip,
-                    s.email, s.phone, s.web, co.name_cs AS country
-               FROM supplier s
-          LEFT JOIN countries co ON co.id = s.country_id
-              WHERE s.id = ?'
-        );
-        $stmt->execute([$sid]);
-        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row ?: null;
+        if ($row === null && $sid > 0) {
+            $stmt = $this->db->pdo()->prepare(
+                'SELECT s.company_name, s.display_name, s.tagline, s.street, s.city, s.zip,
+                        s.email, s.phone, s.web, co.name_cs AS country
+                   FROM supplier s
+              LEFT JOIN countries co ON co.id = s.country_id
+                  WHERE s.id = ?'
+            );
+            $stmt->execute([$sid]);
+            $live = $stmt->fetch(\PDO::FETCH_ASSOC);
+            $row = $live ?: null;
+        }
+
+        // 3. Branding (logo, accent color, toggle) — vždy LIVE z aktuálního supplier,
+        //    nepatří do snapshotu, protože reprezentuje současnou identitu firmy.
+        if ($row !== null && $sid > 0) {
+            $bStmt = $this->db->pdo()->prepare(
+                'SELECT email_branding_enabled, email_accent_color, logo_path
+                   FROM supplier WHERE id = ?'
+            );
+            $bStmt->execute([$sid]);
+            $br = $bStmt->fetch(\PDO::FETCH_ASSOC);
+            if ($br !== false) {
+                $row['email_branding_enabled'] = (bool) $br['email_branding_enabled'];
+                $row['email_accent_color']     = (string) ($br['email_accent_color'] ?: '#3B2D83');
+                $row['logo_path']              = $br['logo_path'] ?: null;
+            }
+        }
+
+        return $row;
     }
 }

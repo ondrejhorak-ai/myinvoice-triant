@@ -7,6 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-05-07
+
+### Added
+
+- **Per-supplier branding emailů a PDF** — `Nastavení → Branding emailů`.
+  Toggle „Použít vlastní branding" gatuje branding **konzistentně napříč
+  emaily i PDF faktur**. Když je zapnutý: default fialové „M" logo
+  v hlavičce odchozích emailů se nahradí firemním logem (CID inline image,
+  zobrazí se bez „Display images" promptu), název „MyInvoice.cz" se nahradí
+  `display_name` + `tagline` dodavatele, akcent barva (default `#3B2D83`)
+  se použije pro „M" fallback box a všechny odkazy v emailu, a v hlavičce
+  PDF faktury se ukáže stejné logo místo textového jména firmy. Když je
+  vypnutý: e-mail vrátí default MyInvoice branding a PDF zobrazí jméno
+  firmy textem.
+  - **Live preview iframe s CS/EN přepínačem** — náhled emailu se aktualizuje
+    okamžitě po změně toggle / barvy (auto-save s 0,5 s debounce pro color
+    picker) bez potřeby klikat „Save". Renderuje se přes `srcdoc` (fetch
+    HTML přes axios + injektnutí do iframe), aby fungoval i s globálním
+    `X-Frame-Options: DENY` v `web.config` / `.htaccess`.
+  - **SVG dual-storage** — originální SVG se uloží jako sidecar
+    (`sup-{id}.svg`) pro **PDF render přes mPDF** (vektor = crisp
+    v libovolném zoomu), a zároveň se převede na transparentní PNG
+    (`sup-{id}.png`) pro **email** (Outlook / Gmail / Yahoo SVG strippují,
+    musí to být raster). SVG se před uložením sanitizuje proti XSS / XXE
+    (žádný `<script>`, `<foreignObject>`, `on*` handlers, ENTITY ani
+    externí `href`).
+  - **SVG → PNG konverze** — cross-platform pipeline: PHP `Imagick`
+    extension (Windows i Linux, s DPI boostem aby výstup měl alespoň
+    240 px na výšku — 5× retina pro 48 px display) → fallback `rsvg-convert`
+    CLI (balíček `librsvg2-bin`, pre-instalovaný v Docker image
+    `ghcr.io/radekhulan/myinvoice`). Pokud žádný z nástrojů není dostupný,
+    upload SVG selže se srozumitelnou instalační hláškou — PNG/JPG/WebP
+    funguje vždy přes GD.
+  - **PNG/JPG/WebP resize** — přes GD, max 800×240 px, transparentní pozadí.
+  - **Pixel-bomb protection** — odmítne dekódovaný obrázek nad 12 MP
+    (chrání před `100000×100000` PNG, který by sežral všechnu RAM).
+  - **Storage:** `storage/supplier-logos/sup-{id}.{png,svg}` (mimo webroot).
+  - **Snapshot vs live:** fakturační údaje v patičce zůstávají frozen
+    ve snapshotu, branding (logo, barva, toggle) se vždy fetchuje LIVE
+    z aktuálního stavu dodavatele — branding je „současná identita firmy",
+    ne historický stav v okamžiku vystavení.
+  - DB migrace `0016_email_branding`: nové sloupce
+    `supplier.email_branding_enabled` (TINYINT default 0) a
+    `supplier.email_accent_color` (VARCHAR 7 default `#3B2D83`).
+- **Attribution řádek v patičce PDF faktury** — drobný šedý 7 pt text
+  na patě **každé** stránky (mPDF `<htmlpagefooter>`): **„Používá fakturační
+  systém [MyInvoice.cz](https://myinvoice.cz/)"** (CS) / **„Powered by
+  MyInvoice.cz invoicing system"** (EN). „MyInvoice.cz" je proklikatelný
+  odkaz. Stejná attribution se objeví i v patičce každého odchozího emailu.
+- **SMTP debug v activity logu** — každý odeslaný email teď v activity
+  payloadu obsahuje pole `smtp_response` (poslední řádek odpovědi SMTP
+  serveru, např. `250 Ok: queued as 6B5F95C80063` pro úspěch nebo `5xx ...`
+  pro odmítnutí) — při delivery problémech vidíš okamžitě, zda SMTP server
+  zprávu přijal nebo odmítl. Plný SMTP transcript jde do `log/myinvoice-*.log`
+  pod klíčem `mail.sent` (info level). Pokrývá `SendEmailAction`,
+  `SendTestEmailAction`, `SendTestReminderAction`.
+
+### Changed
+
+- **Activity log v invoice detailu** — přepracovaný do tabulkového layoutu
+  konzistentního s `admin/Activity log` (action badge / user / timestamp /
+  payload). Payload se neořezává — wrapuje s `break-all whitespace-pre-wrap`,
+  takže celý záznam je čitelný i u dlouhých `to=…cc=…bcc=…pdf_path=…` payloadů.
+- **Twig email layout** (`api/templates/email/_layout.html.twig` +
+  `_layout.txt.twig`) — přepracovaná hlavička: pokud
+  `supplier.email_branding_enabled`, vykreslí se supplier logo + brand name;
+  jinak fallback na MyInvoice „M" box. Akcent barva proměnná napříč šablonou
+  (header, footer linky). Plain-text varianta upravena obdobně.
+
+### Fixed
+
+- **Duplicitní e-mailová adresa v invoice detailu** — když byl
+  `client_main_email` totožný s některým z `project_billing_emails`,
+  zobrazil se v UI 2× (header + reminder modal). Teď se de-duplikuje filtrem
+  ve v-for. Backend (`SendEmailAction::resolveRecipients`) už dedupoval
+  korektně, takže reálně se email pošle jen jednou — bug byl jen v UI.
+
+### Infrastructure
+
+- **Dockerfile** — runtime stage instaluje `librsvg2-bin` (~2 MB) pro SVG
+  konverzi loga.
+- **Mailer.php** — používá `Transport::send()` napřímo místo
+  `SymfonyMailer::send()` (Symfony Mailer 8.x vrací `void`, jen Transport
+  vrací `SentMessage` s SMTP transcriptem). `embedFromPath()` pro CID
+  inline image. Po každém odeslání zaloguje plný SMTP transkript do Monolog
+  na úrovni `info` pod klíčem `mail.sent`.
+- **InvoiceEmailVarsBuilder** — `loadSupplierFooter()` rozšířen o branding
+  fields (vždy live, nepatří do snapshotu).
+
 ## [2.0.3] — 2026-05-07
 
 ### Fixed

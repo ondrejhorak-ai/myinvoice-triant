@@ -309,15 +309,24 @@ final class InvoicePdfRenderer
 
     private function resolveLogoPath(array $supplier): ?string
     {
+        // Logo se v PDF zobrazí jen když má dodavatel zapnutý branding
+        // (`email_branding_enabled` = 1). Pokud je toggle vypnutý, vykreslí se
+        // textový brand-name fallback. Stejný toggle gatuje branding emailů,
+        // takže UX je konzistentní napříč PDF i emaily.
+        if (empty($supplier['email_branding_enabled'])) return null;
+
         $logoPath = $supplier['logo_path'] ?? null;
         if (!$logoPath) return null;
-        // Pokud je relativní path, doplň root
-        if (!is_file($logoPath)) {
-            $abs = Bootstrap::rootDir() . '/' . ltrim($logoPath, '/');
-            if (is_file($abs)) return $abs;
-            return null;
+
+        // Pro PDF preferuj SVG sidecar (vektor = crisp v PDF v libovolném zoomu).
+        // Email naopak vždy používá PNG (Outlook/Gmail SVG nepodporují) — tam to
+        // řeší Mailer + InvoiceEmailVarsBuilder.
+        $abs = is_file($logoPath) ? $logoPath : Bootstrap::rootDir() . '/' . ltrim($logoPath, '/');
+        $svgSibling = preg_replace('/\.png$/i', '.svg', $abs);
+        if (is_string($svgSibling) && $svgSibling !== $abs && is_file($svgSibling)) {
+            return $svgSibling;
         }
-        return $logoPath;
+        return is_file($abs) ? $abs : null;
     }
 
     /**

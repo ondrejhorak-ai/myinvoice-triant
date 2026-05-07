@@ -107,8 +107,9 @@ final class SendEmailAction
             $sentAttachmentIds[] = (int) $att['id'];
         }
 
+        $smtpResponse = '';
         try {
-            $this->mailer->sendTemplate(
+            $smtpResponse = $this->mailer->sendTemplate(
                 'invoice_send',
                 $locale,
                 $to,
@@ -138,6 +139,7 @@ final class SendEmailAction
             'pdf_path' => basename($pdfPath),
             'pdf_archive_id' => $archiveId,
             'attachment_ids' => $sentAttachmentIds,
+            'smtp_response'  => $smtpResponse,
         ], $ip, $request->getHeaderLine('User-Agent'));
 
         return Json::ok($response, [

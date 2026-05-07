@@ -38,6 +38,10 @@ export interface Supplier {
   proforma_number_format: string | null
   credit_note_number_format: string | null
   invoice_number_period: 'year' | 'month' | 'none'
+  // Per-supplier email branding (migrace 0016)
+  email_branding_enabled: boolean
+  email_accent_color: string  // #RRGGBB
+  has_email_logo?: boolean    // server flag (existence storage/supplier-logos/sup-{id}.png)
   // Globální cfg fallback (read-only) — UI ho ukáže jako placeholder
   // v prázdných polích per-supplier šablon. Hodnota přichází z cfg.varsymbol.templates.
   cfg_varsymbol_fallback?: {
@@ -124,4 +128,19 @@ export const settingsApi = {
   createUnit: (p: Partial<Unit>) => api.post('/settings/units', p).then(r => r.data),
   updateUnit: (id: number, p: Partial<Unit>) => api.put(`/settings/units/${id}`, p).then(r => r.data),
   deleteUnit: (id: number) => api.delete(`/settings/units/${id}`).then(r => r.data),
+
+  // Email branding (M16)
+  uploadEmailLogo: (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return api.post<{ logo_path: string; width: number; height: number }>(
+      '/settings/email-branding/logo',
+      fd,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    ).then(r => r.data)
+  },
+  deleteEmailLogo: () => api.delete('/settings/email-branding/logo').then(r => r.data),
+  // Vrací HTML string — frontend ho pak nacpe do iframe.srcdoc (obejde X-Frame-Options DENY).
+  emailPreviewHtml: (locale: 'cs' | 'en' = 'cs') =>
+    api.get<string>(`/settings/email-branding/preview?locale=${locale}`, { responseType: 'text', transformResponse: [(d) => d] }).then(r => r.data),
 }

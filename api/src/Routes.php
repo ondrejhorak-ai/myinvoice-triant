@@ -26,6 +26,7 @@ use MyInvoice\Action\Admin\ImportAction;
 use MyInvoice\Action\Admin\InvoicesZipAction;
 use MyInvoice\Action\Admin\ListActivityLogAction;
 use MyInvoice\Action\Admin\UserAdminAction;
+use MyInvoice\Action\Settings\EmailBrandingAction;
 use MyInvoice\Action\Settings\SettingsAction;
 use MyInvoice\Action\Bank\BankStatementAction;
 use MyInvoice\Action\Dashboard\SummaryAction;
@@ -220,6 +221,11 @@ final class Routes
         $app->post   ('/api/settings/countries',                      [SettingsAction::class, 'createCountry']);
         $app->put    ('/api/settings/countries/{id:[0-9]+}',          [SettingsAction::class, 'updateCountry']);
         $app->delete ('/api/settings/countries/{id:[0-9]+}',          [SettingsAction::class, 'deleteCountry']);
+
+        // Email branding (M16) — per-supplier logo + accent color v hlavičce odchozích emailů
+        $app->post   ('/api/settings/email-branding/logo',            [EmailBrandingAction::class, 'uploadLogo']);
+        $app->delete ('/api/settings/email-branding/logo',            [EmailBrandingAction::class, 'deleteLogo']);
+        $app->get    ('/api/settings/email-branding/preview',         [EmailBrandingAction::class, 'preview']);
 
         $app->get    ('/api/settings/units',                          [SettingsAction::class, 'listUnits']);
         $app->post   ('/api/settings/units',                          [SettingsAction::class, 'createUnit']);

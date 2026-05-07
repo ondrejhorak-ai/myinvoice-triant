@@ -194,7 +194,18 @@ final class SettingsAction
             // Per-supplier konfigurace číslování faktur (migrace 0014)
             'invoice_number_format', 'proforma_number_format', 'credit_note_number_format',
             'invoice_number_period',
+            // Per-supplier branding emailů (migrace 0016)
+            'email_branding_enabled', 'email_accent_color',
         ];
+        // Validace email_accent_color — musí být hex (#RRGGBB)
+        if (array_key_exists('email_accent_color', $body)) {
+            $v = trim((string) ($body['email_accent_color'] ?? ''));
+            if ($v === '') {
+                $body['email_accent_color'] = '#3B2D83';
+            } elseif (!preg_match('/^#[0-9A-Fa-f]{6}$/', $v)) {
+                return Json::error($response, 'validation_failed', "email_accent_color musí být hex barva (#RRGGBB).", 400);
+            }
+        }
         // Validace per-supplier varsymbol templatů: prázdný string → NULL (= fallback na cfg);
         // jinak max 60 znaků a musí obsahovat alespoň jeden counter placeholder {C+}.
         foreach (['invoice_number_format', 'proforma_number_format', 'credit_note_number_format'] as $f) {
@@ -231,7 +242,7 @@ final class SettingsAction
         foreach ($allowed as $f) {
             if (array_key_exists($f, $body)) {
                 $sets[] = "$f = ?";
-                $params[] = in_array($f, ['is_vat_payer', 'auto_send_reminders'], true)
+                $params[] = in_array($f, ['is_vat_payer', 'auto_send_reminders', 'email_branding_enabled'], true)
                     ? ((int) (bool) $body[$f])
                     : $body[$f];
             }
@@ -318,6 +329,9 @@ final class SettingsAction
         $row['default_payment_due_days'] = (int) $row['default_payment_due_days'];
         $row['default_hourly_rate']      = (float) $row['default_hourly_rate'];
         $row['auto_send_reminders']      = (bool) $row['auto_send_reminders'];
+        $row['email_branding_enabled']   = (bool) ($row['email_branding_enabled'] ?? false);
+        $row['email_accent_color']       = (string) ($row['email_accent_color'] ?? '#3B2D83');
+        $row['has_email_logo']           = is_file(\MyInvoice\Bootstrap::rootDir() . '/storage/supplier-logos/sup-' . $row['id'] . '.png');
         // Globální cfg fallback pro varsymbol — UI ho použije jako placeholder
         // u prázdných per-supplier polí (aby uživatel viděl, jaká šablona by se
         // použila kdyby ponechal pole prázdné).

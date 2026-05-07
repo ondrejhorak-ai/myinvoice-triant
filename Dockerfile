@@ -39,7 +39,7 @@ COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensio
 RUN install-php-extensions \
         pdo_mysql gd mbstring intl zip opcache exif bcmath redis \
  && apt-get update \
- && apt-get install -y --no-install-recommends tini \
+ && apt-get install -y --no-install-recommends tini librsvg2-bin \
  && a2enmod rewrite headers deflate expires \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*

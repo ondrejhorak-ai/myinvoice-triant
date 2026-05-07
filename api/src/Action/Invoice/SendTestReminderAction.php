@@ -82,9 +82,10 @@ final class SendTestReminderAction
         // Označ jako TEST v subjectu (na rozdíl od reálné upomínky)
         $vars['subject'] = ($locale === 'en' ? '[TEST] ' : '[TEST] ') . $vars['subject'];
 
+        $smtpResponse = '';
         try {
             $templateCode = $invoice['invoice_type'] === 'proforma' ? 'proforma_reminder' : 'invoice_reminder';
-            $this->mailer->sendTemplate(
+            $smtpResponse = $this->mailer->sendTemplate(
                 $templateCode,
                 $locale,
                 [$testRecipient],
@@ -105,9 +106,10 @@ final class SendTestReminderAction
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $this->logger->log('email.sent_test_reminder', $user['id'] ?? null, 'invoice', $id, [
-            'to'           => $testRecipient,
-            'days_overdue' => $daysOverdue,
-            'pdf_path'     => basename($pdfPath),
+            'to'            => $testRecipient,
+            'days_overdue'  => $daysOverdue,
+            'pdf_path'      => basename($pdfPath),
+            'smtp_response' => $smtpResponse,
         ], $ip, $request->getHeaderLine('User-Agent'));
 
         return Json::ok($response, [

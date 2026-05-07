@@ -86,8 +86,9 @@ final class SendTestEmailAction
             ];
         }
 
+        $smtpResponse = '';
         try {
-            $this->mailer->sendTemplate(
+            $smtpResponse = $this->mailer->sendTemplate(
                 'invoice_send',
                 $locale,
                 [$testRecipient],
@@ -104,8 +105,9 @@ final class SendTestEmailAction
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $this->logger->log('email.sent_test', $user['id'] ?? null, 'invoice', $id, [
-            'to'       => $testRecipient,
-            'pdf_path' => basename($pdfPath),
+            'to'            => $testRecipient,
+            'pdf_path'      => basename($pdfPath),
+            'smtp_response' => $smtpResponse,
         ], $ip, $request->getHeaderLine('User-Agent'));
 
         return Json::ok($response, [

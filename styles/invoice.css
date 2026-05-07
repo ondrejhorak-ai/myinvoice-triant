@@ -364,6 +364,17 @@ table.bank-frame td {
     color: #A7A0BA;
     font-family: 'DejaVu Sans', sans-serif;
 }
+/* mPDF htmlpagefooter — attribution na patě KAŽDÉ stránky */
+.page-attribution {
+    text-align: center;
+    font-size: 7pt;
+    color: #C5BFD3;
+    font-family: 'DejaVu Sans', sans-serif;
+}
+.page-attribution a {
+    color: #A7A0BA;
+    text-decoration: none;
+}
 
 /* Stránkování — výkaz víceprací na nové straně */
 .page-break { page-break-before: always; }
