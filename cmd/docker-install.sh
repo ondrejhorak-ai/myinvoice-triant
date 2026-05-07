@@ -52,13 +52,19 @@ if [[ ! -f cfg.docker.php ]]; then
   ENC_KEY=$(openssl rand -base64 32)
   cp cfg.sample.php cfg.docker.php
   # In-place tweaks: Docker hostnames + generated secrets.
-  # cfg.sample.php has TWO `'host' => '127.0.0.1',` lines (db block then redis block);
-  # we use GNU sed's `0,/pat/` range to replace just the first occurrence per pass.
-  # (sed -i requires GNU sed; macOS users: install via `brew install gnu-sed`.)
+  # cfg.sample.php has TWO `'host' => '127.0.0.1',` lines (db block then redis block).
+  # First occurrence becomes 'db', second becomes 'redis' — done via perl (portable;
+  # BSD sed on macOS does not support GNU's `0,/pat/` range addressing).
   APP_URL="http://localhost:${APP_PORT}"
+  perl -i -pe '
+      BEGIN { $n = 0 }
+      if (/host.*127\.0\.0\.1/) {
+          $n++;
+          s/127\.0\.0\.1/db/    if $n == 1;
+          s/127\.0\.0\.1/redis/ if $n == 2;
+      }
+  ' cfg.docker.php
   sed -i.bak \
-      -e "0,/'host'    => '127\.0\.0\.1',/s|'host'    => '127\.0\.0\.1',|'host'    => 'db',|" \
-      -e "0,/'host'    => '127\.0\.0\.1',/s|'host'    => '127\.0\.0\.1',|'host'    => 'redis',|" \
       -e "s|'name'    => 'myinvoice',|'name'    => '${DB_NAME}',|" \
       -e "s|'user'    => 'root',|'user'    => '${DB_USER}',|" \
       -e "s|'pass'    => 'CHANGE-ME',|'pass'    => '${DB_PASSWORD}',|" \
