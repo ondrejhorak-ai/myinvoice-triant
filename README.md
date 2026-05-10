@@ -337,10 +337,11 @@ a `docker compose up -d`. URL pak bude `http://localhost:9000`.
 ### Env proměnné pro auto-migrace (Docker runtime)
 
 ```bash
-MYINVOICE_SKIP_MIGRATIONS=1    # vypne auto-migraci při startu
-MYINVOICE_MIGRATE_ATTEMPTS=20  # počet retry pokusů migrace
-MYINVOICE_MIGRATE_DELAY=3      # pauza mezi pokusy (sekundy)
-MYINVOICE_DATA_DIR=/data       # v3.2.0+ — opt-in single-volume mód (default unset)
+MYINVOICE_SKIP_MIGRATIONS=1     # vypne auto-migraci při startu
+MYINVOICE_MIGRATE_ATTEMPTS=20   # počet retry pokusů migrace
+MYINVOICE_MIGRATE_DELAY=3       # pauza mezi pokusy (sekundy)
+MYINVOICE_DATA_DIR=/data        # v3.2.0+ — opt-in single-volume mód (default unset)
+MYINVOICE_AUTH_REQUIRE_TOTP=true # v3.3.0+ — vynutit 2FA pro všechny uživatele (default false)
 ```
 
 Od image **v3.1.0** se migrace pouští při startu kontejneru automaticky

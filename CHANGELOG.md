@@ -7,7 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.2.1] — 2026-05-10
+## [3.3.0] — 2026-05-10
+
+### Added
+
+- **Volitelné vynucení 2FA pro všechny uživatele** (`cfg.auth.require_totp`,
+  env: `MYINVOICE_AUTH_REQUIRE_TOTP`, default `false`). Pokud je zapnuto,
+  každý uživatel je po loginu zamčen na `/setup-totp` dokud neaktivuje TOTP.
+  Backend `RequireTotpMiddleware` blokuje všechny endpointy mimo whitelist
+  (`/api/auth/me`, `/api/auth/logout`, `/api/auth/totp/*`, `/api/health`,
+  `/api/version`); frontend router-guard a axios interceptor zaručují
+  redirect i z přímých API volání. Jediná „escape route" je odhlášení.
+- **Instalační hooks pro `require_totp`** — CLI `php api/bin/setup.php`
+  se ptá *„Vynutit 2FA?"*, web setup wizard má checkbox v kroku „Admin
+  účet". Volba se zapisuje do `cfg.local.php` přes nový
+  `CfgLocalWriter` helper (atomický merge, dot-notation klíče).
+- Nová Vue stránka `ForcedTotpSetup.vue` (route `/setup-totp`) s QR kódem,
+  6místným inputem a tlačítkem na odhlášení.
+- `Login.vue` na mountu detekuje stale session a redirectuje rovnou na
+  `/setup-totp` nebo `/`, ať není matoucí flow s druhým otevřeným oknem.
+
+### Fixed
+
+- **`api/bin/setup.php` zavedlo admina, který se nemohl přihlásit** —
+  CLI hashovalo heslo přes `password_hash()` bez peppera, zatímco
+  `LoginAction` ověřuje přes `PasswordHasher::verify()` s pepperem
+  z `cfg.app.pepper`. Hash se nikdy neshodoval. CLI teď používá
+  `PasswordHasher::hash()` stejně jako web setup wizard.
+
+
 
 ### Fixed
 

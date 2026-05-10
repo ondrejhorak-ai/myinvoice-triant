@@ -200,11 +200,13 @@ a `docker compose up -d`. URL pak `http://localhost:9000`.
 Vstupní skript image podporuje tyto proměnné:
 
 ```bash
-MYINVOICE_SKIP_MIGRATIONS=1    # vypne auto-migraci při startu
-MYINVOICE_MIGRATE_ATTEMPTS=20  # počet retry pokusů migrace
-MYINVOICE_MIGRATE_DELAY=3      # pauza mezi pokusy (sekundy)
-MYINVOICE_DATA_DIR=/data       # od v3.2.0 — opt-in single-volume mód
-                               # (default unset → 3-volume layout, 3.1.x kompatibilní)
+MYINVOICE_SKIP_MIGRATIONS=1     # vypne auto-migraci při startu
+MYINVOICE_MIGRATE_ATTEMPTS=20   # počet retry pokusů migrace
+MYINVOICE_MIGRATE_DELAY=3       # pauza mezi pokusy (sekundy)
+MYINVOICE_DATA_DIR=/data        # od v3.2.0 — opt-in single-volume mód
+                                # (default unset → 3-volume layout, 3.1.x kompatibilní)
+MYINVOICE_AUTH_REQUIRE_TOTP=true # od v3.3.0 — vynutit 2FA pro všechny uživatele
+                                # (default false; viz § 18.2.4)
 ```
 
 Default je `20` pokusů s pauzou `3` sekundy. Pokud proměnné nenastavíš, použije
