@@ -6,34 +6,12 @@
 --
 -- Reuse existujících polí: display_name (brand name), tagline (subtitle), logo_path (logo file).
 --
--- Idempotentní: kontrola information_schema.COLUMNS, ALTER se pustí jen pokud sloupec chybí.
+-- Idempotent přes MariaDB native `IF NOT EXISTS` guards.
 
 SET NAMES utf8mb4;
 
--- email_branding_enabled
-SET @col_exists := (
-  SELECT COUNT(*)
-    FROM information_schema.COLUMNS
-   WHERE TABLE_SCHEMA = DATABASE()
-     AND TABLE_NAME   = 'supplier'
-     AND COLUMN_NAME  = 'email_branding_enabled'
-);
+ALTER TABLE supplier
+  ADD COLUMN IF NOT EXISTS email_branding_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER tagline;
 
-SET @sql := IF(@col_exists = 0,
-  'ALTER TABLE supplier ADD COLUMN email_branding_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER tagline',
-  'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- email_accent_color
-SET @col_exists := (
-  SELECT COUNT(*)
-    FROM information_schema.COLUMNS
-   WHERE TABLE_SCHEMA = DATABASE()
-     AND TABLE_NAME   = 'supplier'
-     AND COLUMN_NAME  = 'email_accent_color'
-);
-
-SET @sql := IF(@col_exists = 0,
-  "ALTER TABLE supplier ADD COLUMN email_accent_color VARCHAR(7) NOT NULL DEFAULT '#3B2D83' AFTER email_branding_enabled",
-  'DO 0');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+ALTER TABLE supplier
+  ADD COLUMN IF NOT EXISTS email_accent_color VARCHAR(7) NOT NULL DEFAULT '#3B2D83' AFTER email_branding_enabled;

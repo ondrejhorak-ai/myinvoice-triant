@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.1] — 2026-05-12
+
+### Fixed
+
+- **Migrace selhávala při re-runu nad neprázdným schématem** (issue #20).
+  `cmd/docker-ghcr.sh` na macOS hlásil `Duplicate column name approval_requested_at`
+  protože tracker `migrations` byl prázdný, ale schéma už mělo některé sloupce.
+- Migrace 0002–0010, 0014–0016 používaly fragile pattern
+  `SET @col := (SELECT FROM INFORMATION_SCHEMA); PREPARE stmt FROM @sql; EXECUTE stmt`
+  který se rozpadal přes splitSqlStatements v migrate.php (user-variables nepřežily
+  každý PDO exec call). Nahrazeno MariaDB-native syntaxí: `ADD COLUMN IF NOT EXISTS`,
+  `ADD KEY IF NOT EXISTS`, `DROP FOREIGN KEY IF EXISTS`, `MODIFY COLUMN IF EXISTS`
+  (vše MariaDB 10.0.2+; projekt vyžaduje 10.6+).
+- 0001_init.sql: všech 24 `CREATE TABLE` → `CREATE TABLE IF NOT EXISTS`,
+  seedy `INSERT INTO {countries,vat_rates}` → `INSERT IGNORE INTO`,
+  FK `fk_cur_supplier` drop+recreate. Doplněn COMMENT u `supplier.pohoda_*`
+  (drift proti production schématu).
+- 0018, 0019 dostali idempotent guards (`MODIFY COLUMN IF EXISTS`, `CREATE TABLE IF NOT EXISTS`).
+- `reset.php` už dříve maže `api_tokens` — fix v3.4.0 zachován.
+
+### Verified
+
+- Všech 19 migrací × 2 průchody na fresh `myinvoicetest` DB — bez chyby.
+- Deep schema diff `myinvoice` vs `myinvoicetest` (production vs fresh build):
+  344 sloupců (vč. COMMENT), 104 indexů, 41 FK, 31 tabulek — **bit-by-bit identické**.
+
 ## [3.4.0] — 2026-05-12
 
 ### Added

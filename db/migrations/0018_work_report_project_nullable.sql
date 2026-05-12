@@ -9,5 +9,6 @@
 
 SET NAMES utf8mb4;
 
+-- MariaDB 10.0.2+: IF EXISTS guard, takže opakovaný run je no-op.
 ALTER TABLE work_reports
-  MODIFY project_id BIGINT UNSIGNED NULL;
+  MODIFY COLUMN IF EXISTS project_id BIGINT UNSIGNED NULL;

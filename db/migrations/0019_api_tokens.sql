@@ -13,7 +13,7 @@
 
 SET NAMES utf8mb4;
 
-CREATE TABLE api_tokens (
+CREATE TABLE IF NOT EXISTS api_tokens (
   id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id         BIGINT UNSIGNED NOT NULL,
   supplier_id     TINYINT UNSIGNED NULL,

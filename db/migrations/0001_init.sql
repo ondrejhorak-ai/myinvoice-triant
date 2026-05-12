@@ -9,7 +9,7 @@ SET sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
 -- 1. Číselníky (countries, currencies, vat_rates)
 -- ==========================================================================
 
-CREATE TABLE countries (
+CREATE TABLE IF NOT EXISTS countries (
   id        SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   iso2      CHAR(2) NOT NULL,
   iso3      CHAR(3) NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE countries (
 -- Currencies = podporované měny + dodavatelovo bankovní spojení pro každou (single-tenant, 1:1).
 -- Pro CZK se vyplňuje account_number + bank_code + bank_name.
 -- Pro EUR / non-CZK se vyplňuje iban + bic + bank_name.
-CREATE TABLE currencies (
+CREATE TABLE IF NOT EXISTS currencies (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   supplier_id     TINYINT UNSIGNED NOT NULL,               -- multi-tenant: každá řádka patří jednomu supplierovi
   code            CHAR(3) NOT NULL,                        -- ISO 4217 (CZK, EUR, USD)
@@ -47,7 +47,7 @@ CREATE TABLE currencies (
   -- FK na supplier je přidaný DOLE (cyklický odkaz: supplier.default_currency_id → currencies.id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE vat_rates (
+CREATE TABLE IF NOT EXISTS vat_rates (
   id                 INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   code               VARCHAR(20) NOT NULL,
   rate_percent       DECIMAL(5,2) NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE vat_rates (
 -- 2. Users + auth
 -- ==========================================================================
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   email           VARCHAR(190) NOT NULL,
   password_hash   CHAR(60) NOT NULL,
@@ -84,7 +84,7 @@ CREATE TABLE users (
   UNIQUE KEY uq_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
   id          CHAR(64) PRIMARY KEY,
   user_id     BIGINT UNSIGNED NOT NULL,
   csrf_token  CHAR(64) NOT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE sessions (
   CONSTRAINT fk_sess_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE password_resets (
+CREATE TABLE IF NOT EXISTS password_resets (
   id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id     BIGINT UNSIGNED NOT NULL,
   token_hash  CHAR(64) NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE password_resets (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- MEMORY engine — brute-force buckets, levné random access bez I/O
-CREATE TABLE login_attempts (
+CREATE TABLE IF NOT EXISTS login_attempts (
   id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   bucket_key  VARCHAR(80) NOT NULL,
   email       VARCHAR(190) NOT NULL,
@@ -125,7 +125,7 @@ CREATE TABLE login_attempts (
 -- 3. Supplier (multi-tenant, id AUTO_INCREMENT)
 -- ==========================================================================
 
-CREATE TABLE supplier (
+CREATE TABLE IF NOT EXISTS supplier (
   id                       TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   company_name             VARCHAR(190) NOT NULL,
   display_name             VARCHAR(190) NULL,
@@ -148,10 +148,10 @@ CREATE TABLE supplier (
   logo_path                VARCHAR(255) NULL,
   signature_path           VARCHAR(255) NULL,
   -- Pohoda XML export — kódy pro číselníky (NULL = nepoužívat)
-  pohoda_account_code      VARCHAR(20) NULL,
-  pohoda_centre_code       VARCHAR(20) NULL,
-  pohoda_activity_code     VARCHAR(20) NULL,
-  pohoda_contract_code     VARCHAR(20) NULL,
+  pohoda_account_code      VARCHAR(20) NULL COMMENT 'Kód účtu v Pohoda číselníku (např. KB, 1010)',
+  pohoda_centre_code       VARCHAR(20) NULL COMMENT 'Středisko (kód v Pohodě)',
+  pohoda_activity_code     VARCHAR(20) NULL COMMENT 'Činnost (kód v Pohodě)',
+  pohoda_contract_code     VARCHAR(20) NULL COMMENT 'Zakázka (kód v Pohodě)',
   created_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at               TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_sup_country  FOREIGN KEY (country_id) REFERENCES countries(id),
@@ -163,7 +163,7 @@ CREATE TABLE supplier (
 -- 4. Clients + projects
 -- ==========================================================================
 
-CREATE TABLE clients (
+CREATE TABLE IF NOT EXISTS clients (
   id                   BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   supplier_id          TINYINT UNSIGNED NOT NULL,
   company_name         VARCHAR(190) NOT NULL,
@@ -197,7 +197,7 @@ CREATE TABLE clients (
   CONSTRAINT fk_cli_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE projects (
+CREATE TABLE IF NOT EXISTS projects (
   id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   client_id         BIGINT UNSIGNED NOT NULL,
   name              VARCHAR(190) NOT NULL,
@@ -220,7 +220,7 @@ CREATE TABLE projects (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Fakturační emaily per zakázka (0..3 emailů, slot 1/2/3).
-CREATE TABLE project_billing_emails (
+CREATE TABLE IF NOT EXISTS project_billing_emails (
   id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   project_id  BIGINT UNSIGNED NOT NULL,
   email       VARCHAR(190) NOT NULL,
@@ -236,7 +236,7 @@ CREATE TABLE project_billing_emails (
 -- 5. Invoices + items + work reports
 -- ==========================================================================
 
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
   id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   supplier_id         TINYINT UNSIGNED NOT NULL,                -- multi-tenant denorm; varsymbol/counter scoped
   varsymbol           VARCHAR(20) NULL,
@@ -289,7 +289,7 @@ CREATE TABLE invoices (
   CONSTRAINT fk_inv_supplier FOREIGN KEY (supplier_id)       REFERENCES supplier(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE work_reports (
+CREATE TABLE IF NOT EXISTS work_reports (
   id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   invoice_id   BIGINT UNSIGNED NOT NULL,
   project_id   BIGINT UNSIGNED NOT NULL,
@@ -303,7 +303,7 @@ CREATE TABLE work_reports (
   CONSTRAINT fk_wr_project FOREIGN KEY (project_id) REFERENCES projects(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE invoice_items (
+CREATE TABLE IF NOT EXISTS invoice_items (
   id                       BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   invoice_id               BIGINT UNSIGNED NOT NULL,
   description              TEXT NOT NULL,
@@ -323,7 +323,7 @@ CREATE TABLE invoice_items (
   CONSTRAINT fk_ii_wr      FOREIGN KEY (linked_work_report_id) REFERENCES work_reports(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE work_report_items (
+CREATE TABLE IF NOT EXISTS work_report_items (
   id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   work_report_id  BIGINT UNSIGNED NOT NULL,
   description     TEXT NOT NULL,
@@ -336,7 +336,7 @@ CREATE TABLE work_report_items (
   CONSTRAINT fk_wri_wr FOREIGN KEY (work_report_id) REFERENCES work_reports(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE invoice_counters (
+CREATE TABLE IF NOT EXISTS invoice_counters (
   supplier_id  TINYINT UNSIGNED NOT NULL,
   invoice_type ENUM('invoice','proforma','credit_note') NOT NULL,
   period       CHAR(6) NOT NULL,                -- "YYYYMM", např. "202604"
@@ -349,7 +349,7 @@ CREATE TABLE invoice_counters (
 -- 6. Activity log + caches
 -- ==========================================================================
 
-CREATE TABLE activity_log (
+CREATE TABLE IF NOT EXISTS activity_log (
   id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   supplier_id  TINYINT UNSIGNED NULL,     -- multi-supplier scope (NULL = cross-cutting jako login/setup)
   user_id      BIGINT UNSIGNED NULL,
@@ -367,13 +367,13 @@ CREATE TABLE activity_log (
   CONSTRAINT fk_al_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=COMPRESSED;
 
-CREATE TABLE ares_cache (
+CREATE TABLE IF NOT EXISTS ares_cache (
   ic         VARCHAR(10) PRIMARY KEY,
   payload    JSON NOT NULL,
   fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE vies_cache (
+CREATE TABLE IF NOT EXISTS vies_cache (
   vat_id     VARCHAR(20) PRIMARY KEY,
   is_valid   TINYINT(1) NOT NULL,
   payload    JSON NOT NULL,
@@ -384,7 +384,7 @@ CREATE TABLE vies_cache (
 -- 7. Bank statements (M5b — GPC/ABO import + auto-matching)
 -- ==========================================================================
 
-CREATE TABLE bank_statements (
+CREATE TABLE IF NOT EXISTS bank_statements (
   id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   file_name           VARCHAR(255) NOT NULL,
   file_hash           CHAR(64) NOT NULL,                  -- SHA256 pro dedupe
@@ -406,7 +406,7 @@ CREATE TABLE bank_statements (
   CONSTRAINT fk_bs_user FOREIGN KEY (imported_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE bank_transactions (
+CREATE TABLE IF NOT EXISTS bank_transactions (
   id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   statement_id      BIGINT UNSIGNED NOT NULL,
   posted_at         DATE NOT NULL,
@@ -440,7 +440,7 @@ CREATE TABLE bank_transactions (
 -- Per-currency cache obratu pro zakázky a klienty.
 -- Místo korelovaných subqueries v listech: denormalizované hodnoty, přepočítávané
 -- skrz Service/Stats/StatsRecomputer při create/update/issue/cancel/delete faktury.
-CREATE TABLE project_revenue_cache (
+CREATE TABLE IF NOT EXISTS project_revenue_cache (
   project_id        BIGINT UNSIGNED NOT NULL,
   currency_id       INT UNSIGNED NOT NULL,
   revenue           DECIMAL(14,2) NOT NULL DEFAULT 0,
@@ -454,7 +454,7 @@ CREATE TABLE project_revenue_cache (
   CONSTRAINT fk_prc_currency FOREIGN KEY (currency_id) REFERENCES currencies(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE client_revenue_cache (
+CREATE TABLE IF NOT EXISTS client_revenue_cache (
   client_id         BIGINT UNSIGNED NOT NULL,
   currency_id       INT UNSIGNED NOT NULL,
   revenue           DECIMAL(14,2) NOT NULL DEFAULT 0,
@@ -469,7 +469,7 @@ CREATE TABLE client_revenue_cache (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Email šablony (override file defaults v api/templates/email/)
-CREATE TABLE email_templates (
+CREATE TABLE IF NOT EXISTS email_templates (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   code        VARCHAR(64) NOT NULL,            -- 'invoice_send' | 'password_reset'
   locale      CHAR(2)     NOT NULL,
@@ -488,18 +488,23 @@ CREATE TABLE email_templates (
 --    po vytvoření prvního supplier řádku.
 -- ==========================================================================
 
--- Po vytvoření tabulek doplníme cyklický FK currencies → supplier (supplier ho má naopak)
+-- Po vytvoření tabulek doplníme cyklický FK currencies → supplier (supplier ho má naopak).
+-- Idempotent: drop + re-add konverguje vždy ke stejnému stavu.
+ALTER TABLE currencies
+  DROP FOREIGN KEY IF EXISTS fk_cur_supplier;
 ALTER TABLE currencies
   ADD CONSTRAINT fk_cur_supplier FOREIGN KEY (supplier_id) REFERENCES supplier(id);
 
-INSERT INTO vat_rates (code, rate_percent, country, label_cs, label_en, is_default, is_reverse_charge, valid_from, display_order) VALUES
+-- Seedy: UNIQUE key (vat_rates.code, countries.iso2) zajistí dedup; INSERT IGNORE
+-- na re-run ignoruje duplicates a nepoškodí existující řádky.
+INSERT IGNORE INTO vat_rates (code, rate_percent, country, label_cs, label_en, is_default, is_reverse_charge, valid_from, display_order) VALUES
 ('CZ-21', 21.00, 'CZ', 'Základní 21 %',  'Standard 21 %',  1, 0, '2024-01-01', 10),
 ('CZ-12', 12.00, 'CZ', 'Snížená 12 %',   'Reduced 12 %',   0, 0, '2024-01-01', 20),
 ('CZ-0',   0.00, 'CZ', 'Osvobozeno',     'Exempt',         0, 0, '2024-01-01', 30),
 ('CZ-RC',  0.00, 'CZ', 'Reverse charge', 'Reverse charge', 0, 1, '2024-01-01', 40);
 
 -- EU + okolí + nejčastější mimo-EU
-INSERT INTO countries (iso2, iso3, name_cs, name_en, is_eu) VALUES
+INSERT IGNORE INTO countries (iso2, iso3, name_cs, name_en, is_eu) VALUES
 ('CZ','CZE','Česká republika','Czech Republic',1),
 ('SK','SVK','Slovensko','Slovakia',1),
 ('AT','AUT','Rakousko','Austria',1),
