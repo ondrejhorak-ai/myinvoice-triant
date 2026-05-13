@@ -73,22 +73,6 @@ async function resume(tpl: RecurringTemplate) {
   } finally { busy.value = null }
 }
 
-async function runNow(tpl: RecurringTemplate) {
-  if (!confirm(t('recurring.run_now_confirm', { name: tpl.name, date: formatDate(tpl.next_run_date) }))) return
-  busy.value = tpl.id
-  try {
-    const r = await recurringApi.runNow(tpl.id)
-    if (r.sent_to.length > 0) {
-      toast.success(t('recurring.run_now_with_send', { varsymbol: r.varsymbol ?? `#${r.invoice_id}`, recipients: r.sent_to.join(', ') }))
-    } else {
-      toast.success(t('recurring.run_now_done', { id: r.invoice_id, varsymbol: r.varsymbol ? ` (${r.varsymbol})` : '' }))
-    }
-    await load()
-  } catch (e: any) {
-    toast.error(e?.response?.data?.error?.message || 'Error')
-  } finally { busy.value = null }
-}
-
 async function remove(tpl: RecurringTemplate) {
   if (!confirm(t('recurring.delete_confirm', { name: tpl.name }))) return
   busy.value = tpl.id
@@ -106,9 +90,6 @@ function gotoNew() {
 }
 function gotoDetail(id: number) {
   router.push({ name: 'recurring-detail', params: { id } })
-}
-function gotoEdit(id: number) {
-  router.push({ name: 'recurring-edit', params: { id } })
 }
 function gotoClient(clientId: number) {
   router.push({ name: 'client-detail', params: { id: clientId } })
@@ -248,31 +229,26 @@ function gotoClient(clientId: number) {
             <span v-else class="text-neutral-400">—</span>
             <span class="text-neutral-600">{{ tpl.invoices_generated_count ?? 0 }} faktur</span>
           </div>
-          <div class="flex flex-wrap gap-1.5 mt-2.5">
-            <button v-if="tpl.status === 'active'" @click.stop="runNow(tpl)" :disabled="busy === tpl.id"
+          <div class="flex items-center gap-1.5 mt-2.5">
+            <button @click.stop="gotoDetail(tpl.id)"
               class="cursor-pointer inline-flex items-center gap-1 px-2.5 h-7 text-xs border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0 0 10 9.87v4.263a1 1 0 0 0 1.555.832l3.197-2.132a1 1 0 0 0 0-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-              {{ t('recurring.actions.run_now') }}
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              {{ t('recurring.actions.detail') }}
             </button>
             <button v-if="tpl.status === 'active'" @click.stop="pause(tpl)" :disabled="busy === tpl.id"
-              class="cursor-pointer inline-flex items-center gap-1 px-2.5 h-7 text-xs border border-warning-500/40 text-warning-700 hover:bg-warning-50 rounded">
+              :title="t('recurring.actions.pause')"
+              class="cursor-pointer inline-flex items-center justify-center w-7 h-7 text-xs border border-warning-500/40 text-warning-700 hover:bg-warning-50 rounded">
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-              {{ t('recurring.actions.pause') }}
             </button>
             <button v-if="tpl.status === 'paused'" @click.stop="resume(tpl)" :disabled="busy === tpl.id"
-              class="cursor-pointer inline-flex items-center gap-1 px-2.5 h-7 text-xs border border-success-500/40 text-success-700 hover:bg-success-50 rounded">
+              :title="t('recurring.actions.resume')"
+              class="cursor-pointer inline-flex items-center justify-center w-7 h-7 text-xs border border-success-500/40 text-success-700 hover:bg-success-50 rounded">
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0 0 10 9.87v4.263a1 1 0 0 0 1.555.832l3.197-2.132a1 1 0 0 0 0-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-              {{ t('recurring.actions.resume') }}
-            </button>
-            <button @click.stop="gotoEdit(tpl.id)"
-              class="cursor-pointer inline-flex items-center gap-1 px-2.5 h-7 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              {{ t('recurring.actions.edit') }}
             </button>
             <button @click.stop="remove(tpl)" :disabled="busy === tpl.id"
-              class="cursor-pointer inline-flex items-center gap-1 px-2.5 h-7 text-xs border border-danger-500/40 text-danger-700 hover:bg-danger-50 rounded ml-auto">
+              :title="t('recurring.actions.delete')"
+              class="cursor-pointer inline-flex items-center justify-center w-7 h-7 text-xs border border-danger-500/40 text-danger-700 hover:bg-danger-50 rounded ml-auto">
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
-              {{ t('recurring.actions.delete') }}
             </button>
           </div>
         </div>

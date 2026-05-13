@@ -312,7 +312,7 @@ async function submit() {
             :placeholder="t('recurring.name_placeholder')"
             class="w-full h-10 px-3 border border-neutral-300 rounded-md" />
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('recurring.client') }} *</label>
             <SearchableSelect
@@ -338,7 +338,7 @@ async function submit() {
       <!-- Periodicity -->
       <div class="bg-white border border-neutral-200 rounded-lg p-5 shadow-sm space-y-4">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('recurring.section_periodicity') }}</h3>
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('recurring.frequency') }} *</label>
             <select v-model="form.frequency" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-white">
@@ -354,11 +354,6 @@ async function submit() {
               :disabled="form.end_of_month"
               class="w-full h-10 px-3 border border-neutral-300 rounded-md disabled:bg-neutral-50 disabled:text-neutral-400" />
           </div>
-          <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('recurring.anchor_date') }} *</label>
-            <input v-model="form.anchor_date" type="date"
-              class="w-full h-10 px-3 border border-neutral-300 rounded-md" />
-          </div>
         </div>
         <label class="flex items-start gap-2 text-sm text-neutral-700">
           <input v-model="form.end_of_month" type="checkbox" class="mt-1 rounded border-neutral-300 text-primary-600" />
@@ -367,18 +362,25 @@ async function submit() {
             <span class="block text-xs text-neutral-500">{{ t('recurring.day_of_month_hint') }}</span>
           </span>
         </label>
-        <div>
-          <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('recurring.end_date') }}</label>
-          <input v-model="form.end_date" type="date"
-            class="w-full h-10 px-3 border border-neutral-300 rounded-md" />
-          <p class="text-xs text-neutral-500 mt-1">{{ t('recurring.end_date_hint') }}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('recurring.anchor_date') }} *</label>
+            <input v-model="form.anchor_date" type="date"
+              class="w-full h-10 px-3 border border-neutral-300 rounded-md" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('recurring.end_date') }}</label>
+            <input v-model="form.end_date" type="date"
+              class="w-full h-10 px-3 border border-neutral-300 rounded-md" />
+          </div>
         </div>
+        <p class="text-xs text-neutral-500 -mt-2">{{ t('recurring.end_date_hint') }}</p>
       </div>
 
       <!-- Invoice metadata -->
       <div class="bg-white border border-neutral-200 rounded-lg p-5 shadow-sm space-y-4">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('recurring.section_invoice_meta') }}</h3>
-        <div class="grid grid-cols-3 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('recurring.invoice_type') }}</label>
             <select v-model="form.invoice_type" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-white">
