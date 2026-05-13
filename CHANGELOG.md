@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.6.0] — 2026-05-13
+
+### Breaking — Docker volume layout
+
+> ⚠️ **MIGRACE pro Docker uživatele 3.5.x a starší.** Default Compose layout
+> přechází na **single-volume** (`app-data:/data`) místo dřívějších tří separátních
+> volumes (`app-log`, `app-storage`, `app-private`). `cmd/docker-update.{sh,ps1}`
+> autodetekuje starý layout a **automaticky spustí migraci** před `up -d` — staré
+> volumes zůstávají nedotčené (ručně k smazání po ověření). DB volume (`db-data`)
+> není migrací dotčen.
+>
+> **Pokud spouštíš update ručně** (`docker compose pull && up -d` bez `docker-update`),
+> spusť před tím `cmd/docker-migrate-volumes.{sh,ps1}` ručně — jinak po `up -d`
+> uvidíš prázdnou app (data zůstanou ve starých volumes, ale aplikace je nenamountnula).
+
+### Fixed
+
+- **#23 — Origin nesedí s app URL po `docker-update.sh`** ([issue #23](https://github.com/radekhulan/myinvoice/issues/23)).
+  Setup wizard ve 3.4.2+ zapisoval auto-detekované `app.url` a `auth.require_totp`
+  do `/var/www/html/cfg.local.php` v image filesystému kontejneru. Po `docker-update.sh`
+  (= `docker compose pull && up -d` = recreate kontejneru) soubor zmizel a `app.url`
+  se vrátila na default `http://localhost:8080` z `cfg.docker.php`. CSRF `Origin`
+  check pak odmítl všechny POST requesty z LAN IP s `origin_mismatch`.
+  - `CfgLocalWriter` má nový helper `resolveTargetDir()`, který preferuje
+    `MYINVOICE_DATA_DIR` (single-volume) před repo rootem. `SetupAction`,
+    `bin/setup.php` a `bin/reset.php` ho používají.
+  - Default Docker Compose layout přechází na single-volume, `cfg.local.php`
+    leží v perzistentním `app-data:/data` volumu a přežije image updaty.
+
+### Changed
+
+- **`docker-compose.yml` + `docker-compose.production.yml`** používají
+  single-volume layout: `app-data:/data` + `MYINVOICE_DATA_DIR=/data` env.
+  Staré 3 volumes (`app-log`, `app-storage`, `app-private`) zanikly v default
+  compose souboru. Volitelný `docker-compose.single-volume.yml` override byl
+  odstraněn jako redundantní.
+- **`cmd/docker-update.{sh,ps1}`** autodetekuje starý 3-volume layout a před
+  `up -d` automaticky spustí `docker-migrate-volumes` (s prominentním banner
+  warningem). Bez detekce starého layoutu (fresh installs, post-migrate updaty)
+  běží jako dřív.
+- **`cmd/docker-migrate-volumes.{sh,ps1}`** přidávají snapshot `cfg.local.php`
+  z běžícího 3.5.x kontejneru přes `docker cp` před `down` — soubor se po
+  migraci obnoví v novém `app-data` volumu (přežijí tak `app.url` a
+  `auth.require_totp` z původního setupu). Skript taky sám spustí `up -d` na
+  konci místo aby instruoval uživatele.
+- **`cmd/docker-update-watcher.{sh,ps1}`** dynamicky detekují cestu k
+  `storage/upgrade-{requested,inflight,result}.json` v kontejneru přes
+  `printenv MYINVOICE_DATA_DIR` — funkční ve 3-volume i single-volume layoutu.
+
+---
+
 ## [3.5.1] — 2026-05-13
 
 ### Security

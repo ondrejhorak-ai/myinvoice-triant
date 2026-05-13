@@ -153,7 +153,7 @@ foreach ($dirs as $d) {
 
 // Zruš setup-time přepínače v cfg.local.php (jinak by stará hodnota přežila nový setup).
 try {
-    CfgLocalWriter::setKeys($rootDir, ['auth.require_totp' => false]);
+    CfgLocalWriter::setKeys(CfgLocalWriter::resolveTargetDir($rootDir), ['auth.require_totp' => false]);
     echo "\n[reset] cfg.local.php: auth.require_totp = false\n";
 } catch (\Throwable $e) {
     echo "\n[reset] cfg.local.php: nelze zapsat (" . $e->getMessage() . ") — uprav ručně, pokud potřebuješ.\n";
