@@ -56,6 +56,7 @@ export interface Invoice {
   language: 'cs' | 'en'
   note_above_items: string | null
   note_below_items: string | null
+  recurring_template_id: number | null
   advance_paid_amount: number
   payment_method: PaymentMethod
   amount_to_pay: number

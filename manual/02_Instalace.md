@@ -330,7 +330,7 @@ docker volume ls | grep myinvoice                           # vidíš pouze app-
 
 #### Pro existující 3-volume instalaci (migrace)
 
-**Nikdy nepřepínej layout bez migrace — aplikace by nahlížela do prázdného `/data` a tvářila se, že data zmizela.** Postup je popsaný v § [19.5 Upgrade na 3.2.x — volitelná migrace na single-volume layout](19_Aktualizace.md#195-upgrade-na-32x--voliteln%C3%A1-migrace-na-single-volume-layout).
+**Nikdy nepřepínej layout bez migrace — aplikace by nahlížela do prázdného `/data` a tvářila se, že data zmizela.** Postup je popsaný v § [19.5 Upgrade na 3.2.x — volitelná migrace na single-volume layout](20_Aktualizace.md#205-upgrade-na-32x--voliteln%C3%A1-migrace-na-single-volume-layout).
 
 Shrnutí: `cmd/docker-migrate-volumes.{sh,ps1}` zkopíruje data ze starých volumes do nového `app-data` přes dočasný `alpine` sidecar, staré volumes nesmaže (musíš ručně po ověření, že vše funguje), je idempotentní.
 
@@ -343,7 +343,7 @@ docker run --rm \
   alpine tar czf /backup/myinvoice-data-$(date +%F).tar.gz -C /data .
 ```
 
-Plus dump MariaDB (viz § [19.7 Záloha a obnova](19_Aktualizace.md)) — to jsou dohromady **dvě entity** k zálohování (db + app-data) místo čtyř.
+Plus dump MariaDB (viz § [19.7 Záloha a obnova](20_Aktualizace.md)) — to jsou dohromady **dvě entity** k zálohování (db + app-data) místo čtyř.
 
 ### 2.1.6 Daily ops
 

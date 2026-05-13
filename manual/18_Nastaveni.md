@@ -1,15 +1,15 @@
-# 17. Nastavení
+# 18. Nastavení
 
 V hlavním menu **Systém** je rozbalovací podmenu se 6 sekcemi:
 
-- **Dodavatelé** — viz [16. Multi-supplier](16_Multi_supplier.md)
+- **Dodavatelé** — viz [17. Multi-supplier](17_Multi_supplier.md)
 - **Číselníky** — měny, DPH sazby, země, jednotky
 - **Uživatelé** — správa lidí, kteří se přihlašují
 - **E-mail šablony** — texty automatických e-mailů
 - **Activity log** — kdo co změnil
-- **Exporty** — viz [14. Exporty](14_Exporty.md)
+- **Exporty** — viz [15. Exporty](15_Exporty.md)
 
-## 17.1 Číselníky
+## 18.1 Číselníky
 
 **Systém → Číselníky**.
 
@@ -17,7 +17,7 @@ V hlavním menu **Systém** je rozbalovací podmenu se 6 sekcemi:
 
 4 záložky:
 
-### 17.1.1 Měny
+### 18.1.1 Měny
 
 Každá měna pro aktuálního dodavatele = **1 bankovní účet**.
 
@@ -37,7 +37,7 @@ Každá měna pro aktuálního dodavatele = **1 bankovní účet**.
 > všech faktur, které renderují bank info live (drafty + faktury bez
 > snapshotu). Faktury v stavu `issued+` mají immutable `bank_snapshot`.
 
-### 17.1.2 Sazby DPH
+### 18.1.2 Sazby DPH
 
 ![Číselníky — DPH](img/15_ciselniky_dph.webp)
 
@@ -51,12 +51,12 @@ Každá měna pro aktuálního dodavatele = **1 bankovní účet**.
 | Reverse charge | Zatrhneme pro `CZ-RC` |
 | Platnost od | Pro historické faktury (15 % v roce 2023) |
 
-### 17.1.3 Země
+### 18.1.3 Země
 
 Statický číselník — nemělo by být potřeba editovat. Obsahuje 200+ zemí podle
 ISO 3166-1.
 
-### 17.1.4 Jednotky
+### 18.1.4 Jednotky
 
 Číselník měrných jednotek pro položky faktury. Globální (sdílený mezi
 dodavateli), nahrazuje volný textový vstup za dropdown.
@@ -76,7 +76,7 @@ dodavateli), nahrazuje volný textový vstup za dropdown.
 > popisu i bez ceny tiše smažou. Můžeš tedy v editoru přidat víc řádků na
 > zásobu a nepoužité se neuloží.
 
-## 17.2 Uživatelé
+## 18.2 Uživatelé
 
 **Systém → Uživatelé** (jen pro admina).
 
@@ -84,7 +84,7 @@ dodavateli), nahrazuje volný textový vstup za dropdown.
 
 Tabulka uživatelů, kteří se mohou přihlásit. Tlačítko **+ Nový uživatel**.
 
-### 17.2.1 Pole formuláře
+### 18.2.1 Pole formuláře
 
 | Pole | Význam |
 |---|---|
@@ -95,7 +95,7 @@ Tabulka uživatelů, kteří se mohou přihlásit. Tlačítko **+ Nový uživate
 | Jazyk | `cs` / `en` |
 | Aktivní | Vypnutý uživatel nemůže se přihlásit |
 
-### 17.2.2 Role
+### 18.2.2 Role
 
 | Role | Co může |
 |---|---|
@@ -107,7 +107,7 @@ Tabulka uživatelů, kteří se mohou přihlásit. Tlačítko **+ Nový uživate
 > jsi sám admin a zkusíš si snížit roli, vrátí 409. Musí být minimálně 1
 > admin v systému.
 
-## 17.3 Můj profil
+## 18.3 Můj profil
 
 **Pravý horní roh → klik na jméno → Můj profil**. Stejná obrazovka jako
 [§ 4.5 Můj profil](04_Prihlaseni.md) — viz screenshot tam.
@@ -118,9 +118,9 @@ Můžeš si změnit:
 - **Heslo** — vyžaduje původní heslo
 - **2FA** — zapnout / vypnout (vyžaduje heslo + ověření TOTP)
 
-Viz [18. Bezpečnost § 16.2](18_Bezpecnost.md) pro detail TOTP.
+Viz [19. Bezpečnost § 16.2](19_Bezpecnost.md) pro detail TOTP.
 
-## 17.4 E-mailové šablony
+## 18.4 E-mailové šablony
 
 **Systém → E-mail šablony**.
 
@@ -136,7 +136,7 @@ Seznam šablon:
 | `welcome` | Uvítací e-mail novému uživateli |
 | `test` | Pro Test odeslání (debug) |
 
-### 17.4.1 Editor šablony
+### 18.4.1 Editor šablony
 
 Klik na řádek → editor.
 
@@ -149,17 +149,17 @@ Záložky podle jazyka × formátu:
 
 Editor je **CodeMirror** s syntaxí Twig.
 
-### 17.4.2 Předmět
+### 18.4.2 Předmět
 
 Pole nahoře, podporuje placeholders (`{{ varsymbol }}`, …).
 
-### 17.4.3 Test odeslání
+### 18.4.3 Test odeslání
 
 Tlačítko **Test e-mail** dole — pošle vyplněnou šablonu na **tvůj** e-mail
 (přihlášeného admina) s vzorovými daty (faktura `2605001`, klient „Test
 Klient s.r.o.", …).
 
-### 17.4.4 Placeholders
+### 18.4.4 Placeholders
 
 Závisí na typu šablony. `invoice_new`:
 
@@ -173,7 +173,7 @@ Závisí na typu šablony. `invoice_new`:
 | `{{ supplier_name }}` | Dodavatel |
 | `{{ pdf_url }}` | Odkaz pro stažení PDF (pokud máš public link) |
 
-## 17.5 Activity log
+## 18.5 Activity log
 
 **Systém → Activity log**.
 
@@ -200,7 +200,7 @@ Použití:
 > standardně **neničí** activity log, ale lze nastavit retention v
 > `cfg.php → app.activity_log_retention_days`.
 
-## 17.6 Tipy
+## 18.6 Tipy
 
 - **Test šablony** vždy před produkčním nasazením — typo v Twig syntaxi by
   rozbilo odesílání všem klientům.

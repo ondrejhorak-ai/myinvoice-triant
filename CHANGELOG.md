@@ -9,6 +9,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.5.0] — 2026-05-13
+
+### Added
+
+- **Pravidelné fakturace (recurring invoices)** — šablony pro automatické
+  generování faktur v zadaných intervalech (issue #21).
+  - Migrace 0021 — nové tabulky `recurring_invoice_templates` +
+    `recurring_invoice_template_items`, sloupec `invoices.recurring_template_id`
+    (ON DELETE SET NULL), per-supplier kill-switch `supplier.auto_generate_recurring`.
+  - Periodicita: měsíčně / čtvrtletně / pololetně / ročně + volba „poslední
+    den měsíce" (28/29/30/31 dynamicky) nebo konkrétní `day_of_month` (1–28).
+    `end_date` volitelně — šablona po něm sama přejde na status `expired`.
+  - Per-šablona přepínače `auto_issue` (rovnou vystavit) + `auto_send_email`
+    (rovnou odeslat klientovi). Default obojí ON = full automation.
+  - Cron `api/bin/cron-generate-recurring-invoices.php` + wrappery
+    `cmd/cron-generate-recurring-invoices.{cmd,sh}`. Catch-up logic: po
+    výpadku cronu se generuje jen jedna faktura na cyklus.
+  - REST API `/api/recurring/*` (8 endpointů: list/get/create/update/delete/
+    pause/resume/run-now + `GET /api/recurring/{id}/invoices`).
+  - UI: nová sekce **Systém → Pravidelné fakturace** (list + form + detail
+    stránka se seznamem vygenerovaných faktur). Tlačítko **Vytvořit šablonu
+    z této faktury** v detailu faktury (pre-fill ze stávající faktury). Badge
+    „↻ Pravidelná" na vygenerovaných fakturách s odkazem na šablonu.
+  - Responzivní list (md break-point: desktop tabulka / mobile karty).
+  - Měsíc-increment v popiscích položek funguje pro všechny periodicity
+    (monthly +1, quarterly +3, semi_annually +6, annually +12 měsíců).
+  - Manuál: nová kapitola 14.
+
+- **`payment_method` na fakturách** — ENUM `bank_transfer` / `card` / `cash`
+  / `other` (migrace 0020). U non-bank-transfer se v PDF/emailu nezobrazí
+  QR kód ani bankovní spojení; reminder cron + UI tlačítka „Odeslat
+  upomínku" non-bank-transfer faktury přeskakují (manual + bulk + cron).
+
+### Fixed
+
+- **Faktura označená jako „uhrazeno" zobrazovala v PDF a e-mailu výzvu
+  k platbě a QR kód** (issue #21 part 1). `InvoicePdfRenderer` a
+  `InvoiceEmailVarsBuilder` teď respektují `status='paid'` — místo
+  „K úhradě X Kč" se zobrazí zelený stamp „UHRAZENO" + datum úhrady;
+  v e-mailu poznámka „Faktura již byla uhrazena, neplaťte prosím znovu."
+- **Mark/Unmark Paid akce neinvalidovaly cached PDF** → starý PDF se
+  dál servíroval. `MarkPaidAction` + `UnmarkPaidAction` teď volají
+  `InvoicePdfRenderer::invalidate()`.
+- **Smazání dodavatele padalo na cyklický FK** mezi `supplier` a
+  `currencies` (`supplier.default_currency_id` ↔ `currencies.supplier_id`,
+  oba NOT NULL bez ON DELETE). `SettingsAction::deleteSupplierById` teď
+  uvnitř transakce dočasně vypne `FOREIGN_KEY_CHECKS` a hned po smazání
+  zase zapne v `finally` bloku — řízený cleanup zůstává bezpečný díky
+  předchozím kontrolám (last supplier guard, žádní klienti, žádné faktury).
+- **`tools/renumberManual.php`**: `[\w./-]` char class padal na
+  „Unknown modifier '-'" — `/` uvnitř char class musí být escapnuté
+  i když je delimiter `/`.
+
+### Changed
+
+- **Refactor**: `BulkReissueAction::incrementMonthInString()` extrahováno do
+  `MyInvoice\Service\Invoice\MonthIncrementer::increment($text, $months=1)`
+  pro sdílení s `RecurringInvoiceGenerator`. Wrapper na `BulkReissueAction`
+  zachován pro zpětnou kompatibilitu.
+- **Manuál — přečíslování kapitol**: kapitola 14 = Pravidelné fakturace
+  (nová), 15+ posunuto o jedno (Exporty 14→15, Importy 15→16, Multi 16→17,
+  Nastavení 17→18, Bezpečnost 18→19, Aktualizace 19→20, API 20→21).
+  FAQ ponecháno na 99. Auto-aktualizováno přes `tools/renumberManual.php`.
+
+### Internal
+
+- Nové unit testy: `PeriodicityCalculatorTest` (11 testů, edge cases EOM
+  přes 28/29/30/31, leap year, year-rollover), `MonthIncrementerTest`
+  (rozšířený increment o N měsíců pro quarterly/annually).
+- Nový integration test `RecurringGeneratorTest` (3 testy, 27 assertions) —
+  end-to-end ověření že cron skutečně vytvoří fakturu, vystaví ji, zkopíruje
+  položky a posune `next_run_date`.
+- Celkem testů: 225 — 197 unit + 28 integration.
+
+---
+
 ## [3.4.3] — 2026-05-13
 
 ### Fixed

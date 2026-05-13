@@ -400,5 +400,21 @@ async function deleteClient() {
         </button>
       </div>
     </div>
+
+    <!-- Pravidelné fakturace -->
+    <div class="bg-white border border-neutral-200 rounded-lg shadow-sm">
+      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
+        <h3 class="font-semibold">{{ t('recurring.title') }}</h3>
+        <RouterLink :to="`/recurring/new?client_id=${client.id}`"
+          class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
+          {{ t('recurring.new') }}
+        </RouterLink>
+      </div>
+      <div class="px-5 py-4 text-sm text-neutral-600">
+        <RouterLink :to="`/recurring?client_id=${client.id}`" class="text-primary-700 hover:underline">
+          {{ t('recurring.title') }} →
+        </RouterLink>
+      </div>
+    </div>
   </div>
 </template>

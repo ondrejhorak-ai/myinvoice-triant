@@ -1737,6 +1737,182 @@ paths:
         '200':
           description: OK
 
+  # ------------------------------------------------------------
+  # Recurring invoice templates (pravidelné fakturace) — admin API
+  # ------------------------------------------------------------
+  /api/recurring:
+    get:
+      tags: [Recurring]
+      summary: Seznam šablon pravidelných faktur (scoped na aktuálního dodavatele)
+      parameters:
+        - in: query
+          name: client_id
+          schema: { type: integer }
+          description: Filtr na klienta
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, paused, expired]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RecurringTemplate' }
+    post:
+      tags: [Recurring]
+      summary: Vytvořit šablonu pravidelné faktury
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecurringTemplateInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringTemplate' }
+
+  /api/recurring/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Recurring]
+      summary: Detail šablony
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringTemplate' }
+        '404': { description: Nenalezena }
+    put:
+      tags: [Recurring]
+      summary: Update šablony
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecurringTemplateInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecurringTemplate' }
+    delete:
+      tags: [Recurring]
+      summary: Smazat šablonu (vygenerované faktury zůstanou, jen ztratí vazbu)
+      responses:
+        '200':
+          description: OK
+
+  /api/recurring/{id}/invoices:
+    get:
+      tags: [Recurring]
+      summary: Seznam faktur vygenerovaných z této šablony (poslední první)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        varsymbol: { type: string, nullable: true }
+                        invoice_type: { type: string }
+                        status: { type: string }
+                        issue_date: { type: string, format: date }
+                        due_date: { type: string, format: date }
+                        paid_at: { type: string, format: date, nullable: true }
+                        total_with_vat: { type: number, format: float }
+                        amount_to_pay: { type: number, format: float }
+                        currency: { type: string }
+
+  /api/recurring/{id}/pause:
+    post:
+      tags: [Recurring]
+      summary: Pozastavit šablonu (cron přeskočí, dokud není resumed)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+
+  /api/recurring/{id}/resume:
+    post:
+      tags: [Recurring]
+      summary: Obnovit šablonu (vyžaduje next_run_date <= end_date)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+        '409':
+          description: Šablona vypršela (next_run > end_date)
+
+  /api/recurring/{id}/run-now:
+    post:
+      tags: [Recurring]
+      summary: Manuálně vygenerovat fakturu ze šablony (pro testování)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                issue_date:
+                  type: string
+                  format: date
+                  description: "Volitelný override; default = next_run_date šablony"
+      responses:
+        '201':
+          description: Faktura vygenerována
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoice_id: { type: integer }
+                  varsymbol: { type: string, nullable: true }
+                  issued:    { type: boolean }
+                  sent_to:   { type: array, items: { type: string } }
+                  new_next_run_date: { type: string, format: date, nullable: true }
+                  template_status:   { type: string, enum: [active, paused, expired] }
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1918,6 +2094,7 @@ components:
         project_id: { type: integer, nullable: true }
         project_name: { type: string, nullable: true }
         parent_invoice_id: { type: integer, nullable: true, description: "Pro credit_note / cancellation / final-z-proformy odkaz na původní fakturu" }
+        recurring_template_id: { type: integer, nullable: true, description: "Pro faktury vygenerované ze šablony pravidelné fakturace — odkaz na šablonu (NULL pokud byla šablona smazána, viz ON DELETE SET NULL)." }
         varsymbol: { type: string, nullable: true, description: "Variabilní symbol = číslo faktury. Přiděluje se při issue (u draft je null nebo manuální override)." }
         invoice_type:
           type: string
@@ -2525,3 +2702,118 @@ components:
         unit_price_without_vat: { type: number, format: float, description: "Jednotková cena BEZ DPH" }
         vat_rate_id: { type: integer, description: "FK do /codebooks/vat-rates (kontextově k supplierovi)" }
         order_index: { type: integer, description: "Pořadí v rámci faktury. Default = pozice v poli." }
+
+    RecurringTemplate:
+      type: object
+      description: "Šablona pravidelné fakturace. Cron `bin/cron-generate-recurring-invoices.php` generuje faktury dle periodicity."
+      properties:
+        id: { type: integer }
+        supplier_id: { type: integer }
+        client_id: { type: integer }
+        client_company_name: { type: string }
+        project_id: { type: integer, nullable: true }
+        project_name: { type: string, nullable: true }
+        name: { type: string, description: "Display name pro admin (např. \"Hosting Acme s.r.o.\")" }
+        frequency:
+          type: string
+          enum: [monthly, quarterly, semi_annually, annually]
+        day_of_month:
+          type: integer
+          nullable: true
+          description: "1–28; pokud null a end_of_month=false, odvodí se z anchor_date"
+        end_of_month:
+          type: boolean
+          description: "true = poslední den měsíce (28/29/30/31 dynamicky); přebíjí day_of_month"
+        anchor_date: { type: string, format: date }
+        end_date:    { type: string, format: date, nullable: true }
+        next_run_date: { type: string, format: date }
+        last_run_date: { type: string, format: date, nullable: true }
+        invoice_type:
+          type: string
+          enum: [invoice, proforma]
+        currency_id: { type: integer }
+        currency: { type: string, example: CZK }
+        language: { type: string, enum: [cs, en] }
+        payment_method:
+          type: string
+          enum: [bank_transfer, card, cash, other]
+        reverse_charge: { type: boolean }
+        payment_due_days: { type: integer }
+        note_above_items: { type: string, nullable: true }
+        note_below_items: { type: string, nullable: true }
+        increment_month_in_descriptions:
+          type: boolean
+          description: "Posun M/YYYY v popiscích položek (např. „Hosting 3/2026\" → „Hosting 4/2026\"). Pro frequency != monthly se posouvá o odpovídající počet měsíců."
+        auto_issue:
+          type: boolean
+          description: "true = cron rovnou vystaví (varsymbol + snapshot, status=issued); false = nechá draft"
+        auto_send_email:
+          type: boolean
+          description: "true = po vystavení rovnou odešle klientovi; vyžaduje auto_issue=true"
+        status:
+          type: string
+          enum: [active, paused, expired]
+        invoices_generated_count: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              description: { type: string }
+              quantity: { type: number, format: float }
+              unit: { type: string }
+              unit_price_without_vat: { type: number, format: float }
+              vat_rate_id: { type: integer }
+              vat_rate_percent: { type: number, format: float }
+              order_index: { type: integer }
+
+    RecurringTemplateInput:
+      type: object
+      required: [client_id, name, frequency, anchor_date, currency_id, items]
+      properties:
+        client_id: { type: integer }
+        project_id: { type: integer, nullable: true }
+        name: { type: string, maxLength: 200 }
+        frequency:
+          type: string
+          enum: [monthly, quarterly, semi_annually, annually]
+        day_of_month:
+          type: integer
+          minimum: 1
+          maximum: 28
+          nullable: true
+        end_of_month: { type: boolean, default: false }
+        anchor_date: { type: string, format: date }
+        end_date:    { type: string, format: date, nullable: true }
+        invoice_type:
+          type: string
+          enum: [invoice, proforma]
+          default: invoice
+        currency_id: { type: integer }
+        language: { type: string, enum: [cs, en], default: cs }
+        payment_method:
+          type: string
+          enum: [bank_transfer, card, cash, other]
+          default: bank_transfer
+        reverse_charge: { type: boolean, default: false }
+        payment_due_days: { type: integer, default: 14 }
+        note_above_items: { type: string, nullable: true }
+        note_below_items: { type: string, nullable: true }
+        increment_month_in_descriptions: { type: boolean, default: true }
+        auto_issue: { type: boolean, default: true }
+        auto_send_email: { type: boolean, default: true }
+        items:
+          type: array
+          items:
+            type: object
+            required: [description, quantity, unit_price_without_vat, vat_rate_id]
+            properties:
+              description: { type: string }
+              quantity: { type: number, format: float }
+              unit: { type: string, default: ks }
+              unit_price_without_vat: { type: number, format: float }
+              vat_rate_id: { type: integer }
+              order_index: { type: integer }

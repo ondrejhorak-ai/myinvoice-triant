@@ -25,6 +25,7 @@ export interface Supplier {
   default_payment_due_days: number
   default_hourly_rate: number
   auto_send_reminders: boolean
+  auto_generate_recurring: boolean
   logo_path: string | null
   signature_path: string | null
   pohoda_account_code: string | null
