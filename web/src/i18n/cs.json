@@ -832,6 +832,8 @@
     "auto_send_reminders_hint": "Když je vypnuto, cron nebude posílat automatické upomínky pro tohoto dodavatele. Ruční odeslání (jednotlivé i hromadné) funguje vždy.",
     "auto_generate_recurring": "Generovat pravidelné fakturace cronem",
     "auto_generate_recurring_hint": "Když je vypnuto, cron pro tohoto dodavatele přeskočí všechny šablony pravidelné fakturace. Manuální spuštění (tlačítko \"Vygenerovat teď\") funguje vždy.",
+    "embed_isdoc": "Přiložit ISDOC XML do PDF faktur",
+    "embed_isdoc_hint": "Strojově čitelná data faktury (ISDOC 6.0.2) se vloží jako příloha do PDF. České účetní programy (Pohoda, Money S3, …) si je z PDF samy extrahují; v Adobe Reader / Foxit je vidět paperclip ikona pod variabilním symbolem. Funguje jen pro CZK faktury s přiděleným VS.",
     "save_supplier": "Uložit dodavatele",
     "branding_title": "Branding emailů",
     "branding_subtitle": "Vlastní logo a barvy v hlavičce odchozích emailů a v PDF faktur. Pokud je vypnuté, e-mail použije default MyInvoice „M\" branding a PDF zobrazí jméno firmy textem.",

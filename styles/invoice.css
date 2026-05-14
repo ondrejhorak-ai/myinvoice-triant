@@ -68,6 +68,19 @@ td.meta { width: 45%; text-align: right; }
     color: #7A748C;
     margin-top: 1mm;
 }
+.isdoc-badge {
+    display: inline-block;
+    margin-top: 2mm;
+    padding: 0.5mm 2mm;
+    font-size: 7pt;
+    font-weight: bold;
+    letter-spacing: 0.3pt;
+    color: #3B2D83;
+    background: #EFEAFF;
+    border: 0.4pt solid #C6BCE8;
+    border-radius: 1.5mm;
+    line-height: 1.4;
+}
 
 /* ─── STRANY (dodavatel / odběratel) ─── */
 .parties {

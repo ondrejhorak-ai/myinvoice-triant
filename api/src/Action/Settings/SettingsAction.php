@@ -193,7 +193,7 @@ final class SettingsAction
             // dedikované endpointy EmailBrandingAction::uploadLogo (multipart, processed by
             // SupplierLogoConverter do storage/branding/sup-N/). Mass-assign by umožnil
             // admin-planted LFI (security report @andrejtomci #2).
-            'default_hourly_rate', 'auto_send_reminders', 'auto_generate_recurring',
+            'default_hourly_rate', 'auto_send_reminders', 'auto_generate_recurring', 'embed_isdoc',
             'pohoda_account_code', 'pohoda_centre_code', 'pohoda_activity_code', 'pohoda_contract_code',
             // Per-supplier konfigurace číslování faktur (migrace 0014)
             'invoice_number_format', 'proforma_number_format', 'credit_note_number_format',
@@ -246,7 +246,7 @@ final class SettingsAction
         foreach ($allowed as $f) {
             if (array_key_exists($f, $body)) {
                 $sets[] = "$f = ?";
-                $params[] = in_array($f, ['is_vat_payer', 'auto_send_reminders', 'auto_generate_recurring', 'email_branding_enabled'], true)
+                $params[] = in_array($f, ['is_vat_payer', 'auto_send_reminders', 'auto_generate_recurring', 'embed_isdoc', 'email_branding_enabled'], true)
                     ? ((int) (bool) $body[$f])
                     : $body[$f];
             }
@@ -345,6 +345,7 @@ final class SettingsAction
         $row['default_hourly_rate']      = (float) $row['default_hourly_rate'];
         $row['auto_send_reminders']      = (bool) $row['auto_send_reminders'];
         $row['auto_generate_recurring']  = (bool) ($row['auto_generate_recurring'] ?? true);
+        $row['embed_isdoc']              = (bool) ($row['embed_isdoc'] ?? true);
         $row['email_branding_enabled']   = (bool) ($row['email_branding_enabled'] ?? false);
         $row['email_accent_color']       = (string) ($row['email_accent_color'] ?? '#3B2D83');
         $row['has_email_logo']           = is_file(\MyInvoice\Bootstrap::rootDir() . '/storage/supplier-logos/sup-' . $row['id'] . '.png');

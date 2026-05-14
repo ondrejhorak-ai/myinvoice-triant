@@ -9,6 +9,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.6.2] — 2026-05-14
+
+### Added
+
+- **ISDOC příloha v PDF faktuře.** Při generování PDF se přibalí strojově
+  čitelný `invoice.isdoc` (ISDOC 6.0.2 XML) jako PDF/A-3 attachment (`/AF` +
+  `/Names /EmbeddedFiles` v catalog). České účetní programy (Money S3, Pohoda,
+  Helios, …) si data extrahují přímo z PDF — uživatel přepošle jediný soubor
+  místo zvlášť PDF + ISDOC. Adobe Reader / Foxit zobrazí ikonu sponky v
+  Attachments panelu. Pod variabilním symbolem se vykreslí vizuální `ISDOC`
+  badge. Vkládá se jen pro **CZK faktury s přiděleným VS** — gating přes
+  nový `supplier.embed_isdoc` (default zapnuto), lze vypnout v *Nastavení →
+  Dodavatel* (migrace `0022_supplier_embed_isdoc.sql`).
+
+### Fixed
+
+- **ISDOC export — neplatná XSD struktura.** Refactor `IsdocExporter::buildXml`
+  proti oficiální XSD 6.0.2 (z mv.gov.cz/isdoc). Předchozí výstup byl
+  schema-INVALID a Money S3 / Helios ho odmítaly. Změny:
+  - Přidán povinný `<ElectronicPossibilityAgreementReference/>` mezi
+    `VATApplicable` a `LocalCurrencyCode`.
+  - `<CurrencyCode>` → `<ForeignCurrencyCode>` (pouze pro non-CZK faktury).
+  - Odstraněn nelegální `currencyID` atribut na amount elementech.
+  - `<OrderReference>` zabalený do `<OrderReferences>`, obsahuje `<SalesOrderID>`
+    místo `<ID>` + povinný `@id` atribut.
+  - `<ContractReference>` v `<ContractReferences>` + `<IssueDate>` + `@id`.
+  - `<PostalAddress>` rozdělen na `<StreetName>` + povinný `<BuildingNumber>`.
+  - V `<TaxSubTotal>` použít `<TaxCategory>` (ne `<ClassifiedTaxCategory>` —
+    to zůstává v `InvoiceLine`).
+  - V `<PaymentMeans>/Details` odstraněn vnořený `<BankAccount>` wrapper —
+    BankAccount group (`ID`/`BankCode`/`Name`/`IBAN`/`BIC`) je inline.
+  - Validováno proti `isdoc-invoice-6.0.2.xsd` přes `lxml.etree.XMLSchema`.
+- **ISDOC — prázdné adresy u legacy faktur.** `IsdocExporter::resolveSupplier`
+  + `resolveClient` teď načtou live data ze `supplier` / `clients` tabulek
+  a snapshot wins přes `array_merge`. Předchozí logika brala snapshot as-is
+  → cizí/legacy snapshoty bez `street/city/zip` vyrobily ISDOC s prázdnou
+  adresou (sledovatelné v `c:\tmp\Faktura-2604009.pdf` reference).
+- **Pohoda XML — stejný snapshot bug.** `PohodaXmlExporter::resolveClient`
+  dostal stejný defensive-merge pattern jako ISDOC. Pohoda XML teď encoduje
+  v **UTF-8** (původně `Windows-1250` z historických důvodů — moderní Pohoda
+  2010+ UTF-8 akceptuje, žádné mojibake na exotičtější diakritice).
+- **PDF rendering — stejný snapshot bug.** `InvoicePdfRenderer::resolveClient`
+  + `resolveBank` dostaly defensive-merge live + snapshot. Týká se i
+  hromadných PDF ZIP exportů (`admin/export`) — cizí snapshoty (import
+  z ISDOC/Pohody) měly potenciálně neúplnou adresu v PDF.
+
+### Added (ISDOC obsah)
+
+- **IBAN dopočítaný** z `account_number` + `bank_code` přes `CzechIbanAdapter`
+  (mod-97 check digits). Pokud uživatel má `iban` explicitně v `currencies`,
+  má přednost.
+- **BIC z mapy** 36 nejčastějších CZ bank kódů (ČNB číselník 2026,
+  např. `0300 → CEKOCZPP`, `2250 → CTASCZ22`).
+- **`<IssuingSystem>MyInvoice.cz</IssuingSystem>`** — root level, identifikace
+  generátoru pro debugging na straně účetního SW.
+- **`<RegisterIdentification><Preformatted>`** — zápis v obchodním rejstříku
+  z `supplier.commercial_register` (např. „Spisová značka C 45039 vedená
+  u Krajského soudu v Plzni").
+
+### Internal
+
+- Nová migrace `0022_supplier_embed_isdoc.sql` (idempotentní,
+  `ADD COLUMN IF NOT EXISTS`). Default `1` = vkládat ISDOC do PDF.
+- `IsdocExporter` dostává `Connection` přes DI (potřeba pro live merge).
+- PHPUnit 264/264 PASS, `vue-tsc --noEmit` clean, ISDOC výstup
+  schema-VALID proti oficiální XSD 6.0.2.
+
+---
+
 ## [3.6.1] — 2026-05-14
 
 ### Added

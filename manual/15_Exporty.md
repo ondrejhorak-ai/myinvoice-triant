@@ -85,18 +85,39 @@ Mapování v ISDOC:
 ### 15.3.4 Číslo zakázky a smlouvy
 
 Pokud má faktura přiřazenou zakázku s vyplněným číslem zakázky / číslem
-smlouvy, exportují se do ISDOC jako:
+smlouvy, exportují se do ISDOC jako kolekce wrappers (XSD 6.0.2):
 
 ```xml
-<OrderReference><ID>2026-042</ID></OrderReference>          <!-- project_number -->
-<ContractReference><ID>SMLOUVA-001</ID></ContractReference> <!-- contract_number -->
+<OrderReferences>
+  <OrderReference id="O1">
+    <SalesOrderID>2026-042</SalesOrderID>      <!-- project_number -->
+  </OrderReference>
+</OrderReferences>
+<ContractReferences>
+  <ContractReference id="C1">
+    <ID>SMLOUVA-001</ID>                       <!-- contract_number -->
+    <IssueDate>2026-05-14</IssueDate>          <!-- IssueDate faktury -->
+  </ContractReference>
+</ContractReferences>
 ```
 
 Některé účetní softwary tyto reference zachovávají při importu (Money S3,
 Helios). MyInvoice je při [zpětném importu](16_Importy.md) také čte —
 zakázka se podle `project_number` najde nebo automaticky vytvoří.
 
-### 15.3.5 Import do účetního software
+### 15.3.5 ISDOC v PDF příloze (3.6.2+)
+
+Při generování PDF faktury se ISDOC XML přibalí jako PDF/A-3 attachment
+(`/Names /EmbeddedFiles` + `/AF` v catalog). Účetní programy si data
+extrahují přímo z PDF — stačí přeposlat jediný soubor. Pod variabilním
+symbolem se v PDF zobrazí vizuální `ISDOC` badge.
+
+- Vkládá se jen pro **CZK faktury s přiděleným VS**.
+- Lze vypnout per-dodavatel v *Nastavení → Dodavatel → Vkládat ISDOC XML
+  do PDF faktur* (default zapnuto).
+- Adobe Reader / Foxit zobrazí ikonu sponky v sidebar „Attachments" panelu.
+
+### 15.3.6 Import do účetního software
 
 | Software | Kde naimportovat |
 |---|---|

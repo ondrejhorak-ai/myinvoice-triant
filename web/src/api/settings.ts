@@ -26,6 +26,7 @@ export interface Supplier {
   default_hourly_rate: number
   auto_send_reminders: boolean
   auto_generate_recurring: boolean
+  embed_isdoc: boolean
   logo_path: string | null
   signature_path: string | null
   pohoda_account_code: string | null
