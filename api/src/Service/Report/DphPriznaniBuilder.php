@@ -24,13 +24,21 @@ final class DphPriznaniBuilder
     ) {}
 
     /**
-     * Sestaví XML pro DPH přiznání za daný měsíc/rok.
+     * Sestaví XML pro DPH přiznání za daný měsíc/kvartál.
      *
+     * @param string $period 'monthly' (default) nebo 'quarterly' (sumuje celý kvartál)
      * @return array{xml: string, summary: array<string, mixed>, warnings: list<string>}
      */
-    public function build(int $supplierId, int $year, int $month): array
+    public function build(int $supplierId, int $year, int $month, ?string $period = null): array
     {
         $supplier = $this->loadSupplier($supplierId);
+        // Default period z supplier.vat_period, fallback 'monthly'
+        if ($period === null) {
+            $period = (string) ($supplier['vat_period'] ?? 'monthly');
+        }
+        if (!in_array($period, ['monthly', 'quarterly'], true)) {
+            $period = 'monthly';
+        }
         $warnings = [];
         if (!$supplier['is_vat_payer']) {
             $warnings[] = 'Tenant není evidovaný jako plátce DPH — výkaz nemusí být relevantní.';
@@ -45,7 +53,8 @@ final class DphPriznaniBuilder
             $warnings[] = 'Chybí DIČ tenanta.';
         }
 
-        $lines = $this->mapper->aggregateForDphPriznani($supplierId, $year, $month);
+        $lines = $this->mapper->aggregateForDphPriznani($supplierId, $year, $month, $period);
+        $quarter = $period === 'quarterly' ? (int) ceil($month / 3) : null;
 
         $dom = new \DOMDocument('1.0', 'UTF-8');
         $dom->preserveWhiteSpace = false;
@@ -66,7 +75,12 @@ final class DphPriznaniBuilder
         $vetaD = $dom->createElement('VetaD');
         $vetaD->setAttribute('k_uladis', 'DPH');
         $vetaD->setAttribute('rok', (string) $year);
-        $vetaD->setAttribute('mesic', (string) $month);
+        // Quarterly: EPO XML schema používá pole "ctvrt" (1-4) místo "mesic"
+        if ($quarter !== null) {
+            $vetaD->setAttribute('ctvrt', (string) $quarter);
+        } else {
+            $vetaD->setAttribute('mesic', (string) $month);
+        }
         if (!empty($supplier['financial_office_code'])) {
             $vetaD->setAttribute('c_ufo', (string) $supplier['financial_office_code']);
         }
@@ -138,13 +152,26 @@ final class DphPriznaniBuilder
         }
         $dphdp3->appendChild($vetaR);
 
+        // Termín podání: 25. den následujícího měsíce po skončení období
+        $deadlineMonth = $quarter !== null ? ($quarter * 3 + 1) : ($month + 1);
+        $deadlineYear  = $year;
+        if ($deadlineMonth > 12) {
+            $deadlineMonth -= 12;
+            $deadlineYear += 1;
+        }
+        $deadline = sprintf('%04d-%02d-25', $deadlineYear, $deadlineMonth);
+
         $summary = [
             'period'                  => sprintf('%04d-%02d', $year, $month),
+            'period_type'             => $period,
+            'quarter'                 => $quarter,
             'lines'                   => $lines,
             'total_vat_output'        => round($totalDanZdanitelne, 2),
             'total_vat_input'         => round($totalDanOdpocitatelne, 2),
             'tax_due'                 => round($vlastniDan, 2),
             'is_excess_deduction'     => $vlastniDan < 0,
+            'submission_deadline'     => $deadline,
+            'supplier_vat_period'     => (string) ($supplier['vat_period'] ?? ''),
         ];
 
         return [

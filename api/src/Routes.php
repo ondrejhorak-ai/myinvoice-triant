@@ -299,8 +299,10 @@ final class Routes
         $app->post   ('/api/crm/recompute',    [CrmDashboardAction::class, 'recompute']);
 
         // EPO výkazy (fáze 6) — DPH přiznání DPHDP3
-        $app->get    ('/api/reports/dphdp3/preview', [DphPriznaniAction::class, 'preview']);
-        $app->get    ('/api/reports/dphdp3',         [DphPriznaniAction::class, 'download']);
+        $app->get    ('/api/reports/dphdp3/settings', [DphPriznaniAction::class, 'settings']);
+        $app->get    ('/api/reports/dphdp3/preview',  [DphPriznaniAction::class, 'preview']);
+        $app->get    ('/api/reports/dphdp3/trend',    [DphPriznaniAction::class, 'trend']);
+        $app->get    ('/api/reports/dphdp3',          [DphPriznaniAction::class, 'download']);
 
         $app->get    ('/api/admin/imports/{id:[0-9]+}',         ImportJobStatusAction::class);
         $app->post   ('/api/admin/imports/{id:[0-9]+}/cancel',  CancelImportJobAction::class);

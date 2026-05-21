@@ -18,6 +18,37 @@ final class VatClassificationMapper
     public function __construct(private readonly Connection $db) {}
 
     /**
+     * Monthly DPH trend za posledních N měsíců (default 12). Z crm_monthly_summary
+     * (pre-aggregated, rychlé).
+     *
+     * @return list<array{period:string, vat_output:float, vat_input:float, vat_due:float}>
+     */
+    public function monthlyDphTrend(int $supplierId, int $monthsBack = 12): array
+    {
+        $start = (new \DateTimeImmutable())->modify('-' . $monthsBack . ' months')->format('Y-m');
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT period_ym,
+                    SUM(vat_output) AS vat_output,
+                    SUM(vat_input)  AS vat_input
+               FROM crm_monthly_summary
+              WHERE supplier_id = ? AND period_ym >= ?
+           GROUP BY period_ym
+           ORDER BY period_ym ASC'
+        );
+        $stmt->execute([$supplierId, $start]);
+        return array_map(function ($r) {
+            $out = (float) $r['vat_output'];
+            $in  = (float) $r['vat_input'];
+            return [
+                'period'     => (string) $r['period_ym'],
+                'vat_output' => $out,
+                'vat_input'  => $in,
+                'vat_due'    => $out - $in,
+            ];
+        }, $stmt->fetchAll(\PDO::FETCH_ASSOC));
+    }
+
+    /**
      * Vrátí mapu code → {label, direction, dphdp3_line, kh_section, vat_rate, is_reverse_charge}
      *
      * @return array<string, array{label:string, direction:string, dphdp3_line:?string,
@@ -50,17 +81,31 @@ final class VatClassificationMapper
     /**
      * Aggregace pro DPH přiznání DPHDP3 — vrátí summary per řádek výkazu.
      *
-     * Z invoices + purchase_invoices + their items podle období (rok+měsíc/čtvrtletí).
+     * Z invoices + purchase_invoices + their items podle období (rok+měsíc nebo kvartál).
+     * Quarterly: $month = 0 (Q1 = leden-březen pro $year) nebo 3/6/9/12 (poslední měsíc kvartálu).
      * Pro každou fakturu/řádek najde vat_classification_code (item-level override → invoice-level fallback).
      *
+     * @param int $year     Rok (např. 2026)
+     * @param int $month    Měsíc (1-12) nebo 0 (= roční přehled)
+     * @param string $period 'monthly' | 'quarterly' — quarterly bere celý kvartál
+     *                       odpovídající danému $month (Q = ceil($month / 3))
      * @return array<string, array{base:float, vat:float, count:int, label:string}>
-     *         Klíč = dphdp3_line (řádek výkazu), value = sumy + meta.
      */
-    public function aggregateForDphPriznani(int $supplierId, int $year, int $month): array
+    public function aggregateForDphPriznani(int $supplierId, int $year, int $month, string $period = 'monthly'): array
     {
         $map = $this->loadMap($supplierId);
-        $start = sprintf('%04d-%02d-01', $year, $month);
-        $end = (new \DateTimeImmutable($start))->modify('last day of this month')->format('Y-m-d');
+        // Quarterly: spočítej kvartál (1-4) z měsíce + rozsah
+        if ($period === 'quarterly') {
+            $quarter = (int) ceil($month / 3);
+            $qStartMonth = ($quarter - 1) * 3 + 1; // 1, 4, 7, 10
+            $qEndMonth   = $quarter * 3;            // 3, 6, 9, 12
+            $start = sprintf('%04d-%02d-01', $year, $qStartMonth);
+            $end = (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $qEndMonth)))
+                ->modify('last day of this month')->format('Y-m-d');
+        } else {
+            $start = sprintf('%04d-%02d-01', $year, $month);
+            $end = (new \DateTimeImmutable($start))->modify('last day of this month')->format('Y-m-d');
+        }
 
         $byLine = [];
         // Vystavené (revenue side)

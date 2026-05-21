@@ -9,7 +9,9 @@ use MyInvoice\Http\SupplierGuard;
 use MyInvoice\Middleware\AuthMiddleware;
 use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\IpMatcher;
+use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Service\Report\DphPriznaniBuilder;
+use MyInvoice\Service\Report\VatClassificationMapper;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -26,9 +28,50 @@ final class DphPriznaniAction
 {
     public function __construct(
         private readonly DphPriznaniBuilder $builder,
+        private readonly VatClassificationMapper $mapper,
+        private readonly Connection $db,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
     ) {}
+
+    /**
+     * GET /api/reports/dphdp3/settings → { vat_period, is_vat_payer }
+     * Vrátí supplier nastavení potřebné pro UI (měsíční vs kvartální period picker).
+     */
+    public function settings(Request $request, Response $response): Response
+    {
+        $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
+            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        }
+        $supplierId = SupplierGuard::currentId($request);
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT vat_period, is_vat_payer, taxpayer_type, financial_office_code FROM supplier WHERE id = ?'
+        );
+        $stmt->execute([$supplierId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC) ?: [];
+        return Json::ok($response, [
+            'vat_period'            => $row['vat_period'] ?? null,
+            'is_vat_payer'          => (bool) ($row['is_vat_payer'] ?? false),
+            'taxpayer_type'         => $row['taxpayer_type'] ?? null,
+            'has_financial_office'  => !empty($row['financial_office_code']),
+        ]);
+    }
+
+    /**
+     * GET /api/reports/dphdp3/trend?months=12 → list měsíčních souhrnů DPH
+     * (output, input, due) pro graf.
+     */
+    public function trend(Request $request, Response $response): Response
+    {
+        $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
+            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        }
+        $supplierId = SupplierGuard::currentId($request);
+        $months = max(1, min(36, (int) ($request->getQueryParams()['months'] ?? 12)));
+        return Json::ok($response, $this->mapper->monthlyDphTrend($supplierId, $months));
+    }
 
     public function preview(Request $request, Response $response): Response
     {
@@ -44,8 +87,10 @@ final class DphPriznaniAction
             return Json::error($response, 'validation_failed', 'Neplatný rok/měsíc.', 400);
         }
 
+        $period = (string) ($q['period'] ?? '');
+        $period = in_array($period, ['monthly', 'quarterly'], true) ? $period : null;
         try {
-            $result = $this->builder->build($supplierId, $year, $month);
+            $result = $this->builder->build($supplierId, $year, $month, $period);
         } catch (\Throwable $e) {
             return Json::error($response, 'build_failed', $e->getMessage(), 500);
         }
@@ -70,8 +115,10 @@ final class DphPriznaniAction
             return Json::error($response, 'validation_failed', 'Neplatný rok/měsíc.', 400);
         }
 
+        $period = (string) ($q['period'] ?? '');
+        $period = in_array($period, ['monthly', 'quarterly'], true) ? $period : null;
         try {
-            $result = $this->builder->build($supplierId, $year, $month);
+            $result = $this->builder->build($supplierId, $year, $month, $period);
         } catch (\Throwable $e) {
             return Json::error($response, 'build_failed', $e->getMessage(), 500);
         }
@@ -80,6 +127,7 @@ final class DphPriznaniAction
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $this->logger->log('report.dphdp3_downloaded', $userId, null, null, [
             'period'            => sprintf('%04d-%02d', $year, $month),
+            'period_type'       => $result['summary']['period_type'] ?? 'monthly',
             'total_vat_output'  => $result['summary']['total_vat_output'] ?? 0,
             'total_vat_input'   => $result['summary']['total_vat_input']  ?? 0,
         ], $ip, $request->getHeaderLine('User-Agent'));
