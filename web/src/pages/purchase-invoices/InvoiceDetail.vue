@@ -281,7 +281,12 @@ function transitionLabel(target: PurchaseInvoiceStatus): string {
       <h3 class="text-sm font-medium text-neutral-700 mb-3">{{ t('purchase_invoice.pdf.title') }}</h3>
       <div v-if="invoice.pdf_path" class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <svg class="w-6 h-6 text-danger-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 0 0 0 2h1v9a1 1 0 1 0 2 0V4h1a1 1 0 1 0 0-2H9z"/></svg>
+          <!-- PDF dokument: realisticky vypadající ikona s "PDF" badge -->
+          <svg class="w-7 h-8 shrink-0" viewBox="0 0 32 36" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#dc2626" d="M4 2h16l8 8v22a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+            <path fill="#ffffff" opacity="0.35" d="M20 2v8h8z"/>
+            <text x="16" y="26" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="700" text-anchor="middle" letter-spacing="0.3">PDF</text>
+          </svg>
           <div>
             <div class="font-medium text-sm">{{ invoice.pdf_original_name || 'invoice.pdf' }}</div>
             <div class="text-xs text-neutral-500">{{ Math.round((invoice.pdf_size_bytes ?? 0) / 1024) }} KiB · {{ invoice.pdf_uploaded_at ? formatDate(invoice.pdf_uploaded_at.slice(0,10)) : '' }}</div>

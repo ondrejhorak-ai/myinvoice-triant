@@ -418,7 +418,11 @@ function fieldErr(key: string): string | null {
       <!-- Existující PDF na detail/edit -->
       <div v-if="existingPdf" class="bg-white border border-neutral-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <svg class="w-6 h-6 text-red-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 0 0 0 2h1v9a1 1 0 1 0 2 0V4h1a1 1 0 1 0 0-2H9z"/></svg>
+          <svg class="w-7 h-8 shrink-0" viewBox="0 0 32 36" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#dc2626" d="M4 2h16l8 8v22a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+            <path fill="#ffffff" opacity="0.35" d="M20 2v8h8z"/>
+            <text x="16" y="26" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="8" font-weight="700" text-anchor="middle" letter-spacing="0.3">PDF</text>
+          </svg>
           <div>
             <div class="font-medium text-sm">{{ existingPdf.name }}</div>
             <div class="text-xs text-neutral-500">{{ Math.round(existingPdf.size / 1024) }} KiB</div>
