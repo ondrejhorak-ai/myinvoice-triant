@@ -66,7 +66,7 @@ const isComingSoon = computed(() => format.value !== 'pdf-zip')
             </div>
             <p class="text-xs text-neutral-500 mt-1">{{ opt.hint }}</p>
             <span v-if="opt.val !== 'pdf-zip'" class="inline-block mt-1 text-[10px] uppercase tracking-wide bg-neutral-100 text-neutral-500 px-1.5 py-0.5 rounded">
-              {{ t('purchase_invoice.export.coming_in_phase', { phase: opt.val === 'pohoda' ? '5' : '6' }) }}
+              {{ t('purchase_invoice.export.per_invoice_only') }}
             </span>
           </label>
         </div>

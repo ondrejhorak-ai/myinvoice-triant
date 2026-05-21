@@ -184,7 +184,12 @@
       "pdf_priority_hint": "ZIP contains archived original PDFs from vendors. Invoices without archived PDF are skipped (warning in X-Export-Warnings response header). For invoices without original you can generate our own PDF reconstruction in detail view (Exports → Our PDF).",
       "per_invoice_export_title": "Per-invoice export of received invoices",
       "per_invoice_export_hint": "ISDOC and Pohoda XML for received invoice are available in detail view (\"Exports\" button). Bulk ZIP/dataPack for multiple received invoices is planned for v4.0.0.",
-      "download": "Download"
+      "download": "Download",
+      "menu": "Exports",
+      "our_pdf": "Our PDF (reconstruction)",
+      "isdoc": "ISDOC XML",
+      "pohoda": "Pohoda XML",
+      "per_invoice_only": "per-invoice only"
     },
     "filters": {
       "all_statuses": "All statuses",
@@ -200,12 +205,6 @@
       "date_invalid": "Invalid date.",
       "currency_required": "Select invoice currency.",
       "items_required": "Add at least one item."
-    },
-    "export": {
-      "menu": "Exports",
-      "our_pdf": "Our PDF (reconstruction)",
-      "isdoc": "ISDOC XML",
-      "pohoda": "Pohoda XML"
     },
     "classification": {
       "title": "Classification",
