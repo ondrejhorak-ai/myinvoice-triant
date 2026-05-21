@@ -599,8 +599,8 @@ async function submit() {
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('recurring.items') }}</h3>
           <button type="button" @click="addItem"
-            class="cursor-pointer px-2 h-8 text-xs border border-primary-300 text-primary-700 rounded hover:bg-primary-50">
-            {{ t('invoice.add_item') }}
+            class="cursor-pointer px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium">
+            + {{ t('invoice.add_item') }}
           </button>
         </div>
         <p class="mb-3 text-xs text-neutral-500">{{ t('invoice.negative_item_hint') }}</p>

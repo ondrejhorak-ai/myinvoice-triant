@@ -430,7 +430,7 @@ async function removeCurrency(c: CurrencyAccount) {
             <div>
               <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('settings.taxpayer_type') }}</label>
               <select v-model="supplier.taxpayer_type" class="w-full h-9 px-3 border border-neutral-300 rounded-md bg-white text-sm">
-                <option :value="null">— {{ t('common.unset') ?? 'nevyplněno' }} —</option>
+                <option :value="null">— {{ t('common.unset') }} —</option>
                 <option value="fo">{{ t('settings.taxpayer_fo') }}</option>
                 <option value="po">{{ t('settings.taxpayer_po') }}</option>
               </select>
@@ -438,7 +438,7 @@ async function removeCurrency(c: CurrencyAccount) {
             <div>
               <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('settings.vat_period') }}</label>
               <select v-model="supplier.vat_period" class="w-full h-9 px-3 border border-neutral-300 rounded-md bg-white text-sm">
-                <option :value="null">— {{ t('common.unset') ?? 'nevyplněno' }} —</option>
+                <option :value="null">— {{ t('common.unset') }} —</option>
                 <option value="monthly">{{ t('settings.vat_monthly') }}</option>
                 <option value="quarterly">{{ t('settings.vat_quarterly') }}</option>
               </select>

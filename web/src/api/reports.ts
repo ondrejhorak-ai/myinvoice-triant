@@ -64,6 +64,27 @@ export const reportsApi = {
       warnings: string[]
     }>('/reports/dphkh1/preview', { params: { year, month } }).then(r => r.data),
 
+  incomeTaxPreview: (year: number, type: 'fo' | 'po') =>
+    api.get<{
+      summary: {
+        year: number
+        taxpayer_type: 'fo' | 'po'
+        revenue_orientacni: number
+        costs_orientacni: number
+        profit_orientacni: number
+        submission_deadline: string
+        currency: string
+      }
+      warnings: string[]
+    }>('/reports/income-tax/preview', { params: { year, type } }).then(r => r.data),
+
+  incomeTaxDownloadUrl: (year: number, type: 'fo' | 'po') => {
+    const sid = localStorage.getItem('myinvoice.current_supplier_id')
+    const params = new URLSearchParams({ year: String(year), type })
+    if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+    return `/api/reports/income-tax?${params.toString()}`
+  },
+
   khDownloadUrl: (year: number, month: number) => {
     const sid = localStorage.getItem('myinvoice.current_supplier_id')
     const params = new URLSearchParams({ year: String(year), month: String(month) })

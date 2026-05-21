@@ -187,10 +187,16 @@ onMounted(async () => {
   await loadCodebooks()
   if (isEdit.value && invoiceId.value) {
     await loadInvoice(invoiceId.value)
-  } else if (currencies.value.length > 0 && form.value.currency_id === null) {
-    // Default na CZK měnu pokud existuje
-    const czk = currencies.value.find(c => c.code === 'CZK')
-    if (czk) form.value.currency_id = czk.id
+  } else {
+    if (currencies.value.length > 0 && form.value.currency_id === null) {
+      // Default na CZK měnu pokud existuje
+      const czk = currencies.value.find(c => c.code === 'CZK')
+      if (czk) form.value.currency_id = czk.id
+    }
+    // Default první prázdná položka pro nový draft (user feedback: UX, méně klikání)
+    if (form.value.items.length === 0) {
+      addItem()
+    }
   }
   loaded.value = true
 })
@@ -588,8 +594,8 @@ function fieldErr(key: string): string | null {
       <div class="bg-white border border-neutral-200 rounded-lg shadow-sm">
         <header class="flex items-center justify-between px-5 py-3 border-b border-neutral-100">
           <h2 class="text-sm font-medium text-neutral-700">{{ t('purchase_invoice.items.title') }}</h2>
-          <button type="button" @click="addItem" class="cursor-pointer text-sm text-primary-700 hover:text-primary-800 font-medium">
-            {{ t('purchase_invoice.items.add') }}
+          <button type="button" @click="addItem" class="cursor-pointer px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium">
+            + {{ t('purchase_invoice.items.add') }}
           </button>
         </header>
         <div v-if="form.items.length === 0" class="text-sm text-neutral-500 py-8 text-center">
