@@ -170,6 +170,7 @@
       "result_summary": "Vytvořeno: {created}, přeskočeno: {skipped}, chyby: {failed}",
       "no_dir": "Inbox adresář není v cfg.php nastaven (purchase_invoice.inbox_dir).",
       "details": "Detaily",
+      "not_imported_title": "{n} faktur(y) nebylo možné importovat",
       "file": "Soubor",
       "status_label": "Stav",
       "reason": "Důvod"

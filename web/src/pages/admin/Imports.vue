@@ -76,6 +76,12 @@ const statusBadge = (s: string) => {
 const scanRunning = ref(false)
 const scanResult = ref<InboxScanResult | null>(null)
 const scanDryRun = ref(false)
+
+// Items které NEBYLY importovány (AI selhalo / ISDOC missing bez AI / parser error)
+const notImportedItems = computed(() => {
+  if (!scanResult.value) return []
+  return scanResult.value.details.filter(d => d.status === 'skipped' || d.status === 'failed')
+})
 async function runScan() {
   scanRunning.value = true
   scanResult.value = null
@@ -294,7 +300,24 @@ async function runScan() {
             <div><span class="font-semibold text-danger-500">{{ scanResult.failed }}</span> {{ t('imports.summary_failed') }}</div>
           </div>
           <p v-if="scanResult.inbox_dir" class="text-xs text-neutral-500 mb-2 font-mono">{{ scanResult.inbox_dir }}</p>
-          <details v-if="scanResult.details.length > 0" class="text-xs">
+
+          <!-- Prominent box: faktury které NEBYLY importovány (failed + skipped, ale ne 'imported') -->
+          <div v-if="notImportedItems.length > 0" class="mt-3 rounded-md bg-warning-50 border border-warning-500/40 p-3">
+            <div class="text-sm font-semibold text-warning-700 mb-2">
+              ⚠ {{ t('purchase_invoice.scan_inbox.not_imported_title', { n: notImportedItems.length }) }}
+            </div>
+            <ul class="space-y-1.5 max-h-72 overflow-y-auto">
+              <li v-for="(d, i) in notImportedItems" :key="i" class="text-xs flex items-start gap-2">
+                <span class="inline-block px-1.5 py-0.5 rounded text-[10px] shrink-0" :class="statusBadge(d.status)">{{ d.status }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="font-mono text-neutral-800 truncate">{{ d.file ? d.file.split(/[/\\]/).pop() : '—' }}</div>
+                  <div v-if="d.reason" class="text-neutral-600 mt-0.5">{{ d.reason }}</div>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <details v-if="scanResult.details.length > 0" class="text-xs mt-3">
             <summary class="cursor-pointer text-neutral-600 hover:text-neutral-900">
               {{ t('purchase_invoice.scan_inbox.details') }} ({{ scanResult.details.length }})
             </summary>

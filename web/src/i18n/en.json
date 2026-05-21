@@ -170,6 +170,7 @@
       "result_summary": "Created: {created}, skipped: {skipped}, failed: {failed}",
       "no_dir": "Inbox directory not configured in cfg.php (purchase_invoice.inbox_dir).",
       "details": "Details",
+      "not_imported_title": "{n} invoice(s) could not be imported",
       "file": "File",
       "status_label": "Status",
       "reason": "Reason"
