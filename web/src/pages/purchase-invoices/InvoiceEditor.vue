@@ -595,7 +595,7 @@ function fieldErr(key: string): string | null {
                 <input v-model="it.description" type="text" class="w-full h-9 px-2 border border-neutral-200 rounded text-sm" />
               </td>
               <td class="py-2 px-1">
-                <input v-model.number="it.quantity" type="number" step="0.001" min="0" class="w-full h-9 px-2 border border-neutral-200 rounded text-sm text-right font-mono" />
+                <input v-model.number="it.quantity" v-math type="text" inputmode="decimal" class="w-full h-9 px-2 border border-neutral-200 rounded text-sm text-right font-mono" />
               </td>
               <td class="py-2 px-1">
                 <select v-model="it.unit" class="w-full h-9 px-1 border border-neutral-200 rounded bg-white text-sm">
@@ -603,7 +603,7 @@ function fieldErr(key: string): string | null {
                 </select>
               </td>
               <td class="py-2 px-1">
-                <input v-model.number="it.unit_price_without_vat" type="number" step="0.01" class="w-full h-9 px-2 border border-neutral-200 rounded text-sm text-right font-mono" />
+                <input v-model.number="it.unit_price_without_vat" v-math type="text" inputmode="decimal" class="w-full h-9 px-2 border border-neutral-200 rounded text-sm text-right font-mono" />
               </td>
               <td class="py-2 px-1">
                 <select v-model.number="it.vat_rate_id" class="w-full h-9 px-1 border border-neutral-200 rounded bg-white text-sm">
