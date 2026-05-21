@@ -190,8 +190,33 @@ function transitionLabel(target: PurchaseInvoiceStatus): string {
         <a v-if="invoice.pdf_path" :href="purchaseInvoicesApi.pdfUrl(invoice.id)" target="_blank"
           class="cursor-pointer px-3 h-9 text-sm border border-primary-500/40 rounded-md text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1.5">
           <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
-          {{ t('purchase_invoice.pdf.download') }}
+          {{ t('purchase_invoice.pdf.download_original') }}
         </a>
+        <!-- Export dropdown — Naše PDF / ISDOC / Pohoda (native details/summary) -->
+        <details class="relative inline-block">
+          <summary class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 hover:bg-neutral-50 rounded-md inline-flex items-center gap-1.5 list-none">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            {{ t('purchase_invoice.export.menu') }}
+            <svg class="w-3 h-3 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </summary>
+          <div class="absolute right-0 top-full mt-1 z-20 bg-white border border-neutral-200 rounded-md shadow-lg min-w-[220px]">
+            <a :href="purchaseInvoicesApi.ourPdfUrl(invoice.id)" target="_blank"
+              class="cursor-pointer block px-4 py-2 text-sm hover:bg-neutral-50 text-neutral-700">
+              <svg class="inline w-4 h-4 mr-1" viewBox="0 0 32 36"><path fill="#dc2626" d="M4 2h16l8 8v22a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><text x="16" y="26" fill="#fff" font-size="8" font-weight="700" text-anchor="middle">PDF</text></svg>
+              {{ t('purchase_invoice.export.our_pdf') }}
+            </a>
+            <a :href="purchaseInvoicesApi.isdocUrl(invoice.id)"
+              class="cursor-pointer block px-4 py-2 text-sm hover:bg-neutral-50 text-neutral-700 border-t border-neutral-100">
+              <svg class="inline w-4 h-4 mr-1 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2"/></svg>
+              {{ t('purchase_invoice.export.isdoc') }}
+            </a>
+            <a :href="purchaseInvoicesApi.pohodaUrl(invoice.id)"
+              class="cursor-pointer block px-4 py-2 text-sm hover:bg-neutral-50 text-neutral-700 border-t border-neutral-100">
+              <svg class="inline w-4 h-4 mr-1 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414"/></svg>
+              {{ t('purchase_invoice.export.pohoda') }}
+            </a>
+          </div>
+        </details>
         <template v-for="target in allowedTransitions" :key="target">
           <!-- Reverse: paid→received (unmark paid) NEBO cancelled→received (un-cancel) — neutral styl -->
           <button v-if="target === 'received' && (invoice.status === 'paid' || invoice.status === 'cancelled')"

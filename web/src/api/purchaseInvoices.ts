@@ -323,6 +323,34 @@ export const purchaseInvoicesApi = {
     return `/api/purchase-invoices/${id}/pdf${qs ? '?' + qs : ''}`
   },
 
+  /** Naše vygenerované PDF (mPDF z dat). Když nemáme originál nebo chceme vlastní layout. */
+  ourPdfUrl: (id: number, inline = false) => {
+    const sid = localStorage.getItem('myinvoice.current_supplier_id')
+    const params = new URLSearchParams()
+    if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+    if (inline) params.set('inline', '1')
+    const qs = params.toString()
+    return `/api/purchase-invoices/${id}/our-pdf${qs ? '?' + qs : ''}`
+  },
+
+  /** ISDOC XML export přijaté faktury (role inversion — vendor=supplier, my=customer). */
+  isdocUrl: (id: number) => {
+    const sid = localStorage.getItem('myinvoice.current_supplier_id')
+    const params = new URLSearchParams()
+    if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+    const qs = params.toString()
+    return `/api/purchase-invoices/${id}/isdoc${qs ? '?' + qs : ''}`
+  },
+
+  /** Pohoda XML export přijaté faktury (dataPackItem s `<pur:purchase>`). */
+  pohodaUrl: (id: number) => {
+    const sid = localStorage.getItem('myinvoice.current_supplier_id')
+    const params = new URLSearchParams()
+    if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+    const qs = params.toString()
+    return `/api/purchase-invoices/${id}/pohoda${qs ? '?' + qs : ''}`
+  },
+
   scanInbox: (dryRun = false) =>
     api.post<InboxScanResult>('/purchase-invoices/scan-inbox', { dry_run: dryRun }).then(r => r.data),
 

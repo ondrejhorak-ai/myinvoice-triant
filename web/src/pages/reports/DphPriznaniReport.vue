@@ -234,35 +234,44 @@ onMounted(loadAll)
         </div>
       </div>
 
-      <!-- Monthly DPH trend chart -->
+      <!-- Monthly DPH trend chart — tabulkový layout, čísla zarovnaná doprava -->
       <div v-if="trend.length > 0" class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
         <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('reports.dph.monthly_trend') }}</h3>
           <div class="flex items-center gap-3 text-xs">
             <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-danger-400"></span>{{ t('reports.dph.vat_output') }}</span>
             <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-success-500"></span>{{ t('reports.dph.vat_input') }}</span>
-            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded-sm bg-primary-500"></span>{{ t('reports.dph.net_due') }}</span>
           </div>
         </header>
-        <div class="p-4 space-y-1.5">
-          <div v-for="m in trend" :key="m.period" class="grid grid-cols-[60px_1fr_140px] gap-2 items-center text-xs">
-            <div class="text-neutral-600 font-medium">{{ formatMonthLabel(m.period) }}</div>
-            <div class="space-y-0.5">
-              <div class="flex items-center gap-2">
-                <div class="bg-danger-400 h-2.5 rounded-sm" :style="{ width: trendBarPct(m.vat_output) + '%' }"></div>
-                <span class="font-mono text-neutral-600 text-[10px]">{{ formatMoney(m.vat_output, 'CZK') }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="bg-success-500 h-2.5 rounded-sm" :style="{ width: trendBarPct(m.vat_input) + '%' }"></div>
-                <span class="font-mono text-neutral-600 text-[10px]">{{ formatMoney(m.vat_input, 'CZK') }}</span>
-              </div>
-            </div>
-            <div class="text-right font-mono text-sm"
-              :class="m.vat_due >= 0 ? 'text-danger-500' : 'text-success-600'">
-              {{ m.vat_due >= 0 ? '↑' : '↓' }} {{ formatMoney(Math.abs(m.vat_due), 'CZK') }}
-            </div>
-          </div>
-        </div>
+        <table class="w-full text-xs">
+          <thead class="bg-neutral-50 text-neutral-500 uppercase tracking-wide">
+            <tr>
+              <th class="text-left px-5 py-2 w-20">{{ t('reports.dph.line') }}</th>
+              <th class="text-right px-3 py-2 w-32">{{ t('reports.dph.vat_output') }}</th>
+              <th class="px-3 py-2">&nbsp;</th>
+              <th class="text-right px-3 py-2 w-32">{{ t('reports.dph.vat_input') }}</th>
+              <th class="px-3 py-2">&nbsp;</th>
+              <th class="text-right px-5 py-2 w-32">{{ t('reports.dph.net_due') }}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-100">
+            <tr v-for="m in trend" :key="m.period">
+              <td class="px-5 py-2 font-medium text-neutral-700">{{ formatMonthLabel(m.period) }}</td>
+              <td class="px-3 py-2 text-right font-mono text-neutral-700">{{ formatMoney(m.vat_output, 'CZK') }}</td>
+              <td class="px-1 py-2 w-32">
+                <div class="bg-danger-400 h-2 rounded-sm" :style="{ width: trendBarPct(m.vat_output) + '%' }"></div>
+              </td>
+              <td class="px-3 py-2 text-right font-mono text-neutral-700">{{ formatMoney(m.vat_input, 'CZK') }}</td>
+              <td class="px-1 py-2 w-32">
+                <div class="bg-success-500 h-2 rounded-sm" :style="{ width: trendBarPct(m.vat_input) + '%' }"></div>
+              </td>
+              <td class="px-5 py-2 text-right font-mono"
+                :class="m.vat_due >= 0 ? 'text-danger-500' : 'text-success-600'">
+                {{ m.vat_due >= 0 ? '↑' : '↓' }} {{ formatMoney(Math.abs(m.vat_due), 'CZK') }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- DPH na výstupu -->

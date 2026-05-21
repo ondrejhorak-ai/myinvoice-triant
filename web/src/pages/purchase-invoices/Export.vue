@@ -16,7 +16,7 @@ const month = ref<string>((() => {
 })())
 
 function download() {
-  // PDF ZIP je live, ostatní formáty zatím placeholder (fáze 5/6 plánu integrace forku).
+  // PDF ZIP je live, Pohoda/ISDOC pro přijaté jsou jen per-faktura v jejich detailu (bulk plánujeme do v4.0).
   if (format.value === 'pdf-zip') {
     window.open(purchaseInvoicesApi.exportUrl(month.value, dateBy.value), '_blank')
     return
@@ -95,11 +95,9 @@ const isComingSoon = computed(() => format.value !== 'pdf-zip')
         {{ t('purchase_invoice.export.pdf_priority_hint') }}
       </div>
 
-      <div v-else class="rounded-md bg-warning-50 border border-warning-500/40 px-3 py-2 text-sm text-warning-600">
-        <strong>{{ t('purchase_invoice.export.coming_soon_title') }}:</strong>
-        {{ format === 'pohoda'
-          ? t('purchase_invoice.export.pohoda_coming_hint')
-          : t('purchase_invoice.export.isdoc_coming_hint') }}
+      <div v-else class="rounded-md bg-primary-50 border border-primary-200 px-3 py-2 text-sm text-primary-700">
+        <strong>{{ t('purchase_invoice.export.per_invoice_export_title') }}:</strong>
+        {{ t('purchase_invoice.export.per_invoice_export_hint') }}
       </div>
 
       <div class="flex items-center justify-end gap-2 pt-2">

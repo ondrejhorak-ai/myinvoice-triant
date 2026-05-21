@@ -62,6 +62,8 @@ use MyInvoice\Action\PurchaseInvoice\CreatePurchaseInvoiceAction;
 use MyInvoice\Action\PurchaseInvoice\DeletePurchaseInvoiceAction;
 use MyInvoice\Action\PurchaseInvoice\DeletePurchaseInvoicePdfAction;
 use MyInvoice\Action\PurchaseInvoice\DownloadPurchaseInvoicePdfAction;
+use MyInvoice\Action\PurchaseInvoice\OurPdfPurchaseInvoiceAction;
+use MyInvoice\Action\PurchaseInvoice\ExportPurchaseInvoiceAction;
 use MyInvoice\Action\PurchaseInvoice\ExportPurchaseInvoicesAction;
 use MyInvoice\Action\PurchaseInvoice\GetPurchaseInvoiceAction;
 use MyInvoice\Action\PurchaseInvoice\ListPurchaseInvoicesAction;
@@ -243,6 +245,10 @@ final class Routes
         $app->post   ('/api/purchase-invoices/{id:[0-9]+}/pdf',            UploadPurchaseInvoicePdfAction::class);
         $app->get    ('/api/purchase-invoices/{id:[0-9]+}/pdf',            DownloadPurchaseInvoicePdfAction::class);
         $app->delete ('/api/purchase-invoices/{id:[0-9]+}/pdf',            DeletePurchaseInvoicePdfAction::class);
+        // Our generated PDF + Pohoda/ISDOC export pro přijatou
+        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/our-pdf',        OurPdfPurchaseInvoiceAction::class);
+        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/isdoc',          [ExportPurchaseInvoiceAction::class, 'isdoc']);
+        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/pohoda',         [ExportPurchaseInvoiceAction::class, 'pohoda']);
         $app->get    ('/api/purchase-invoices/{id:[0-9]+}/activity',       PurchaseInvoiceActivityAction::class);
 
         // Pravidelné fakturace (recurring templates)

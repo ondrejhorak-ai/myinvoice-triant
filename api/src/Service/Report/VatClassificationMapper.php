@@ -21,19 +21,19 @@ final class VatClassificationMapper
      * Monthly DPH trend za posledních N měsíců (default 12). Z crm_monthly_summary
      * (pre-aggregated, rychlé).
      *
+     * Filter currency=CZK — DPH přiznání je vždy v CZK; sumovat EUR + CZK by dalo
+     * nesmyslné hodnoty.
+     *
      * @return list<array{period:string, vat_output:float, vat_input:float, vat_due:float}>
      */
     public function monthlyDphTrend(int $supplierId, int $monthsBack = 12): array
     {
         $start = (new \DateTimeImmutable())->modify('-' . $monthsBack . ' months')->format('Y-m');
         $stmt = $this->db->pdo()->prepare(
-            'SELECT period_ym,
-                    SUM(vat_output) AS vat_output,
-                    SUM(vat_input)  AS vat_input
+            "SELECT period_ym, vat_output, vat_input
                FROM crm_monthly_summary
-              WHERE supplier_id = ? AND period_ym >= ?
-           GROUP BY period_ym
-           ORDER BY period_ym ASC'
+              WHERE supplier_id = ? AND period_ym >= ? AND currency = 'CZK'
+           ORDER BY period_ym ASC"
         );
         $stmt->execute([$supplierId, $start]);
         return array_map(function ($r) {
