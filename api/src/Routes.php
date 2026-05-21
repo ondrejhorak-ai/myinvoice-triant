@@ -33,6 +33,7 @@ use MyInvoice\Action\Admin\Import\AnthropicCredentialsAction;
 use MyInvoice\Action\Admin\Import\AiExtractPdfAction;
 use MyInvoice\Action\Crm\CrmDashboardAction;
 use MyInvoice\Action\Report\DphPriznaniAction;
+use MyInvoice\Action\Report\KontrolniHlaseniAction;
 use MyInvoice\Action\Admin\InvoicesZipAction;
 use MyInvoice\Action\Admin\CronJobsAction;
 use MyInvoice\Action\Admin\RunCronJobAction;
@@ -315,6 +316,9 @@ final class Routes
         $app->get    ('/api/reports/dphdp3/preview',  [DphPriznaniAction::class, 'preview']);
         $app->get    ('/api/reports/dphdp3/trend',    [DphPriznaniAction::class, 'trend']);
         $app->get    ('/api/reports/dphdp3',          [DphPriznaniAction::class, 'download']);
+        // Kontrolní hlášení DPHKH1 (vždy měsíční)
+        $app->get    ('/api/reports/dphkh1/preview',  [KontrolniHlaseniAction::class, 'preview']);
+        $app->get    ('/api/reports/dphkh1',          [KontrolniHlaseniAction::class, 'download']);
 
         $app->get    ('/api/admin/imports/{id:[0-9]+}',         ImportJobStatusAction::class);
         $app->post   ('/api/admin/imports/{id:[0-9]+}/cancel',  CancelImportJobAction::class);

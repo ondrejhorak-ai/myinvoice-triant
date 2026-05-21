@@ -10,7 +10,6 @@ import {
   type PurchaseDocumentKind,
 } from '@/api/purchaseInvoices'
 import { formatMoney, formatDate, formatMonth } from '@/composables/useFormat'
-import { useAuthStore } from '@/stores/auth'
 import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
 import { apiErrorMessage } from '@/api/errors'
@@ -19,7 +18,6 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 
 const { t } = useI18n()
 const router = useRouter()
-const auth = useAuthStore()
 const toast = useToast()
 
 useHotkey('ctrl+n', (e) => { e.preventDefault(); router.push('/purchase-invoices/new') })
@@ -232,12 +230,6 @@ async function bulkDelete() {
           {{ bulkBusy ? '…' : t('purchase_invoice.bulk.delete', { n: draftsSelected.length }) }}
         </button>
 
-        <RouterLink
-          v-if="auth.user?.role === 'admin' || auth.user?.role === 'accountant'"
-          to="/admin/import"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-neutral-300 hover:bg-neutral-50 text-sm rounded-md"
-          :title="t('purchase_invoice.scan_inbox.title')"
-        >📥 {{ t('purchase_invoice.scan_inbox_btn') }}</RouterLink>
         <RouterLink
           to="/purchase-invoices/new"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md"

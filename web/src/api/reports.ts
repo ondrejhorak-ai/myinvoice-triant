@@ -49,6 +49,28 @@ export const reportsApi = {
   dphTrend: (months = 12) =>
     api.get<DphTrendRow[]>('/reports/dphdp3/trend', { params: { months } }).then(r => r.data),
 
+  khPreview: (year: number, month: number) =>
+    api.get<{
+      summary: {
+        period: string
+        a1_count: number
+        a4_count: number
+        a5_count_aggregated: number
+        b1_count: number
+        b2_count: number
+        b3_count_aggregated: number
+        submission_deadline: string
+      }
+      warnings: string[]
+    }>('/reports/dphkh1/preview', { params: { year, month } }).then(r => r.data),
+
+  khDownloadUrl: (year: number, month: number) => {
+    const sid = localStorage.getItem('myinvoice.current_supplier_id')
+    const params = new URLSearchParams({ year: String(year), month: String(month) })
+    if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+    return `/api/reports/dphkh1?${params.toString()}`
+  },
+
   /** URL na download endpoint — frontend ho otevírá v novém okně */
   dphDownloadUrl: (year: number, month: number, period?: 'monthly' | 'quarterly') => {
     const sid = localStorage.getItem('myinvoice.current_supplier_id')
