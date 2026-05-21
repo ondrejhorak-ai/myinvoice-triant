@@ -194,29 +194,295 @@ final class IdokladImportService
     }
 
     /**
-     * Import IssuedInvoices → invoices. Pro MVP přeskočit komplexní mapování
-     * (work_reports, projects); minimální body fields.
+     * Import IssuedInvoices → invoices. MVP mapping: header + items, status='draft'.
+     * Dobropisy (IssuedInvoiceCorrections) jsou separátní endpoint a dělají se ve fázi 3.
      *
-     * TODO fáze 2a iter2: full mapping s items, project resolution, attachment.
+     * Note: faktury z iDoklad nemají project_id (oni nemají koncept projektů jako my)
+     * — project_id = NULL. Uživatel může později ručně přiřadit.
      */
     private function importIssued(int $jobId, int $supplierId, int $userId, bool $dryRun): void
     {
         $this->jobs->updateProgress($jobId, ['current_step' => 'Importing issued invoices…', 'processed' => 0]);
-        $this->jobs->appendLog($jobId, 'Vydané faktury: minimal mapping (fáze 2a iter1) — implementace plného mappingu v dalším iter.');
-        // Placeholder — full mapping je rozsáhlé, dodávám v iter2.
+        $this->jobs->appendLog($jobId, 'Stahuji vydané faktury z iDoklad…');
+
+        $created = 0; $skipped = 0; $failed = 0; $processed = 0;
+        foreach ($this->idoklad->getAll($supplierId, 'IssuedInvoices') as $idoklad) {
+            $processed++;
+            if ($processed % self::PROGRESS_FLUSH_EVERY === 0) {
+                $this->jobs->updateProgress($jobId, ['processed' => $processed, 'created_count' => $created, 'skipped_count' => $skipped, 'failed_count' => $failed]);
+                $this->checkCancel($jobId);
+            }
+
+            $idokladId = (int) ($idoklad['Id'] ?? 0);
+            if ($idokladId === 0) continue;
+
+            // Dedup
+            $stmt = $this->db->pdo()->prepare(
+                'SELECT id FROM invoices WHERE supplier_id = ? AND idoklad_id = ? LIMIT 1'
+            );
+            $stmt->execute([$supplierId, $idokladId]);
+            if ($stmt->fetchColumn() !== false) { $skipped++; continue; }
+
+            if ($dryRun) { $created++; continue; }
+
+            try {
+                $invoiceId = $this->createIssuedFromIdoklad($idoklad, $supplierId, $userId);
+                $this->db->pdo()->prepare(
+                    'UPDATE invoices SET idoklad_id = ? WHERE id = ?'
+                )->execute([$idokladId, $invoiceId]);
+                $this->invCalc->recompute($invoiceId);
+                $created++;
+            } catch (\Throwable $e) {
+                $failed++;
+                $this->jobs->appendLog($jobId, "Vydaná #{$idokladId}: " . $e->getMessage());
+            }
+        }
+        $this->jobs->updateProgress($jobId, ['processed' => $processed, 'created_count' => $created, 'skipped_count' => $skipped, 'failed_count' => $failed]);
+        $this->jobs->appendLog($jobId, "Vydané faktury: vytvořeno {$created}, přeskočeno {$skipped}, chyby {$failed} (z {$processed}).");
+    }
+
+    /**
+     * Vytvoří jednu vydanou fakturu z iDoklad payloadu.
+     */
+    private function createIssuedFromIdoklad(array $i, int $supplierId, int $userId): int
+    {
+        // Resolve client by PartnerId → idoklad_id v clients
+        $partnerId = (int) ($i['PartnerId'] ?? 0);
+        $clientId = $this->resolveClientByIdoklad($partnerId, $supplierId);
+        if ($clientId === null) {
+            throw new \RuntimeException("Klient s iDoklad ID {$partnerId} nenalezen — nejdřív naimportuj kontakty.");
+        }
+
+        $invoiceType = $this->mapIssuedDocumentType((int) ($i['DocumentType'] ?? 0));
+
+        $payload = [
+            'invoice_type'    => $invoiceType,
+            'client_id'       => $clientId,
+            'issue_date'      => (string) ($i['DateOfIssue'] ?? date('Y-m-d')),
+            'tax_date'        => $invoiceType === 'proforma' ? null : (string) ($i['DateOfTaxing'] ?? $i['DateOfIssue'] ?? date('Y-m-d')),
+            'due_date'        => (string) ($i['DateOfMaturity'] ?? $i['DateOfIssue'] ?? date('Y-m-d')),
+            'currency_id'     => $this->resolveCurrencyId((string) ($i['CurrencyCode'] ?? 'CZK'), $supplierId, isActive: true),
+            'reverse_charge'  => false,
+            'language'        => 'cs',
+            'varsymbol'       => $this->sanitizeVarsymbol((string) ($i['VariableSymbol'] ?? $i['DocumentNumber'] ?? '')),
+            'payment_method'  => 'bank_transfer',
+        ];
+
+        $invoiceId = $this->invoices->createDraft($payload, $userId);
+
+        // Items
+        $vatRates = $this->loadVatRateMap();
+        $items = [];
+        foreach (($i['Items'] ?? []) as $idx => $line) {
+            $rate = (float) ($line['VatRate'] ?? 0);
+            $vatRateId = $this->matchVatRateId($vatRates, $rate);
+            $items[] = [
+                'description'            => (string) ($line['Name'] ?? $line['Description'] ?? ''),
+                'quantity'               => (float) ($line['Amount'] ?? 1),
+                'unit'                   => (string) ($line['Unit'] ?? 'ks'),
+                'unit_price_without_vat' => (float) ($line['UnitPrice'] ?? 0),
+                'vat_rate_id'            => $vatRateId,
+                'order_index'            => $idx,
+            ];
+        }
+        if (!empty($items)) {
+            $this->invoices->replaceItems($invoiceId, $items);
+        }
+        return $invoiceId;
     }
 
     /**
      * Import ReceivedInvoices → purchase_invoices.
      *
-     * Per fork bug fix: DateOfIssue často NULL, fallback DateOfAccountingEvent
-     * → fallback parse year z DocumentNumber.
+     * Per fork bug fix: DateOfIssue často NULL pro přijaté, fallback DateOfAccountingEvent.
      */
     private function importReceived(int $jobId, int $supplierId, int $userId, bool $dryRun): void
     {
         $this->jobs->updateProgress($jobId, ['current_step' => 'Importing received invoices…', 'processed' => 0]);
-        $this->jobs->appendLog($jobId, 'Přijaté faktury: implementace v fázi 2a iter2.');
-        // Placeholder — vendor resolution + items mapping + attachment download.
+        $this->jobs->appendLog($jobId, 'Stahuji přijaté faktury z iDoklad…');
+
+        $created = 0; $skipped = 0; $failed = 0; $processed = 0;
+        foreach ($this->idoklad->getAll($supplierId, 'ReceivedInvoices') as $idoklad) {
+            $processed++;
+            if ($processed % self::PROGRESS_FLUSH_EVERY === 0) {
+                $this->jobs->updateProgress($jobId, ['processed' => $processed, 'created_count' => $created, 'skipped_count' => $skipped, 'failed_count' => $failed]);
+                $this->checkCancel($jobId);
+            }
+
+            $idokladId = (int) ($idoklad['Id'] ?? 0);
+            if ($idokladId === 0) continue;
+
+            $stmt = $this->db->pdo()->prepare(
+                'SELECT id FROM purchase_invoices WHERE supplier_id = ? AND idoklad_id = ? LIMIT 1'
+            );
+            $stmt->execute([$supplierId, $idokladId]);
+            if ($stmt->fetchColumn() !== false) { $skipped++; continue; }
+
+            if ($dryRun) { $created++; continue; }
+
+            try {
+                $purchaseId = $this->createReceivedFromIdoklad($idoklad, $supplierId, $userId);
+                $this->db->pdo()->prepare(
+                    'UPDATE purchase_invoices SET idoklad_id = ? WHERE id = ?'
+                )->execute([$idokladId, $purchaseId]);
+                $this->purCalc->recompute($purchaseId);
+                $created++;
+            } catch (\Throwable $e) {
+                $failed++;
+                $this->jobs->appendLog($jobId, "Přijatá #{$idokladId}: " . $e->getMessage());
+            }
+        }
+        $this->jobs->updateProgress($jobId, ['processed' => $processed, 'created_count' => $created, 'skipped_count' => $skipped, 'failed_count' => $failed]);
+        $this->jobs->appendLog($jobId, "Přijaté faktury: vytvořeno {$created}, přeskočeno {$skipped}, chyby {$failed} (z {$processed}).");
+    }
+
+    /**
+     * Vytvoří jednu přijatou fakturu z iDoklad payloadu.
+     */
+    private function createReceivedFromIdoklad(array $i, int $supplierId, int $userId): int
+    {
+        // Resolve vendor by PartnerId → idoklad_id v clients (with is_vendor flag)
+        $partnerId = (int) ($i['PartnerId'] ?? 0);
+        $vendorId = $this->resolveClientByIdoklad($partnerId, $supplierId);
+        if ($vendorId === null) {
+            throw new \RuntimeException("Dodavatel s iDoklad ID {$partnerId} nenalezen — nejdřív naimportuj kontakty.");
+        }
+        // Promote na vendor (might be already-imported customer)
+        $this->clients->markAsVendor($vendorId);
+
+        // Date fallback: DateOfIssue → DateOfAccountingEvent → today (per fork bug fix)
+        $issueDate = (string) ($i['DateOfIssue'] ?? $i['DateOfAccountingEvent'] ?? '') ?: date('Y-m-d');
+        $taxDate   = (string) ($i['DateOfTaxing'] ?? $issueDate);
+        $dueDate   = (string) ($i['DateOfMaturity'] ?? $issueDate);
+
+        $vatRates = $this->loadVatRateMap();
+        $defaultVatRateId = $this->matchVatRateId($vatRates, 21.0) ?? $this->matchVatRateId($vatRates, 0.0) ?? 0;
+
+        $items = [];
+        foreach (($i['Items'] ?? []) as $idx => $line) {
+            $rate = (float) ($line['VatRate'] ?? 0);
+            $items[] = [
+                'description'            => (string) ($line['Name'] ?? $line['Description'] ?? ''),
+                'quantity'               => (float) ($line['Amount'] ?? 1),
+                'unit'                   => (string) ($line['Unit'] ?? 'ks'),
+                'unit_price_without_vat' => (float) ($line['UnitPrice'] ?? 0),
+                'vat_rate_id'            => $this->matchVatRateId($vatRates, $rate) ?? $defaultVatRateId,
+                'order_index'            => $idx,
+            ];
+        }
+
+        $payload = [
+            'vendor_id'             => $vendorId,
+            'vendor_invoice_number' => $this->sanitizeVendorNumber((string) ($i['DocumentNumber'] ?? '')),
+            'document_kind'         => 'invoice',
+            'issue_date'            => $issueDate,
+            'tax_date'              => $taxDate,
+            'due_date'              => $dueDate,
+            'received_at'           => date('Y-m-d'),
+            'currency_id'           => $this->resolveCurrencyId((string) ($i['CurrencyCode'] ?? 'CZK'), $supplierId, isActive: false),
+            'exchange_rate'         => isset($i['ExchangeRate']) ? (float) $i['ExchangeRate'] : null,
+            'exchange_rate_source'  => 'manual',
+            'reverse_charge'        => false,
+            'language'              => 'cs',
+            'items'                 => $items,
+        ];
+
+        $id = $this->purchaseRepo->createDraft($payload, $userId, $supplierId);
+        if (!empty($items)) {
+            $this->purchaseRepo->replaceItems($id, $items);
+        }
+        return $id;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+
+    private function resolveClientByIdoklad(int $partnerId, int $supplierId): ?int
+    {
+        if ($partnerId === 0) return null;
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT id FROM clients WHERE supplier_id = ? AND idoklad_id = ? LIMIT 1'
+        );
+        $stmt->execute([$supplierId, $partnerId]);
+        $id = $stmt->fetchColumn();
+        return $id === false ? null : (int) $id;
+    }
+
+    /**
+     * Lookup or auto-create currency. Pro vydané faktury (issued) je třeba is_active=1
+     * (musíme mít bankovní účet); pro přijaté stačí is_active=0 (jen pro nákupní cyklus).
+     */
+    private function resolveCurrencyId(string $code, int $supplierId, bool $isActive): int
+    {
+        $code = strtoupper(trim($code)) ?: 'CZK';
+        $pdo = $this->db->pdo();
+        $stmt = $pdo->prepare(
+            'SELECT id FROM currencies WHERE supplier_id = ? AND code = ? ORDER BY is_default DESC, id ASC LIMIT 1'
+        );
+        $stmt->execute([$supplierId, $code]);
+        $id = $stmt->fetchColumn();
+        if ($id !== false) return (int) $id;
+
+        $pdo->prepare(
+            'INSERT INTO currencies (supplier_id, code, label, symbol, name_cs, name_en, decimals, is_active, is_default)
+             VALUES (?, ?, ?, ?, ?, ?, 2, ?, 0)'
+        )->execute([$supplierId, $code, $code, $code, $code, $code, $isActive ? 1 : 0]);
+        return (int) $pdo->lastInsertId();
+    }
+
+    /**
+     * @return array<int, float>  id → rate_percent
+     */
+    private function loadVatRateMap(): array
+    {
+        $rows = $this->db->pdo()->query('SELECT id, rate_percent FROM vat_rates WHERE is_active = 1')->fetchAll(\PDO::FETCH_ASSOC);
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int) $r['id']] = (float) $r['rate_percent'];
+        }
+        return $map;
+    }
+
+    private function matchVatRateId(array $vatRates, float $rate): ?int
+    {
+        foreach ($vatRates as $id => $r) {
+            if (abs($r - $rate) < 0.01) return $id;
+        }
+        return null;
+    }
+
+    /**
+     * iDoklad DocumentType pro vydané faktury:
+     *   0 = Regular invoice
+     *   1 = Proforma invoice
+     *   2 = Tax document for advance payment
+     *   3 = Final invoice (po proforma)
+     *   5 = Credit note (= IssuedInvoiceCorrection separátní endpoint)
+     */
+    private function mapIssuedDocumentType(int $docType): string
+    {
+        return match ($docType) {
+            1       => 'proforma',
+            5       => 'credit_note',
+            default => 'invoice',
+        };
+    }
+
+    /**
+     * Sanitize varsymbol pro DB column (varchar 20, [A-Za-z0-9_-]).
+     */
+    private function sanitizeVarsymbol(string $vs): string
+    {
+        $vs = preg_replace('/[^A-Za-z0-9_-]/', '', $vs) ?? '';
+        if ($vs === '') return 'IDOKLAD-' . substr((string) random_int(1000, 9999), 0, 4);
+        return substr($vs, 0, 20);
+    }
+
+    private function sanitizeVendorNumber(string $vn): string
+    {
+        $vn = trim($vn);
+        if ($vn === '') $vn = 'IDOKLAD-import';
+        $vn = (string) preg_replace('/[\x00-\x1F\x7F]/', '', $vn);
+        return strlen($vn) > 50 ? substr($vn, 0, 50) : $vn;
     }
 }
 
