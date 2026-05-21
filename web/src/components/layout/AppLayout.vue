@@ -92,9 +92,14 @@ const navSections = computed<NavSection[]>(() => {
     {
       title: t('nav.section_finance'),
       items: [
-        { to: '/crm',         label: t('nav.crm'),         icon: ICONS.crm },
-        { to: '/bank',        label: t('nav.bank'),        icon: ICONS.bank },
-        { to: '/stats',       label: t('nav.stats'),       icon: ICONS.stats },
+        { to: '/crm',   label: t('nav.crm'),   icon: ICONS.crm },
+        { to: '/stats', label: t('nav.stats'), icon: ICONS.stats },
+        { to: '/bank',  label: t('nav.bank'),  icon: ICONS.bank },
+      ],
+    },
+    {
+      title: t('nav.section_taxes'),
+      items: [
         { to: '/reports/dph', label: t('nav.reports_dph'), icon: ICONS.reports },
       ],
     },
