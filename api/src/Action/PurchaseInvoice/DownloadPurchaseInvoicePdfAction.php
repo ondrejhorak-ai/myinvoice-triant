@@ -64,7 +64,12 @@ final class DownloadPurchaseInvoicePdfAction
         if ($fullPathReal === false || !is_file($fullPathReal)) {
             return Json::error($response, 'file_missing', 'Archivovaný soubor nebyl na disku nalezen.', 404);
         }
-        if (!str_starts_with($fullPathReal, $archiveRootReal . DIRECTORY_SEPARATOR)) {
+        // Windows je case-insensitive FS — realpath() může vrátit nekonzistentní casing
+        // mezi archiveRootReal a fullPathReal. Na Linuxu zachováme striktní compare.
+        $isWindows = DIRECTORY_SEPARATOR === '\\';
+        $haystack = ($isWindows ? strtolower($fullPathReal) : $fullPathReal);
+        $needle   = ($isWindows ? strtolower($archiveRootReal) : $archiveRootReal) . DIRECTORY_SEPARATOR;
+        if (!str_starts_with($haystack, $needle)) {
             // Path traversal pokus — log a fail
             return Json::error($response, 'forbidden', 'Cesta mimo archive root.', 403);
         }

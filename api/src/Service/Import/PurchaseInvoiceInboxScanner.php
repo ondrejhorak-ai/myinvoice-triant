@@ -183,7 +183,7 @@ final class PurchaseInvoiceInboxScanner
                         $supplierId, $userId, $pdfBytes, null, basename($real),
                     );
                     if (!empty($aiResult['ok']) && !empty($aiResult['purchase_invoice_id'])) {
-                        $imported++;
+                        $created++;
                         $details[] = [
                             'file'   => $real,
                             'status' => 'imported',

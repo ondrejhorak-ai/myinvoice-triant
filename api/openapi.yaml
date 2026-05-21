@@ -2436,6 +2436,326 @@ paths:
           content:
             application/xml: {}
 
+  # ── Tax submissions archive ──────────────────────────────────────────────
+  /api/v1/reports/submissions:
+    get:
+      tags: [Reports]
+      summary: Historie všech generovaných EPO XML výkazů
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200':
+          description: List archived submissions
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+
+  /api/v1/reports/submissions/{id}:
+    get:
+      tags: [Reports]
+      summary: Detail záznamu (vč. XML)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200': { description: Submission detail }
+        '404': { description: Not found }
+    delete:
+      tags: [Reports]
+      summary: Smaže archivovaný záznam (jen admin)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200': { description: Deleted }
+        '403': { description: Pouze admin }
+
+  /api/v1/reports/submissions/{id}/xml:
+    get:
+      tags: [Reports]
+      summary: Stáhne archivované XML
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200':
+          description: XML download
+          content:
+            application/xml: {}
+
+  # ── Codebooks: cnb-rate + expense-categories + vat-classifications ──────
+  /api/v1/codebooks/cnb-rate:
+    get:
+      tags: [Codebooks]
+      summary: ČNB exchange rate pro currency + datum
+      parameters:
+        - { in: query, name: currency, required: true, schema: { type: string, example: "EUR" } }
+        - { in: query, name: date, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: 'rate + rate_date + fallback_used + source' }
+
+  /api/v1/expense-categories:
+    get:
+      tags: [Codebooks]
+      summary: Seznam kategorií nákladů
+      parameters: [{ $ref: '#/components/parameters/SupplierIdHeader' }]
+      responses:
+        '200': { description: List }
+    post:
+      tags: [Codebooks]
+      summary: Vytvoří kategorii (admin)
+      parameters: [{ $ref: '#/components/parameters/SupplierIdHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, label]
+              properties:
+                code: { type: string, maxLength: 20, pattern: '^[a-z0-9_-]+$' }
+                label: { type: string, maxLength: 100 }
+                fixed_or_var: { type: string, enum: [fixed, variable] }
+                display_order: { type: integer }
+      responses:
+        '201': { description: Created }
+
+  /api/v1/expense-categories/{id}:
+    put:
+      tags: [Codebooks]
+      summary: Update kategorie nákladů
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Codebooks]
+      summary: Smaže (nebo archivuje pokud má reference) kategorii
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200': { description: Deleted/archived }
+
+  /api/v1/vat-classifications:
+    get:
+      tags: [Codebooks]
+      summary: VAT klasifikační kódy (DPHDP3 / KH / SH)
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: direction, schema: { type: string, enum: [sale, purchase] } }
+        - { in: query, name: include_archived, schema: { type: boolean } }
+      responses:
+        '200':
+          description: List kódů (globální seed + tenant overrides)
+    post:
+      tags: [Codebooks]
+      summary: Vytvoří custom VAT kód (per tenant)
+      parameters: [{ $ref: '#/components/parameters/SupplierIdHeader' }]
+      responses:
+        '201': { description: Created }
+
+  /api/v1/vat-classifications/{id}:
+    put:
+      tags: [Codebooks]
+      summary: Update VAT kódu (jen tenant rows, globální seed read-only)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200': { description: OK }
+        '403': { description: Globální seed je read-only }
+    delete:
+      tags: [Codebooks]
+      summary: Smaže (nebo archivuje pokud má reference) VAT kód
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200': { description: Deleted/archived }
+
+  # ── Purchase invoices — chybějící endpointy ──────────────────────────────
+  /api/v1/purchase-invoices/export:
+    get:
+      tags: [Purchase invoices]
+      summary: Hromadný export přijatých faktur za měsíc (PDF ZIP / ISDOC ZIP / Pohoda dataPack)
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: month, required: true, schema: { type: string, pattern: '^\d{4}-\d{2}$' } }
+        - { in: query, name: format, required: true, schema: { type: string, enum: [pdf-zip, isdoc, pohoda] } }
+        - { in: query, name: date_by, schema: { type: string, enum: [tax, issue, received] } }
+      responses:
+        '200':
+          description: ZIP nebo XML stream
+          headers:
+            X-Export-Warnings:
+              schema: { type: string }
+              description: Per-invoice warnings (pokud byly skipnuté)
+
+  /api/v1/purchase-invoices/{id}/activity:
+    get:
+      tags: [Purchase invoices]
+      summary: Activity log pro přijatou fakturu
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+        - $ref: '#/components/parameters/SupplierIdHeader'
+      responses:
+        '200': { description: List events }
+
+  # ── CRM dashboard endpoints ──────────────────────────────────────────────
+  /api/v1/crm/overview:
+    get:
+      tags: [CRM]
+      summary: KPI overview (current month + last + YTD per currency)
+      parameters: [{ $ref: '#/components/parameters/SupplierIdHeader' }]
+      responses: { '200': { description: KPI } }
+
+  /api/v1/crm/monthly:
+    get:
+      tags: [CRM]
+      summary: Monthly history (revenue/costs/profit per měsíc)
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12, minimum: 1, maximum: 36 } }
+        - { in: query, name: currency, schema: { type: string } }
+      responses: { '200': { description: Monthly rows } }
+
+  /api/v1/crm/top-clients:
+    get:
+      tags: [CRM]
+      summary: Top klienti podle revenue
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12 } }
+        - { in: query, name: limit, schema: { type: integer, default: 10 } }
+        - { in: query, name: currency, schema: { type: string } }
+      responses: { '200': { description: Top klienti } }
+
+  /api/v1/crm/top-vendors:
+    get:
+      tags: [CRM]
+      summary: Top dodavatelé podle costs
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12 } }
+        - { in: query, name: limit, schema: { type: integer, default: 10 } }
+      responses: { '200': { description: Top dodavatelé } }
+
+  /api/v1/crm/aging-receivables:
+    get:
+      tags: [CRM]
+      summary: Aging buckets pohledávek
+      parameters: [{ $ref: '#/components/parameters/SupplierIdHeader' }]
+      responses: { '200': { description: Buckets not_due / overdue_30 / 60 / 90 / 90+ } }
+
+  /api/v1/crm/aging-payables:
+    get:
+      tags: [CRM]
+      summary: Aging buckets závazků
+      parameters: [{ $ref: '#/components/parameters/SupplierIdHeader' }]
+      responses: { '200': { description: Buckets } }
+
+  /api/v1/crm/dso:
+    get:
+      tags: [CRM]
+      summary: Days Sales Outstanding (průměrná doba inkasa)
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12 } }
+      responses: { '200': { description: 'avg_days + sample_size' } }
+
+  /api/v1/crm/payment-punctuality:
+    get:
+      tags: [CRM]
+      summary: % faktur zaplacených včas
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12 } }
+      responses: { '200': { description: 'on_time_pct + counts' } }
+
+  /api/v1/crm/concentration:
+    get:
+      tags: [CRM]
+      summary: Riziko koncentrace (Top 1/3/5 klient share + Pareto count)
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12 } }
+        - { in: query, name: currency, schema: { type: string } }
+      responses: { '200': { description: 'top1_share + pareto_80_count + risk_level' } }
+
+  /api/v1/crm/expense-breakdown:
+    get:
+      tags: [CRM]
+      summary: Náklady per kategorie
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12 } }
+      responses: { '200': { description: Per-category totals } }
+
+  /api/v1/crm/churn-risk:
+    get:
+      tags: [CRM]
+      summary: Klienti dlouho bez objednávky
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: days, schema: { type: integer, default: 60 } }
+        - { in: query, name: limit, schema: { type: integer, default: 20 } }
+      responses: { '200': { description: Churn risk klienti } }
+
+  /api/v1/crm/action-items:
+    get:
+      tags: [CRM]
+      summary: Daily TODO (overdue, recurring due, tax deadlines, churn)
+      parameters: [{ $ref: '#/components/parameters/SupplierIdHeader' }]
+      responses: { '200': { description: 'items + total' } }
+
+  /api/v1/crm/cash-flow-forecast:
+    get:
+      tags: [CRM]
+      summary: Cash flow prognóza N týdnů dopředu
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: weeks, schema: { type: integer, default: 4, minimum: 1, maximum: 12 } }
+        - { in: query, name: currency, schema: { type: string, default: CZK } }
+      responses: { '200': { description: 'weeks[] + total_in/out/net' } }
+
+  /api/v1/crm/late-risk:
+    get:
+      tags: [CRM]
+      summary: Late payment risk score per klient
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: limit, schema: { type: integer, default: 10 } }
+      responses: { '200': { description: Top risky klienti } }
+
+  /api/v1/crm/reminder-effectiveness:
+    get:
+      tags: [CRM]
+      summary: Funnel zaplaceno po N. upomínce
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12 } }
+      responses: { '200': { description: 'no_reminder + after_first/_second/_third_plus + never_paid' } }
+
+  /api/v1/crm/payment-time-histogram:
+    get:
+      tags: [CRM]
+      summary: Distribuce doby inkasa (buckets 0-7, 8-14, 15-30, 31-60, 61+)
+      parameters:
+        - $ref: '#/components/parameters/SupplierIdHeader'
+        - { in: query, name: months, schema: { type: integer, default: 12 } }
+      responses: { '200': { description: 'buckets[] + median + p90' } }
+
+  /api/v1/crm/recompute:
+    post:
+      tags: [CRM]
+      summary: Manuální přepočet pre-aggregated stats (admin)
+      parameters: [{ $ref: '#/components/parameters/SupplierIdHeader' }]
+      responses:
+        '200': { description: 'ok + elapsed_ms' }
+        '403': { description: Pouze admin }
+
 components:
   securitySchemes:
     BearerAuth:

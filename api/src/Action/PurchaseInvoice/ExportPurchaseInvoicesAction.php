@@ -14,6 +14,7 @@ use MyInvoice\Service\Export\PurchaseInvoiceExportService;
 use MyInvoice\Service\IpMatcher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+use Slim\Psr7\Stream;
 use ZipArchive;
 
 /**
@@ -135,19 +136,30 @@ final class ExportPurchaseInvoicesAction
             );
         }
 
-        $content = (string) file_get_contents($tmpZip);
-        @unlink($tmpZip);
-
         $this->logger->log('purchase_invoices.exported', $user['id'] ?? null, null, null, [
             'format' => 'pdf-zip', 'month' => $month, 'date_by' => $dateBy,
             'included' => $included, 'skipped_count' => count($skipped),
         ], $this->ipMatcher->clientIpFromRequest($request->getServerParams()), $request->getHeaderLine('User-Agent'));
 
-        $response->getBody()->write($content);
+        // Stream ZIP přímo z disku (PSR-7 withBody) — neslurpovat celý soubor do paměti
+        // kvůli DoS riziku u velkých exportů. Cleanup temp file přes shutdown hook
+        // (Slim zavře stream po odeslání response).
+        $size = filesize($tmpZip);
+        $fp = fopen($tmpZip, 'rb');
+        if ($fp === false) {
+            @unlink($tmpZip);
+            return Json::error($response, 'zip_failed', 'Nelze otevřít ZIP ke streamu.', 500);
+        }
+        $stream = new Stream($fp);
+        register_shutdown_function(static function () use ($tmpZip): void {
+            if (is_file($tmpZip)) @unlink($tmpZip);
+        });
+
         $r = $response
+            ->withBody($stream)
             ->withHeader('Content-Type', 'application/zip')
             ->withHeader('Content-Disposition', 'attachment; filename="purchase-invoices-' . $month . '.zip"')
-            ->withHeader('Content-Length', (string) strlen($content));
+            ->withHeader('Content-Length', (string) $size);
         if (!empty($skipped)) {
             // Truncate hlavičky aby nebyla too long pro proxy
             $warnings = array_slice($skipped, 0, 10);
@@ -228,18 +240,27 @@ final class ExportPurchaseInvoicesAction
                 'Nepodařilo se vyexportovat žádnou fakturu.', 500, ['errors' => $errors]);
         }
 
-        $content = (string) file_get_contents($tmpZip);
-        @unlink($tmpZip);
-
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
         $this->logger->log('purchase_invoices.exported', $user['id'] ?? null, null, null, [
             'format' => 'isdoc-zip', 'month' => $month, 'included' => $included,
         ], $this->ipMatcher->clientIpFromRequest($request->getServerParams()), $request->getHeaderLine('User-Agent'));
 
-        $response->getBody()->write($content);
+        $size = filesize($tmpZip);
+        $fp = fopen($tmpZip, 'rb');
+        if ($fp === false) {
+            @unlink($tmpZip);
+            return Json::error($response, 'zip_failed', 'Nelze otevřít ZIP ke streamu.', 500);
+        }
+        $stream = new Stream($fp);
+        register_shutdown_function(static function () use ($tmpZip): void {
+            if (is_file($tmpZip)) @unlink($tmpZip);
+        });
+
         return $response
+            ->withBody($stream)
             ->withHeader('Content-Type', 'application/zip')
             ->withHeader('Content-Disposition', "attachment; filename=\"prijate-isdoc-{$month}.zip\"")
+            ->withHeader('Content-Length', (string) $size)
             ->withHeader('Cache-Control', 'no-store')
             ->withHeader('X-Export-Warnings', count($errors) > 0 ? (string) count($errors) : '0');
     }
@@ -291,7 +312,10 @@ final class ExportPurchaseInvoicesAction
         $dataPack .= ' xmlns:pur="http://www.stormware.cz/schema/version_2/purchase.xsd"';
         $dataPack .= ' xmlns:typ="http://www.stormware.cz/schema/version_2/type.xsd">' . "\n";
         foreach ($items as $it) {
-            $dataPack .= '  <dat:dataPackItem version="2.0" id="' . $it['id'] . '_' . htmlspecialchars($it['vs'], ENT_QUOTES | ENT_XML1) . '">' . "\n";
+            // Pohoda XSD vyžaduje striktně alfanumerický id (varsymbol může obsahovat
+            // libovolné znaky z user inputu — sanitize na [A-Za-z0-9._-] before embedding).
+            $safeVs = preg_replace('/[^A-Za-z0-9._-]/', '_', (string) $it['vs']) ?: 'invoice';
+            $dataPack .= '  <dat:dataPackItem version="2.0" id="' . $it['id'] . '_' . $safeVs . '">' . "\n";
             // Strip XML declaration z individual XML (jen content)
             $inner = preg_replace('/^<\?xml[^?]*\?>\s*/', '', $it['xml']) ?? $it['xml'];
             $dataPack .= '    ' . $inner . "\n";
