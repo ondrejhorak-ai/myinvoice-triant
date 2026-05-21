@@ -104,6 +104,7 @@
       "save_and_receive": "Uložit a označit jako přijaté",
       "mark_received": "Označit jako přijaté",
       "mark_booked": "Označit jako zaúčtované",
+      "mark_booked_hint": "Interní příznak — vyznačíš si, že fakturu už máš zaúčtovanou v účetním systému (Pohoda, Money, externí účetní). Výkazy DPH/KH/SH NEzohledňují tento status (počítají i received).",
       "mark_paid": "Označit jako uhrazené",
       "mark_cancelled": "Stornovat",
       "unmark_paid": "Odznačit zaplaceno",

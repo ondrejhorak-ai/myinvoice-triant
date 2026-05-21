@@ -104,6 +104,7 @@
       "save_and_receive": "Save and mark received",
       "mark_received": "Mark as received",
       "mark_booked": "Mark as booked",
+      "mark_booked_hint": "Internal flag — you mark that the invoice is already booked in your accounting system (Pohoda, Money, external accountant). VAT/KH/SH reports do NOT respect this status (they include 'received' too).",
       "mark_paid": "Mark as paid",
       "mark_cancelled": "Cancel",
       "unmark_paid": "Unmark paid",
