@@ -398,8 +398,11 @@ onMounted(async () => {
           </template>
         </nav>
 
-        <!-- Verze (dole) -->
-        <div v-if="versionInfo" class="px-4 py-2.5 border-t border-neutral-100">
+        <!-- Verze + odkaz na projekt (dole) -->
+        <div v-if="versionInfo" class="px-4 py-2.5 border-t border-neutral-100 flex items-center gap-2">
+          <a href="https://myinvoice.cz/" target="_blank" rel="noopener"
+             class="text-xs text-neutral-500 hover:text-primary-700 hover:underline transition-colors"
+             title="MyInvoice.cz">MyInvoice.cz</a>
           <RouterLink
             v-if="auth.user?.role === 'admin'"
             to="/admin/update"

@@ -736,6 +736,23 @@ onUnmounted(() => {
 
     <!-- ════ AI extrakce (Anthropic Claude) ════ -->
     <div v-else-if="tab === 'ai'" class="space-y-4">
+      <!-- Privacy notice: PDF data se odesílá na servery Anthropic. -->
+      <div class="rounded-md bg-warning-50 border border-warning-500/40 px-4 py-3 text-sm text-warning-700">
+        <div class="flex gap-2 items-start">
+          <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z"/>
+          </svg>
+          <div class="space-y-1">
+            <strong>{{ t('integrations.ai.privacy_title') }}</strong>
+            <p class="text-xs leading-relaxed">{{ t('integrations.ai.privacy_body') }}</p>
+            <p class="text-xs">
+              <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener"
+                 class="underline hover:text-warning-800">{{ t('integrations.ai.privacy_anthropic_link') }}</a>
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div class="bg-white border border-neutral-200 rounded-lg p-5 shadow-sm">
         <h2 class="text-sm font-medium text-neutral-700 mb-2">{{ t('integrations.ai.credentials_title') }}</h2>
         <p class="text-xs text-neutral-500 mb-4">{{ t('integrations.ai.credentials_hint') }}</p>
