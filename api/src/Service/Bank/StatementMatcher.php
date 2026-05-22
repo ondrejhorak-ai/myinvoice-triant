@@ -81,7 +81,10 @@ final class StatementMatcher
         }
 
         // ── Incoming → invoice (vystavené faktury) — existing flow ─────────
-        // Najdi fakturu s VS = transakce.VS, supplier scope, status in (issued, sent, reminded), amount_to_pay sedí.
+        // Najdi fakturu s VS = transakce.VS, supplier scope, status in (issued, sent, reminded, paid),
+        // amount_to_pay sedí. 'paid' je v setu, aby se transakce navázala i na fakturu už označenou
+        // za zaplacenou ručně (ať ve výpisu nevisí unmatched). Status/paid_at v tom případě
+        // ponecháme — netouchujeme stav, který uživatel nastavil ručně.
         // Proformu povolujeme — zaplacená proforma se označí paid a navíc vytvoří DRAFT finální faktury.
         $stmt = $pdo->prepare(
             "SELECT i.id, i.varsymbol, i.amount_to_pay, i.status, i.invoice_type, cur.code AS currency
@@ -89,24 +92,28 @@ final class StatementMatcher
                JOIN currencies cur ON cur.id = i.currency_id
               WHERE i.supplier_id = ?
                 AND i.varsymbol = ?
-                AND i.status IN ('issued', 'sent', 'reminded')
+                AND i.status IN ('issued', 'sent', 'reminded', 'paid')
                 AND i.invoice_type IN ('invoice', 'proforma')
               LIMIT 1"
         );
         $stmt->execute([$supplierId, $vs]);
         $inv = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$inv) {
-            return ['status' => 'unmatched', 'reason' => 'no_unpaid_invoice_with_vs'];
+            return ['status' => 'unmatched', 'reason' => 'no_invoice_with_vs'];
         }
 
+        $alreadyPaid = ($inv['status'] === 'paid');
         $diff = abs($amount - (float) $inv['amount_to_pay']);
         if ($diff < 0.01) {
-            // Exact match — automaticky označit jako paid (transakce zajišťuje konzistenci s případným final draftem)
+            // Exact match — pokud faktura ještě není paid, označit ji a (u proformy) vyrobit final draft.
+            // Pro již ručně paid fakturu jen navážeme transakci (status/paid_at netknuté).
             $pdo->beginTransaction();
             try {
-                $pdo->prepare(
-                    "UPDATE invoices SET status = 'paid', paid_at = ? WHERE id = ?"
-                )->execute([$row['posted_at'], $inv['id']]);
+                if (!$alreadyPaid) {
+                    $pdo->prepare(
+                        "UPDATE invoices SET status = 'paid', paid_at = ? WHERE id = ?"
+                    )->execute([$row['posted_at'], $inv['id']]);
+                }
                 $pdo->prepare(
                     "UPDATE bank_transactions
                         SET matched_invoice_id = ?, match_status = 'auto_exact', matched_at = NOW()
@@ -114,7 +121,7 @@ final class StatementMatcher
                 )->execute([$inv['id'], $transactionId]);
 
                 $finalDraftId = null;
-                if ($inv['invoice_type'] === 'proforma') {
+                if (!$alreadyPaid && $inv['invoice_type'] === 'proforma') {
                     $finalDraftId = $this->finalCreator->create((int) $inv['id'], 0);
                 }
                 $pdo->commit();
@@ -126,6 +133,9 @@ final class StatementMatcher
             $result = ['status' => 'auto_exact', 'invoice_id' => (int) $inv['id'], 'varsymbol' => $vs];
             if ($finalDraftId !== null) {
                 $result['final_draft_id'] = $finalDraftId;
+            }
+            if ($alreadyPaid) {
+                $result['already_paid'] = true;
             }
             return $result;
         }
@@ -149,6 +159,8 @@ final class StatementMatcher
      */
     private function matchPurchase(\PDO $pdo, int $supplierId, string $vs, float $absAmount, string $postedAt, int $transactionId): array
     {
+        // 'paid' v setu: dovolíme navázat transakci i na ručně zaplacenou přijatou fakturu
+        // (ať ve výpisu nevisí). Status/paid_at v tom případě nepřepisujeme.
         $stmt = $pdo->prepare(
             "SELECT pi.id, pi.varsymbol, COALESCE(pi.amount_to_pay, pi.total_with_vat, 0) AS amount_to_pay,
                     pi.status, cur.code AS currency
@@ -156,25 +168,28 @@ final class StatementMatcher
           LEFT JOIN currencies cur ON cur.id = pi.currency_id
               WHERE pi.supplier_id = ?
                 AND pi.varsymbol = ?
-                AND pi.status IN ('received', 'booked')
+                AND pi.status IN ('received', 'booked', 'paid')
               LIMIT 1"
         );
         $stmt->execute([$supplierId, $vs]);
         $pi = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$pi) {
-            return ['status' => 'unmatched', 'reason' => 'no_unpaid_purchase_with_vs'];
+            return ['status' => 'unmatched', 'reason' => 'no_purchase_with_vs'];
         }
 
+        $alreadyPaid = ($pi['status'] === 'paid');
         $diff = abs($absAmount - (float) $pi['amount_to_pay']);
         if ($diff < 0.01) {
             $pdo->beginTransaction();
             try {
-                // Mark purchase paid
-                $pdo->prepare(
-                    "UPDATE purchase_invoices SET status = 'paid', paid_at = ? WHERE id = ?"
-                )->execute([$postedAt, $pi['id']]);
-                // Mark transakci ve smyslu auto_exact, ale "matched_invoice_id" je pro vystavené;
-                // pro purchase použijeme payment_matches table.
+                if (!$alreadyPaid) {
+                    $pdo->prepare(
+                        "UPDATE purchase_invoices SET status = 'paid', paid_at = ? WHERE id = ?"
+                    )->execute([$postedAt, $pi['id']]);
+                }
+                // payment_matches je N:N — INSERT bezpečný i pro paid invoice.
+                // (Pokud by user spustil rematch znovu, transakce je už auto_exact a do
+                // rematch setu nespadne — duplikace tedy nehrozí.)
                 $pdo->prepare(
                     "INSERT INTO payment_matches
                         (supplier_id, bank_transaction_id, purchase_invoice_id, amount, match_type, match_confidence)
@@ -190,7 +205,11 @@ final class StatementMatcher
                 if ($pdo->inTransaction()) $pdo->rollBack();
                 throw $e;
             }
-            return ['status' => 'auto_exact', 'purchase_invoice_id' => (int) $pi['id'], 'varsymbol' => $vs];
+            $result = ['status' => 'auto_exact', 'purchase_invoice_id' => (int) $pi['id'], 'varsymbol' => $vs];
+            if ($alreadyPaid) {
+                $result['already_paid'] = true;
+            }
+            return $result;
         }
         if ($diff <= 1.0) {
             return ['status' => 'auto_partial', 'purchase_invoice_id' => (int) $pi['id'], 'diff' => $diff];
