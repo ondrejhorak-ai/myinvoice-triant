@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSupplierStore } from '@/stores/supplier'
 import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
+import WorkReportModal from '@/components/modals/WorkReportModal.vue'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -28,6 +29,7 @@ const route = useRoute()
 const router = useRouter()
 
 const invoice = ref<Invoice | null>(null)
+const wrModalOpen = ref(false)
 const loading = ref(true)
 const busy = ref<string | null>(null)
 
@@ -674,6 +676,14 @@ async function updateApprovalStatus() {
           <svg class="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           {{ t('common.edit') }}
         </RouterLink>
+        <!-- Výkaz: draft + projekt s workflow → otevře standalone modal. -->
+        <button v-if="isDraft && invoice.project_requires_approval"
+          @click="wrModalOpen = true"
+          class="cursor-pointer px-3 h-9 text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded-md inline-flex items-center gap-1.5"
+          :title="t('invoice.wr_btn')">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6v-4m3 4v-2M5 21h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"/></svg>
+          {{ t('invoice.wr_btn') }}
+        </button>
         <button v-if="canRequestApproval" @click="requestApproval" :disabled="busy !== null"
           class="cursor-pointer px-3 h-9 text-sm bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white font-medium rounded-md inline-flex items-center gap-1.5">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
@@ -1431,5 +1441,11 @@ async function updateApprovalStatus() {
 
       </div>
     </div>
+
+    <!-- Work report modal (jen pro draft + workflow projekty) -->
+    <WorkReportModal v-if="invoice"
+      v-model="wrModalOpen"
+      :invoice-id="invoice.id"
+      @saved="load" />
   </div>
 </template>
