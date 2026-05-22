@@ -696,6 +696,21 @@ v derivátech.
 
 Vyvíjí **[MyWebdesign.cz s.r.o.](https://mywebdesign.cz/)** © 2026.
 
+## Podpora autora
+
+Líbí se vám tento projekt? Pokud chcete podpořit autora, můžete poslat dar na
+číslo účtu:
+
+- **Účet:** `7700000038 / 6363` (Partners Banka)
+- **IBAN:** `CZ21 6363 0000 0077 0000 0038`
+- **BIC / SWIFT:** `PTBNCZPP`
+
+Nebo načtěte QR kód:
+
+![QR kód pro dar](manual/donate/qrcode.jpg)
+
+Děkujeme!
+
 ## Zřeknutí se odpovědnosti
 
 > **Software je poskytován „TAK JAK JE", bez záruky jakéhokoli druhu**,
