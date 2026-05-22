@@ -41,11 +41,16 @@ final class DeleteClientAction
         $stmt = $this->db->pdo()->prepare('SELECT COUNT(*) FROM projects WHERE client_id = ?');
         $stmt->execute([$id]);
         $projects = (int) $stmt->fetchColumn();
-        if ($invoices > 0 || $projects > 0) {
+        // Také přijaté faktury — klient může být v roli vendor (FK purchase_invoices.vendor_id
+        // má default RESTRICT, takže SQL by tak jako tak selhal — radši friendly 409).
+        $stmt = $this->db->pdo()->prepare('SELECT COUNT(*) FROM purchase_invoices WHERE vendor_id = ?');
+        $stmt->execute([$id]);
+        $purchases = (int) $stmt->fetchColumn();
+        if ($invoices > 0 || $projects > 0 || $purchases > 0) {
             return Json::error(
                 $response,
                 'has_dependencies',
-                "Klienta nelze smazat — má {$invoices} faktur a {$projects} zakázek. Místo toho ho archivuj.",
+                "Klienta nelze smazat — má {$invoices} vystavených faktur, {$purchases} přijatých faktur a {$projects} zakázek. Místo toho ho archivuj.",
                 409,
             );
         }
