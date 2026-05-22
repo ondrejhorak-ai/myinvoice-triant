@@ -38,18 +38,26 @@ export interface CrmYearlyRow {
 export interface TopClient {
   client_id: number
   company_name: string
+  /** Obrat přepočtený na CZK přes i.exchange_rate (jediné porovnatelné pole napříč měnami). */
   revenue: number
   invoice_count: number
+  /** Vždy 'CZK' — backend přepočítává všechny obraty. */
   currency: string
+  /** CSV nativních měn klienta — 'CZK' nebo 'CZK,EUR'. */
+  currencies?: string
   percent_share: number
 }
 
 export interface TopVendor {
   vendor_id: number
   company_name: string
+  /** Náklady přepočtené na CZK přes pi.exchange_rate. */
   costs: number
   purchase_count: number
+  /** Vždy 'CZK'. */
   currency: string
+  /** CSV nativních měn vendora. */
+  currencies?: string
   percent_share: number
 }
 

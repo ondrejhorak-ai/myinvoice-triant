@@ -469,15 +469,16 @@ onMounted(loadAll)
           </div>
           <table v-else class="w-full text-sm">
             <tbody class="divide-y divide-neutral-100">
-              <tr v-for="c in topClients" :key="c.client_id + c.currency" class="hover:bg-neutral-50">
+              <tr v-for="c in topClients" :key="c.client_id" class="hover:bg-neutral-50">
                 <td class="px-5 py-2.5">
                   <RouterLink :to="`/clients/${c.client_id}`" class="font-medium text-primary-700 hover:underline">
                     {{ c.company_name }}
                   </RouterLink>
+                  <span v-if="c.currencies && c.currencies !== 'CZK'" class="ml-1.5 text-xs text-neutral-400">({{ c.currencies }})</span>
                   <div class="text-xs text-neutral-500 mt-0.5">{{ c.invoice_count }} {{ t('crm.kpi.invoices') }}</div>
                 </td>
                 <td class="px-3 py-2.5 text-right font-mono text-neutral-900">
-                  {{ formatMoney(c.revenue, c.currency) }}
+                  {{ formatMoney(c.revenue, 'CZK') }}
                 </td>
                 <td class="px-5 py-2.5 text-right text-xs text-neutral-500 font-mono">
                   {{ c.percent_share.toFixed(1) }}%
@@ -499,15 +500,16 @@ onMounted(loadAll)
           </div>
           <table v-else class="w-full text-sm">
             <tbody class="divide-y divide-neutral-100">
-              <tr v-for="v in topVendors" :key="v.vendor_id + v.currency" class="hover:bg-neutral-50">
+              <tr v-for="v in topVendors" :key="v.vendor_id" class="hover:bg-neutral-50">
                 <td class="px-5 py-2.5">
                   <RouterLink :to="`/clients/${v.vendor_id}`" class="font-medium text-primary-700 hover:underline">
                     {{ v.company_name }}
                   </RouterLink>
+                  <span v-if="v.currencies && v.currencies !== 'CZK'" class="ml-1.5 text-xs text-neutral-400">({{ v.currencies }})</span>
                   <div class="text-xs text-neutral-500 mt-0.5">{{ v.purchase_count }} {{ t('crm.kpi.purchases') }}</div>
                 </td>
                 <td class="px-3 py-2.5 text-right font-mono text-neutral-900">
-                  {{ formatMoney(v.costs, v.currency) }}
+                  {{ formatMoney(v.costs, 'CZK') }}
                 </td>
                 <td class="px-5 py-2.5 text-right text-xs text-neutral-500 font-mono">
                   {{ v.percent_share.toFixed(1) }}%

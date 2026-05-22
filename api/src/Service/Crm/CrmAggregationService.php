@@ -132,41 +132,42 @@ final class CrmAggregationService
      */
     public function topClients(int $supplierId, int $monthsBack = 12, int $limit = 10, ?string $currency = null): array
     {
+        // CZK přepočet přes i.exchange_rate — multi-currency klienti se neroztrhnou na N řádků
+        // a ranking je správný napříč měnami (1000 EUR > 20 000 CZK).
+        // Parametr $currency zachován pro BC (ignoruje se — vždy ranking v CZK).
+        unset($currency);
         $start = (new \DateTimeImmutable())->modify('-' . $monthsBack . ' months')->format('Y-m-01');
         $params = [$supplierId, $start];
-        $where = '';
-        if ($currency !== null) {
-            $where .= ' AND cur.code = ?';
-            $params[] = $currency;
-        }
         $sql = "
-            SELECT i.client_id, c.company_name, cur.code AS currency,
-                   SUM(COALESCE(i.total_with_vat, 0)) AS revenue,
+            SELECT i.client_id, c.company_name,
+                   SUM(COALESCE(i.total_with_vat, 0) * COALESCE(IF(cur.code = 'CZK', 1, i.exchange_rate), 1)) AS revenue_czk,
                    COUNT(*) AS invoice_count,
-                   SUM(SUM(COALESCE(i.total_with_vat, 0))) OVER (PARTITION BY cur.code) AS total_per_currency
+                   GROUP_CONCAT(DISTINCT cur.code ORDER BY cur.code SEPARATOR ',') AS currencies,
+                   SUM(SUM(COALESCE(i.total_with_vat, 0) * COALESCE(IF(cur.code = 'CZK', 1, i.exchange_rate), 1))) OVER () AS total_all
               FROM invoices i
               JOIN clients c ON c.id = i.client_id
               JOIN currencies cur ON cur.id = i.currency_id
              WHERE i.supplier_id = ?
                AND i.issue_date >= ?
                AND i.status NOT IN ('draft', 'cancelled')
-               AND i.invoice_type != 'proforma'{$where}
-          GROUP BY i.client_id, c.company_name, cur.code
-          ORDER BY revenue DESC
+               AND i.invoice_type != 'proforma'
+          GROUP BY i.client_id, c.company_name
+          ORDER BY revenue_czk DESC
              LIMIT " . (int) $limit;
         $stmt = $this->db->pdo()->prepare($sql);
         $stmt->execute($params);
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         return array_map(function ($r) {
-            $rev = (float) $r['revenue'];
-            $total = (float) $r['total_per_currency'];
+            $rev = (float) $r['revenue_czk'];
+            $total = (float) $r['total_all'];
             return [
                 'client_id'     => (int) $r['client_id'],
                 'company_name'  => (string) $r['company_name'],
                 'revenue'       => $rev,
                 'invoice_count' => (int) $r['invoice_count'],
-                'currency'      => (string) $r['currency'],
+                'currency'      => 'CZK',
+                'currencies'    => (string) $r['currencies'],
                 'percent_share' => $total > 0 ? round(($rev / $total) * 100, 2) : 0.0,
             ];
         }, $rows);
@@ -220,40 +221,40 @@ final class CrmAggregationService
      */
     public function topVendors(int $supplierId, int $monthsBack = 12, int $limit = 10, ?string $currency = null): array
     {
+        // CZK přepočet přes pi.exchange_rate — multi-currency vendor se neroztrhne.
+        // Parametr $currency zachován pro BC (ignoruje se — vždy ranking v CZK).
+        unset($currency);
         $start = (new \DateTimeImmutable())->modify('-' . $monthsBack . ' months')->format('Y-m-01');
         $params = [$supplierId, $start];
-        $where = '';
-        if ($currency !== null) {
-            $where .= ' AND cur.code = ?';
-            $params[] = $currency;
-        }
         $sql = "
-            SELECT pi.vendor_id, c.company_name, cur.code AS currency,
-                   SUM(COALESCE(pi.total_with_vat, 0)) AS costs,
+            SELECT pi.vendor_id, c.company_name,
+                   SUM(COALESCE(pi.total_with_vat, 0) * COALESCE(IF(cur.code = 'CZK', 1, pi.exchange_rate), 1)) AS costs_czk,
                    COUNT(*) AS purchase_count,
-                   SUM(SUM(COALESCE(pi.total_with_vat, 0))) OVER (PARTITION BY cur.code) AS total_per_currency
+                   GROUP_CONCAT(DISTINCT cur.code ORDER BY cur.code SEPARATOR ',') AS currencies,
+                   SUM(SUM(COALESCE(pi.total_with_vat, 0) * COALESCE(IF(cur.code = 'CZK', 1, pi.exchange_rate), 1))) OVER () AS total_all
               FROM purchase_invoices pi
               JOIN clients c ON c.id = pi.vendor_id
          LEFT JOIN currencies cur ON cur.id = pi.currency_id
              WHERE pi.supplier_id = ?
                AND pi.issue_date >= ?
-               AND pi.status NOT IN ('draft', 'cancelled'){$where}
-          GROUP BY pi.vendor_id, c.company_name, cur.code
-          ORDER BY costs DESC
+               AND pi.status NOT IN ('draft', 'cancelled')
+          GROUP BY pi.vendor_id, c.company_name
+          ORDER BY costs_czk DESC
              LIMIT " . (int) $limit;
         $stmt = $this->db->pdo()->prepare($sql);
         $stmt->execute($params);
         $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         return array_map(function ($r) {
-            $costs = (float) $r['costs'];
-            $total = (float) $r['total_per_currency'];
+            $costs = (float) $r['costs_czk'];
+            $total = (float) $r['total_all'];
             return [
                 'vendor_id'      => (int) $r['vendor_id'],
                 'company_name'   => (string) $r['company_name'],
                 'costs'          => $costs,
                 'purchase_count' => (int) $r['purchase_count'],
-                'currency'       => (string) ($r['currency'] ?? 'CZK'),
+                'currency'       => 'CZK',
+                'currencies'     => (string) ($r['currencies'] ?? 'CZK'),
                 'percent_share'  => $total > 0 ? round(($costs / $total) * 100, 2) : 0.0,
             ];
         }, $rows);
