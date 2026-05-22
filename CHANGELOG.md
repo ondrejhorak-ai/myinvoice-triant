@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.3] — 2026-05-22
+
+Patch release: multi-currency CZK přepočet u Top klientů/dodavatelů (jak na
+Dashboardu, tak v CRM), opravený role filtr u klientů + paginace u recurring
+a approvals, force-edit i pro zaplacené faktury, sekce „Podpora autora"
+v README a oprava exchange_rate u sample dat.
+
+### Added
+
+#### Podpora autora (donate)
+- **README**: nová sekce „Podpora autora" s číslem účtu Partners Banka
+  (`7700000038 / 6363`), IBAN, BIC a QR kódem (`manual/donate/qrcode.jpg`).
+- **GitHub**: `.github/FUNDING.yml` aktivuje tlačítko *Sponsor* v hlavičce
+  repa (custom URL na README anchor).
+
+#### Force-edit přijatých faktur i pro paid status
+- Admin může s `?force=1` upravit i `paid` přijatou fakturu (dříve jen
+  `received` / `booked`). `cancelled` zůstává immutable (auditní stopa).
+- Tlačítko *Upravit (force)* v UI je teď button s `confirm()` dialogem
+  (po vzoru force-delete) varujícím, že u zaplacené faktury změna částky
+  může rozbít párování s bankovní transakcí.
+
+### Changed
+
+#### Top klienti / dodavatelé — CZK ranking
+- **Dashboard, Tržby (Stats), CRM Dashboard**: Top klienti/dodavatelé
+  dosud řadili podle nepřepočtené částky (1000 EUR pod 20 000 CZK). Nyní
+  všechny SUM agregace přepočítají na CZK přes `i.exchange_rate` /
+  `pi.exchange_rate` a multi-currency klient/vendor je jediný řádek se
+  součtem napříč měnami.
+- TypeScript shape `TopClient` rozšířen o `total_czk` + `currencies` (CSV,
+  např. `'CZK,EUR'`); `currency` zachován pro BC ale vždy `'CZK'`.
+
+#### Paginace + server-side filtry
+- **Klienti** (`/clients?role=vendors`): role filter se aplikuje SQL na
+  backendu, ne v Vue. `meta.role_counts` dodává správné tab badges
+  „Klienti (X) | Dodavatelé (Y) | Vše (Z)". Dříve "15 z 15" i když bylo
+  45 dodavatelů celkem.
+- **Pravidelné fakturace** (`/recurring`): paginace + load-more tlačítko,
+  status filter server-side. cfg klíč `pagination.recurring_per_page`.
+- **Schvalovací inbox** (`/admin/approvals`): paginace + load-more,
+  status filter server-side, `meta.status_counts` pro tab badges.
+
+### Fixed
+
+#### Chybějící tabulky v reset.php
+- `php api/bin/reset.php` přidává mazání `payment_matches` (migrace 0034)
+  a `purchase_invoice_counters` (migrace 0026), které předtím chyběly.
+
+#### Sample data: exchange_rate u vystavených EUR faktur
+- `SampleDataGenerator` nastavoval `exchange_rate` jen na purchase_invoices.
+  Vystavené EUR faktury (Bratislava Soft, NorthLight GmbH) měly NULL kurz
+  → v Top klientech se počítaly 1:1 jako CZK (15 436 EUR jako 15 436 Kč).
+- Nyní `exchange_rate = 25.0` pro non-CZK sales invoices i credit_notes
+  (kopíruje rate z parent invoice).
+- Pozn.: `invoices` tabulka **nemá** sloupec `exchange_rate_source` —
+  původní commit obsahoval bug s "Unknown column 1054" který byl
+  obratem opraven.
+
+#### Backfill exchange rates i pro invoices
+- `api/bin/backfill-exchange-rates.php` dosud doplňoval kurz jen na
+  `purchase_invoices`. Nyní pokrývá obě tabulky — pro existující sample/import
+  data spustit `php api/bin/backfill-exchange-rates.php --apply`.
+
+#### AI extractor: detekce dobropisu ze záporných částek
+- AI občas vrátil `document_kind='invoice'` i pro PDF dobropisy se zápornými
+  částkami. Code potom `abs()`-oval quantity a uložil pozitivní řádky jako fakturu.
+- Nyní `AiPdfExtractor` post-process zkontroluje quantity/unit_price v items:
+  pokud převažují záporné, override `document_kind = 'credit_note'`.
+- Nový backfill: `php api/bin/backfill-credit-note-kind.php --apply`
+  překlasifikuje už zaimportované `purchase_invoices` s `document_kind='invoice'`
+  AND `total_with_vat < 0` na `credit_note`.
+
 ## [4.0.2] — 2026-05-22
 
 Patch release zaměřený na bank matching (přepárování + ručně zaplacené faktury),
