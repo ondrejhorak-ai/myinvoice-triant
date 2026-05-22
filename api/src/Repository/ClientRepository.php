@@ -87,10 +87,17 @@ final class ClientRepository
         $stmtCounts->execute($paramsForCounts);
         $roleCounts = $stmtCounts->fetch(PDO::FETCH_ASSOC) ?: ['customers' => 0, 'vendors' => 0, 'all_clients' => 0];
 
-        // Whitelist řazení (defense proti SQLi přes user input)
+        // Whitelist řazení (defense proti SQLi přes user input).
+        // Role-aware: u dodavatelů řadíme podle purchase aktivity (costs / last_purchase_date),
+        // u zákazníků podle sales (revenue / last_invoice_date).
+        $isVendorView = ($filters['role'] ?? 'all') === 'vendors';
         $orderBy = match ($sort) {
-            'revenue'       => 'revenue DESC, c.company_name',
-            'last_activity' => 'last_invoice_date IS NULL, last_invoice_date DESC, c.company_name',
+            'revenue'       => $isVendorView
+                ? 'costs DESC, c.company_name'
+                : 'revenue DESC, c.company_name',
+            'last_activity' => $isVendorView
+                ? 'last_purchase_date IS NULL, last_purchase_date DESC, c.company_name'
+                : 'last_invoice_date IS NULL, last_invoice_date DESC, c.company_name',
             default         => 'c.company_name',
         };
 

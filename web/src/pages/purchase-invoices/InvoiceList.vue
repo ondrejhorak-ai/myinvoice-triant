@@ -70,6 +70,24 @@ watch(search, () => {
   searchTimeout = setTimeout(load, 300)
 })
 
+// Reset filtrů když uživatel klikne na menu link "Přijaté faktury" už když je na této stránce —
+// route se změní z /purchase-invoices?status=paid na /purchase-invoices (prázdná query).
+// Bez resetu by RouterLink ne-navigated nebo by zachoval starou query state.
+watch(() => route.query, (newQ) => {
+  if (Object.keys(newQ).length === 0) {
+    statusFilter.value = ''
+    kindFilter.value = ''
+    yearFilter.value = new Date().getFullYear()
+    monthFilter.value = ''
+    dateFrom.value = ''
+    dateTo.value = ''
+    overdueOnly.value = false
+    unpaidOnly.value = false
+    currencyFilter.value = ''
+    search.value = ''
+  }
+})
+
 function mergeGroups(existing: PurchaseMonthGroup[], incoming: PurchaseMonthGroup[]): PurchaseMonthGroup[] {
   const byMonth = new Map<string, PurchaseMonthGroup>()
   for (const g of existing) byMonth.set(g.month, { ...g, invoices: [...g.invoices], totals_per_currency: [...g.totals_per_currency] })

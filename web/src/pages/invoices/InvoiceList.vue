@@ -358,6 +358,24 @@ watch(search, () => {
   searchTimeout = setTimeout(() => load(true), 300)
 })
 
+// Reset filtrů když uživatel klikne na menu link "Faktury" už když je na této stránce —
+// route se změní z /invoices?status=paid na /invoices (prázdná query).
+watch(() => route.query, (newQ) => {
+  if (Object.keys(newQ).length === 0) {
+    statusFilter.value = ''
+    typeFilter.value = ''
+    clientFilter.value = ''
+    yearFilter.value = new Date().getFullYear()
+    monthFilter.value = ''
+    dateFrom.value = ''
+    dateTo.value = ''
+    overdueOnly.value = false
+    unpaidOnly.value = false
+    currencyFilter.value = ''
+    search.value = ''
+  }
+})
+
 const loadedCount = computed(() => groups.value.reduce((s, g) => s + g.count, 0))
 
 function openInvoice(inv: InvoiceListItem) {
