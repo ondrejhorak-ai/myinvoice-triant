@@ -70,16 +70,6 @@ function openInvoice(id: number) {
  * Vrátí 12 posledních měsíců dat pro sparkline daného currency.
  * Bere `revenue_by_month[currency].months` (12 měsíců rolling).
  */
-/** Primární měna pro Top klienti pie — měna s největším součtem v top_clients_12m. */
-const topClientsPrimaryCurrency = computed(() => {
-  const items = summary.value?.top_clients_12m ?? []
-  if (!items.length) return 'CZK'
-  const byCurrency = new Map<string, number>()
-  for (const it of items) byCurrency.set(it.currency, (byCurrency.get(it.currency) ?? 0) + it.total)
-  const sorted = Array.from(byCurrency.entries()).sort((a, b) => b[1] - a[1])
-  return sorted[0]?.[0] ?? 'CZK'
-})
-
 function sparklineFor(currency: string): { labels: string[]; values: number[] } {
   const rev = summary.value?.revenue_by_month.find(r => r.currency === currency)
   if (!rev) return { labels: [], values: [] }
@@ -457,15 +447,18 @@ function sparklineFor(currency: string): { labels: string[]; values: number[] } 
             </tr>
           </thead>
           <tbody class="divide-y divide-neutral-100">
-            <tr v-for="(c, i) in summary.top_clients_12m" :key="c.client_id + c.currency" class="hover:bg-neutral-50 cursor-pointer"
+            <tr v-for="(c, i) in summary.top_clients_12m" :key="c.client_id" class="hover:bg-neutral-50 cursor-pointer"
                 @click="router.push(`/clients/${c.client_id}`)">
               <td class="px-4 py-2.5 text-neutral-400 font-mono text-xs">{{ i + 1 }}</td>
-              <td class="px-4 py-2.5 font-medium">{{ c.company_name }}</td>
+              <td class="px-4 py-2.5 font-medium">
+                {{ c.company_name }}
+                <span v-if="c.currencies && c.currencies !== 'CZK'" class="ml-1.5 text-xs text-neutral-400 font-normal">({{ c.currencies }})</span>
+              </td>
               <td class="px-4 py-2.5 text-center text-xs text-neutral-600">{{ c.invoice_count }}</td>
-              <td class="px-4 py-2.5 text-right font-mono">{{ formatMoney(c.total, c.currency) }}</td>
+              <td class="px-4 py-2.5 text-right font-mono">{{ formatMoney(c.total_czk, 'CZK') }}</td>
               <td class="px-4 py-2.5">
                 <div class="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                  <div class="h-full bg-primary-500 rounded-full" :style="{ width: (c.total / summary.top_clients_12m[0].total * 100) + '%' }"></div>
+                  <div class="h-full bg-primary-500 rounded-full" :style="{ width: (c.total_czk / summary.top_clients_12m[0].total_czk * 100) + '%' }"></div>
                 </div>
               </td>
             </tr>
@@ -475,19 +468,20 @@ function sparklineFor(currency: string): { labels: string[]; values: number[] } 
 
         <!-- Mobile: kompaktní list s share bar -->
         <div class="md:hidden divide-y divide-neutral-100">
-          <div v-for="(c, i) in summary.top_clients_12m" :key="`m-${c.client_id}-${c.currency}`"
+          <div v-for="(c, i) in summary.top_clients_12m" :key="`m-${c.client_id}`"
             @click="router.push(`/clients/${c.client_id}`)"
             class="cursor-pointer hover:bg-neutral-50 px-3 py-2.5">
             <div class="flex items-baseline justify-between gap-2">
               <div class="flex items-baseline gap-2 min-w-0">
                 <span class="text-neutral-400 font-mono text-xs whitespace-nowrap">{{ i + 1 }}.</span>
                 <span class="font-medium text-neutral-900 truncate">{{ c.company_name }}</span>
+                <span v-if="c.currencies && c.currencies !== 'CZK'" class="text-xs text-neutral-400 whitespace-nowrap">({{ c.currencies }})</span>
               </div>
-              <div class="font-mono text-sm whitespace-nowrap">{{ formatMoney(c.total, c.currency) }}</div>
+              <div class="font-mono text-sm whitespace-nowrap">{{ formatMoney(c.total_czk, 'CZK') }}</div>
             </div>
             <div class="flex items-center gap-2 mt-1.5">
               <div class="h-1.5 flex-1 bg-neutral-100 rounded-full overflow-hidden">
-                <div class="h-full bg-primary-500 rounded-full" :style="{ width: (c.total / summary.top_clients_12m[0].total * 100) + '%' }"></div>
+                <div class="h-full bg-primary-500 rounded-full" :style="{ width: (c.total_czk / summary.top_clients_12m[0].total_czk * 100) + '%' }"></div>
               </div>
               <span class="text-xs text-neutral-500 font-mono whitespace-nowrap">{{ c.invoice_count }}×</span>
             </div>
@@ -495,13 +489,13 @@ function sparklineFor(currency: string): { labels: string[]; values: number[] } 
         </div>
       </div>
 
-      <!-- Koláč Top klienti — totožná data, druhý úhel pohledu -->
+      <!-- Koláč Top klienti — totožná data, druhý úhel pohledu (vždy v CZK po přepočtu) -->
       <div class="bg-white border border-neutral-200 rounded-lg p-5 shadow-sm">
         <div class="flex items-baseline justify-between mb-4">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('dashboard.top_clients_12m_share') }}</h3>
-          <span class="text-xs font-mono text-neutral-500">{{ topClientsPrimaryCurrency }}</span>
+          <span class="text-xs font-mono text-neutral-500">CZK</span>
         </div>
-        <TopClientsPieChart :clients="summary.top_clients_12m" :currency="topClientsPrimaryCurrency" />
+        <TopClientsPieChart :clients="summary.top_clients_12m" />
       </div>
       </div>
     </div>

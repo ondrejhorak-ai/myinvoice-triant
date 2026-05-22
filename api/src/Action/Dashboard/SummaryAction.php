@@ -397,8 +397,13 @@ final class SummaryAction
     private function topClients(\PDO $pdo, int $year, int $sid, bool $isVatPayer): array
     {
         $rev = $this->revenueCol($isVatPayer);
-        $sql = "SELECT c.id, c.company_name, cur.code AS currency,
-                       SUM($rev) AS total,
+        // Přepočet na CZK přes i.exchange_rate (CNB k DUZP). CZK řádky multiplier 1.
+        // Grupujeme jen po klientovi (ne per currency) — multi-currency klient se neroztrhne
+        // a ranking je správný (1000 EUR > 20 000 CZK).
+        $revCzk = "$rev * COALESCE(IF(cur.code = 'CZK', 1, i.exchange_rate), 1)";
+        $sql = "SELECT c.id, c.company_name,
+                       SUM($revCzk) AS total_czk,
+                       GROUP_CONCAT(DISTINCT cur.code ORDER BY cur.code SEPARATOR ',') AS currencies,
                        COUNT(*) AS invoice_count
                   FROM invoices i
                   JOIN clients c ON c.id = i.client_id
@@ -407,8 +412,8 @@ final class SummaryAction
                    AND YEAR(COALESCE(i.tax_date, i.issue_date)) = ?
                    AND i.status IN ('issued', 'sent', 'reminded', 'paid')
                    AND i.invoice_type IN ('invoice', 'credit_note')
-                 GROUP BY c.id, c.company_name, cur.code
-                 ORDER BY total DESC
+                 GROUP BY c.id, c.company_name
+                 ORDER BY total_czk DESC
                  LIMIT 12";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$sid, $year]);
@@ -416,8 +421,8 @@ final class SummaryAction
         return array_map(fn (array $r) => [
             'client_id'     => (int) $r['id'],
             'company_name'  => $r['company_name'],
-            'currency'      => $r['currency'],
-            'total'         => round((float) $r['total'], 2),
+            'currencies'    => (string) $r['currencies'],
+            'total_czk'     => round((float) $r['total_czk'], 2),
             'invoice_count' => (int) $r['invoice_count'],
         ], $rows);
     }
@@ -505,8 +510,12 @@ final class SummaryAction
     private function topClientsRolling12m(\PDO $pdo, int $sid, bool $isVatPayer): array
     {
         $rev = $this->revenueCol($isVatPayer);
-        $sql = "SELECT c.id, c.company_name, cur.code AS currency,
-                       SUM($rev) AS total,
+        // Stejné jako topClients() — CZK přepočet + grupování po klientovi pro správný ranking
+        // napříč měnami (1000 EUR > 20 000 CZK).
+        $revCzk = "$rev * COALESCE(IF(cur.code = 'CZK', 1, i.exchange_rate), 1)";
+        $sql = "SELECT c.id, c.company_name,
+                       SUM($revCzk) AS total_czk,
+                       GROUP_CONCAT(DISTINCT cur.code ORDER BY cur.code SEPARATOR ',') AS currencies,
                        COUNT(*) AS invoice_count
                   FROM invoices i
                   JOIN clients c ON c.id = i.client_id
@@ -515,16 +524,16 @@ final class SummaryAction
                    AND COALESCE(i.tax_date, i.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                    AND i.status IN ('issued', 'sent', 'reminded', 'paid')
                    AND i.invoice_type IN ('invoice', 'credit_note')
-                 GROUP BY c.id, c.company_name, cur.code
-                 ORDER BY total DESC
+                 GROUP BY c.id, c.company_name
+                 ORDER BY total_czk DESC
                  LIMIT 12";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$sid]);
         return array_map(static fn (array $r) => [
             'client_id'     => (int) $r['id'],
             'company_name'  => $r['company_name'],
-            'currency'      => $r['currency'],
-            'total'         => round((float) $r['total'], 2),
+            'currencies'    => (string) $r['currencies'],
+            'total_czk'     => round((float) $r['total_czk'], 2),
             'invoice_count' => (int) $r['invoice_count'],
         ], $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: []);
     }

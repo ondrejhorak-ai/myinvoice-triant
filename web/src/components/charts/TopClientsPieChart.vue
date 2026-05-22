@@ -7,7 +7,9 @@ import { formatMoney } from '@/composables/useFormat'
 
 Chart.register(DoughnutController, ArcElement, Tooltip, Legend)
 
-const props = defineProps<{ clients: TopClient[]; currency?: string }>()
+// Po sjednocení na total_czk (CZK přepočet přes i.exchange_rate) už neřešíme currency filter —
+// graf vždy ukazuje agregovaný obrat klienta v CZK.
+const props = defineProps<{ clients: TopClient[] }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 let chart: Chart | null = null
@@ -19,20 +21,16 @@ const palette = [
   '#C9C0E9', '#E5E0F4', '#F4A261', '#E8A547', '#4CAF7A',
 ]
 
-// Filter by currency if provided, sum & sort top 8 + "Ostatní"
 const sliceData = computed(() => {
-  const filtered = props.currency
-    ? props.clients.filter(c => c.currency === props.currency)
-    : props.clients
-  if (filtered.length === 0) return { labels: [] as string[], values: [] as number[] }
-  const sorted = [...filtered].sort((a, b) => b.total - a.total)
+  if (props.clients.length === 0) return { labels: [] as string[], values: [] as number[] }
+  const sorted = [...props.clients].sort((a, b) => b.total_czk - a.total_czk)
   const top = sorted.slice(0, 8)
   const rest = sorted.slice(8)
   const labels = top.map(c => c.company_name)
-  const values = top.map(c => c.total)
+  const values = top.map(c => c.total_czk)
   if (rest.length > 0) {
     labels.push(t('common.other'))
-    values.push(rest.reduce((s, c) => s + c.total, 0))
+    values.push(rest.reduce((s, c) => s + c.total_czk, 0))
   }
   return { labels, values }
 })
@@ -67,7 +65,7 @@ function build() {
             label: (ctx) => {
               const v = ctx.parsed as number
               const pct = total > 0 ? ((v / total) * 100).toFixed(1) : '0'
-              return ` ${ctx.label}: ${formatMoney(v, props.currency || 'CZK')} (${pct} %)`
+              return ` ${ctx.label}: ${formatMoney(v, 'CZK')} (${pct} %)`
             },
           },
         },
@@ -79,7 +77,7 @@ function build() {
 
 onMounted(build)
 onBeforeUnmount(() => chart?.destroy())
-watch(() => [props.clients, props.currency], build, { deep: true })
+watch(() => props.clients, build, { deep: true })
 watch(() => locale.value, build)
 </script>
 

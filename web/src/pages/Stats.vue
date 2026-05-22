@@ -78,22 +78,18 @@ function topProjectChart(scope: 'this' | 'prev') {
 const concentration = computed(() => {
   const items = summary.value?.top_clients_12m ?? []
   if (!items.length) return null
-  // Primární měna — vezmeme tu s nejvyšším obratem v top_12m.
-  const byCurrency = new Map<string, number>()
-  for (const it of items) byCurrency.set(it.currency, (byCurrency.get(it.currency) ?? 0) + it.total)
-  const [topCur] = Array.from(byCurrency.entries()).sort((a, b) => b[1] - a[1])
-  if (!topCur) return null
-  const cur = topCur[0]
-  const inCur = items.filter(i => i.currency === cur)
-  const total12m = summary.value?.rolling_12m.find(r => r.currency === cur)?.total ?? 0
-  if (total12m <= 0) return null
-  const top3 = inCur.slice(0, 3).reduce((s, i) => s + i.total, 0)
-  const top5 = inCur.slice(0, 5).reduce((s, i) => s + i.total, 0)
+  // top_clients_12m je seřazený podle total_czk (přepočet přes i.exchange_rate).
+  // Pro koncentraci porovnáváme top3/top5 vůči sumě top12 (přiblížení k celkovému 12m obratu —
+  // přesné by chtělo sumu napříč všemi měnami v rolling_12m s CZK přepočtem).
+  const total = items.reduce((s, i) => s + i.total_czk, 0)
+  if (total <= 0) return null
+  const top3 = items.slice(0, 3).reduce((s, i) => s + i.total_czk, 0)
+  const top5 = items.slice(0, 5).reduce((s, i) => s + i.total_czk, 0)
   return {
-    currency: cur,
-    top3_pct: Math.round((top3 / total12m) * 100),
-    top5_pct: Math.round((top5 / total12m) * 100),
-    total: total12m,
+    currency: 'CZK',
+    top3_pct: Math.round((top3 / total) * 100),
+    top5_pct: Math.round((top5 / total) * 100),
+    total: total,
     top3_total: top3,
     top5_total: top5,
   }
@@ -366,13 +362,13 @@ const hasAnyData = computed(() =>
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-4">
             {{ t('stats.top_clients_year', { year: summary.year }) }}
           </h3>
-          <TopClientsPieChart :clients="summary.top_clients_ytd" :currency="primaryCurrency" />
+          <TopClientsPieChart :clients="summary.top_clients_ytd" />
         </div>
         <div v-if="summary.top_clients_prev_year.length" class="bg-white border border-neutral-200 rounded-lg p-5 shadow-sm">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-4">
             {{ t('stats.top_clients_year', { year: summary.prev_year }) }}
           </h3>
-          <TopClientsPieChart :clients="summary.top_clients_prev_year" :currency="primaryCurrency" />
+          <TopClientsPieChart :clients="summary.top_clients_prev_year" />
         </div>
       </div>
 
@@ -509,12 +505,15 @@ const hasAnyData = computed(() =>
                 </tr>
               </thead>
               <tbody class="divide-y divide-neutral-100">
-                <tr v-for="(c, i) in summary.top_clients_12m" :key="`tc12-${c.client_id}-${c.currency}`"
+                <tr v-for="(c, i) in summary.top_clients_12m" :key="`tc12-${c.client_id}`"
                     class="hover:bg-neutral-50 cursor-pointer"
                     @click="$router.push(`/clients/${c.client_id}`)">
                   <td class="px-4 py-2 text-neutral-400 font-mono text-xs">{{ i + 1 }}</td>
-                  <td class="px-4 py-2 truncate max-w-[260px]">{{ c.company_name }}</td>
-                  <td class="px-4 py-2 text-right font-mono">{{ formatMoney(c.total, c.currency) }}</td>
+                  <td class="px-4 py-2 truncate max-w-[260px]">
+                    {{ c.company_name }}
+                    <span v-if="c.currencies && c.currencies !== 'CZK'" class="ml-1 text-xs text-neutral-400">({{ c.currencies }})</span>
+                  </td>
+                  <td class="px-4 py-2 text-right font-mono">{{ formatMoney(c.total_czk, 'CZK') }}</td>
                   <td class="px-4 py-2 text-right text-xs text-neutral-500">{{ c.invoice_count }}</td>
                 </tr>
               </tbody>

@@ -44,8 +44,10 @@ export interface DashboardInvoiceItem {
 export interface TopClient {
   client_id: number
   company_name: string
-  currency: string
-  total: number
+  /** CSV měn — 'CZK' nebo 'CZK,EUR' pro multi-currency klienta. */
+  currencies: string
+  /** Celkový obrat přepočtený na CZK (přes i.exchange_rate). Jediné porovnatelné pole. */
+  total_czk: number
   invoice_count: number
 }
 
