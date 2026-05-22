@@ -831,6 +831,8 @@
     "wr_sync_note": "Při uložení se výkaz uloží a jeho suma se zapíše jako položka faktury (jedna položka = celkem hodin × sazba). Pokud položka se stejným popisem existuje, aktualizuje se.",
     "wr_add_item": "Přidat řádek",
     "wr_btn": "Výkaz",
+    "wr_move_up": "Posunout nahoru",
+    "wr_move_down": "Posunout dolů",
     "wr_not_in_items_confirm": "Výkaz „{description}\" obsahuje {hours} h za {amount} {ccy}, ale není zapsán jako položka faktury.\n\nPokračovat bez přenosu výkazu do faktury?",
     "wr_diff_confirm": "Výkaz se liší od přenesené položky faktury:\n\n• Výkaz:   {hours} h, celkem {amount} {ccy}\n• Položka: {itemAmount} {ccy}\n\nPokračovat bez aktualizace položky?",
     "wr_hint": "Výkaz se vytiskne na druhou stránku PDF faktury. Pokud je vyplněný, položku faktury si nastav ručně (např. „Vícepráce {title} — celkem {hours} h × {rate} {currency}\").",

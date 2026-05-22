@@ -556,6 +556,13 @@ function addWrItem() {
 function removeWrItem(idx: number) {
   wrItems.value.splice(idx, 1)
 }
+
+function moveWrItem(idx: number, dir: -1 | 1) {
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= wrItems.value.length) return
+  const [item] = wrItems.value.splice(idx, 1)
+  wrItems.value.splice(newIdx, 0, item)
+}
 function openWorkReport() {
   if (wrItems.value.length === 0) {
     const date = (form.value.tax_date || form.value.issue_date || '').slice(0, 7) // YYYY-MM
@@ -1241,8 +1248,22 @@ async function deleteDraft() {
                 <td class="px-3 py-1.5 text-right font-mono text-neutral-700">
                   {{ formatMoney((Number(it.hours) || 0) * (Number(it.rate) || 0), form.currency) }}
                 </td>
-                <td class="px-2 py-1.5 text-center">
-                  <button type="button" @click="removeWrItem(i)" class="cursor-pointer text-danger-500 hover:text-danger-600 text-lg leading-none">×</button>
+                <td class="px-2 py-1.5">
+                  <div class="flex items-center justify-center gap-0.5">
+                    <button type="button" @click="moveWrItem(i, -1)" :disabled="i === 0"
+                            :title="t('invoice.wr_move_up')"
+                            class="cursor-pointer w-6 h-6 inline-flex items-center justify-center text-neutral-500 hover:text-primary-700 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                    </button>
+                    <button type="button" @click="moveWrItem(i, 1)" :disabled="i === wrItems.length - 1"
+                            :title="t('invoice.wr_move_down')"
+                            class="cursor-pointer w-6 h-6 inline-flex items-center justify-center text-neutral-500 hover:text-primary-700 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <button type="button" @click="removeWrItem(i)"
+                            :title="t('common.delete')"
+                            class="cursor-pointer w-6 h-6 inline-flex items-center justify-center text-danger-500 hover:text-danger-600 text-xl leading-none">×</button>
+                  </div>
                 </td>
               </tr>
               <tr>
@@ -1272,7 +1293,19 @@ async function deleteDraft() {
               class="border border-neutral-200 rounded-md p-3 space-y-2 bg-neutral-50/30">
               <div class="flex items-center justify-between text-xs text-neutral-500">
                 <span class="font-mono">#{{ i + 1 }}</span>
-                <button type="button" @click="removeWrItem(i)" class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-danger-500/40 text-danger-500 hover:bg-danger-50 rounded text-lg leading-none">×</button>
+                <div class="flex items-center gap-1">
+                  <button type="button" @click="moveWrItem(i, -1)" :disabled="i === 0"
+                          :title="t('invoice.wr_move_up')"
+                          class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-neutral-300 text-neutral-600 hover:bg-neutral-50 rounded disabled:opacity-30 disabled:cursor-not-allowed">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                  </button>
+                  <button type="button" @click="moveWrItem(i, 1)" :disabled="i === wrItems.length - 1"
+                          :title="t('invoice.wr_move_down')"
+                          class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-neutral-300 text-neutral-600 hover:bg-neutral-50 rounded disabled:opacity-30 disabled:cursor-not-allowed">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+                  <button type="button" @click="removeWrItem(i)" class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-danger-500/40 text-danger-500 hover:bg-danger-50 rounded text-lg leading-none">×</button>
+                </div>
               </div>
               <div>
                 <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.wr_description') }}</label>

@@ -103,6 +103,13 @@ function removeItem(idx: number) {
   wrItems.value.splice(idx, 1)
 }
 
+function moveItem(idx: number, dir: -1 | 1) {
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= wrItems.value.length) return
+  const [item] = wrItems.value.splice(idx, 1)
+  wrItems.value.splice(newIdx, 0, item)
+}
+
 function close() {
   emit('update:modelValue', false)
 }
@@ -221,7 +228,7 @@ onMounted(() => {
                 <th class="px-3 py-2 text-right font-medium w-24">{{ t('invoice.wr_hours') }}</th>
                 <th class="px-3 py-2 text-right font-medium w-28">{{ t('invoice.wr_rate') }}</th>
                 <th class="px-3 py-2 text-right font-medium w-28">{{ t('invoice.totals.total') }}</th>
-                <th class="px-2 py-2 w-8"></th>
+                <th class="px-2 py-2 w-24"></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-neutral-100">
@@ -245,8 +252,22 @@ onMounted(() => {
                 <td class="px-3 py-1.5 text-right font-mono text-neutral-700">
                   {{ ((Number(it.hours)||0) * (Number(it.rate)||0)).toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                 </td>
-                <td class="px-2 py-1.5 text-center">
-                  <button @click="removeItem(i)" class="cursor-pointer text-danger-500 hover:text-danger-700 text-lg leading-none">&times;</button>
+                <td class="px-2 py-1.5">
+                  <div class="flex items-center justify-center gap-0.5">
+                    <button type="button" @click="moveItem(i, -1)" :disabled="i === 0"
+                            :title="t('invoice.wr_move_up')"
+                            class="cursor-pointer w-6 h-6 inline-flex items-center justify-center text-neutral-500 hover:text-primary-700 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                    </button>
+                    <button type="button" @click="moveItem(i, 1)" :disabled="i === wrItems.length - 1"
+                            :title="t('invoice.wr_move_down')"
+                            class="cursor-pointer w-6 h-6 inline-flex items-center justify-center text-neutral-500 hover:text-primary-700 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <button type="button" @click="removeItem(i)"
+                            :title="t('common.delete')"
+                            class="cursor-pointer w-6 h-6 inline-flex items-center justify-center text-danger-500 hover:text-danger-700 text-xl leading-none">&times;</button>
+                  </div>
                 </td>
               </tr>
             </tbody>
