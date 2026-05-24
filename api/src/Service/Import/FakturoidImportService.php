@@ -60,10 +60,12 @@ final class FakturoidImportService
             $userId = (int) $job['created_by'];
             $dryRun = !empty($params['dry_run']);
             $incremental = !empty($params['incremental']);
+            $downloadAttachments = !empty($params['download_attachments']);
             $bookmarkSince = $incremental ? $this->loadBookmark($supplierId) : null;
 
             $msg = 'Fakturoid import zahájen' . ($dryRun ? ' (dry-run)' : '');
             if ($incremental && $bookmarkSince !== null) $msg .= ', incremental od ' . $bookmarkSince;
+            if ($downloadAttachments) $msg .= ', s přílohami';
             $this->jobs->appendLog($jobId, $msg . '.');
 
             if (!empty($params['include_clients']) || ($params['include_clients'] ?? null) === null) {
@@ -71,11 +73,11 @@ final class FakturoidImportService
                 $this->checkCancel($jobId);
             }
             if (!empty($params['include_issued']) || ($params['include_issued'] ?? null) === null) {
-                $this->importInvoices($jobId, $supplierId, $userId, $dryRun, $bookmarkSince);
+                $this->importInvoices($jobId, $supplierId, $userId, $dryRun, $bookmarkSince, $downloadAttachments);
                 $this->checkCancel($jobId);
             }
             if (!empty($params['include_received']) || ($params['include_received'] ?? null) === null) {
-                $this->importExpenses($jobId, $supplierId, $userId, $dryRun, $bookmarkSince);
+                $this->importExpenses($jobId, $supplierId, $userId, $dryRun, $bookmarkSince, $downloadAttachments);
             }
 
             $this->jobs->appendLog($jobId, 'Fakturoid import dokončen.');
@@ -170,7 +172,7 @@ final class FakturoidImportService
         $this->jobs->appendLog($jobId, "Subjekty: vytvořeno {$created}, přeskočeno {$skipped} (z {$processed}).");
     }
 
-    private function importInvoices(int $jobId, int $supplierId, int $userId, bool $dryRun, ?string $bookmarkSince): void
+    private function importInvoices(int $jobId, int $supplierId, int $userId, bool $dryRun, ?string $bookmarkSince, bool $downloadAttachments = false): void
     {
         $this->jobs->updateProgress($jobId, ['current_step' => 'Importing issued invoices…', 'processed' => 0]);
         $this->jobs->appendLog($jobId, 'Stahuji vydané faktury z Fakturoid…');
@@ -200,6 +202,9 @@ final class FakturoidImportService
                 $invoiceId = $this->createIssued($inv, $supplierId, $userId);
                 $this->db->pdo()->prepare('UPDATE invoices SET fakturoid_id = ? WHERE id = ?')->execute([$fakturoidId, $invoiceId]);
                 $this->invCalc->recompute($invoiceId);
+                if ($downloadAttachments) {
+                    $this->archiveIssuedPdf($supplierId, $invoiceId, $fakturoidId, $inv);
+                }
                 $created++;
             } catch (\Throwable $e) {
                 $failed++;
@@ -257,7 +262,7 @@ final class FakturoidImportService
         return $invoiceId;
     }
 
-    private function importExpenses(int $jobId, int $supplierId, int $userId, bool $dryRun, ?string $bookmarkSince): void
+    private function importExpenses(int $jobId, int $supplierId, int $userId, bool $dryRun, ?string $bookmarkSince, bool $downloadAttachments = false): void
     {
         $this->jobs->updateProgress($jobId, ['current_step' => 'Importing expenses (received invoices)…', 'processed' => 0]);
         $this->jobs->appendLog($jobId, 'Stahuji přijaté (expenses) z Fakturoid…');
@@ -287,6 +292,9 @@ final class FakturoidImportService
                 $purchaseId = $this->createExpense($exp, $supplierId, $userId);
                 $this->db->pdo()->prepare('UPDATE purchase_invoices SET fakturoid_id = ? WHERE id = ?')->execute([$fakturoidId, $purchaseId]);
                 $this->purCalc->recompute($purchaseId);
+                if ($downloadAttachments) {
+                    $this->archiveExpensePdf($supplierId, $purchaseId, $exp);
+                }
                 $created++;
             } catch (\Throwable $e) {
                 $failed++;
@@ -427,6 +435,69 @@ final class FakturoidImportService
         if ($vn === '') $vn = 'FAKT-import';
         $vn = (string) preg_replace('/[\x00-\x1F\x7F]/', '', $vn);
         return strlen($vn) > 50 ? substr($vn, 0, 50) : $vn;
+    }
+
+    /**
+     * Stáhne Fakturoidem rendered PDF vydané faktury a uloží do imported_pdf_*
+     * (paralelně s naším renderem pdf_path). Dedup přes SHA-256. Symetrické k iDokladu.
+     */
+    private function archiveIssuedPdf(int $supplierId, int $invoiceId, int $fakturoidId, array $inv): void
+    {
+        $pdf = $this->fakturoid->downloadInvoicePdf($supplierId, $fakturoidId);
+        if ($pdf === null) return; // 204 = PDF se ještě generuje
+
+        $archiveRoot = (string) $this->config->get('invoice.import_archive_storage', '');
+        if ($archiveRoot === '') {
+            $uploads = (string) $this->config->get('storage.uploads_dir', '');
+            $archiveRoot = $uploads !== '' ? dirname($uploads) . '/invoices-imported'
+                : __DIR__ . '/../../../../storage/invoices-imported';
+        }
+        $tenantDir = $archiveRoot . DIRECTORY_SEPARATOR . 'supplier-' . $supplierId;
+        if (!is_dir($tenantDir)) @mkdir($tenantDir, 0755, true);
+
+        $sha = hash('sha256', $pdf);
+        $disk = substr($sha, 0, 16) . '.pdf';
+        $diskPath = $tenantDir . DIRECTORY_SEPARATOR . $disk;
+        if (!is_file($diskPath)) @file_put_contents($diskPath, $pdf);
+
+        $relPath = 'supplier-' . $supplierId . '/' . $disk;
+        $name = ((string) ($inv['number'] ?? 'invoice')) . '.pdf';
+        $this->db->pdo()->prepare(
+            'UPDATE invoices SET imported_pdf_path = ?, imported_pdf_hash = ?,
+                                  imported_pdf_size_bytes = ?, imported_pdf_original_name = ?
+              WHERE id = ?'
+        )->execute([$relPath, $sha, strlen($pdf), $name, $invoiceId]);
+    }
+
+    /**
+     * Stáhne přílohu výdaje (originální doklad od dodavatele) z Fakturoid `attachment`
+     * URL a uloží jako PDF přijaté faktury. Symetrické k iDokladu.
+     */
+    private function archiveExpensePdf(int $supplierId, int $purchaseInvoiceId, array $exp): void
+    {
+        $url = (string) ($exp['attachment'] ?? '');
+        if ($url === '') return; // výdaj bez přílohy
+
+        $pdf = $this->fakturoid->downloadAttachment($supplierId, $url);
+        if ($pdf === null) return;
+
+        $archiveRoot = (string) $this->config->get('purchase_invoice.archive_storage', '');
+        if ($archiveRoot === '') {
+            $uploads = (string) $this->config->get('storage.uploads_dir', '');
+            $archiveRoot = $uploads !== '' ? dirname($uploads) . '/purchase-invoices'
+                : __DIR__ . '/../../../../storage/purchase-invoices';
+        }
+        $tenantDir = $archiveRoot . DIRECTORY_SEPARATOR . 'supplier-' . $supplierId;
+        if (!is_dir($tenantDir)) @mkdir($tenantDir, 0755, true);
+
+        $sha = hash('sha256', $pdf);
+        $disk = substr($sha, 0, 16) . '.pdf';
+        $diskPath = $tenantDir . DIRECTORY_SEPARATOR . $disk;
+        if (!is_file($diskPath)) @file_put_contents($diskPath, $pdf);
+
+        $relPath = 'supplier-' . $supplierId . '/' . $disk;
+        $name = ((string) ($exp['number'] ?? 'expense')) . '.pdf';
+        $this->purchaseRepo->setPdfMetadata($purchaseInvoiceId, $supplierId, $relPath, $sha, strlen($pdf), $name);
     }
 
     private function loadBookmark(int $supplierId): ?string

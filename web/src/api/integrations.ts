@@ -80,6 +80,7 @@ export interface FakturoidStartParams {
   include_issued?: boolean
   include_received?: boolean
   incremental?: boolean
+  download_attachments?: boolean
   dry_run?: boolean
 }
 

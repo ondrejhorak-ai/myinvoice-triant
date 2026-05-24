@@ -266,6 +266,58 @@ final class FakturoidClient
     }
 
     /**
+     * Stáhne Fakturoidem vygenerované PDF vydané faktury (GET …/invoices/{id}/download.pdf).
+     * Vrátí binární obsah, nebo null (204 = PDF se ještě generuje, nebo chyba).
+     */
+    public function downloadInvoicePdf(int $supplierId, int $invoiceId): ?string
+    {
+        return $this->binaryGet($supplierId, 'invoices/' . $invoiceId . '/download.pdf');
+    }
+
+    /**
+     * Stáhne přílohu výdaje (originální doklad od dodavatele). Fakturoid vrací
+     * v expense JSON pole `attachment` jako URL — stáhneme ho s autorizací.
+     */
+    public function downloadAttachment(int $supplierId, string $attachmentUrl): ?string
+    {
+        if ($attachmentUrl === '') return null;
+        return $this->binaryGet($supplierId, $attachmentUrl, absolute: true);
+    }
+
+    /**
+     * GET binárního obsahu (PDF / příloha). `$absolute` = endpoint je už plná URL
+     * (Fakturoid attachment), jinak se skládá z API_BASE + slug. 401 → refresh + retry.
+     */
+    private function binaryGet(int $supplierId, string $endpoint, bool $absolute = false): ?string
+    {
+        $creds = $this->getCredentials($supplierId);
+        if ($creds === null) return null;
+
+        $url = $absolute
+            ? $endpoint
+            : self::API_BASE . '/' . urlencode($creds['slug']) . '/' . ltrim($endpoint, '/');
+
+        $headers = $this->authHeaders($supplierId, $creds);
+        $headers['Accept'] = '*/*'; // ne JSON — chceme binárku
+
+        $this->throttle($supplierId);
+        $resp = $this->http->get($url, ['headers' => $headers]);
+        $code = $resp->getStatusCode();
+
+        if ($code === 401 && $this->isUsingOAuth($creds)) {
+            $this->invalidateToken($supplierId);
+            $headers = $this->authHeaders($supplierId, $creds);
+            $headers['Accept'] = '*/*';
+            $resp = $this->http->get($url, ['headers' => $headers]);
+            $code = $resp->getStatusCode();
+        }
+
+        if ($code !== 200) return null; // 204 = PDF not ready, 404 = bez přílohy
+        $body = (string) $resp->getBody();
+        return $body !== '' ? $body : null;
+    }
+
+    /**
      * Sestaví auth header podle dostupných credentials.
      * Priorita: OAuth2 (pokud client_id + client_secret) → BasicAuth.
      *

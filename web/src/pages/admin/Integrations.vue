@@ -180,6 +180,7 @@ const fakStartParams = ref({
   include_issued: true,
   include_received: true,
   incremental: false,
+  download_attachments: false,
   dry_run: false,
 })
 const fakStarting = ref(false)
@@ -773,7 +774,11 @@ onUnmounted(() => {
             </label>
             <label class="flex items-center gap-2 text-sm">
               <input v-model="fakStartParams.incremental" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
-              {{ t('integrations.idoklad.incremental') }}
+              <span :title="t('integrations.idoklad.incremental_hint')">{{ t('integrations.idoklad.incremental') }}</span>
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input v-model="fakStartParams.download_attachments" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
+              <span :title="t('integrations.idoklad.download_attachments_hint')">{{ t('integrations.idoklad.download_attachments') }}</span>
             </label>
             <label class="flex items-center gap-2 text-sm">
               <input v-model="fakStartParams.dry_run" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
