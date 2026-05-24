@@ -21,8 +21,151 @@ V **Nastavení → Daňové nastavení** vyplň:
 5. **DIČ** v Identifikaci firmy (povinné)
 6. Volitelně: CZ-NACE, datová schránka, sestavitel přiznání
 
+Detailní mapping všech polí v UI na XML atributy najdeš v sekci [Pole EPO / VetaP](#pole-epo--vetap) níže.
+
 > [!NOTE]
 > **Kontrolní hlášení se podává VŽDY měsíčně**, i pro kvartální plátce DPH. Jen DPH přiznání může být kvartální.
+
+## Pole EPO / VetaP
+
+Tato sekce mapuje pole z **Nastavení → Daňové nastavení** (admin only) na konkrétní
+atributy v EPO XML (DPHDP3 + DPHKH1). Vyplň je všechny — bez nich EPO portál podání
+odmítne nebo bude generovat formálně neúplný výkaz.
+
+### Identifikace finančního úřadu
+
+| Pole v UI | XML atribut | Popis | Jak zjistit |
+|---|---|---|---|
+| **Kód finančního úřadu** | `c_ufo` | Číselný kód územního finančního orgánu | např. `451` Praha 1, `463` Jihomoravský kraj. Najdeš na posledním podaném přiznání nebo v EPO. |
+| **Kód územního pracoviště** | `c_pracufo` | Konkrétní pracoviště v rámci FÚ | např. `3203` pracoviště Brno III. Volitelné, ale EPO ho někdy vyžaduje. |
+| **CZ-NACE kód (`cz_nace_code`)** | `c_okec` | Hlavní podnikatelská činnost (NACE) | např. `631000` (IT poradenství). Najdeš na živnostenském listě / ARES. Fallback `631000` pokud necháš prázdné. |
+
+### Typ plátce a perioda
+
+| Pole v UI | XML atribut | Hodnoty | Kdy použít |
+|---|---|---|---|
+| **Typ poplatníka** | `typ_ds` ve VetaP | `F` (FO/OSVČ) / `P` (PO/s.r.o.) | Podle právní formy. |
+| **Typ plátce DPH** | `typ_platce` ve VetaD | `P` (měsíční) / `Q` (čtvrtletní) | Měsíční default. Čtvrtletní jen pokud máš obrat < 10 mil. Kč/rok a FÚ ti to přidělil. |
+
+### Sídlo / adresa (od v4.0.6)
+
+EPO rozděluje uliční adresu na tři samostatné atributy (`ulice` + `c_pop` + `c_orient`).
+Naše DB tyto sloupce drží separátně (`supplier.street`, `street_number_pop`,
+`street_number_orient`):
+
+| Pole v UI | XML atribut | Popis |
+|---|---|---|
+| **Ulice** (`street`) | `ulice` | Název ulice bez čísla, např. `Vodičkova` |
+| **Číslo popisné** (`street_number_pop`) | `c_pop` | Popisné číslo budovy, např. `1104` |
+| **Číslo orientační** (`street_number_orient`) | `c_orient` | Orientační číslo, např. `36` |
+| **Město** (`city`) | `naz_obce` | EPO vyžaduje VELKÝMI PÍSMENY, builder převede automaticky |
+| **PSČ** (`zip`) | `psc` | Bez mezer, builder odstraní |
+| **Země** (`country_id` → ISO) | `stat` | Defaultně `CZE` (Česká republika) |
+
+> [!IMPORTANT]
+> **Pro OSVČ:** EPO vyžaduje **adresu sídla podnikání**, nikoli trvalého bydliště,
+> pokud jsou různé. Najdeš v živnostenském rejstříku / ARES jako *„Místo podnikání"*.
+
+### Osobní údaje (jen pro FO/OSVČ)
+
+| Pole v UI | XML atribut | Popis |
+|---|---|---|
+| **Titul** | `titul` | Před jménem (Bc., Ing., Mgr., …) — nepovinné |
+| **Jméno** | `jmeno` | Křestní jméno plátce |
+| **Příjmení** | `prijmeni` | Příjmení plátce |
+
+PO (právnické osoby) tyto pole nevyplňují — místo nich se použije `zkrobchjm` z firmy.
+
+### Oprávněná osoba k podpisu (od v4.0.6) — POVINNÉ pro PO
+
+Pole `opr_*` identifikují fyzickou osobu, která je u právnické osoby oprávněná
+přiznání podepsat (typicky jednatel, předseda představenstva).
+
+| Pole v UI | XML atribut | Popis |
+|---|---|---|
+| **Jméno oprávněné osoby** (`opr_jmeno`) | `opr_jmeno` | Křestní jméno jednatele / podepisujícího |
+| **Příjmení oprávněné osoby** (`opr_prijmeni`) | `opr_prijmeni` | Příjmení |
+| **Postavení** (`opr_postaveni`) | `opr_postaveni` | Funkce, typicky `jednatel`, `majitel`, `předseda představenstva` |
+
+U FO (OSVČ) zůstávají prázdná — fallback je `jmeno` + `prijmeni`.
+
+### Sestavitel přiznání (sest_*)
+
+Pole sestavitele jsou relevantní jen pokud **přiznání za tebe podává jiná osoba**
+(účetní, daňový poradce). Pokud podáváš sám, nech prázdná — builder použije tvoje
+údaje (fallback na `jmeno` + `prijmeni` + `phone`).
+
+| Pole v UI | XML atribut | Popis |
+|---|---|---|
+| **Jméno sestavitele** (`sest_jmeno`) | `sest_jmeno` | Křestní jméno sestavitele |
+| **Příjmení sestavitele** (`sest_prijmeni`) | `sest_prijmeni` | Příjmení |
+| **Telefon sestavitele** (`sest_telefon`) | `sest_telef` | Ve formátu `+420XXXXXXXXX` |
+| **E-mail sestavitele** (`sest_email`) | (interní log) | Pro audit — EPO XML ho neukládá |
+| **Funkce / role** (`sest_funkce`) | (interní log) | Volně psané, např. `účetní`, `daňový poradce` |
+
+### Kontaktní údaje pro podání
+
+| Pole v UI | XML atribut | Popis |
+|---|---|---|
+| **E-mail** (`email`) | `email` | Kontakt pro FÚ |
+| **Telefon** (`phone`) | `c_telef` | Ve formátu `+420XXXXXXXXX` |
+
+### Postup podání na EPO portál
+
+1. **Vygeneruj XML** v aplikaci: `Daně → DPH přiznání` (resp. KH/SH), vyber období,
+   klikni **Stáhnout XML**.
+2. **Zkontroluj v textovém editoru**:
+   - **VetaD** — ověř `rok`, `mesic`/`ctvrt`, `typ_platce`, `c_okec`, `d_poddp`
+     (datum podání = dnes)
+   - **VetaP** — ověř `dic`, `c_ufo`, `c_pracufo`, identifikační údaje, adresu
+   - **Veta1/Veta4** — ověř součty `obrat23`/`dan23` (sales), `pln23`/`odp_tuz23_nar`
+     (purchase) proti seznamu faktur za období
+   - **Veta6** — `dano_da` (daň k odvodu) nebo `dano_no` (nadměrný odpočet)
+3. **Přihlas se na [https://adisspr.mfcr.cz/dpr/epo](https://adisspr.mfcr.cz/dpr/epo)** (EPO portál MFČR).
+4. Zvol **DPH přiznání → Nové podání → Nahrát soubor**.
+5. **Nahraj XML** — portál ho zvaliduje vůči XSD a zobrazí náhled. Validace zachytí
+   strukturální chyby (chybějící povinné atributy, špatný formát data, ...).
+6. Pokud validace projde, potvrď **Odeslat**.
+7. **Stáhni si potvrzení** (PDF nebo e-mail). To je tvůj doklad o podání.
+
+> [!TIP]
+> XML soubor lze ručně doupravit v textovém editoru — struktura musí zůstat
+> zachovaná, ale hodnoty atributů můžeš editovat. Užitečné pro hotfix bez
+> přepočtu celé databáze.
+
+### Časté problémy
+
+**EPO odmítne soubor s chybou „neúplná adresa"**
+→ Vyplň `street_number_pop` + `street_number_orient` v Daňovém nastavení.
+Pole `street` se ukládá samostatně, EPO chce všechny tři atributy.
+
+**„Chybí kód finančního úřadu"** warning v náhledu
+→ Vyplň `financial_office_code` v Daňovém nastavení. Bez něj XML neprojde XSD
+validací (`c_ufo` je `use="required"`).
+
+**„Tenant není evidovaný jako plátce DPH"**
+→ V Identifikaci firmy zapni `is_vat_payer = true`. Vyplň DIČ.
+
+**Čísla v Veta1/Veta4 nesedí**
+→ Zkontroluj **VAT klasifikační kódy** na položkách faktur za období. Každý řádek
+musí mít `vat_classification_code` (1/2 pro sales 21/12 %, 40/41 pro purchase,
+23 pro EU pořízení zboží, 5 pro tuzemský RC, atd.). Auto-defaulter to dělá při
+vytvoření faktury — pro starší / importovaná data můžeš spustit backfill v
+`Daně → DPH přiznání → topbar tlačítko **Přemapovat klasifikace**` (od v4.0.5).
+
+**„Aplikace generuje `typ_platce='P'`, ale jsem čtvrtletní plátce"**
+→ V Daňovém nastavení změň `vat_period` na `quarterly`. Pak v UI DPH přiznání
+toggluj na **Kvartálně** a vyber kvartál.
+
+**„Nevím, jaký je můj kód FÚ a pracoviště"**
+→ Podívej se na poslední DPH přiznání, které jsi nahrál na EPO — kódy jsou v
+sekci VetaD/VetaP. Alternativně zavolej na svůj FÚ nebo se podívej na
+[seznam FÚ](https://www.financnisprava.cz/cs/financni-sprava/organy-financni-spravy/uzemni-pracoviste).
+
+**„OKÉČ kód mi vyjde fallback `631000`, ale moje činnost je jiná"**
+→ Vyplň `cz_nace_code` v Daňovém nastavení. Číslo najdeš na živnostenském listě
+nebo v ARES. Builder ho normalizuje (odstraní `CZ-NACE ` prefix, padne na 6
+číslic).
 
 ## DPH přiznání (DPHDP3)
 

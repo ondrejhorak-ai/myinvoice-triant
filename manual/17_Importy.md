@@ -1,8 +1,13 @@
-# 17. Importy (Pohoda XML, ISDOC, PDF/A-3)
+# 17. Importy (Pohoda XML, ISDOC, PDF/A-3, iDoklad API, Fakturoid API)
 
 Pokud máš historické vystavené faktury v jiném systému (Pohoda, iDoklad,
 Fakturoid, Superfaktura nebo jiný fakturační software podporující ISDOC),
 můžeš je do MyInvoice **naimportovat** — nemusíš je opisovat ručně.
+
+Existují dvě cesty:
+
+1. **Soubor upload** (Pohoda XML, ISDOC, PDF/A-3 s embedded ISDOC) — sekce 17.1–17.7
+2. **Přímý API import z iDoklad / Fakturoid** (OAuth2 credentials + background job) — sekce 17.8–17.9
 
 > **Importují se jen tvoje vystavené faktury** (ne přijaté, ne nákupní doklady
 > jiné firmy). Dodavatel ve vstupním souboru se musí shodovat s aktuálně
@@ -125,3 +130,169 @@ ISDOC přílohu". V tom případě:
   editoru, jestli má validní XML a očekávaný root element (`<dat:dataPack>`
   pro Pohodu, `<Invoice>` v ISDOC namespace pro ISDOC). Pro PDF zkontroluj,
   jestli má `.isdoc` přílohu (viz § 17.6).
+
+## 17.8 API import z iDoklad
+
+Alternativa k file uploadu: přímé volání iDoklad API v3 (OAuth2 Client Credentials).
+Vhodné pro většinu dat — táhne **kontakty + vystavené faktury + dobropisy + přijaté
+faktury** najednou, po sekcích a rocích, s dry-run preview a background jobem.
+
+### 17.8.1 Získání API credentials
+
+1. Přihlas se do [iDokladu](https://app.idoklad.cz/).
+2. **Nastavení → API přístup** (nebo **Uživatelský účet → API**).
+3. **Vytvořit nový API klíč** → typ **Client Credentials**.
+4. Zkopíruj:
+   - **Client ID** — identifikátor aplikace
+   - **Client Secret** — tajný klíč (zobrazí se **jen jednou**; uschovej si ho)
+
+### 17.8.2 Nastavení v MyInvoice
+
+`Systém → Externí integrace → iDoklad` (admin only):
+
+| Pole | Popis |
+|---|---|
+| **Client ID** | Vložit z iDokladu |
+| **Client Secret** | Vložit z iDokladu (uloží se šifrovaně AES-256-GCM per supplier) |
+
+Klikni **Uložit** → MyInvoice si **otestuje connection** (token endpoint + ping
+na první sekci). Pokud OAuth2 selže (401), zkontroluj copy-paste (typicky se
+přidá whitespace).
+
+### 17.8.3 Spuštění importu
+
+Na téže stránce, sekce **Spustit import**:
+
+| Pole | Popis |
+|---|---|
+| **Roky** | Range (např. `2020-2025`); můžeš zvolit i jen aktuální + minulý rok |
+| **Sekce** | Zaškrtnout: `contacts` / `invoices` / `credit-notes` / `purchases` |
+| **Dry-run (jen náhled)** | Default ON pro první běh — nepíše nic do DB, jen vypíše co BY udělal |
+
+Klikni **Spustit import**.
+
+### 17.8.4 Co se importuje
+
+| Sekce | Co se vytvoří |
+|---|---|
+| **contacts** | `clients` rows (IČ, name, address, DIČ, email, phone). ARES NEvolá — důvěřuje datům z iDokladu. |
+| **invoices** | `invoices` + `invoice_items` + VAT classification. Status: `paid` nebo `issued` per pravidlo 30 dní (viz § 17.3). |
+| **credit-notes** | `invoices` se `invoice_type='credit_note'` + parent link na původní fakturu (přes `parent_invoice_id`). |
+| **purchases** | `purchase_invoices` + `purchase_invoice_items` (od v3.6.0). Klient → `clients` s `is_vendor=true`. |
+
+**Idempotence:** každý záznam má v DB sloupec `idoklad_id`, který se uloží při
+prvním importu. Druhý import téhož období záznamy **přeskočí** (žádné duplicity,
+žádný update existujících — import je čistě additivní).
+
+## 17.9 API import z Fakturoid
+
+Stejný flow jako iDoklad, jen jiný provider. **Od v4.1.0 podporujeme dvě auth
+metody** — legacy email + API token i nový OAuth2 Client Credentials (issue #31).
+
+### 17.9.1 Získání API credentials
+
+**Nově založené účty (po 2024) — OAuth2:**
+
+1. Přihlas se do [Fakturoidu](https://app.fakturoid.cz/).
+2. **Nastavení → API v3 přístupové údaje**.
+3. **Přidat aplikaci** → zkopíruj **Client ID** + **Client Secret**.
+4. Zjisti **slug účtu** — část URL: `https://app.fakturoid.cz/{slug}/...`,
+   např. `jannovak`.
+
+**Starší účty (před 2024) — legacy:**
+
+1. **Nastavení → API přístup → Osobní API token**.
+2. Zkopíruj **email** + **API token**.
+3. Zjisti **slug** (stejný postup).
+
+### 17.9.2 Nastavení v MyInvoice
+
+`Systém → Externí integrace → Fakturoid`:
+
+Přepínač **Typ autentizace**:
+
+| Typ | Pole |
+|---|---|
+| **OAuth2 (Client Credentials)** — pro nové účty | Slug + Client ID + Client Secret |
+| **Email + API token (legacy)** — pro starší účty | Slug + Email + API token |
+
+Oba způsoby koexistují per-supplier. Pokud má supplier vyplněné oba bloky,
+**OAuth2 má prioritu** (Bearer token).
+
+OAuth2 token MyInvoice cachuje šifrovaně (AES-256-GCM v
+`supplier.fakturoid_access_token_enc`) s TTL ~2h. Při HTTP 401 se token vyhodí
+a obnoví automaticky — uživatel to nemusí řešit.
+
+### 17.9.3 Spuštění importu
+
+Identické s iDoklad (viz § 17.8.3) — vyber roky, sekce, dry-run.
+
+### 17.9.4 Co se importuje
+
+| Sekce | Co se vytvoří |
+|---|---|
+| **contacts** (Fakturoid `subjects`) | `clients` |
+| **invoices** | `invoices` + `invoice_items` + DPH klasifikace |
+| **credit-notes** | `invoices` s `invoice_type='credit_note'` |
+| **purchases** (Fakturoid `expenses`) | `purchase_invoices` |
+
+Fakturoid stránkuje po 40 záznamech — MyInvoice automaticky tahá všechny stránky
+za vybrané roky.
+
+**Idempotence přes `fakturoid_id`** stejně jako u iDokladu.
+
+## 17.10 Dry-run mód
+
+Společný pro iDoklad i Fakturoid. Po zaškrtnutí **Jen náhled (dry-run)** se import
+provede **synchronně** (vrátí výsledek najednou) a **nezapisuje do DB**. Slouží
+k validaci credentials + náhledu dat.
+
+**Příklad výstupu:**
+
+```
+[contacts]    Nalezeno 45 kontaktů — 40 by se vytvořilo, 5 přeskočeno (duplicita)
+[invoices]    Nalezeno 120 faktur — 115 nových, 5 přeskočeno (varsymbol existuje)
+[purchases]   Nalezeno 30 přijatých faktur — 30 nových
+```
+
+Pokud výstup vypadá rozumně, odzaškrtni dry-run a spusť ostrý import.
+
+## 17.11 Background job (ostrý import)
+
+Ostrý import (bez dry-run) běží jako **background worker** přes PHP CLI proces
+(`api/bin/import-worker.php`). Aplikace vrátí `job_id` okamžitě a UI sleduje
+průběh:
+
+1. **Progress bar** se aktualizuje pollingem `GET /api/admin/import-jobs/{id}`
+   (každé 2 sekundy, viz `import_jobs` migrace 0029).
+2. **Detailní log** každého záznamu (sekce, akce, ID v DB / důvod přeskočení).
+3. **Tlačítko Zrušit import** — worker bezpečně dokončí aktuální batch a zastaví
+   se. Status v DB se nastaví na `cancelled`.
+
+**Prevence duplicitních jobů:** stejné parametry (provider + sekce + roky)
+nelze spustit znovu, dokud běží — UI vrátí 409 Conflict s odkazem na běžící job.
+
+## 17.12 Časté problémy API importu
+
+**„Neplatné credentials" / 401 Unauthorized**
+→ Whitespace v copy-pastu Client Secret / API tokenu. Vygeneruj credentials znovu
+a vlož pečlivě (bez okolních mezer / newlines). Test connection v Nastavení by
+měl projít zelený.
+
+**„Slug Fakturoid — kde ho najdu?"**
+→ Z URL po přihlášení: `https://app.fakturoid.cz/jannovak/invoices` → slug je
+`jannovak`. Slug je tvoje subdoména, **ne** company name.
+
+**Import se zasekl / „neodpovídá"**
+→ V UI klikni **Zrušit import**. Pokud nepomůže, restartuj backend kontejner
+(`docker compose restart app`) a spusť znovu. Workers nejsou supervised — po
+restartu spadnou tichá.
+
+**Faktury se importují, ale chybí DPH klasifikace**
+→ V iDoklad/Fakturoid musí mít položky vyplněné členění DPH. Pokud chybí,
+MyInvoice použije auto-default podle sazby (`VatClassificationDefaulter`):
+21 % → `1` (sales) / `40` (purchase), 12 % → `2`/`41`, 0 % → `3`/`42`.
+
+**Kontakty z iDoklad/Fakturoid nemají emaily**
+→ Originální systém je nemá vyplněné. Doplň ručně v `Klienti` po importu —
+jinak nebudou fungovat upomínky.
