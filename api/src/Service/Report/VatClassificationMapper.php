@@ -21,34 +21,102 @@ final class VatClassificationMapper
     ) {}
 
     /**
-     * Monthly DPH trend za posledních N měsíců (default 12). Z crm_monthly_summary
-     * (pre-aggregated, rychlé).
-     *
-     * Filter currency=CZK — DPH přiznání je vždy v CZK; sumovat EUR + CZK by dalo
-     * nesmyslné hodnoty.
+     * Měsíční DPH trend za posledních N měsíců (default 12) — počítáno z VatLedgerService
+     * (stejná logika jako přiznání: klasifikace, CZK přepočet, RC samovyměření). Historie
+     * = finalizované doklady bez draftů. Nahrazuje dřívější crm_monthly_summary (které
+     * navíc filtrovalo jen CZK → cizoměnné DPH chybělo).
      *
      * @return list<array{period:string, vat_output:float, vat_input:float, vat_due:float}>
      */
     public function monthlyDphTrend(int $supplierId, int $monthsBack = 12): array
     {
-        $start = (new \DateTimeImmutable())->modify('-' . $monthsBack . ' months')->format('Y-m');
-        $stmt = $this->db->pdo()->prepare(
-            "SELECT period_ym, vat_output, vat_input
-               FROM crm_monthly_summary
-              WHERE supplier_id = ? AND period_ym >= ? AND currency = 'CZK'
-           ORDER BY period_ym ASC"
-        );
-        $stmt->execute([$supplierId, $start]);
-        return array_map(function ($r) {
-            $out = (float) $r['vat_output'];
-            $in  = (float) $r['vat_input'];
-            return [
-                'period'     => (string) $r['period_ym'],
-                'vat_output' => $out,
-                'vat_input'  => $in,
-                'vat_due'    => $out - $in,
+        $now = new \DateTimeImmutable('first day of this month');
+        $out = [];
+        for ($i = $monthsBack - 1; $i >= 0; $i--) {
+            $m = $now->modify("-{$i} months");
+            $byLine = $this->aggregateForDphPriznani($supplierId, (int) $m->format('Y'), (int) $m->format('n'));
+            $t = $this->dphSummaryTotals($byLine);
+            $out[] = [
+                'period'     => $m->format('Y-m'),
+                'vat_output' => $t['output'],
+                'vat_input'  => $t['input'],
+                'vat_due'    => $t['due'],
             ];
-        }, $stmt->fetchAll(\PDO::FETCH_ASSOC));
+        }
+        return $out;
+    }
+
+    /**
+     * Predikce DPH pro období VČETNĚ konceptů — pro KPI boxy „DPH na výstupu/vstupu/
+     * k odvodu". Stejná (ledger) logika jako přiznání, jen `includeDrafts=true`, plus
+     * počty dokladů a konceptů (informativní). Nahrazuje dřívější inline SQL v akci,
+     * které sčítalo total_vat napřímo (bez RC samovyměření, bez klasifikace).
+     *
+     * @return array{vat_output:float, vat_input:float, tax_due:float, sale_count:int,
+     *   sale_draft_count:int, purchase_count:int, purchase_draft_count:int}
+     */
+    public function predictDph(int $supplierId, int $year, int $month, string $period = 'monthly'): array
+    {
+        [$start, $end] = $this->periodRange($year, $month, $period);
+        $rows = $this->ledger->rows($supplierId, $start, $end, includeDrafts: true);
+        $totals = $this->dphSummaryTotals($this->projectDphLines($rows));
+
+        $saleInv = []; $saleDraft = []; $purInv = []; $purDraft = [];
+        foreach ($rows as $r) {
+            $id = (int) $r['invoice_id'];
+            if ($r['source'] === 'sale') {
+                $saleInv[$id] = true;
+                if ($r['is_draft']) $saleDraft[$id] = true;
+            } else {
+                $purInv[$id] = true;
+                if ($r['is_draft']) $purDraft[$id] = true;
+            }
+        }
+        return [
+            'vat_output'           => $totals['output'],
+            'vat_input'            => $totals['input'],
+            'tax_due'              => $totals['due'],
+            'sale_count'           => count($saleInv),
+            'sale_draft_count'     => count($saleDraft),
+            'purchase_count'       => count($purInv),
+            'purchase_draft_count' => count($purDraft),
+        ];
+    }
+
+    /**
+     * Output/input/vlastní daň z byLine (output = řádky < 40, input = >= 40 mimo ř.47).
+     *
+     * @param array<string, array{base:float, vat:float, count:int, label:string}> $byLine
+     * @return array{output:float, input:float, due:float}
+     */
+    public function dphSummaryTotals(array $byLine): array
+    {
+        $output = 0.0; $input = 0.0;
+        foreach ($byLine as $line => $d) {
+            if ((int) $line < 40) {
+                $output += (float) $d['vat'];
+            } elseif ((int) $line !== 47) {
+                $input += (float) $d['vat'];
+            }
+        }
+        return ['output' => round($output, 2), 'input' => round($input, 2), 'due' => round($output - $input, 2)];
+    }
+
+    /** @return array{0:string, 1:string} [start, end] data rozsahu pro období */
+    private function periodRange(int $year, int $month, string $period): array
+    {
+        if ($period === 'quarterly') {
+            $quarter = (int) ceil($month / 3);
+            $qStartMonth = ($quarter - 1) * 3 + 1;
+            $qEndMonth   = $quarter * 3;
+            $start = sprintf('%04d-%02d-01', $year, $qStartMonth);
+            $end = (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $qEndMonth)))
+                ->modify('last day of this month')->format('Y-m-d');
+        } else {
+            $start = sprintf('%04d-%02d-01', $year, $month);
+            $end = (new \DateTimeImmutable($start))->modify('last day of this month')->format('Y-m-d');
+        }
+        return [$start, $end];
     }
 
 
@@ -67,25 +135,23 @@ final class VatClassificationMapper
      */
     public function aggregateForDphPriznani(int $supplierId, int $year, int $month, string $period = 'monthly'): array
     {
-        // Období (měsíc / kvartál) → rozsah dat.
-        if ($period === 'quarterly') {
-            $quarter = (int) ceil($month / 3);
-            $qStartMonth = ($quarter - 1) * 3 + 1; // 1, 4, 7, 10
-            $qEndMonth   = $quarter * 3;            // 3, 6, 9, 12
-            $start = sprintf('%04d-%02d-01', $year, $qStartMonth);
-            $end = (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $qEndMonth)))
-                ->modify('last day of this month')->format('Y-m-d');
-        } else {
-            $start = sprintf('%04d-%02d-01', $year, $month);
-            $end = (new \DateTimeImmutable($start))->modify('last day of this month')->format('Y-m-d');
-        }
+        [$start, $end] = $this->periodRange($year, $month, $period);
+        return $this->projectDphLines($this->ledger->rows($supplierId, $start, $end, includeDrafts: false));
+    }
 
-        // Projekce kanonických řádků (VatLedgerService) na řádky DPHDP3. Sdílená logika
-        // (klasifikace, CZK, RC samovyměření, rate bucket) žije ve službě; tady jen
-        // agregujeme po dphdp3_line + mirror ř.43 (secondary) + ř.47 (majetek).
+    /**
+     * Projekce kanonických řádků (VatLedgerService) na řádky DPHDP3. Sdílená logika
+     * (klasifikace, CZK, RC samovyměření, rate bucket) žije ve službě; tady jen agregace
+     * po dphdp3_line + mirror ř.43 (secondary) + ř.47 (majetek).
+     *
+     * @param list<array<string,mixed>> $rows
+     * @return array<string, array{base:float, vat:float, count:int, label:string}>
+     */
+    public function projectDphLines(array $rows): array
+    {
         $byLine = [];
         $invoiceLineSeen = []; // per (source:invId) × line → distinct count
-        foreach ($this->ledger->rows($supplierId, $start, $end, includeDrafts: false) as $r) {
+        foreach ($rows as $r) {
             $primary = $r['dphdp3_line'];
             if ($r['code'] === null || $primary === null) continue; // bez řádku DPHDP3 → přeskoč
 

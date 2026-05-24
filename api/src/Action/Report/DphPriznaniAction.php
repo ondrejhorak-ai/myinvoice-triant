@@ -102,84 +102,15 @@ final class DphPriznaniAction
             if (!in_array($period, ['monthly', 'quarterly'], true)) $period = 'monthly';
         }
 
-        if ($period === 'quarterly') {
-            $quarter = (int) ceil($month / 3);
-            $startMonth = ($quarter - 1) * 3 + 1;
-            $endMonth   = $quarter * 3;
-            $start = sprintf('%04d-%02d-01', $year, $startMonth);
-            $end = (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $endMonth)))
-                ->modify('last day of this month')->format('Y-m-d');
-        } else {
-            $start = sprintf('%04d-%02d-01', $year, $month);
-            $end = (new \DateTimeImmutable($start))->modify('last day of this month')->format('Y-m-d');
-        }
+        // Predikce přes VatLedgerService (includeDrafts=true) — stejná logika jako
+        // přiznání (klasifikace, CZK, RC samovyměření), jen vč. konceptů. Dříve tu bylo
+        // vlastní inline SQL sčítající total_vat napřímo (bez RC samovyměření).
+        $prediction = $this->mapper->predictDph($supplierId, $year, $month, $period);
 
-        // Multi-currency fix: drafty často nemají exchange_rate (applier ho aplikuje až
-        // při issue), tak EUR draft byl počítán 1:1 jako CZK. Pro non-CZK řádky bez rate
-        // dohledat nejbližší CNB kurz z `exchange_rates` cache k DUZP (fallback 1
-        // pokud cache prázdná — old behavior, nevadí).
-        $rateCzk =
-            "CASE WHEN cur.code = 'CZK' THEN 1
-                  WHEN i.exchange_rate IS NOT NULL THEN i.exchange_rate
-                  ELSE COALESCE((
-                        SELECT er.rate FROM exchange_rates er
-                         WHERE er.currency_code = cur.code
-                           AND er.rate_date <= COALESCE(i.tax_date, i.issue_date)
-                      ORDER BY er.rate_date DESC LIMIT 1
-                  ), 1)
-             END";
-        $saleStmt = $pdo->prepare(
-            "SELECT COALESCE(SUM(i.total_vat * $rateCzk), 0) AS vat,
-                    COUNT(*) AS cnt,
-                    SUM(CASE WHEN i.status = 'draft' THEN 1 ELSE 0 END) AS draft_cnt
-               FROM invoices i
-               JOIN currencies cur ON cur.id = i.currency_id
-              WHERE i.supplier_id = ?
-                AND i.status <> 'cancelled'
-                AND i.invoice_type IN ('invoice', 'credit_note')
-                AND COALESCE(i.tax_date, i.issue_date) BETWEEN ? AND ?"
-        );
-        $saleStmt->execute([$supplierId, $start, $end]);
-        $sale = $saleStmt->fetch(\PDO::FETCH_ASSOC) ?: ['vat' => 0, 'cnt' => 0, 'draft_cnt' => 0];
-
-        $rateCzkPi =
-            "CASE WHEN cur.code = 'CZK' THEN 1
-                  WHEN pi.exchange_rate IS NOT NULL THEN pi.exchange_rate
-                  ELSE COALESCE((
-                        SELECT er.rate FROM exchange_rates er
-                         WHERE er.currency_code = cur.code
-                           AND er.rate_date <= COALESCE(pi.tax_date, pi.issue_date)
-                      ORDER BY er.rate_date DESC LIMIT 1
-                  ), 1)
-             END";
-        $purchaseStmt = $pdo->prepare(
-            "SELECT COALESCE(SUM(pi.total_vat * $rateCzkPi), 0) AS vat,
-                    COUNT(*) AS cnt,
-                    SUM(CASE WHEN pi.status = 'draft' THEN 1 ELSE 0 END) AS draft_cnt
-               FROM purchase_invoices pi
-               JOIN currencies cur ON cur.id = pi.currency_id
-              WHERE pi.supplier_id = ?
-                AND pi.status <> 'cancelled'
-                AND COALESCE(pi.tax_date, pi.issue_date) BETWEEN ? AND ?"
-        );
-        $purchaseStmt->execute([$supplierId, $start, $end]);
-        $purchase = $purchaseStmt->fetch(\PDO::FETCH_ASSOC) ?: ['vat' => 0, 'cnt' => 0, 'draft_cnt' => 0];
-
-        $vatOutput = (float) $sale['vat'];
-        $vatInput  = (float) $purchase['vat'];
-
-        return Json::ok($response, [
-            'year'                 => $year,
-            'month'                => $month,
-            'period'               => $period,
-            'vat_output'           => $vatOutput,
-            'vat_input'            => $vatInput,
-            'tax_due'              => $vatOutput - $vatInput,
-            'sale_count'           => (int) $sale['cnt'],
-            'sale_draft_count'     => (int) $sale['draft_cnt'],
-            'purchase_count'       => (int) $purchase['cnt'],
-            'purchase_draft_count' => (int) $purchase['draft_cnt'],
-        ]);
+        return Json::ok($response, array_merge(
+            ['year' => $year, 'month' => $month, 'period' => $period],
+            $prediction,
+        ));
     }
 
     /**
