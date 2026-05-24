@@ -73,6 +73,7 @@ final class EmailOtpServiceTest extends TestCase
         if (isset($this->db) && $this->userId > 0) {
             $this->cleanup();
         }
+        if (isset($this->db)) $this->db->close(); // uvolni MySQL spojení (kumulace → max_connections)
     }
 
     private function cleanup(): void

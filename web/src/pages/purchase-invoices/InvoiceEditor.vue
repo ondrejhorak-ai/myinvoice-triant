@@ -341,6 +341,13 @@ function itemTotal(it: PurchaseInvoiceItem) {
 }
 function round2(n: number) { return Math.round(n * 100) / 100 }
 
+// Popisek sazby — odliš dvě 0% sazby (osvobozeno vs. přenesená DPH), jako u vydané faktury.
+function vatRateLabel(r: VatRate): string {
+  if (Number(r.rate_percent) > 0) return `${r.rate_percent} %`
+  if (r.is_reverse_charge) return t('invoice.vat_rate_label.reverse_charge')
+  return t('invoice.vat_rate_label.exempt')
+}
+
 const totals = computed(() => {
   let base = 0, vat = 0
   for (const it of form.value.items) {
@@ -770,7 +777,7 @@ function fieldErr(key: string): string | null {
               </td>
               <td class="py-2 px-1">
                 <select v-model.number="it.vat_rate_id" class="w-full h-9 px-1 border border-neutral-200 rounded bg-white text-sm">
-                  <option v-for="v in vatRates" :key="v.id" :value="v.id">{{ v.rate_percent }}%</option>
+                  <option v-for="v in vatRates" :key="v.id" :value="v.id">{{ vatRateLabel(v) }}</option>
                 </select>
               </td>
               <td class="py-2 px-1 text-right font-mono">{{ formatMoney(itemTotal(it).with, currencyCode) }}</td>

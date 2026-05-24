@@ -48,6 +48,7 @@ final class ApiTokenServiceTest extends TestCase
             $this->db->pdo()->prepare('DELETE FROM api_tokens WHERE user_id = ? AND name LIKE ?')
                 ->execute([$this->userId, '__test_%']);
         }
+        if (isset($this->db)) $this->db->close(); // uvolni MySQL spojení (kumulace → max_connections)
     }
 
     public function testGenerateReturnsPrefixedPlaintext(): void

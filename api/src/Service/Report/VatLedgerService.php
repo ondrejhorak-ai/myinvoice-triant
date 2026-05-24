@@ -119,6 +119,7 @@ final class VatLedgerService
                AND {$statusFilter}
                AND i.invoice_type != 'proforma'
                AND COALESCE(i.tax_date, i.issue_date) BETWEEN ? AND ?
+          ORDER BY COALESCE(i.tax_date, i.issue_date), i.id, ii.id
         ");
         $stmt->execute([$supplierId, $start, $end]);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -158,6 +159,7 @@ final class VatLedgerService
              WHERE pi.supplier_id = ?
                AND {$statusFilter}
                AND COALESCE(pi.tax_date, pi.issue_date) BETWEEN ? AND ?
+          ORDER BY COALESCE(pi.tax_date, pi.issue_date), pi.id, pii.id
         ");
         $stmt->execute([$supplierId, $start, $end]);
         return $stmt->fetchAll(\PDO::FETCH_ASSOC);
