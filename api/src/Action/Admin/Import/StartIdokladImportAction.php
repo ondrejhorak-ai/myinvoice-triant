@@ -55,6 +55,9 @@ final class StartIdokladImportAction
                 'iDoklad credentials nejsou nastaveny. Nastav je v Nastavení → Externí integrace.', 400);
         }
 
+        // Ukliď zaseknuté joby (mrtvý worker), jinak by navždy blokovaly nový start.
+        $this->jobs->reapStale($supplierId, 'idoklad');
+
         // Anti-double-import: již běžící job?
         foreach ($this->jobs->listForTenant($supplierId, 'idoklad', limit: 5) as $existing) {
             if (in_array($existing['status'], ['queued', 'running'], true)) {
@@ -103,8 +106,12 @@ final class StartIdokladImportAction
         $rootDir = dirname(__DIR__, 4);
         $workerPath = $rootDir . '/api/bin/import-worker.php';
         $logFile = $rootDir . '/log/import-worker.log';
+        // CLI php, ne holé "php" — pod IIS/FastCGI php není na PATH a worker by
+        // se tiše nespustil (job by zůstal navždy "queued"). Viz PhpCliLocator.
+        $php = \MyInvoice\Service\PhpCliLocator::resolve() ?? 'php';
         $cmd = sprintf(
-            'php "%s" --job-id=%d',
+            '"%s" "%s" --job-id=%d',
+            $php,
             $workerPath,
             $jobId,
         );

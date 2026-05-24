@@ -362,7 +362,15 @@ final class FakturoidClient
                 'http_code'   => $code,
                 'body'        => substr($body, 0, 500),
             ]);
-            throw new \RuntimeException("Fakturoid OAuth2 token request failed (HTTP {$code}): " . substr($body, 0, 200));
+            // invalid_client = nejčastěji špatný ZDROJ credentials: Fakturoid v3 rozlišuje
+            // "Client Credentials Flow" (Nastavení → Uživatelský profil → API v3 přístupové
+            // údaje — tohle používáme) a "Authorization Code Flow" (OAuth integrace). Credentials
+            // ze stránky OAuth integrací s grant_type=client_credentials Fakturoid odmítne.
+            $hint = str_contains($body, 'invalid_client')
+                ? ' — Zkontroluj, že Client ID i Secret pocházejí z "Nastavení → Uživatelský profil →'
+                  . ' API v3 přístupové údaje" (Client Credentials Flow), NE ze stránky OAuth integrací.'
+                : '';
+            throw new \RuntimeException("Fakturoid OAuth2 token request failed (HTTP {$code}): " . substr($body, 0, 200) . $hint);
         }
         $data = json_decode($body, true);
         if (!is_array($data) || empty($data['access_token'])) {

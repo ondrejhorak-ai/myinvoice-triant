@@ -47,6 +47,9 @@ final class StartFakturoidImportAction
                 'Fakturoid credentials nejsou nastaveny.', 400);
         }
 
+        // Ukliď zaseknuté joby (mrtvý worker), jinak by navždy blokovaly nový start.
+        $this->jobs->reapStale($supplierId, 'fakturoid');
+
         foreach ($this->jobs->listForTenant($supplierId, 'fakturoid', limit: 5) as $existing) {
             if (in_array($existing['status'], ['queued', 'running'], true)) {
                 return Json::error($response, 'already_running',
@@ -81,7 +84,10 @@ final class StartFakturoidImportAction
         $rootDir = dirname(__DIR__, 4);
         $workerPath = $rootDir . '/api/bin/import-worker.php';
         $logFile = $rootDir . '/log/import-worker.log';
-        $cmd = sprintf('php "%s" --job-id=%d', $workerPath, $jobId);
+        // CLI php, ne holé "php" — pod IIS/FastCGI php není na PATH a worker by
+        // se tiše nespustil (job by zůstal navždy "queued"). Viz PhpCliLocator.
+        $php = \MyInvoice\Service\PhpCliLocator::resolve() ?? 'php';
+        $cmd = sprintf('"%s" "%s" --job-id=%d', $php, $workerPath, $jobId);
         if (DIRECTORY_SEPARATOR === '\\') {
             $fullCmd = "cmd /c start /b \"\" {$cmd} >> \"{$logFile}\" 2>&1";
             pclose(popen($fullCmd, 'r'));

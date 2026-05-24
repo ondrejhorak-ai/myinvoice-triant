@@ -16,7 +16,37 @@ use PDO;
  */
 final class ImportJobRepository
 {
+    /** Po této době nečinnosti (updated_at) považujeme queued/running job za mrtvý. */
+    private const STALE_MINUTES = 15;
+
     public function __construct(private readonly Connection $db) {}
+
+    /**
+     * Označí "zaseknuté" joby jako failed — queued/running, jejichž worker už
+     * neodpovídá (updated_at starší než STALE_MINUTES). Worker při každém kroku
+     * touchne updated_at (progress/log), takže zmrzlý updated_at = mrtvý worker
+     * (typicky selhal spawn na Windows, nebo proces spadl). Bez tohohle by mrtvý
+     * job navždy blokoval spuštění nového (StartImportAction → "už běží").
+     *
+     * @return int počet uklizených jobů
+     */
+    public function reapStale(int $supplierId, ?string $source = null, int $staleMinutes = self::STALE_MINUTES): int
+    {
+        $sql = 'UPDATE import_jobs
+                   SET status = "failed", finished_at = NOW(),
+                       last_error = "Job ukončen jako neaktivní — worker neodpovídá (timeout). Spusť import znovu."
+                 WHERE supplier_id = ?
+                   AND status IN ("queued", "running")
+                   AND updated_at < (NOW() - INTERVAL ? MINUTE)';
+        $params = [$supplierId, $staleMinutes];
+        if ($source !== null) {
+            $sql .= ' AND source = ?';
+            $params[] = $source;
+        }
+        $stmt = $this->db->pdo()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->rowCount();
+    }
 
     /**
      * Vytvoří nový job se status='queued'.
@@ -161,16 +191,35 @@ final class ImportJobRepository
     }
 
     /**
-     * Request cancellation (worker periodicky checkuje flag a graceful exit).
+     * Request cancellation.
+     *
+     * - **queued** (worker ještě nenaběhl) nebo **running se zmrzlým workerem**
+     *   (updated_at starší než STALE_MINUTES) → rovnou `cancelled`. Tím se uvolní
+     *   patová situace, kdy mrtvý job blokuje nový start a graceful cancel nikdo
+     *   nepřečte (worker neběží).
+     * - **aktivně running** (čerstvý updated_at) → jen `cancel_requested=1`, worker
+     *   si flag periodicky přečte a graceful skončí.
      */
     public function requestCancel(int $id, int $supplierId): bool
     {
-        $stmt = $this->db->pdo()->prepare(
-            'UPDATE import_jobs SET cancel_requested = 1
-              WHERE id = ? AND supplier_id = ? AND status IN ("queued", "running")'
+        // Okamžité zrušení pro queued / stale running (žádný živý worker).
+        $immediate = $this->db->pdo()->prepare(
+            'UPDATE import_jobs
+                SET status = "cancelled", finished_at = NOW(), cancel_requested = 1
+              WHERE id = ? AND supplier_id = ?
+                AND (status = "queued"
+                     OR (status = "running" AND updated_at < (NOW() - INTERVAL ? MINUTE)))'
         );
-        $stmt->execute([$id, $supplierId]);
-        return $stmt->rowCount() === 1;
+        $immediate->execute([$id, $supplierId, self::STALE_MINUTES]);
+        if ($immediate->rowCount() === 1) return true;
+
+        // Graceful pro aktivně běžící worker.
+        $graceful = $this->db->pdo()->prepare(
+            'UPDATE import_jobs SET cancel_requested = 1
+              WHERE id = ? AND supplier_id = ? AND status = "running"'
+        );
+        $graceful->execute([$id, $supplierId]);
+        return $graceful->rowCount() === 1;
     }
 
     /**

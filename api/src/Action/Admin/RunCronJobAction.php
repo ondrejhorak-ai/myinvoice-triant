@@ -97,49 +97,12 @@ final class RunCronJobAction
     }
 
     /**
-     * Pod IIS FastCGI je PHP_BINARY = php-cgi.exe. CLI skripty s `if (PHP_SAPI !== 'cli') exit;`
-     * v takovém prostředí tiše končí. Najdeme tedy `php.exe` ve stejné složce.
+     * Pod IIS FastCGI je PHP_BINARY = php-cgi.exe. CLI skripty v takovém prostředí
+     * tiše končí. Sdílená logika ve PhpCliLocator (používá i import worker spawn).
      */
     private function resolveCliPhpBinary(): ?string
     {
-        $candidates = [];
-        $b = PHP_BINARY;
-        if ($b !== '') {
-            $candidates[] = $b;
-            $dir = dirname($b);
-            if (PHP_OS_FAMILY === 'Windows') {
-                $candidates[] = $dir . DIRECTORY_SEPARATOR . 'php.exe';
-            } else {
-                $candidates[] = $dir . DIRECTORY_SEPARATOR . 'php';
-            }
-        }
-        if (PHP_OS_FAMILY === 'Windows') {
-            $candidates[] = 'C:\\inetpub\\php\\php.exe';
-            $candidates[] = 'C:\\Program Files\\PHP\\php.exe';
-            $candidates[] = 'php.exe';
-        } else {
-            $candidates[] = '/usr/bin/php';
-            $candidates[] = '/usr/local/bin/php';
-            $candidates[] = 'php';
-        }
-
-        foreach ($candidates as $c) {
-            $name = strtolower(basename($c));
-            // Vyhneme se php-cgi.exe / php-win.exe / phpdbg.exe — chceme jen CLI.
-            if ($name === 'php-cgi.exe' || $name === 'php-cgi' || $name === 'php-win.exe' || str_starts_with($name, 'phpdbg')) {
-                continue;
-            }
-            if (str_contains($c, DIRECTORY_SEPARATOR) || str_contains($c, '/')) {
-                if (is_file($c)) {
-                    return $c;
-                }
-            } else {
-                // PATH lookup — necháme to OS, vrátíme jak je.
-                return $c;
-            }
-        }
-
-        return null;
+        return \MyInvoice\Service\PhpCliLocator::resolve();
     }
 
     private function logPath(string $script): string
