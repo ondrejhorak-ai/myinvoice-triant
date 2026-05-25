@@ -135,12 +135,12 @@ async function onFileSelected(e: Event) {
         <p class="text-sm text-neutral-500 mt-0.5">{{ t('bank.subtitle') }}</p>
       </div>
       <div class="flex items-center gap-2">
-        <button @click="onScan" :disabled="scanning"
+        <button v-if="authStore.canWrite" @click="onScan" :disabled="scanning"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-primary-500/40 text-primary-700 hover:bg-primary-50 disabled:opacity-50 text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15"/></svg>
           {{ scanning ? '…' : t('bank.scan_folder') }}
         </button>
-        <label class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md">
+        <label v-if="authStore.canWrite" class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
           {{ uploading ? '…' : t('bank.upload_gpc') }}
           <input type="file" accept=".gpc,.txt,*/*" multiple class="hidden" @change="onFileSelected" />

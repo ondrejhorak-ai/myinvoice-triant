@@ -26,8 +26,8 @@ final class TaxSubmissionAction
     public function list(Request $request, Response $response): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
         $supplierId = SupplierGuard::currentId($request);
         $rows = $this->repo->list($supplierId);
@@ -37,8 +37,8 @@ final class TaxSubmissionAction
     public function detail(Request $request, Response $response, array $args): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
         $supplierId = SupplierGuard::currentId($request);
         $row = $this->repo->find((int) ($args['id'] ?? 0), $supplierId);
@@ -49,8 +49,8 @@ final class TaxSubmissionAction
     public function downloadXml(Request $request, Response $response, array $args): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
         $supplierId = SupplierGuard::currentId($request);
         $row = $this->repo->find((int) ($args['id'] ?? 0), $supplierId);

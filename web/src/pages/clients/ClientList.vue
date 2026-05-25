@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import { clientsApi, type Client } from '@/api/clients'
 import { formatMoney, formatDate } from '@/composables/useFormat'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
@@ -10,6 +11,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 type RoleFilter = 'all' | 'customers' | 'vendors'
 
 const { t } = useI18n()
+const auth = useAuthStore()
 
 const router = useRouter()
 const items = ref<Client[]>([])
@@ -94,6 +96,7 @@ function openClient(c: Client) {
     <div class="flex items-center justify-between mb-4">
       <h1 class="text-2xl font-semibold">{{ roleFilter === 'vendors' ? t('client.title_vendors') : t('client.title') }}</h1>
       <RouterLink
+        v-if="auth.canWrite"
         :to="roleFilter === 'vendors' ? '/clients/new?role=vendor' : '/clients/new'"
         class="inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md"
       >

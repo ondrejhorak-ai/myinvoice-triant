@@ -268,7 +268,7 @@ onMounted(loadAll)
             ⚡ {{ t('crm.action_items.title') }}
             <span class="ml-2 px-1.5 py-0.5 bg-primary-600 text-white rounded text-xs">{{ actionItems.total }}</span>
           </h3>
-          <button v-if="actionItems.dismissed_count > 0" type="button" @click="restoreAllDismissed"
+          <button v-if="actionItems.dismissed_count > 0 && auth.canWrite" type="button" @click="restoreAllDismissed"
             class="text-xs text-neutral-500 hover:text-primary-600 underline decoration-dotted">
             {{ t('crm.action_items.restore_n', { n: actionItems.dismissed_count }) }}
           </button>
@@ -289,12 +289,12 @@ onMounted(loadAll)
               <RouterLink :to="item.link" class="text-neutral-400 hover:text-neutral-600 p-1" :title="t('crm.action_items.go_to')">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
               </RouterLink>
-              <button type="button" @click.stop="toggleMenu(idx)"
+              <button v-if="auth.canWrite" type="button" @click.stop="toggleMenu(idx)"
                 class="text-neutral-400 hover:text-neutral-700 p-1 rounded hover:bg-neutral-100"
                 :title="t('crm.action_items.dismiss')">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm0 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
               </button>
-              <div v-if="openMenuIdx === idx"
+              <div v-if="(openMenuIdx === idx) && auth.canWrite"
                 class="absolute right-3 top-12 z-20 bg-white border border-neutral-200 rounded-md shadow-lg py-1 w-[280px]"
                 @click.stop>
                 <div class="px-3 py-1.5 text-xs uppercase tracking-wide text-neutral-500 font-semibold border-b border-neutral-100">
@@ -332,7 +332,7 @@ onMounted(loadAll)
         <span class="text-neutral-500">
           {{ t('crm.action_items.all_clear_n_hidden', { n: actionItems.dismissed_count }) }}
         </span>
-        <button type="button" @click="restoreAllDismissed"
+        <button v-if="auth.canWrite" type="button" @click="restoreAllDismissed"
           class="text-xs text-primary-600 hover:text-primary-700 underline decoration-dotted">
           {{ t('crm.action_items.restore_n', { n: actionItems.dismissed_count }) }}
         </button>

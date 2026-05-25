@@ -45,8 +45,9 @@ final class ExportPurchaseInvoicesAction
     public function __invoke(Request $request, Response $response): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        // readonly smí exportovat data (čtení), jen nesmí nic měnit
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
 
         $q = $request->getQueryParams();

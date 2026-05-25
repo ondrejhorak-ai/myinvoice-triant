@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import {
   purchaseInvoicesApi,
   type PurchaseMonthGroup,
@@ -18,6 +19,7 @@ import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
 const { t, locale } = useI18n()
+const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
@@ -320,35 +322,35 @@ async function bulkDelete() {
 
       <div class="flex items-center gap-2 flex-wrap">
         <!-- Bulk actions — viditelné jen pokud něco vybráno -->
-        <button v-if="markReceivedSelected.length > 0"
+        <button v-if="(markReceivedSelected.length > 0) && auth.canWrite"
           @click="bulkTransition('received', markReceivedSelected)"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-primary-500 text-primary-700 hover:bg-primary-50 disabled:opacity-50 text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"/></svg>
           {{ bulkBusy ? '…' : t('purchase_invoice.bulk.mark_received', { n: markReceivedSelected.length }) }}
         </button>
-        <button v-if="markBookableSelected.length > 0"
+        <button v-if="(markBookableSelected.length > 0) && auth.canWrite"
           @click="bulkTransition('booked', markBookableSelected)"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-warning-500 text-warning-600 hover:bg-warning-50 disabled:opacity-50 text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
           {{ bulkBusy ? '…' : t('purchase_invoice.bulk.mark_booked', { n: markBookableSelected.length }) }}
         </button>
-        <button v-if="markPayableSelected.length > 0"
+        <button v-if="(markPayableSelected.length > 0) && auth.canWrite"
           @click="bulkTransition('paid', markPayableSelected)"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-success-500 text-success-600 hover:bg-success-50 disabled:opacity-50 text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
           {{ bulkBusy ? '…' : t('purchase_invoice.bulk.mark_paid', { n: markPayableSelected.length }) }}
         </button>
-        <button v-if="cancellableSelected.length > 0"
+        <button v-if="(cancellableSelected.length > 0) && auth.canWrite"
           @click="bulkTransition('cancelled', cancellableSelected)"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-danger-500/50 text-danger-500 hover:bg-danger-50 disabled:opacity-50 text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           {{ bulkBusy ? '…' : t('purchase_invoice.bulk.cancel', { n: cancellableSelected.length }) }}
         </button>
-        <button v-if="draftsSelected.length > 0"
+        <button v-if="(draftsSelected.length > 0) && auth.canWrite"
           @click="bulkDelete"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-danger-500/50 text-danger-500 hover:bg-danger-50 disabled:opacity-50 text-sm font-medium rounded-md">
@@ -357,6 +359,7 @@ async function bulkDelete() {
         </button>
 
         <RouterLink
+          v-if="auth.canWrite"
           to="/purchase-invoices/new"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md"
         >

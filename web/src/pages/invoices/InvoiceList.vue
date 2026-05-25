@@ -6,6 +6,7 @@ import { formatMoney, formatDate, formatMonth, statusLabel, typeLabel, statusBad
 import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 import { clientsApi, type Client } from '@/api/clients'
 import { codebooksApi, type Currency } from '@/api/codebooks'
 import { useYearOptions } from '@/composables/useYearOptions'
@@ -16,6 +17,7 @@ import WorkReportModal from '@/components/modals/WorkReportModal.vue'
 
 const { t, tm, rt } = useI18n()
 const toast = useToast()
+const auth = useAuthStore()
 
 useHotkey('ctrl+n', (e) => { e.preventDefault(); router.push('/invoices/new') })
 
@@ -448,35 +450,35 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
         <p class="text-sm text-neutral-500 mt-0.5">{{ t('invoice.subtitle_grouping') }}</p>
       </div>
       <div class="flex items-center gap-2">
-        <button v-if="issuableSelected.length > 0"
+        <button v-if="(issuableSelected.length > 0) && auth.canWrite"
           @click="bulkIssue"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
           {{ bulkBusy ? '…' : t('invoice.bulk_issue', { n: issuableSelected.length }) }}
         </button>
-        <button v-if="selectedIds.length > 0"
+        <button v-if="(selectedIds.length > 0) && auth.canWrite"
           @click="bulkReissue"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-primary-500 text-primary-700 hover:bg-primary-50 disabled:opacity-50 text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2m-6 12h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
           {{ bulkBusy ? '…' : t('invoice.bulk_reissue', { n: selectedIds.length }) }}
         </button>
-        <button v-if="markPayableSelected.length > 0"
+        <button v-if="(markPayableSelected.length > 0) && auth.canWrite"
           @click="bulkMarkPaid"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-success-500 text-success-600 hover:bg-success-50 disabled:opacity-50 text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
           {{ bulkBusy ? '…' : t('invoice.bulk_mark_paid', { n: markPayableSelected.length }) }}
         </button>
-        <button v-if="sendableSelected.length > 0"
+        <button v-if="(sendableSelected.length > 0) && auth.canWrite"
           @click="bulkSend"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-medium rounded-md">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
           {{ bulkBusy ? '…' : t('invoice.bulk_send', { n: sendableSelected.length }) }}
         </button>
-        <button v-if="reminderSelected.length > 0"
+        <button v-if="(reminderSelected.length > 0) && auth.canWrite"
           @click="bulkSendReminders"
           :disabled="bulkBusy"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-warning-500 hover:bg-warning-600 disabled:opacity-50 text-white text-sm font-medium rounded-md">
@@ -484,6 +486,7 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
           {{ bulkBusy ? '…' : t('invoice.bulk_reminder', { n: reminderSelected.length }) }}
         </button>
         <RouterLink
+          v-if="auth.canWrite"
           to="/invoices/new"
           class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md"
         >

@@ -10,10 +10,12 @@ import { apiErrorMessage } from '@/api/errors'
 import VendorPicker from '@/components/purchase/VendorPicker.vue'
 import ClientFormModal from '@/components/modals/ClientFormModal.vue'
 import type { Client } from '@/api/clients'
+import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
 const toast = useToast()
 const router = useRouter()
+const auth = useAuthStore()
 
 const route = useRoute()
 const statement = ref<BankStatementDetail | null>(null)
@@ -221,7 +223,7 @@ async function rematchStatement() {
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
             {{ t('bank.download') }}
           </a>
-          <button type="button" @click="rematchStatement" :disabled="rematching"
+          <button v-if="auth.canWrite" type="button" @click="rematchStatement" :disabled="rematching"
             class="cursor-pointer h-8 px-3 text-xs border border-primary-500/40 text-primary-700 hover:bg-primary-50 disabled:opacity-50 rounded-md font-medium inline-flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5" :class="{ 'animate-spin': rematching }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15" />
@@ -278,19 +280,19 @@ async function rematchStatement() {
                 class="text-primary-600 hover:text-primary-700 mr-2">{{ t('bank.open') }}</RouterLink>
               <RouterLink v-else-if="tx.matched_purchase_invoice_id" :to="`/purchase-invoices/${tx.matched_purchase_invoice_id}`"
                 class="text-primary-600 hover:text-primary-700 mr-2">{{ t('bank.open') }}</RouterLink>
-              <button v-if="tx.amount < 0 && tx.match_status === 'unmatched'" @click="openCreate(tx)"
+              <button v-if="(tx.amount < 0 && tx.match_status === 'unmatched') && auth.canWrite" @click="openCreate(tx)"
                 class="cursor-pointer text-primary-600 hover:text-primary-700 mr-2">
                 {{ t('bank.create_purchase') }}
               </button>
-              <button v-if="tx.match_status === 'unmatched' || tx.match_status === 'auto_partial'"
+              <button v-if="(tx.match_status === 'unmatched' || tx.match_status === 'auto_partial') && auth.canWrite"
                 @click="startMatch(tx)" class="cursor-pointer text-primary-600 hover:text-primary-700 mr-2">
                 {{ t('bank.match') }}
               </button>
-              <button v-if="tx.match_status === 'unmatched'" @click="ignoreTx(tx)"
+              <button v-if="(tx.match_status === 'unmatched') && auth.canWrite" @click="ignoreTx(tx)"
                 class="cursor-pointer text-neutral-500 hover:text-neutral-700">
                 {{ t('bank.ignore') }}
               </button>
-              <button v-if="['auto_exact','auto_partial','manual','ignored'].includes(tx.match_status)"
+              <button v-if="(['auto_exact','auto_partial','manual','ignored'].includes(tx.match_status)) && auth.canWrite"
                 @click="unmatchTx(tx)" class="cursor-pointer text-neutral-500 hover:text-danger-600">
                 {{ t('bank.unmatch') }}
               </button>
@@ -342,20 +344,20 @@ async function rematchStatement() {
               class="flex-1 h-9 inline-flex items-center justify-center text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded-md">
               {{ t('bank.open') }}
             </RouterLink>
-            <button v-if="tx.amount < 0 && tx.match_status === 'unmatched'" @click="openCreate(tx)"
+            <button v-if="(tx.amount < 0 && tx.match_status === 'unmatched') && auth.canWrite" @click="openCreate(tx)"
               class="cursor-pointer flex-1 h-9 text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 font-medium rounded-md">
               {{ t('bank.create_purchase') }}
             </button>
-            <button v-if="tx.match_status === 'unmatched' || tx.match_status === 'auto_partial'"
+            <button v-if="(tx.match_status === 'unmatched' || tx.match_status === 'auto_partial') && auth.canWrite"
               @click="startMatch(tx)"
               class="cursor-pointer flex-1 h-9 text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 font-medium rounded-md">
               {{ t('bank.match') }}
             </button>
-            <button v-if="tx.match_status === 'unmatched'" @click="ignoreTx(tx)"
+            <button v-if="(tx.match_status === 'unmatched') && auth.canWrite" @click="ignoreTx(tx)"
               class="cursor-pointer flex-1 h-9 text-sm border border-neutral-300 text-neutral-600 hover:bg-neutral-50 rounded-md">
               {{ t('bank.ignore') }}
             </button>
-            <button v-if="['auto_exact','auto_partial','manual','ignored'].includes(tx.match_status)"
+            <button v-if="(['auto_exact','auto_partial','manual','ignored'].includes(tx.match_status)) && auth.canWrite"
               @click="unmatchTx(tx)"
               class="cursor-pointer flex-1 h-9 text-sm border border-neutral-300 text-neutral-600 hover:bg-danger-50 hover:text-danger-600 rounded-md">
               {{ t('bank.unmatch') }}

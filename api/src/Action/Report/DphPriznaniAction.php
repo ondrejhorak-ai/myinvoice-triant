@@ -42,8 +42,8 @@ final class DphPriznaniAction
     public function settings(Request $request, Response $response): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
         $supplierId = SupplierGuard::currentId($request);
         $stmt = $this->db->pdo()->prepare(
@@ -82,8 +82,8 @@ final class DphPriznaniAction
     public function draftsPrediction(Request $request, Response $response): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
         $supplierId = SupplierGuard::currentId($request);
         $pdo = $this->db->pdo();
@@ -120,8 +120,8 @@ final class DphPriznaniAction
     public function trend(Request $request, Response $response): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
         $supplierId = SupplierGuard::currentId($request);
         $months = max(1, min(36, (int) ($request->getQueryParams()['months'] ?? 12)));
@@ -131,8 +131,8 @@ final class DphPriznaniAction
     public function preview(Request $request, Response $response): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
         $supplierId = SupplierGuard::currentId($request);
         $q = $request->getQueryParams();
@@ -159,8 +159,8 @@ final class DphPriznaniAction
     public function download(Request $request, Response $response): Response
     {
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
-        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant'], true)) {
-            return Json::error($response, 'forbidden', 'Pouze admin nebo účetní.', 403);
+        if (!in_array(($user['role'] ?? ''), ['admin', 'accountant', 'readonly'], true)) {
+            return Json::error($response, 'forbidden', 'Nemáš oprávnění.', 403);
         }
         $supplierId = SupplierGuard::currentId($request);
         $q = $request->getQueryParams();

@@ -10,9 +10,11 @@ import { formatMoney, formatDate, statusLabel, typeLabel, statusBadgeClass, isOv
 import MonthlyRevenueChart from '@/components/charts/MonthlyRevenueChart.vue'
 import TopProjectsBarChart from '@/components/charts/TopProjectsBarChart.vue'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
 const toast = useToast()
+const auth = useAuthStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -294,22 +296,22 @@ async function deleteClient() {
         </div>
       </div>
       <div class="flex flex-wrap gap-2 md:justify-end">
-        <RouterLink :to="`/clients/${client.id}/edit`"
+        <RouterLink v-if="auth.canWrite" :to="`/clients/${client.id}/edit`"
           class="cursor-pointer px-3 h-9 text-sm border border-primary-500/40 rounded-md text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1.5">
           <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
           {{ t('common.edit') }}
         </RouterLink>
-        <button v-if="!client.archived_at" @click="archive"
+        <button v-if="!client.archived_at && auth.canWrite" @click="archive"
           class="cursor-pointer px-3 h-9 text-sm border border-warning-500/50 rounded-md text-warning-600 hover:bg-warning-50 inline-flex items-center gap-1.5">
           <svg class="w-4 h-4 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 1 1 0-4h14a2 2 0 1 1 0 4M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8m-9 4h4"/></svg>
           {{ t('common.archive') }}
         </button>
-        <button v-else @click="unarchive"
+        <button v-else-if="auth.canWrite" @click="unarchive"
           class="cursor-pointer px-3 h-9 text-sm border border-success-500/50 rounded-md text-success-600 hover:bg-success-50 inline-flex items-center gap-1.5">
           <svg class="w-4 h-4 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6l6-6"/></svg>
           {{ t('common.restore') }}
         </button>
-        <button v-if="canDelete" @click="deleteClient"
+        <button v-if="(canDelete) && auth.canWrite" @click="deleteClient"
           class="cursor-pointer px-3 h-9 text-sm border border-danger-500/50 rounded-md text-danger-500 hover:bg-danger-50 inline-flex items-center gap-1.5">
           <svg class="w-4 h-4 text-danger-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
           {{ t('common.delete') }}
@@ -475,7 +477,7 @@ async function deleteClient() {
          class="bg-white border border-neutral-200 rounded-lg shadow-sm">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
         <h3 class="font-semibold">{{ t('client.projects') }}</h3>
-        <RouterLink :to="`/projects/new?client_id=${client.id}`"
+        <RouterLink v-if="auth.canWrite" :to="`/projects/new?client_id=${client.id}`"
           class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
           {{ t('client.new_project') }}
         </RouterLink>
@@ -555,7 +557,7 @@ async function deleteClient() {
     <div v-if="client.is_customer !== false || invoices.length > 0" class="bg-white border border-neutral-200 rounded-lg shadow-sm">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
         <h3 class="font-semibold">{{ t('client.issued_invoices') }} <span v-if="invoicesTotal" class="text-neutral-400 font-normal">({{ invoicesTotal }})</span></h3>
-        <RouterLink :to="`/invoices/new?client_id=${client.id}`"
+        <RouterLink v-if="auth.canWrite" :to="`/invoices/new?client_id=${client.id}`"
           class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
           {{ t('invoice.new') }}
         </RouterLink>
@@ -644,7 +646,7 @@ async function deleteClient() {
     <div v-if="client.is_vendor === true || purchaseInvoices.length > 0" class="bg-white border border-neutral-200 rounded-lg shadow-sm">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
         <h3 class="font-semibold">{{ t('client.received_invoices') }} <span v-if="purchaseInvoices.length" class="text-neutral-400 font-normal">({{ purchaseInvoices.length }})</span></h3>
-        <RouterLink :to="`/purchase-invoices/new?vendor_id=${client.id}`"
+        <RouterLink v-if="auth.canWrite" :to="`/purchase-invoices/new?vendor_id=${client.id}`"
           class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
           {{ t('purchase_invoice.actions.new') }}
         </RouterLink>
@@ -689,7 +691,7 @@ async function deleteClient() {
           {{ t('recurring.title') }}
           <span v-if="recurringTemplates.length" class="text-neutral-400 font-normal">({{ recurringTemplates.length }})</span>
         </h3>
-        <RouterLink :to="`/recurring/new?client_id=${client.id}`"
+        <RouterLink v-if="auth.canWrite" :to="`/recurring/new?client_id=${client.id}`"
           class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
           {{ t('recurring.new') }}
         </RouterLink>

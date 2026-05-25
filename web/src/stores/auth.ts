@@ -13,6 +13,12 @@ export const useAuthStore = defineStore('auth', () => {
   const needsSetup = computed(() => setupStatus.value?.needs_setup === true)
   const mustSetupTotp = computed(() => user.value?.must_setup_totp === true)
 
+  // Role helpers. readonly vidí vše co účetní (vč. exportů a DPH výkazů — vše jsou GETy),
+  // ale nesmí nic měnit → canWrite gatuje všechna zápisová tlačítka v UI.
+  const isAdmin = computed(() => user.value?.role === 'admin')
+  const isReadonly = computed(() => user.value?.role === 'readonly')
+  const canWrite = computed(() => user.value != null && user.value.role !== 'readonly')
+
   async function fetchSetupStatus() {
     setupStatus.value = await authApi.setupStatus()
     return setupStatus.value
@@ -77,6 +83,9 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     needsSetup,
     mustSetupTotp,
+    isAdmin,
+    isReadonly,
+    canWrite,
     fetchSetupStatus,
     refresh,
     login,
