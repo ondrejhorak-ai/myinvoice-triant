@@ -1,7 +1,7 @@
 {
   "app": { "title": "MyInvoice.cz", "subtitle": "Fakturační systém" },
   "nav": {
-    "dashboard": "Přehled", "invoices": "Faktury", "clients": "Klienti",
+    "dashboard": "Přehled", "invoices": "Vydané faktury", "clients": "Klienti",
     "projects": "Zakázky", "stats": "Tržby", "bank": "Banka", "system": "Systém", "section_taxes": "Daně",
     "settings": "Nastavení", "supplier_current": "Dodavatel", "suppliers": "Dodavatelé", "codebooks": "Číselníky", "users": "Uživatelé",
     "log": "Log", "cron_jobs": "Plánované úlohy", "exports": "Export vystavených", "imports": "Importy", "imports_issued": "Import vystavených", "imports_purchase": "Import přijatých", "ai_import": "AI import", "integrations": "Externí integrace", "crm": "CRM", "reports_dph": "DPH přiznání", "reports_kh": "Kontrolní hlášení", "reports_dph_book": "Kniha DPH", "reports_shv": "Souhrnné hlášení", "reports_income_tax": "Daň z příjmů", "reports_submissions": "Archiv podání", "email_templates": "Email šablony", "approvals": "Schvalování", "updates": "Aktualizace", "api_tokens": "API tokeny", "recurring": "Pravidelné fakturace", "help": "Nápověda", "logout": "Odhlásit",
@@ -531,7 +531,7 @@
     "months_long": ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"]
   },
   "invoice": {
-    "title": "Faktury",
+    "title": "Vydané faktury",
     "varsymbol_label": "Číslo faktury",
     "varsymbol_label_proforma": "Číslo zálohové faktury",
     "varsymbol_label_credit_note": "Číslo dobropisu",
