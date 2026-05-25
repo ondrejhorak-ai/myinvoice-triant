@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, RouterLink, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { bankApi, type BankStatementDetail, type BankTransaction, type MatchCandidate } from '@/api/bank'
@@ -18,6 +18,14 @@ const router = useRouter()
 const route = useRoute()
 const statement = ref<BankStatementDetail | null>(null)
 const loading = ref(true)
+
+// Filtr transakcí dle stavu spárování ('' = vše).
+const STATUS_OPTIONS = ['unmatched', 'auto_exact', 'auto_partial', 'manual', 'ignored'] as const
+const statusFilter = ref<string>('')
+const filteredTransactions = computed<BankTransaction[]>(() => {
+  const txs = statement.value?.transactions ?? []
+  return statusFilter.value === '' ? txs : txs.filter(tx => tx.match_status === statusFilter.value)
+})
 const rematching = ref(false)
 const matchingTx = ref<number | null>(null)
 const matchCtx = ref<BankTransaction | null>(null)
@@ -197,9 +205,16 @@ async function rematchStatement() {
     <div class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
       <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-          {{ t('bank.transactions') }} ({{ statement.transactions.length }})
+          {{ t('bank.transactions') }}
+          ({{ filteredTransactions.length }}<span v-if="statusFilter"> / {{ statement.transactions.length }}</span>)
         </h2>
         <div class="flex items-center gap-2">
+          <select v-model="statusFilter"
+            :title="t('bank.filter_status')"
+            class="h-8 px-2 text-xs border border-neutral-300 rounded-md text-neutral-700 bg-white">
+            <option value="">{{ t('bank.filter_all') }}</option>
+            <option v-for="s in STATUS_OPTIONS" :key="s" :value="s">{{ statusLabel(s) }}</option>
+          </select>
           <a v-if="statement.has_file" :href="bankApi.downloadUrl(statement.id)"
              :title="t('bank.download_hint')"
              class="cursor-pointer h-8 px-3 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md font-medium inline-flex items-center gap-1.5">
@@ -230,7 +245,7 @@ async function rematchStatement() {
           </tr>
         </thead>
         <tbody class="divide-y divide-neutral-100">
-          <tr v-for="tx in statement.transactions" :key="tx.id" :class="{ 'opacity-50': tx.match_status === 'ignored' }">
+          <tr v-for="tx in filteredTransactions" :key="tx.id" :class="{ 'opacity-50': tx.match_status === 'ignored' }">
             <td class="px-3 py-2 text-xs">{{ formatDate(tx.posted_at) }}</td>
             <td class="px-3 py-2 text-right font-mono text-xs"
               :class="tx.amount > 0 ? 'text-success-600' : 'text-danger-500'">
@@ -287,7 +302,7 @@ async function rematchStatement() {
 
       <!-- Mobile: stack karet -->
       <div class="md:hidden divide-y divide-neutral-100">
-        <div v-for="tx in statement.transactions" :key="`m-${tx.id}`"
+        <div v-for="tx in filteredTransactions" :key="`m-${tx.id}`"
           class="p-3 space-y-2"
           :class="{ 'opacity-50': tx.match_status === 'ignored' }">
           <div class="flex items-baseline justify-between gap-2">
