@@ -80,16 +80,27 @@ final class XmlSchemaValidator
         return $path !== null && is_file($path);
     }
 
+    /**
+     * Whitelist form_code → XSD filename. Zároveň brání path injection (klíče
+     * jsou fixní). EPO výkazy MFČR + ISDOC (formát faktur) — soubory commitnuté
+     * v `api/xsd/` (public, ~400 KB celkem). Dřív byly v `storage/xsd/`
+     * (gitignored), což si vynucovalo `cmd/download-xsd.sh` setup krok.
+     */
+    private const SCHEMA_FILES = [
+        'dphdp3' => 'dphdp3.xsd',
+        'dphkh1' => 'dphkh1.xsd',
+        'dphshv' => 'dphshv.xsd',
+        'dpfdp5' => 'dpfdp5.xsd',
+        'dppdp9' => 'dppdp9.xsd',
+        'isdoc'  => 'isdoc-invoice-6.0.2.xsd',
+    ];
+
     private function resolveSchemaPath(string $formCode): ?string
     {
-        // Whitelist form codes — zabranit path injection
-        $allowed = ['dphdp3', 'dphkh1', 'dphshv', 'dpfdp5', 'dppdp9'];
-        if (!in_array($formCode, $allowed, true)) {
+        $file = self::SCHEMA_FILES[$formCode] ?? null;
+        if ($file === null) {
             return null;
         }
-        // XSD schémata jsou commitnutá v `api/xsd/` (MFČR public, ~250 KB celkem).
-        // Dřív byly v `storage/xsd/` (gitignored), což si vynucovalo `cmd/download-xsd.sh`
-        // setup krok a way CI testy skipovaly XSD validaci.
-        return Bootstrap::rootDir() . '/api/xsd/' . $formCode . '.xsd';
+        return Bootstrap::rootDir() . '/api/xsd/' . $file;
     }
 }
