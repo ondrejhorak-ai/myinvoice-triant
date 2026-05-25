@@ -223,9 +223,10 @@ final class InvoiceImportService
                 }
                 $content = $extracted;
             }
-            $isIsdoc = str_contains(strtolower($name), '.isdoc')
-                || str_starts_with(ltrim($content), '<?xml') && str_contains($content, 'isdoc.cz/namespace');
-            $parsed = $isIsdoc ? $this->isdoc->parse($content) : $this->pohoda->parse($content);
+            $content = self::stripBom($content);
+            $parsed = self::looksLikeIsdoc($name, $content)
+                ? $this->isdoc->parse($content)
+                : $this->pohoda->parse($content);
         } catch (\Throwable $e) {
             return ['error' => $e->getMessage()];
         }
@@ -545,6 +546,27 @@ final class InvoiceImportService
     private function isPdf(string $name, string $content): bool
     {
         return str_ends_with(strtolower($name), '.pdf') || str_starts_with($content, '%PDF-');
+    }
+
+    /**
+     * Odstraní vedoucí UTF-8 BOM (EF BB BF). Někteří producenti (iDoklad) jím
+     * prefixují ISDOC XML; ltrim ho neodstraní a rozbíjel detekci formátu níže.
+     */
+    private static function stripBom(string $content): string
+    {
+        return str_starts_with($content, "\xEF\xBB\xBF") ? substr($content, 3) : $content;
+    }
+
+    /**
+     * Rozliší ISDOC vs Pohoda XML. ISDOC poznáme podle přípony .isdoc nebo podle
+     * přítomnosti ISDOC namespace (Pohoda XML ho neobsahuje). Dřív se testoval i
+     * prefix '<?xml', což rozbíjel UTF-8 BOM → iDoklad PDF (BOM + namespace) padalo
+     * na Pohoda parser s chybou "root není dataPack" (issue #39).
+     */
+    private static function looksLikeIsdoc(string $name, string $content): bool
+    {
+        return str_contains(strtolower($name), '.isdoc')
+            || str_contains($content, 'isdoc.cz/namespace');
     }
 
     /**
