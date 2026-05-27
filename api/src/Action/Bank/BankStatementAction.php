@@ -420,7 +420,8 @@ final class BankStatementAction
         // Číslo účtu na začátek názvu, pokud tam ještě není — ať se stažené PDF
         // z různých účtů nepletou (např. „2026-02.pdf" → „1000000005-2026-02.pdf").
         // „Už obsahuje" testujeme i podle čistých číslic (formát s lomítkem/pomlčkou).
-        $account = trim((string) ($row['account_number'] ?? ''));
+        // Trim vedoucí nuly (zero-padded účet „000123-456" → „123-456").
+        $account = ltrim(trim((string) ($row['account_number'] ?? '')), '0');
         if ($account !== '') {
             $acctDigits = preg_replace('/\D/', '', $account) ?? '';
             $nameDigits = preg_replace('/\D/', '', $fileName) ?? '';
