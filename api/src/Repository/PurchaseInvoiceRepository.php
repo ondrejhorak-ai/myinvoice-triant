@@ -355,7 +355,7 @@ final class PurchaseInvoiceRepository
             isset($data['paid_amount_invoice_ccy']) ? (float) $data['paid_amount_invoice_ccy'] : null,
             isset($data['exchange_diff_base']) ? (float) $data['exchange_diff_base'] : null,
             isset($data['vat_classification_code']) ? (string) $data['vat_classification_code'] : null,
-            in_array($data['vat_deduction'] ?? 'full', ['full', 'none', 'proportional'], true) ? (string) $data['vat_deduction'] : 'full',
+            in_array($data['vat_deduction'] ?? 'full', ['full', 'none', 'proportional'], true) ? (string) ($data['vat_deduction'] ?? 'full') : 'full',
             max(0.0, min(100.0, (float) ($data['vat_deduction_percent'] ?? 100))),
             (array_key_exists('tax_deductible', $data) && !$data['tax_deductible']) ? 0 : 1,
             !empty($data['is_fixed_asset']) ? 1 : 0,
@@ -431,7 +431,7 @@ final class PurchaseInvoiceRepository
             isset($data['paid_amount_invoice_ccy']) ? (float) $data['paid_amount_invoice_ccy'] : null,
             isset($data['exchange_diff_base']) ? (float) $data['exchange_diff_base'] : null,
             isset($data['vat_classification_code']) ? (string) $data['vat_classification_code'] : null,
-            in_array($data['vat_deduction'] ?? 'full', ['full', 'none', 'proportional'], true) ? (string) $data['vat_deduction'] : 'full',
+            in_array($data['vat_deduction'] ?? 'full', ['full', 'none', 'proportional'], true) ? (string) ($data['vat_deduction'] ?? 'full') : 'full',
             max(0.0, min(100.0, (float) ($data['vat_deduction_percent'] ?? 100))),
             (array_key_exists('tax_deductible', $data) && !$data['tax_deductible']) ? 0 : 1,
             !empty($data['is_fixed_asset']) ? 1 : 0,
@@ -871,7 +871,8 @@ final class PurchaseInvoiceRepository
         $row['reverse_charge'] = isset($row['reverse_charge']) ? (bool) $row['reverse_charge'] : false;
         $row['is_fixed_asset'] = isset($row['is_fixed_asset']) ? (bool) $row['is_fixed_asset'] : false;
         $row['tax_deductible'] = !array_key_exists('tax_deductible', $row) || (bool) $row['tax_deductible'];
-        $row['vat_deduction'] = (string) ($row['vat_deduction'] ?? 'full');
+        $vatDeduction = (string) ($row['vat_deduction'] ?? '');
+        $row['vat_deduction'] = in_array($vatDeduction, ['full', 'none', 'proportional'], true) ? $vatDeduction : 'full';
         $row['vat_deduction_percent'] = isset($row['vat_deduction_percent']) ? (float) $row['vat_deduction_percent'] : 100.0;
         foreach ([
             'total_without_vat', 'total_vat', 'total_with_vat', 'rounding',
