@@ -4,7 +4,7 @@
     "dashboard": "Přehled", "invoices": "Vydané faktury", "clients": "Klienti",
     "projects": "Zakázky", "stats": "Tržby", "bank": "Banka", "system": "Systém", "section_taxes": "Daně",
     "settings": "Nastavení", "supplier_current": "Dodavatel", "suppliers": "Dodavatelé", "codebooks": "Číselníky", "users": "Uživatelé",
-    "log": "Log", "cron_jobs": "Plánované úlohy", "exports": "Export vystavených", "imports": "Importy", "imports_issued": "Import vystavených", "imports_purchase": "Import přijatých", "ai_import": "AI import", "integrations": "Externí integrace", "crm": "CRM", "reports_dph": "DPH přiznání", "reports_kh": "Kontrolní hlášení", "reports_dph_book": "Kniha DPH", "reports_shv": "Souhrnné hlášení", "reports_income_tax": "Daň z příjmů", "reports_submissions": "Archiv podání", "email_templates": "Email šablony", "approvals": "Schvalování", "updates": "Aktualizace", "api_tokens": "API tokeny", "recurring": "Pravidelné fakturace", "help": "Nápověda", "logout": "Odhlásit",
+    "log": "Log", "cron_jobs": "Plánované úlohy", "exports": "Export vystavených", "imports": "Importy", "imports_issued": "Import vystavených", "imports_purchase": "Import přijatých", "ai_import": "AI import", "integrations": "Externí integrace", "crm": "CRM", "reports_dph": "DPH přiznání", "reports_kh": "Kontrolní hlášení", "reports_dph_book": "Kniha DPH", "reports_shv": "Souhrnné hlášení", "reports_income_tax": "Daň z příjmů", "reports_submissions": "Archiv podání", "reports_monthly_export": "Měsíční export", "email_templates": "Email šablony", "approvals": "Schvalování", "updates": "Aktualizace", "api_tokens": "API tokeny", "recurring": "Pravidelné fakturace", "help": "Nápověda", "logout": "Odhlásit",
     "section_sales": "Prodej", "section_purchase": "Nákup", "section_finance": "Finance", "section_clients": "Klienti",
     "purchase_invoices": "Přijaté faktury", "purchase_export": "Export přijatých", "vendors": "Dodavatelé"
   },
@@ -212,6 +212,7 @@
     "filters": {
       "all_statuses": "Všechny stavy",
       "all_kinds": "Všechny typy",
+      "all_vendors": "Všichni dodavatelé",
       "unpaid_only": "Pouze neuhrazené",
       "overdue": "Po splatnosti",
       "needs_review": "Ke kontrole",
@@ -1768,6 +1769,49 @@
       "note_d_marker": "(Je-li za částkou DPH kód D, je DPH oceněno odlišným kursem, než je základní účetní kurs.)",
       "no_data": "Pro zvolené období nejsou v knize DPH žádné záznamy.",
       "draft_badge": "Koncept"
+    },
+    "monthly_export": {
+      "title": "Měsíční export",
+      "subtitle": "Stáhne jeden ZIP se zvolenými exporty za daný měsíc, roztříděný do pojmenovaných složek.",
+      "period_label": "Období",
+      "period_rule_note": "Doklady se do měsíce zařazují daňově korektně, shodně s Knihou DPH a přiznáním DPH: vystavené podle DUZP, přijaté podle pozdějšího z dat DUZP / vystavení (odpočet nelze uplatnit dříve, než máte daňový doklad), výpisy podle data výpisu.",
+      "parts_label": "Co zahrnout do exportu",
+      "download": "Stáhnout ZIP",
+      "downloading": "Připravuji ZIP…",
+      "select_all": "Vybrat vše",
+      "select_none": "Zrušit výběr",
+      "empty_hint": "Za zvolené období nejsou pro tuto část žádná data.",
+      "no_selection": "Vyber alespoň jednu část k exportu.",
+      "download_failed": "Stažení se nezdařilo.",
+      "available_count": "{count} ks",
+      "job": {
+        "start": "Připravit export",
+        "started": "Export spuštěn na pozadí (job #{jobId}).",
+        "done": "Export je připravený ke stažení.",
+        "ready": "Hotovo — {count} souborů.",
+        "cancel": "Zrušit",
+        "cancel_requested": "Zrušení vyžádáno…",
+        "log": "Průběh",
+        "new": "Nový export",
+        "history": "Poslední exporty",
+        "in_progress": "Export už běží — počkej na dokončení.",
+        "status": {
+          "queued": "Ve frontě",
+          "running": "Probíhá",
+          "completed": "Hotovo",
+          "failed": "Chyba",
+          "cancelled": "Zrušeno"
+        }
+      },
+      "parts": {
+        "sales_pdf": "Vystavené faktury — PDF",
+        "sales_isdoc": "Vystavené faktury — ISDOC",
+        "purchase_pdf": "Přijaté faktury — PDF",
+        "purchase_isdoc": "Přijaté faktury — ISDOC",
+        "bank_pdf": "Výpisy z účtu — PDF",
+        "bank_gpc": "Výpisy z účtu — GPC",
+        "dph_book": "Kniha DPH — PDF"
+      }
     },
     "dph": {
       "title": "DPH přiznání (DPHDP3)",

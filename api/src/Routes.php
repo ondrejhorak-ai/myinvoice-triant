@@ -35,6 +35,7 @@ use MyInvoice\Action\Crm\CrmDashboardAction;
 use MyInvoice\Action\Report\DphPriznaniAction;
 use MyInvoice\Action\Report\KontrolniHlaseniAction;
 use MyInvoice\Action\Report\DphBookAction;
+use MyInvoice\Action\Report\MonthlyExportAction;
 use MyInvoice\Action\Report\SouhrnneHlaseniAction;
 use MyInvoice\Action\Report\IncomeTaxAction;
 use MyInvoice\Action\Admin\InvoicesZipAction;
@@ -344,6 +345,15 @@ final class Routes
         // Kniha DPH (interní VAT žurnál — NE EPO podání, vždy měsíční)
         $app->get    ('/api/reports/dph-book/preview', [DphBookAction::class, 'preview']);
         $app->get    ('/api/reports/dph-book',         [DphBookAction::class, 'download']);
+        // Měsíční export — background job: jeden ZIP s vybranými exporty za měsíc
+        // (VF/PF PDF+ISDOC, výpisy PDF+GPC, Kniha DPH). Běží na pozadí (import_jobs).
+        $app->get    ('/api/reports/monthly-export/preview',                  [MonthlyExportAction::class, 'preview']);
+        $app->post   ('/api/reports/monthly-export/start',                    [MonthlyExportAction::class, 'start']);
+        $app->get    ('/api/reports/monthly-export/jobs',                     [MonthlyExportAction::class, 'list']);
+        $app->get    ('/api/reports/monthly-export/jobs/{id:[0-9]+}',          [MonthlyExportAction::class, 'jobStatus']);
+        $app->get    ('/api/reports/monthly-export/jobs/{id:[0-9]+}/download', [MonthlyExportAction::class, 'download']);
+        $app->post   ('/api/reports/monthly-export/jobs/{id:[0-9]+}/cancel',   [MonthlyExportAction::class, 'cancel']);
+        $app->delete ('/api/reports/monthly-export/jobs/{id:[0-9]+}',          [MonthlyExportAction::class, 'delete']);
         // Souhrnné hlášení DPHSHV (EU dodání, měsíční — podávají i identifikované osoby)
         $app->get    ('/api/reports/dphshv/preview',  [SouhrnneHlaseniAction::class, 'preview']);
         $app->get    ('/api/reports/dphshv',          [SouhrnneHlaseniAction::class, 'download']);

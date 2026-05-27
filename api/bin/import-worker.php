@@ -26,6 +26,7 @@ use MyInvoice\Bootstrap;
 use MyInvoice\Repository\ImportJobRepository;
 use MyInvoice\Service\Import\FakturoidImportService;
 use MyInvoice\Service\Import\IdokladImportService;
+use MyInvoice\Service\Export\MonthlyExportService;
 
 // Parse args
 $jobId = null;
@@ -70,6 +71,8 @@ try {
         $container->get(IdokladImportService::class)->run($jobId);
     } elseif ($source === 'fakturoid') {
         $container->get(FakturoidImportService::class)->run($jobId);
+    } elseif ($source === 'monthly_export') {
+        $container->get(MonthlyExportService::class)->run($jobId);
     } else {
         $jobs->appendLog($jobId, "Source '{$source}' není zatím podporován workerem.");
         $jobs->markFailed($jobId, "Source '{$source}' není podporován.");

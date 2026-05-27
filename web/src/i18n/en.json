@@ -4,7 +4,7 @@
     "dashboard": "Dashboard", "invoices": "Issued invoices", "clients": "Clients",
     "projects": "Projects", "stats": "Sales", "bank": "Bank", "system": "System", "section_taxes": "Taxes",
     "settings": "Settings", "supplier_current": "Supplier", "suppliers": "Suppliers", "codebooks": "Codebooks", "users": "Users",
-    "log": "Activity log", "cron_jobs": "Scheduled jobs", "exports": "Issued exports", "imports": "Imports", "imports_issued": "Imports (issued)", "imports_purchase": "Imports (purchase)", "ai_import": "AI import", "integrations": "External integrations", "crm": "CRM", "reports_dph": "VAT return", "reports_kh": "Control statement", "reports_dph_book": "VAT ledger", "reports_shv": "Recapitulative statement", "reports_income_tax": "Income tax", "reports_submissions": "Submission archive", "email_templates": "Email templates", "approvals": "Approvals", "updates": "Updates", "api_tokens": "API tokens", "recurring": "Recurring invoices", "help": "Help", "logout": "Sign out",
+    "log": "Activity log", "cron_jobs": "Scheduled jobs", "exports": "Issued exports", "imports": "Imports", "imports_issued": "Imports (issued)", "imports_purchase": "Imports (purchase)", "ai_import": "AI import", "integrations": "External integrations", "crm": "CRM", "reports_dph": "VAT return", "reports_kh": "Control statement", "reports_dph_book": "VAT ledger", "reports_shv": "Recapitulative statement", "reports_income_tax": "Income tax", "reports_submissions": "Submission archive", "reports_monthly_export": "Monthly export", "email_templates": "Email templates", "approvals": "Approvals", "updates": "Updates", "api_tokens": "API tokens", "recurring": "Recurring invoices", "help": "Help", "logout": "Sign out",
     "section_sales": "Sales", "section_purchase": "Purchases", "section_finance": "Finance", "section_clients": "Clients",
     "purchase_invoices": "Received invoices", "purchase_export": "Received exports", "vendors": "Vendors"
   },
@@ -212,6 +212,7 @@
     "filters": {
       "all_statuses": "All statuses",
       "all_kinds": "All types",
+      "all_vendors": "All vendors",
       "unpaid_only": "Unpaid only",
       "overdue": "Overdue",
       "needs_review": "Needs review",
@@ -1768,6 +1769,49 @@
       "note_d_marker": "(If the VAT amount is marked with code D, VAT is valued at a different exchange rate than the base accounting rate.)",
       "no_data": "No entries in the VAT ledger for the selected period.",
       "draft_badge": "Draft"
+    },
+    "monthly_export": {
+      "title": "Monthly export",
+      "subtitle": "Downloads a single ZIP with the selected exports for the chosen month, sorted into named folders.",
+      "period_label": "Period",
+      "period_rule_note": "Documents are assigned to the month in a tax-correct way, consistent with the VAT ledger and VAT return: issued by tax date (DUZP), received by the later of tax date / issue date (input VAT cannot be deducted before you hold the document), statements by statement date.",
+      "parts_label": "What to include",
+      "download": "Download ZIP",
+      "downloading": "Preparing ZIP…",
+      "select_all": "Select all",
+      "select_none": "Clear selection",
+      "empty_hint": "No data for this part in the selected period.",
+      "no_selection": "Select at least one part to export.",
+      "download_failed": "Download failed.",
+      "available_count": "{count} pcs",
+      "job": {
+        "start": "Prepare export",
+        "started": "Export started in the background (job #{jobId}).",
+        "done": "Export is ready to download.",
+        "ready": "Done — {count} files.",
+        "cancel": "Cancel",
+        "cancel_requested": "Cancellation requested…",
+        "log": "Progress",
+        "new": "New export",
+        "history": "Recent exports",
+        "in_progress": "An export is already running — wait for it to finish.",
+        "status": {
+          "queued": "Queued",
+          "running": "Running",
+          "completed": "Done",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        }
+      },
+      "parts": {
+        "sales_pdf": "Issued invoices — PDF",
+        "sales_isdoc": "Issued invoices — ISDOC",
+        "purchase_pdf": "Received invoices — PDF",
+        "purchase_isdoc": "Received invoices — ISDOC",
+        "bank_pdf": "Bank statements — PDF",
+        "bank_gpc": "Bank statements — GPC",
+        "dph_book": "VAT ledger — PDF"
+      }
     },
     "dph": {
       "title": "VAT return (DPHDP3)",
