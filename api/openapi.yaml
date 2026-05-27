@@ -2673,6 +2673,13 @@ paths:
     get:
       tags: [Purchase invoices]
       summary: Hromadný export přijatých faktur za měsíc (PDF ZIP / ISDOC ZIP / Pohoda dataPack)
+      description: |
+        `pdf-zip`: ZIP s jedním PDF na fakturu. Preferuje archivovaný **originál**
+        od dodavatele (`Prijata-{vs}-{vendor}.pdf`); pokud originál chybí, doplní
+        **naši rekonstrukci** z dat faktury (`Prijata-{vs}-{vendor}-rekonstrukce.pdf`).
+        Počet rekonstrukcí je v hlavičce `X-Export-Reconstructed`.
+
+        `isdoc` / `pohoda`: generují XML z dat faktury (PDF nepotřebují).
       parameters:
         - $ref: '#/components/parameters/SupplierIdHeader'
         - { in: query, name: month, required: true, schema: { type: string, pattern: '^\d{4}-\d{2}$' } }
@@ -2684,7 +2691,10 @@ paths:
           headers:
             X-Export-Warnings:
               schema: { type: string }
-              description: Per-invoice warnings (pokud byly skipnuté)
+              description: Per-invoice warnings (poškozený originál, selhání rekonstrukce)
+            X-Export-Reconstructed:
+              schema: { type: integer }
+              description: Počet faktur, u kterých se místo originálu vložila naše rekonstrukce (jen pdf-zip)
 
   /api/v1/purchase-invoices/{id}/activity:
     get:
