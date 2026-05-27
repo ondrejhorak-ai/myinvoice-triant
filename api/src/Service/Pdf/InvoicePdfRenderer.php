@@ -10,6 +10,7 @@ use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\InvoiceRepository;
 use MyInvoice\Repository\WorkReportRepository;
+use MyInvoice\Service\Branding\AccentColor;
 use MyInvoice\Service\Export\IsdocExporter;
 use MyInvoice\Service\Invoice\SnapshotBuilder;
 use MyInvoice\Service\Qr\QrPaymentGenerator;
@@ -252,6 +253,9 @@ final class InvoicePdfRenderer
             'thousand_sep'      => $locale === 'en' ? ',' : ' ',
             'css'               => $css,
             'logo_path'         => $logoPath,
+            // Opt-in: vedle loga vykreslit i název firmy (migrace 0058). Jen když logo
+            // reálně je — bez loga se název ukazuje vždy (textový brand-name fallback).
+            'logo_show_name'    => $logoPath !== null && !empty($supplierData['pdf_logo_show_name']),
             'isdoc_attachment'  => $hasIsdocAttachment, // bool — badge gate
         ]);
     }
@@ -269,12 +273,24 @@ final class InvoicePdfRenderer
      * Sémantické barvy (dobropis červená .head.credit-note, storno šedá .cancellation,
      * RC amber, UHRAZENO zelená) NEpřebarvujeme — credit-note/cancellation selektory mají
      * vyšší specificitu (2 třídy), takže tenhle 1-třídový override je nepřebije.
+     *
+     * Kromě popředí (texty/hlavičky) přebarvujeme i světlé plochy a tenké linky, které
+     * jsou v base napevno odvozené od defaultní fialové — světlé varianty akcentu počítá
+     * AccentColor::tint() (mix s bílou). Šedá paleta CZK rekapitulace (bg #F2F2F2/…) je
+     * záměrně neutrální, tu necháváme být — barvíme jen její fialové linky/text.
      */
     private function brandAccentCss(array $supplier): string
     {
         if (empty($supplier['email_branding_enabled'])) return '';
-        $color = strtoupper(trim((string) ($supplier['email_accent_color'] ?? '')));
-        if (!preg_match('/^#[0-9A-F]{6}$/', $color) || $color === '#3B2D83') return '';
+        $color = AccentColor::normalize($supplier['email_accent_color'] ?? null);
+        if ($color === null || $color === AccentColor::DEFAULT) return '';
+
+        // Světlé varianty akcentu (podíl akcentu nad bílou) — odpovídají base hodnotám
+        // vůči #3B2D83: pilulka bg #EFEAFF, "K úhradě" wash #F4F2F8, linky #D2CCDF/#C9C0E9.
+        $bgSoft     = AccentColor::tint($color, 0.08); // jemné pozadí (badge, K úhradě)
+        $lineSoft   = AccentColor::tint($color, 0.24); // tenké linky (mezisoučty, QR box)
+        $lineMedium = AccentColor::tint($color, 0.28); // o málo sytější (rámeček banky, CZK)
+        $badgeBorder = AccentColor::tint($color, 0.30); // ohraničení ISDOC pilulky
 
         return "\n/* ─── Branding override (per-supplier accent color) ─── */\n"
             . ".head { border-bottom-color: {$color}; }\n"
@@ -282,9 +298,16 @@ final class InvoicePdfRenderer
             . ".parties h2, td.meta-label, .bank-label, .qr-box .qr-label { color: {$color}; }\n"
             . "table.items th { background: {$color}; }\n"
             . "table.totals-table tr.grand td { background: {$color}; }\n"
-            . "table.totals-table tr.to-pay td { border-top-color: {$color}; color: {$color}; }\n"
+            . "table.totals-table tr.to-pay td { border-top-color: {$color}; color: {$color}; background: {$bgSoft}; }\n"
+            . "table.totals-table tr.subtotal td { border-top-color: {$lineSoft}; }\n"
             . "table.czk-recap td.czk-recap-title, table.czk-recap tr.grand td { color: {$color}; }\n"
-            . ".isdoc-badge { color: {$color}; }\n"
+            . "table.czk-recap td.czk-recap-title { border-bottom-color: {$lineMedium}; }\n"
+            . "table.czk-recap tr.subtotal td { border-top-color: {$lineSoft}; }\n"
+            . "table.bank-frame { border-color: {$lineMedium}; }\n"
+            . ".qr-box { border-color: {$lineSoft}; }\n"
+            . ".isdoc-badge { color: {$color}; background: {$bgSoft}; border-color: {$badgeBorder}; }\n"
+            . ".note { border-left-color: {$color}; }\n"
+            . ".note.rc-note { border-left-color: #E8A547; }\n"
             . ".wr-title, .wr-link { color: {$color}; }\n";
     }
 

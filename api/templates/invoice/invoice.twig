@@ -20,13 +20,21 @@
 {# ─── HLAVIČKA ─── #}
 <table class="head{% if invoice.invoice_type == 'credit_note' %} credit-note{% elseif invoice.invoice_type == 'cancellation' %} cancellation{% endif %}">
   <tr>
-    <td class="logo">
-      {% if logo_path and logo_path is not empty %}
-        <img src="{{ logo_path }}" alt="logo" style="max-width: 72mm; max-height: 20mm;">
-      {% else %}
-        <div class="brand-name">{{ supplier.company_name }}</div>
-      {% endif %}
-    </td>
+    {% if logo_show_name and logo_path and logo_path is not empty %}
+      {# Logo + název firmy: dvě SOUSEDNÍ buňky .head (žádná vnořená tabulka — ta v mPDF
+         mazala spodní čáru hlavičky). Mezeru dělá pevná šířka buňky loga: mPDF na buňce
+         respektuje `width`, ne padding. #}
+      <td class="logo-img-cell"><img src="{{ logo_path }}" alt="logo"></td>
+      <td class="logo-name">{{ supplier.display_name|default(supplier.company_name) }}</td>
+    {% else %}
+      <td class="logo">
+        {% if logo_path and logo_path is not empty %}
+          <img src="{{ logo_path }}" alt="logo" style="max-width: 72mm; max-height: 20mm;">
+        {% else %}
+          <div class="brand-name">{{ supplier.company_name }}</div>
+        {% endif %}
+      </td>
+    {% endif %}
     <td class="meta">
       <div class="doc-type">{{ doc_type_label }}</div>
       {% if invoice.varsymbol %}
@@ -418,13 +426,21 @@
 
 <table class="head">
   <tr>
-    <td class="logo">
-      {% if logo_path and logo_path is not empty %}
-        <img src="{{ logo_path }}" alt="logo" style="max-width: 72mm; max-height: 20mm;">
-      {% else %}
-        <div class="brand-name">{{ supplier.company_name }}</div>
-      {% endif %}
-    </td>
+    {% if logo_show_name and logo_path and logo_path is not empty %}
+      {# Logo + název firmy: dvě SOUSEDNÍ buňky .head (žádná vnořená tabulka — ta v mPDF
+         mazala spodní čáru hlavičky). Mezeru dělá pevná šířka buňky loga: mPDF na buňce
+         respektuje `width`, ne padding. #}
+      <td class="logo-img-cell"><img src="{{ logo_path }}" alt="logo"></td>
+      <td class="logo-name">{{ supplier.display_name|default(supplier.company_name) }}</td>
+    {% else %}
+      <td class="logo">
+        {% if logo_path and logo_path is not empty %}
+          <img src="{{ logo_path }}" alt="logo" style="max-width: 72mm; max-height: 20mm;">
+        {% else %}
+          <div class="brand-name">{{ supplier.company_name }}</div>
+        {% endif %}
+      </td>
+    {% endif %}
     <td class="meta">
       <div class="doc-type">{{ t('Výkaz víceprací', 'Work report') }}</div>
       {% if invoice.varsymbol %}

@@ -43,6 +43,7 @@ export interface Supplier {
   // Per-supplier email branding (migrace 0016)
   email_branding_enabled: boolean
   email_accent_color: string  // #RRGGBB
+  pdf_logo_show_name: boolean // vedle loga v PDF zobrazit i název firmy (migrace 0058)
   has_email_logo?: boolean    // server flag (existence storage/supplier-logos/sup-{id}.png)
   // Tax settings pro EPO výkazy DPH/KH (migrace 0038, fáze 6)
   taxpayer_type?: 'fo' | 'po' | null

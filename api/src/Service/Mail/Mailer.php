@@ -8,6 +8,7 @@ use MyInvoice\Bootstrap;
 use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\EmailTemplateRepository;
+use MyInvoice\Service\Branding\AccentColor;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Mailer as SymfonyMailer;
 use Symfony\Component\Mailer\Transport;
@@ -422,6 +423,10 @@ final class Mailer
             if ($row !== false) {
                 $row['email_branding_enabled'] = (bool) ($row['email_branding_enabled'] ?? false);
                 $row['email_accent_color']     = (string) ($row['email_accent_color'] ?: '#3B2D83');
+                $row['accent_soft']            = AccentColor::emailBackground(
+                    (bool) $row['email_branding_enabled'],
+                    $row['email_accent_color'],
+                );
             }
             $this->supplierFooter = $row !== false ? $row : [];
             return $this->supplierFooter ?: null;

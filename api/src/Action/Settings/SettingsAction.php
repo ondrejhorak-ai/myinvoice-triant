@@ -198,8 +198,8 @@ final class SettingsAction
             // Per-supplier konfigurace číslování faktur (migrace 0014)
             'invoice_number_format', 'proforma_number_format', 'credit_note_number_format',
             'invoice_number_period',
-            // Per-supplier branding emailů (migrace 0016)
-            'email_branding_enabled', 'email_accent_color',
+            // Per-supplier branding emailů (migrace 0016) + PDF logo+název (migrace 0058)
+            'email_branding_enabled', 'email_accent_color', 'pdf_logo_show_name',
             // Tax settings pro EPO výkazy (migrace 0038, fáze 6)
             'taxpayer_type', 'vat_period', 'financial_office_code', 'workplace_code',
             'cz_nace_code', 'data_box_type', 'data_box_id',
@@ -273,7 +273,7 @@ final class SettingsAction
         foreach ($allowed as $f) {
             if (array_key_exists($f, $body)) {
                 $sets[] = "$f = ?";
-                $params[] = in_array($f, ['is_vat_payer', 'auto_send_reminders', 'auto_generate_recurring', 'embed_isdoc', 'email_branding_enabled'], true)
+                $params[] = in_array($f, ['is_vat_payer', 'auto_send_reminders', 'auto_generate_recurring', 'embed_isdoc', 'email_branding_enabled', 'pdf_logo_show_name'], true)
                     ? ((int) (bool) $body[$f])
                     : $body[$f];
             }
@@ -286,7 +286,10 @@ final class SettingsAction
         // Branding (barva/toggle) se v PDF renderuje živě → po změně invaliduj cached
         // draft PDF dodavatele, ať se přegenerují s novou barvou (mtime cache je sama
         // od sebe neobnoví). Vystavené regenerují přes ?regenerate=1.
-        if (array_key_exists('email_accent_color', $body) || array_key_exists('email_branding_enabled', $body)) {
+        if (array_key_exists('email_accent_color', $body)
+            || array_key_exists('email_branding_enabled', $body)
+            || array_key_exists('pdf_logo_show_name', $body)
+        ) {
             $this->pdf->invalidateDraftsBySupplier($id);
         }
         $this->log($request, 'supplier.updated', $id, ['fields' => array_keys(array_intersect_key($body, array_flip($allowed)))]);
@@ -381,6 +384,7 @@ final class SettingsAction
         $row['embed_isdoc']              = (bool) ($row['embed_isdoc'] ?? true);
         $row['email_branding_enabled']   = (bool) ($row['email_branding_enabled'] ?? false);
         $row['email_accent_color']       = (string) ($row['email_accent_color'] ?? '#3B2D83');
+        $row['pdf_logo_show_name']       = (bool) ($row['pdf_logo_show_name'] ?? false);
         $row['has_email_logo']           = is_file(\MyInvoice\Bootstrap::rootDir() . '/storage/supplier-logos/sup-' . $row['id'] . '.png');
         // Globální cfg fallback pro varsymbol — UI ho použije jako placeholder
         // u prázdných per-supplier polí (aby uživatel viděl, jaká šablona by se

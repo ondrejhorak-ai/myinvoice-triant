@@ -1355,6 +1355,8 @@
     "branding_logo_removed": "Logo removed.",
     "branding_logo_remove_confirm": "Really remove logo?",
     "branding_logo_too_large": "File too large (max 1 MiB).",
+    "branding_logo_show_name": "Show company name next to logo",
+    "branding_logo_show_name_hint": "By default the invoice PDF shows the logo only. Enable this if the logo is small or has no name — the trade (or company) name will then be rendered next to the logo.",
     "branding_accent_color": "Accent color",
     "branding_accent_color_hint": "Color of the „M\" logo (if you have no custom logo) and of links in the email. Default #3B2D83 (MyInvoice purple).",
     "branding_accent_reset": "↺ default",
