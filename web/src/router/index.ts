@@ -41,6 +41,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/settings',         name: 'admin-settings', component: () => import('@/pages/admin/Settings.vue'),    meta: { adminOnly: true } },
       { path: 'admin/bank-accounts',    name: 'admin-bank-accounts', component: () => import('@/pages/admin/BankAccounts.vue'), meta: { adminOnly: true } },
       { path: 'admin/bank-email-notices', name: 'admin-bank-email-notices', redirect: '/admin/bank-accounts' },
+      { path: 'admin/tri-settings',     name: 'admin-tri-settings', component: () => import('@/pages/admin/TriSettings.vue'), meta: { adminOnly: true } },
       // /admin/suppliers byla samostatná stránka — Suppliers jsou nyní embedded jako první tab v Codebooks.
       // Redirect zachovává bookmarks / staré odkazy.
       { path: 'admin/suppliers',        name: 'admin-suppliers', redirect: '/admin/codebooks' },

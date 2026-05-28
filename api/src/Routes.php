@@ -51,6 +51,7 @@ use MyInvoice\Action\Settings\PdfSigningDiagnosticsAction;
 use MyInvoice\Action\Settings\SettingsAction;
 use MyInvoice\Action\Settings\SignatureDocumentSelectionAction;
 use MyInvoice\Action\Settings\SigningProfilesAction;
+use MyInvoice\Action\Settings\TriSidebarSettingsAction;
 use MyInvoice\Action\Bank\BankEmailNoticeAction;
 use MyInvoice\Action\Bank\BankStatementAction;
 use MyInvoice\Action\Dashboard\SummaryAction;
@@ -512,6 +513,8 @@ final class Routes
         $app->post   ('/api/settings/units',                          [SettingsAction::class, 'createUnit']);
         $app->put    ('/api/settings/units/{id:[0-9]+}',              [SettingsAction::class, 'updateUnit']);
         $app->delete ('/api/settings/units/{id:[0-9]+}',              [SettingsAction::class, 'deleteUnit']);
+        $app->get    ('/api/settings/tri-sidebar',                    [TriSidebarSettingsAction::class, 'get']);
+        $app->put    ('/api/settings/tri-sidebar',                    [TriSidebarSettingsAction::class, 'put']);
 
         // Tax optimizer — daňový optimalizátor (srovnání režimů + predikce limitů)
         $app->get ('/api/tax/analysis',  [\MyInvoice\Action\Tax\TaxAction::class, 'analysis']);

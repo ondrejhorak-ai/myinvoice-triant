@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSupplierStore } from '@/stores/supplier'
 import { updateApi, type PublicVersion } from '@/api/update'
 import { settingsApi } from '@/api/settings'
+import { TRI_SETTINGS_MODULE_ID, normalizeHiddenSidebarModules } from '@/config/triSidebar'
 import SupplierSwitcher from './SupplierSwitcher.vue'
 import GlobalSearch from './GlobalSearch.vue'
 import ThemeToggle from './ThemeToggle.vue'
@@ -57,6 +58,7 @@ watch(
 )
 
 interface NavItem {
+  moduleId: string
   to: string
   label: string
   icon: string
@@ -126,63 +128,63 @@ const navSections = computed<NavSection[]>(() => {
   // Daňový optimalizátor (paušál vs standardní režim) je jen pro OSVČ (fyzická osoba).
   const isOsvc = supplierStore.currentSupplier?.taxpayer_type === 'fo'
   const sections: NavSection[] = [
-    { items: [{ to: '/', label: t('nav.dashboard'), icon: ICONS.dashboard }] },
+    { items: [{ moduleId: 'dashboard', to: '/', label: t('nav.dashboard'), icon: ICONS.dashboard }] },
     {
       // Vše co se týká vystavování faktur klientům — klienti/zakázky/schvalování/exporty
       // patří v životním cyklu jednoho prodeje (klient → zakázka → faktura → schválení → export pro účetní).
       title: t('nav.section_sales'),
       accent: 'primary',
       items: [
-        { to: '/invoices',         label: t('nav.invoices'),   icon: ICONS.invoices,  newTo: '/invoices/new' },
-        { to: '/recurring',        label: t('nav.recurring'),  icon: ICONS.recurring, newTo: '/recurring/new' },
-        { to: '/clients',          label: t('nav.clients'),    icon: ICONS.clients,   newTo: '/clients/new' },
-        { to: '/projects',         label: t('nav.projects'),   icon: ICONS.projects },
-        ...(isAdmin ? [{ to: '/admin/approvals',          label: t('nav.approvals'),         icon: ICONS.approvals }] : []),
+        { moduleId: 'invoices', to: '/invoices', label: t('nav.invoices'), icon: ICONS.invoices, newTo: '/invoices/new' },
+        { moduleId: 'recurring', to: '/recurring', label: t('nav.recurring'), icon: ICONS.recurring, newTo: '/recurring/new' },
+        { moduleId: 'clients', to: '/clients', label: t('nav.clients'), icon: ICONS.clients, newTo: '/clients/new' },
+        { moduleId: 'projects', to: '/projects', label: t('nav.projects'), icon: ICONS.projects },
+        ...(isAdmin ? [{ moduleId: 'approvals', to: '/admin/approvals', label: t('nav.approvals'), icon: ICONS.approvals }] : []),
         // Export vidí všichni vč. readonly (export dat = čtení), daňové výkazy taktéž (sekce Daně níže).
-        { to: '/admin/export',  label: t('nav.exports'),           icon: ICONS.exports   },
-        ...(isAdmin ? [{ to: '/admin/import?tab=issued',  label: t('nav.imports_issued'),    icon: ICONS.imports   }] : []),
+        { moduleId: 'exports', to: '/admin/export', label: t('nav.exports'), icon: ICONS.exports },
+        ...(isAdmin ? [{ moduleId: 'imports-issued', to: '/admin/import?tab=issued', label: t('nav.imports_issued'), icon: ICONS.imports }] : []),
       ],
     },
     {
       title: t('nav.section_purchase'),
       accent: 'warning',
       items: [
-        { to: '/purchase-invoices',          label: t('nav.purchase_invoices'),  icon: ICONS.purchase, newTo: '/purchase-invoices/new' },
-        { to: '/clients?role=vendors',       label: t('nav.vendors'),            icon: ICONS.suppliers, newTo: '/clients/new?role=vendor' },
-        { to: '/purchase-invoices/export',   label: t('nav.purchase_export'),    icon: ICONS.exports },
-        ...(isAdmin ? [{ to: '/admin/import?tab=purchase',  label: t('nav.imports_purchase'), icon: ICONS.imports }] : []),
-        ...(isAdmin ? [{ to: '/admin/integrations?tab=ai',  label: t('nav.ai_import'),        icon: ICONS.ai }] : []),
+        { moduleId: 'purchase-invoices', to: '/purchase-invoices', label: t('nav.purchase_invoices'), icon: ICONS.purchase, newTo: '/purchase-invoices/new' },
+        { moduleId: 'vendors', to: '/clients?role=vendors', label: t('nav.vendors'), icon: ICONS.suppliers, newTo: '/clients/new?role=vendor' },
+        { moduleId: 'purchase-export', to: '/purchase-invoices/export', label: t('nav.purchase_export'), icon: ICONS.exports },
+        ...(isAdmin ? [{ moduleId: 'imports-purchase', to: '/admin/import?tab=purchase', label: t('nav.imports_purchase'), icon: ICONS.imports }] : []),
+        ...(isAdmin ? [{ moduleId: 'ai-import', to: '/admin/integrations?tab=ai', label: t('nav.ai_import'), icon: ICONS.ai }] : []),
       ],
     },
     {
       title: t('nav.section_finance'),
       accent: 'success',
       items: [
-        { to: '/crm',            label: t('nav.crm'),            icon: ICONS.crm },
-        { to: '/stats',          label: t('nav.stats'),          icon: ICONS.stats },
-        { to: '/purchase-stats', label: t('nav.purchase_stats'), icon: ICONS.purchase },
-        { to: '/bank',           label: t('nav.bank'),           icon: ICONS.bank },
+        { moduleId: 'crm', to: '/crm', label: t('nav.crm'), icon: ICONS.crm },
+        { moduleId: 'stats', to: '/stats', label: t('nav.stats'), icon: ICONS.stats },
+        { moduleId: 'purchase-stats', to: '/purchase-stats', label: t('nav.purchase_stats'), icon: ICONS.purchase },
+        { moduleId: 'bank', to: '/bank', label: t('nav.bank'), icon: ICONS.bank },
       ],
     },
     {
       title: t('nav.section_documents'),
       accent: 'neutral',
       items: [
-        { to: '/documents', label: t('nav.documents'), icon: ICONS.documents },
+        { moduleId: 'documents', to: '/documents', label: t('nav.documents'), icon: ICONS.documents },
       ],
     },
     {
       title: t('nav.section_taxes'),
       accent: 'danger',
       items: [
-        { to: '/reports/dph',         label: t('nav.reports_dph'),         icon: ICONS.tax_dph },
-        { to: '/reports/kh',          label: t('nav.reports_kh'),          icon: ICONS.tax_kh },
-        { to: '/reports/dph-book',    label: t('nav.reports_dph_book'),    icon: ICONS.tax_book },
-        { to: '/reports/shv',         label: t('nav.reports_shv'),         icon: ICONS.tax_shv },
-        { to: '/reports/income-tax',  label: t('nav.reports_income_tax'),  icon: ICONS.tax_income },
-        ...(isOsvc ? [{ to: '/tax', label: t('nav.tax_optimizer'), icon: ICONS.tax_optimizer }] : []),
-        { to: '/reports/submissions', label: t('nav.reports_submissions'), icon: ICONS.tax_archive },
-        { to: '/reports/monthly-export', label: t('nav.reports_monthly_export'), icon: ICONS.exports },
+        { moduleId: 'reports-dph', to: '/reports/dph', label: t('nav.reports_dph'), icon: ICONS.tax_dph },
+        { moduleId: 'reports-kh', to: '/reports/kh', label: t('nav.reports_kh'), icon: ICONS.tax_kh },
+        { moduleId: 'reports-dph-book', to: '/reports/dph-book', label: t('nav.reports_dph_book'), icon: ICONS.tax_book },
+        { moduleId: 'reports-shv', to: '/reports/shv', label: t('nav.reports_shv'), icon: ICONS.tax_shv },
+        { moduleId: 'reports-income-tax', to: '/reports/income-tax', label: t('nav.reports_income_tax'), icon: ICONS.tax_income },
+        ...(isOsvc ? [{ moduleId: 'tax-optimizer', to: '/tax', label: t('nav.tax_optimizer'), icon: ICONS.tax_optimizer }] : []),
+        { moduleId: 'reports-submissions', to: '/reports/submissions', label: t('nav.reports_submissions'), icon: ICONS.tax_archive },
+        { moduleId: 'reports-monthly-export', to: '/reports/monthly-export', label: t('nav.reports_monthly_export'), icon: ICONS.exports },
       ],
     },
   ]
@@ -194,16 +196,17 @@ const navSections = computed<NavSection[]>(() => {
       title: t('nav.system'),
       accent: 'neutral',
       items: [
-        { to: '/admin/settings',         label: t('nav.settings'),        icon: ICONS.settings },
-        { to: '/admin/bank-accounts',    label: t('nav.bank_accounts'),   icon: ICONS.bank },
-        { to: '/admin/codebooks',        label: t('nav.codebooks'),       icon: ICONS.codebooks },
-        { to: '/admin/users',            label: t('nav.users'),           icon: ICONS.users },
-        { to: '/admin/emails',           label: t('nav.emails'),          icon: ICONS.email },
-        { to: '/admin/activity-log',     label: t('nav.log'),             icon: ICONS.log },
-        { to: '/admin/integrations',     label: t('nav.integrations'),    icon: ICONS.api_tokens },
-        { to: '/admin/cron-jobs',        label: t('nav.cron_jobs'),       icon: ICONS.cron },
-        { to: '/admin/update',           label: t('nav.updates'),         icon: ICONS.updates },
-        { to: '/profile/api-tokens',     label: t('nav.api_tokens'),      icon: ICONS.api_tokens },
+        { moduleId: 'settings', to: '/admin/settings', label: t('nav.settings'), icon: ICONS.settings },
+        { moduleId: 'bank-accounts', to: '/admin/bank-accounts', label: t('nav.bank_accounts'), icon: ICONS.bank },
+        { moduleId: 'codebooks', to: '/admin/codebooks', label: t('nav.codebooks'), icon: ICONS.codebooks },
+        { moduleId: 'users', to: '/admin/users', label: t('nav.users'), icon: ICONS.users },
+        { moduleId: 'emails', to: '/admin/emails', label: t('nav.emails'), icon: ICONS.email },
+        { moduleId: 'activity-log', to: '/admin/activity-log', label: t('nav.log'), icon: ICONS.log },
+        { moduleId: 'integrations', to: '/admin/integrations', label: t('nav.integrations'), icon: ICONS.api_tokens },
+        { moduleId: 'cron-jobs', to: '/admin/cron-jobs', label: t('nav.cron_jobs'), icon: ICONS.cron },
+        { moduleId: 'updates', to: '/admin/update', label: t('nav.updates'), icon: ICONS.updates },
+        { moduleId: 'api-tokens', to: '/profile/api-tokens', label: t('nav.api_tokens'), icon: ICONS.api_tokens },
+        { moduleId: TRI_SETTINGS_MODULE_ID, to: '/admin/tri-settings', label: t('nav.tri_settings'), icon: ICONS.settings },
       ],
     })
   }
@@ -213,7 +216,7 @@ const navSections = computed<NavSection[]>(() => {
       title: t('nav.system'),
       accent: 'neutral',
       items: [
-        { to: '/admin/electronic-signatures', label: t('nav.electronic_signatures'), icon: ICONS.approvals },
+        { moduleId: 'electronic-signatures', to: '/admin/electronic-signatures', label: t('nav.electronic_signatures'), icon: ICONS.approvals },
       ],
     })
   }
@@ -221,7 +224,7 @@ const navSections = computed<NavSection[]>(() => {
   // Nápověda jako poslední (po Systému) — externí link na manuál v novém tabu.
   sections.push({
     items: [
-      { to: '/manual', label: t('nav.help'), icon: ICONS.help, external: true },
+      { moduleId: 'help', to: '/manual', label: t('nav.help'), icon: ICONS.help, external: true },
     ],
   })
 
@@ -242,6 +245,19 @@ const quickActions = computed(() => [
 const flatNavItems = computed(() =>
   navSections.value.flatMap(s => s.items.map(it => ({ to: it.to, label: it.label, icon: it.icon, external: it.external })))
 )
+
+const hiddenSidebarModules = ref<string[]>([])
+
+const visibleNavSections = computed<NavSection[]>(() => {
+  if (hiddenSidebarModules.value.length === 0) return navSections.value
+  const hidden = new Set(hiddenSidebarModules.value)
+  return navSections.value
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => item.moduleId === TRI_SETTINGS_MODULE_ID || !hidden.has(item.moduleId)),
+    }))
+    .filter((section) => section.items.length > 0)
+})
 
 function isActive(to: string): boolean {
   if (to === '/') return route.path === '/'
@@ -300,7 +316,16 @@ watch(() => route.path, () => { mobileOpen.value = false; quickOpen.value = fals
 
 const versionInfo = ref<PublicVersion | null>(null)
 onMounted(async () => {
-  try { versionInfo.value = await updateApi.publicVersion() } catch {}
+  const [versionResult, sidebarResult] = await Promise.allSettled([
+    updateApi.publicVersion(),
+    settingsApi.getTriSidebarSettings(),
+  ])
+  if (versionResult.status === 'fulfilled') {
+    versionInfo.value = versionResult.value
+  }
+  if (sidebarResult.status === 'fulfilled') {
+    hiddenSidebarModules.value = normalizeHiddenSidebarModules(sidebarResult.value.hidden_modules)
+  }
 })
 </script>
 
@@ -474,7 +499,7 @@ onMounted(async () => {
           <!-- Globální vyhledávač (před Přehled) — našeptává menu + hledá klienty/faktury -->
           <GlobalSearch :menu-items="flatNavItems" @navigated="mobileOpen = false" />
 
-          <template v-for="(section, si) in navSections" :key="si">
+          <template v-for="(section, si) in visibleNavSections" :key="si">
             <!-- Section title — soft pill background v barvě sekce -->
             <div v-if="section.title" :class="si === 0 ? 'pt-1 pb-1.5' : 'pt-4 pb-1.5'">
               <div
