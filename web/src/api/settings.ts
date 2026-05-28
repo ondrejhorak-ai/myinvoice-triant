@@ -126,6 +126,10 @@ export interface Unit {
   items_count?: number
 }
 
+export interface TriSidebarSettings {
+  hidden_modules: string[]
+}
+
 export const settingsApi = {
   getSupplier: () => api.get<Supplier>('/settings/supplier').then(r => r.data),
   updateSupplier: (payload: Partial<Supplier>) => api.put<Supplier>('/settings/supplier', payload).then(r => r.data),
@@ -166,4 +170,8 @@ export const settingsApi = {
   // Vrací HTML string — frontend ho pak nacpe do iframe.srcdoc (obejde X-Frame-Options DENY).
   emailPreviewHtml: (locale: 'cs' | 'en' = 'cs') =>
     api.get<string>(`/settings/email-branding/preview?locale=${locale}`, { responseType: 'text', transformResponse: [(d) => d] }).then(r => r.data),
+
+  getTriSidebarSettings: () => api.get<TriSidebarSettings>('/settings/tri-sidebar').then(r => r.data),
+  updateTriSidebarSettings: (payload: TriSidebarSettings) =>
+    api.put<TriSidebarSettings>('/settings/tri-sidebar', payload).then(r => r.data),
 }

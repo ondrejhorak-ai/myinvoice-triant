@@ -45,6 +45,7 @@ use MyInvoice\Action\Admin\ListActivityLogAction;
 use MyInvoice\Action\Admin\UserAdminAction;
 use MyInvoice\Action\Settings\EmailBrandingAction;
 use MyInvoice\Action\Settings\SettingsAction;
+use MyInvoice\Action\Settings\TriSidebarSettingsAction;
 use MyInvoice\Action\Bank\BankStatementAction;
 use MyInvoice\Action\Dashboard\SummaryAction;
 use MyInvoice\Action\Dashboard\PurchaseSummaryAction;
@@ -422,6 +423,8 @@ final class Routes
         $app->post   ('/api/settings/units',                          [SettingsAction::class, 'createUnit']);
         $app->put    ('/api/settings/units/{id:[0-9]+}',              [SettingsAction::class, 'updateUnit']);
         $app->delete ('/api/settings/units/{id:[0-9]+}',              [SettingsAction::class, 'deleteUnit']);
+        $app->get    ('/api/settings/tri-sidebar',                    [TriSidebarSettingsAction::class, 'get']);
+        $app->put    ('/api/settings/tri-sidebar',                    [TriSidebarSettingsAction::class, 'put']);
 
         // Bank statements (M5b)
         $app->post ('/api/bank-statements/upload',           [BankStatementAction::class, 'upload']);
