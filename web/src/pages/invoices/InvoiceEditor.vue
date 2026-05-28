@@ -540,8 +540,16 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+/**
+ * Řádkové „Celkem" — u plátce DPH včetně DPH (aby bylo vidět, že sazba DPH má efekt;
+ * net základ + DPH je v souhrnu níže). U neplátce / reverse-charge je sazba 0 → = základ.
+ */
 function itemTotal(item: InvoiceItem): number {
-  return round2(item.quantity * item.unit_price_without_vat)
+  const base = round2(Number(item.quantity) * Number(item.unit_price_without_vat))
+  const vatRate = (form.value.reverse_charge || !supplierIsVatPayer.value)
+    ? 0
+    : (vatRates.value.find(v => v.id === item.vat_rate_id)?.rate_percent ?? 0)
+  return round2(base + round2(base * (vatRate / 100)))
 }
 
 // ─── WORK REPORT ────────────────────────────────────────────────
@@ -1032,7 +1040,7 @@ async function deleteDraft() {
               <th class="px-3 py-2 text-left font-medium w-16">{{ t('invoice.items_table.unit') }}</th>
               <th class="px-3 py-2 text-right font-medium w-32">{{ t('invoice.items_table.unit_price') }}</th>
               <th v-if="supplierIsVatPayer" class="px-3 py-2 text-center font-medium w-24">{{ t('invoice.totals.vat') }}</th>
-              <th class="px-3 py-2 text-right font-medium w-32">{{ t('invoice.totals.total') }}</th>
+              <th class="px-3 py-2 text-right font-medium w-32">{{ supplierIsVatPayer ? t('invoice.items_table.total_incl_vat') : t('invoice.totals.total') }}</th>
               <th class="px-3 py-2 w-12"></th>
             </tr>
           </thead>
@@ -1128,7 +1136,7 @@ async function deleteDraft() {
               </div>
             </div>
             <div class="flex items-baseline justify-between pt-1 border-t border-neutral-100">
-              <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">{{ t('invoice.totals.total') }}</span>
+              <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">{{ supplierIsVatPayer ? t('invoice.items_table.total_incl_vat') : t('invoice.totals.total') }}</span>
               <span class="font-mono font-semibold">{{ formatMoney(itemTotal(item), form.currency) }}</span>
             </div>
           </div>

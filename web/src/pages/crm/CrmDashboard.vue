@@ -224,6 +224,9 @@ const wcCycle = computed<number | null>(() => {
   return Math.round((dso.value.avg_days - dpo.value.avg_days) * 10) / 10
 })
 
+/** Krátký štítek zvoleného analytického období pro hlavičky sekcí (např. "12 m"). */
+const periodChip = computed(() => t('crm.period_chip', { n: periodMonths.value }))
+
 watch([periodMonths, currencyFilter], () => {
   if (currencyFilter.value) loadAll()
 })
@@ -240,12 +243,6 @@ onMounted(loadAll)
         <p class="text-sm text-neutral-500 mt-0.5">{{ t('crm.subtitle') }}</p>
       </div>
       <div class="flex items-center gap-2 flex-wrap">
-        <select v-model.number="periodMonths" class="h-9 px-3 border border-neutral-300 rounded-md bg-white text-sm">
-          <option :value="3">{{ t('crm.last_n_months', { n: 3 }) }}</option>
-          <option :value="6">{{ t('crm.last_n_months', { n: 6 }) }}</option>
-          <option :value="12">{{ t('crm.last_n_months', { n: 12 }) }}</option>
-          <option :value="24">{{ t('crm.last_n_months', { n: 24 }) }}</option>
-        </select>
         <select v-if="availableCurrencies.length > 1" v-model="currencyFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-white text-sm">
           <option v-for="c in availableCurrencies" :key="c" :value="c">{{ c }}</option>
         </select>
@@ -353,7 +350,8 @@ onMounted(loadAll)
         </button>
       </div>
 
-      <!-- ═══ KPI cards ═══ -->
+      <!-- ═══ Headline KPI — aktuální měsíc + YTD (nezávislé na zvoleném období) ═══ -->
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 -mb-1">{{ t('crm.kpi_section') }}</h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Revenue -->
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm p-5">
@@ -429,11 +427,28 @@ onMounted(loadAll)
         </div>
       </div>
 
+      <!-- ═══ Analytické období — řídí žebříčky, grafy a metriky NÍŽE ═══ -->
+      <div class="flex items-center justify-between gap-3 flex-wrap border-t border-neutral-200 pt-4">
+        <div>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-600">{{ t('crm.analytics_section') }}</h2>
+          <p class="text-xs text-neutral-400 mt-0.5">{{ t('crm.analytics_section_hint') }}</p>
+        </div>
+        <label class="flex items-center gap-2 text-sm shrink-0">
+          <span class="text-neutral-500">{{ t('crm.period_label') }}</span>
+          <select v-model.number="periodMonths" class="h-9 px-3 border border-neutral-300 rounded-md bg-white text-sm">
+            <option :value="3">{{ t('crm.last_n_months', { n: 3 }) }}</option>
+            <option :value="6">{{ t('crm.last_n_months', { n: 6 }) }}</option>
+            <option :value="12">{{ t('crm.last_n_months', { n: 12 }) }}</option>
+            <option :value="24">{{ t('crm.last_n_months', { n: 24 }) }}</option>
+          </select>
+        </label>
+      </div>
+
       <!-- ═══ Monthly trend chart (HTML/CSS bars — no chart.js dependency) ═══ -->
       <div class="bg-white border border-neutral-200 rounded-lg shadow-sm">
         <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-            {{ t('crm.monthly_trend') }} ({{ t('crm.last_n_months', { n: periodMonths }) }})
+            {{ t('crm.monthly_trend') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ periodChip }})</span>
           </h3>
           <div class="flex items-center gap-3 text-xs">
             <span class="flex items-center gap-1">
@@ -476,7 +491,7 @@ onMounted(loadAll)
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              {{ t('crm.top_clients') }}
+              {{ t('crm.top_clients') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ periodChip }})</span>
             </h3>
           </header>
           <div v-if="topClients.length === 0" class="p-8 text-center text-neutral-500 text-sm">
@@ -507,7 +522,7 @@ onMounted(loadAll)
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              {{ t('crm.top_vendors') }}
+              {{ t('crm.top_vendors') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ periodChip }})</span>
             </h3>
           </header>
           <div v-if="topVendors.length === 0" class="p-8 text-center text-neutral-500 text-sm">
@@ -541,7 +556,7 @@ onMounted(loadAll)
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              {{ t('crm.aging.receivables_title') }}
+              {{ t('crm.aging.receivables_title') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ t('crm.snapshot_now') }})</span>
             </h3>
             <span class="text-sm font-mono text-neutral-700">
               {{ formatMoney(agingTotal, currencyFilter) }}
@@ -569,7 +584,7 @@ onMounted(loadAll)
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              {{ t('crm.aging.payables_title') }}
+              {{ t('crm.aging.payables_title') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ t('crm.snapshot_now') }})</span>
             </h3>
             <span class="text-sm font-mono text-neutral-700">
               {{ formatMoney(agingPayTotal, currencyFilter) }}
@@ -599,7 +614,7 @@ onMounted(loadAll)
         <!-- DSO -->
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm p-5">
           <div class="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-1">
-            {{ t('crm.dso.title') }}
+            {{ t('crm.dso.title') }} <span class="normal-case font-normal text-neutral-400">· {{ periodChip }}</span>
           </div>
           <div class="text-2xl font-bold font-mono text-neutral-900">
             {{ dso?.avg_days ?? '—' }}<span class="text-base text-neutral-500 ml-1">{{ t('crm.dso.days') }}</span>
@@ -610,7 +625,7 @@ onMounted(loadAll)
         <!-- Punctuality -->
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm p-5">
           <div class="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-1">
-            {{ t('crm.punctuality.title') }}
+            {{ t('crm.punctuality.title') }} <span class="normal-case font-normal text-neutral-400">· {{ periodChip }}</span>
           </div>
           <div class="text-2xl font-bold font-mono"
             :class="(punctuality?.on_time_pct ?? 0) >= 80 ? 'text-success-600' : (punctuality?.on_time_pct ?? 0) >= 50 ? 'text-warning-600' : 'text-danger-500'">
@@ -624,7 +639,7 @@ onMounted(loadAll)
         <!-- Concentration risk -->
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm p-5">
           <div class="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-1">
-            {{ t('crm.concentration.title') }}
+            {{ t('crm.concentration.title') }} <span class="normal-case font-normal text-neutral-400">· {{ periodChip }}</span>
           </div>
           <div class="text-2xl font-bold font-mono" :class="riskColor(concentration?.risk_level || 'low')">
             {{ concentration?.top1_share ?? 0 }}%
@@ -644,7 +659,7 @@ onMounted(loadAll)
         <!-- DPO -->
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm p-5">
           <div class="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-1">
-            {{ t('crm.dpo.title') }}
+            {{ t('crm.dpo.title') }} <span class="normal-case font-normal text-neutral-400">· {{ periodChip }}</span>
           </div>
           <div class="text-2xl font-bold font-mono text-neutral-900">
             {{ dpo?.avg_days ?? '—' }}<span class="text-base text-neutral-500 ml-1">{{ t('crm.dso.days') }}</span>
@@ -655,7 +670,7 @@ onMounted(loadAll)
         <!-- Vendor concentration risk -->
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm p-5">
           <div class="text-xs uppercase tracking-wide text-neutral-500 font-medium mb-1">
-            {{ t('crm.vendor_concentration.title') }}
+            {{ t('crm.vendor_concentration.title') }} <span class="normal-case font-normal text-neutral-400">· {{ periodChip }}</span>
           </div>
           <div class="text-2xl font-bold font-mono" :class="riskColor(vendorConcentration?.risk_level || 'low')">
             {{ vendorConcentration?.top1_share ?? 0 }}%
@@ -693,7 +708,7 @@ onMounted(loadAll)
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              {{ t('crm.expense_breakdown.title') }}
+              {{ t('crm.expense_breakdown.title') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ periodChip }})</span>
             </h3>
           </header>
           <div v-if="expenses.length === 0" class="p-6 text-center text-neutral-500 text-sm">
@@ -791,7 +806,7 @@ onMounted(loadAll)
         <div v-if="monthly.length > 0" class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              📊 {{ t('crm.costs_by_month_table') }}
+              📊 {{ t('crm.costs_by_month_table') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ periodChip }})</span>
             </h3>
           </header>
           <div class="overflow-x-auto">
@@ -911,7 +926,7 @@ onMounted(loadAll)
         <div class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-              ⏱️ {{ t('crm.payment_time.title') }}
+              ⏱️ {{ t('crm.payment_time.title') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ periodChip }})</span>
             </h3>
             <div v-if="paymentHist && paymentHist.median_days !== null" class="text-xs text-neutral-500">
               {{ t('crm.payment_time.median') }}: <span class="font-mono font-medium">{{ paymentHist.median_days }} {{ t('crm.payment_time.days') }}</span>
@@ -943,7 +958,7 @@ onMounted(loadAll)
       <div v-if="reminderEff && reminderEff.total_paid > 0" class="bg-white border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
         <header class="px-5 py-3 border-b border-neutral-200">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
-            📧 {{ t('crm.reminder.title') }}
+            📧 {{ t('crm.reminder.title') }} <span class="normal-case font-normal text-[10px] text-neutral-400">({{ periodChip }})</span>
           </h3>
         </header>
         <div class="p-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-center">

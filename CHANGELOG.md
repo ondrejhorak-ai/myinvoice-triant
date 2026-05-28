@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.7] — 2026-05-28
+
+Daňový audit (opravy DPH/KH/SHV výkazů a daně z příjmů), zpřehlednění CRM, samočinné odblokování aktualizace a řádkové „Celkem s DPH" u vydaných faktur.
+
+### Fixed
+
+- **Souhrnné hlášení — kód plnění:** poskytnutí služby do EU (`§ 9/1`) se hlásilo s chybným kódem plnění `2` (třístranný obchod) místo správného **`3`**. Opraveno dle DPHSHV XSD (`0` zboží, `2` třístranný, `3` služba).
+- **Daň z příjmů — vypadávání nákladů:** přijaté faktury **bez vyplněného DUZP** (`tax_date` NULL) vypadávaly z nákladů DPFO/DPPO (`GREATEST(NULL, …) = NULL`). Opraveno na NULL-safe variantu.
+- **Kontrolní hlášení — poměrný odpočet (§ 75):** u dokladů s poměrným odpočtem nad 10 000 Kč se v sekci B.2 nově nastavuje atribut `pomer='A'` (dříve napevno `'A'`/`'N'` nekonzistentně).
+- **Náklady — DPH na vstupu = nárok na odpočet:** graf „Rozpad DPH na vstupu" nově vyřazuje faktury bez nároku a krátí poměrný odpočet, takže odpovídá Knize DPH / DPHDP3 (ř. 40/41). Přejmenováno na „Nárok na odpočet DPH podle sazby".
+- **Aktualizace se zasekávala na „Upgrade probíhá…":** stav se nyní sám odblokuje, pokud je cílová verze už nasazená (např. update přes terminál) nebo příznak vypršel (watcher neběží). Přidáno tlačítko **„Zrušit / odblokovat"**.
+
+### Added
+
+- **Třístranný obchod (§ 17):** nové klasifikační kódy `30` (pořízení prostřední osobou → DPHDP3 ř. 30) a `31` (dodání prostřední osobou → ř. 31 + souhrnné hlášení kód 2). DPHDP3 nově generuje oddíl C (Veta3). (migrace `0060`)
+- **Registrace k DPH dle novely 2025:** indikátor obratu na stránce *Tržby* nově testuje **kalendářní rok** se dvěma prahy — `2 000 000 Kč` (plátcem od 1. 1. následujícího roku) a `2 536 500 Kč` (plátcem ze zákona ihned). Dříve klamavě „plovoucích 12 měsíců".
+- **Náklady — sjednocení období:** náklady se řadí dle pozdějšího z DUZP / vystavení (shodně se základem daně z příjmů).
+
+### Changed
+
+- **CRM dashboard — přehlednější filtr období:** přepínač období přesunut z horní lišty k analytické části, kterou skutečně řídí; KPI karty nahoře jsou označené jako „tento měsíc / od začátku roku" (na období nereagují) a sekce řízené obdobím nesou štítek `(N m)`.
+- **Vydané faktury — řádkové „Celkem s DPH":** u plátce DPH řádkové „Celkem" nově zobrazuje částku včetně DPH (mění se podle zvolené sazby), aby byl efekt sazby DPH viditelný; rozpad bez DPH / DPH zůstává v souhrnu.
+
 ## [4.3.6] — 2026-05-28
 
 Nová sekce **Náklady** ve Financích (statistiky a analýzy přijatých faktur, obdoba Tržeb) a rozšíření CRM o závazkové metriky.

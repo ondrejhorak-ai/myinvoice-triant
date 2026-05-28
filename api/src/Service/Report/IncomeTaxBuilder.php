@@ -162,7 +162,8 @@ final class IncomeTaxBuilder
                 AND pi.status NOT IN ('draft', 'cancelled')
                 AND pi.tax_deductible = 1
                 AND COALESCE(c.code, 'CZK') = 'CZK'
-                AND GREATEST(pi.tax_date, pi.issue_date) BETWEEN ? AND ?"
+                -- NULL-safe: GREATEST(NULL, x) = NULL → faktury bez DUZP by jinak vypadly.
+                AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) BETWEEN ? AND ?"
         );
         $stmt->execute([$supplierId, $start, $end]);
         $costs = (float) ($stmt->fetchColumn() ?: 0);
