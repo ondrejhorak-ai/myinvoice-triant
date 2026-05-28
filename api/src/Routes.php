@@ -140,6 +140,7 @@ final class Routes
         $app->get  ('/api/admin/update/status',  [UpdateAction::class, 'status']);
         $app->post ('/api/admin/update/refresh', [UpdateAction::class, 'refresh']);
         $app->post ('/api/admin/update/trigger', [UpdateAction::class, 'trigger']);
+        $app->post ('/api/admin/update/cancel',  [UpdateAction::class, 'cancel']);
 
         $app->group('/api/auth', function ($g) {
             $g->get ('/setup-status',    SetupStatusAction::class);

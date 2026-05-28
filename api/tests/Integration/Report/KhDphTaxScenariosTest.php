@@ -10,6 +10,7 @@ use MyInvoice\Repository\PurchaseInvoiceRepository;
 use MyInvoice\Service\Report\DphBookBuilder;
 use MyInvoice\Service\Report\DphPriznaniBuilder;
 use MyInvoice\Service\Report\KontrolniHlaseniBuilder;
+use MyInvoice\Service\Report\SouhrnneHlaseniBuilder;
 use PDO;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -39,6 +40,7 @@ final class KhDphTaxScenariosTest extends TestCase
     private KontrolniHlaseniBuilder $kh;
     private DphPriznaniBuilder $dph;
     private DphBookBuilder $book;
+    private SouhrnneHlaseniBuilder $shv;
     private PurchaseInvoiceRepository $piRepo;
 
     private int $supplierId = 0;
@@ -68,6 +70,7 @@ final class KhDphTaxScenariosTest extends TestCase
             $this->kh   = $container->get(KontrolniHlaseniBuilder::class);
             $this->dph  = $container->get(DphPriznaniBuilder::class);
             $this->book = $container->get(DphBookBuilder::class);
+            $this->shv  = $container->get(SouhrnneHlaseniBuilder::class);
             $this->piRepo = $container->get(PurchaseInvoiceRepository::class);
         } catch (\Throwable $e) {
             $this->markTestSkipped('DI nedostupné: ' . $e->getMessage());
@@ -398,6 +401,72 @@ final class KhDphTaxScenariosTest extends TestCase
         $this->piRepo->reprefixVarsymbol($id, $this->supplierId);
         $vs2 = (string) $pdo->query("SELECT varsymbol FROM purchase_invoices WHERE id = $id")->fetchColumn();
         self::assertSame('FAK-2099/7', $vs2, 'ruční číslo se nepřepisuje');
+    }
+
+    /**
+     * §75 poměrný odpočet: doklad nad limit s DIČ se v KH (B.2) označí pomer='A'
+     * (částky jsou už zkrácené). Plný nárok → pomer='N'.
+     */
+    public function testProportionalDeductionMarksKhPomer(): void
+    {
+        $d = fn (int $day) => sprintf('%04d-%02d-%02d', self::YEAR, self::MONTH, $day);
+        $vend = $this->client('Dodavatel pomer', $this->czId, 'CZ88888887', vendor: true);
+
+        // Plný nárok, gross 24200 (nad limit) → B.2 pomer N, základ 20000
+        $this->purchase('P-2099-300', $vend, '40', false, 'invoice', $d(10), $d(10), [[20000, 4200, 21]]);
+        // Poměrný 50 %, gross 12100 (nad limit) → B.2 pomer A, zkrácený základ 5000
+        $this->purchase('P-2099-301', $vend, '40', false, 'invoice', $d(11), $d(11), [[10000, 2100, 21]],
+            vatDeduction: 'proportional', vatDeductionPercent: 50.0);
+
+        $kh = new \SimpleXMLElement($this->kh->build($this->supplierId, self::YEAR, self::MONTH)['xml']);
+        $pomerByBase = [];
+        foreach ($kh->DPHKH1->VetaB2 as $v) {
+            $pomerByBase[(string) $v['zakl_dane1']] = (string) $v['pomer'];
+        }
+        $this->assertSame('N', $pomerByBase['20000.00'] ?? null, 'Plný nárok → pomer=N');
+        $this->assertSame('A', $pomerByBase['5000.00'] ?? null, 'Poměrný §75 → pomer=A (zkrácený základ 5000)');
+    }
+
+    /**
+     * Souhrnné hlášení: kód plnění (k_pln_eu) dle DPHSHV XSD —
+     *   dodání zboží do JČS → 0, služba do JČS (§9/1) → 3,
+     *   třístranný obchod prostřední osobou (§17) → 2.
+     * Plus DPHDP3: ř.20 (dod_zb), ř.21 (pln_sluzby), ř.31 (tri_dozb / Veta3).
+     */
+    public function testEuSupplyShvCodesAndTriangular(): void
+    {
+        // SHV vyžaduje EU zemi — pokud seed countries nemá SK jako EU, přeskoč.
+        $skEu = (int) ($this->db->pdo()->query("SELECT COALESCE(is_eu,0) FROM countries WHERE iso2='SK' LIMIT 1")->fetchColumn() ?: 0);
+        if ($skEu !== 1) {
+            $this->markTestSkipped('SK není v countries označeno jako EU — SHV test přeskočen.');
+        }
+
+        $d = fn (int $day) => sprintf('%04d-%02d-%02d', self::YEAR, self::MONTH, $day);
+        $euCust = $this->client('EU odběratel SHV', $this->skId, 'SK7654321', customer: true);
+
+        // Dodání zboží do JČS (kód 20 → SHV 0, DPHDP3 ř.20)
+        $this->sale('2099063001', $euCust, '20', false, $d(10), $d(10), [[10000, 0, 0]]);
+        // Poskytnutí služby do JČS (kód 22 → SHV 3, DPHDP3 ř.21)
+        $this->sale('2099063002', $euCust, '22', false, $d(11), $d(11), [[5000, 0, 0]]);
+        // Třístranný obchod — dodání prostřední osobou (kód 31 → SHV 2, DPHDP3 ř.31)
+        $this->sale('2099063003', $euCust, '31', false, $d(12), $d(12), [[7000, 0, 0]]);
+
+        // ── SHV: kódy plnění ──
+        $shv = $this->shv->build($this->supplierId, self::YEAR, self::MONTH);
+        $amountByType = [];
+        foreach ($shv['summary']['rows'] as $r) {
+            $amountByType[(string) $r['sh_type']] = (float) $r['amount'];
+        }
+        $this->assertEqualsWithDelta(10000, $amountByType['0'] ?? -1, 0.01, 'SHV kód 0 = dodání zboží');
+        $this->assertEqualsWithDelta(5000,  $amountByType['3'] ?? -1, 0.01, 'SHV kód 3 = služba §9/1 (dříve chybně 2)');
+        $this->assertEqualsWithDelta(7000,  $amountByType['2'] ?? -1, 0.01, 'SHV kód 2 = třístranný obchod (prostřední osoba)');
+
+        // ── DPHDP3: oddíl C ──
+        $dp = (new \SimpleXMLElement($this->dph->build($this->supplierId, self::YEAR, self::MONTH, 'monthly')['xml']))->DPHDP3;
+        $this->assertSame('10000', (string) $dp->Veta2['dod_zb'],     'ř.20 dodání zboží do JČS');
+        $this->assertSame('5000',  (string) $dp->Veta2['pln_sluzby'], 'ř.21 služby do JČS');
+        $this->assertNotNull($dp->Veta3, 'Veta3 (oddíl C) musí existovat pro třístranný obchod');
+        $this->assertSame('7000',  (string) $dp->Veta3['tri_dozb'],   'ř.31 dodání zboží prostřední osobou');
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

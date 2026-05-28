@@ -108,7 +108,7 @@ final class PurchaseSummaryAction
                   FROM purchase_invoices pi
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND COALESCE(pi.tax_date, pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                   AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                    AND pi.status IN " . self::COST_STATUSES . "
                  GROUP BY cur.code";
         $stmt = $pdo->prepare($sql);
@@ -127,7 +127,7 @@ final class PurchaseSummaryAction
     private function costsByYear(\PDO $pdo, int $sid, bool $isVatPayer): array
     {
         $cost = $this->costCol($isVatPayer);
-        $sql = "SELECT YEAR(COALESCE(pi.tax_date, pi.issue_date)) AS year,
+        $sql = "SELECT YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) AS year,
                        cur.code AS currency,
                        SUM($cost) AS total,
                        COUNT(*) AS invoice_count
@@ -158,25 +158,25 @@ final class PurchaseSummaryAction
         $cost = $this->costCol($isVatPayer);
         // YoY: this_year (YTD) vs prev_year_ytd (loni do stejné kalendářní pozice). prev_year = celý loňský rok.
         $sql = "SELECT cur.code AS currency,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                                  THEN $cost ELSE 0 END) AS this_year,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                                  THEN $cost ELSE 0 END) AS prev_year,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
-                                  AND COALESCE(pi.tax_date, pi.issue_date) <= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
+                                  AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) <= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
                                  THEN $cost ELSE 0 END) AS prev_year_ytd,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                                  THEN 1 ELSE 0 END) AS this_year_invoice_count,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                                  THEN 1 ELSE 0 END) AS prev_year_invoice_count,
-                       COUNT(DISTINCT CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                       COUNT(DISTINCT CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                                             THEN pi.vendor_id END) AS this_year_vendor_count,
-                       COUNT(DISTINCT CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                       COUNT(DISTINCT CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                                             THEN pi.vendor_id END) AS prev_year_vendor_count
                   FROM purchase_invoices pi
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND YEAR(COALESCE(pi.tax_date, pi.issue_date)) IN (?, ?)
+                   AND YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) IN (?, ?)
                    AND pi.status IN " . self::COST_STATUSES . "
                  GROUP BY cur.code";
         $stmt = $pdo->prepare($sql);
@@ -340,7 +340,7 @@ final class PurchaseSummaryAction
                   JOIN clients c ON c.id = pi.vendor_id
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                   AND YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                    AND pi.status IN " . self::COST_STATUSES . "
                  GROUP BY c.id, c.company_name
                  ORDER BY total_czk DESC
@@ -369,7 +369,7 @@ final class PurchaseSummaryAction
                   JOIN clients c ON c.id = pi.vendor_id
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND COALESCE(pi.tax_date, pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                   AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                    AND pi.status IN " . self::COST_STATUSES . "
                  GROUP BY c.id, c.company_name
                  ORDER BY total_czk DESC
@@ -393,12 +393,12 @@ final class PurchaseSummaryAction
     {
         $cost = $this->costCol($isVatPayer);
         $sql = "SELECT cur.code AS currency,
-                       DATE_FORMAT(COALESCE(pi.tax_date, pi.issue_date), '%Y-%m') AS ym,
+                       DATE_FORMAT(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date), '%Y-%m') AS ym,
                        SUM($cost) AS total
                   FROM purchase_invoices pi
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND COALESCE(pi.tax_date, pi.issue_date) >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 23 MONTH), '%Y-%m-01')
+                   AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 23 MONTH), '%Y-%m-01')
                    AND pi.status IN " . self::COST_STATUSES . "
                  GROUP BY cur.code, ym";
         $stmt = $pdo->prepare($sql);
@@ -513,15 +513,15 @@ final class PurchaseSummaryAction
     {
         $cost = $this->costCol($isVatPayer);
         $sql = "SELECT cur.code AS currency,
-                       SUM(CASE WHEN COALESCE(pi.tax_date, pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                       SUM(CASE WHEN GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                                  THEN $cost ELSE 0 END) AS total_12m,
-                       SUM(CASE WHEN COALESCE(pi.tax_date, pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 24 MONTH)
-                                  AND COALESCE(pi.tax_date, pi.issue_date) <  DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                       SUM(CASE WHEN GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 24 MONTH)
+                                  AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) <  DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                                  THEN $cost ELSE 0 END) AS total_prev_12m
                   FROM purchase_invoices pi
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND COALESCE(pi.tax_date, pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 24 MONTH)
+                   AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 24 MONTH)
                    AND pi.status IN " . self::COST_STATUSES . "
                  GROUP BY cur.code";
         $stmt = $pdo->prepare($sql);
@@ -573,21 +573,26 @@ final class PurchaseSummaryAction
     }
 
     /**
-     * Rozpad DPH na vstupu (base bez DPH) podle sazby — posledních 12 měsíců, jen plátce DPH.
-     * Reverse-charge řádky se vykazují odděleně.
+     * Rozpad nároku na odpočet DPH na vstupu (base bez DPH) podle sazby — posledních 12 měsíců,
+     * jen plátce DPH. Odpovídá Knize DPH / DPHDP3 ř. 40/41:
+     *   • faktury bez nároku (`vat_deduction = 'none'`) se vyřazují,
+     *   • poměrný odpočet (`proportional`, § 75) se krátí na `vat_deduction_percent`,
+     *   • reverse-charge řádky se vykazují odděleně.
      * @return list<array{label: string, base: float, currency: string}>
      */
     private function vatInputBreakdown12m(\PDO $pdo, int $sid): array
     {
         $sql = "SELECT cur.code AS currency,
                        CASE WHEN pi.reverse_charge = 1 THEN 'RC' ELSE CAST(pii.vat_rate_snapshot AS CHAR) END AS rate_label,
-                       SUM(pii.total_without_vat) AS base
+                       SUM(pii.total_without_vat
+                           * IF(pi.vat_deduction = 'proportional', COALESCE(pi.vat_deduction_percent, 100) / 100, 1)) AS base
                   FROM purchase_invoice_items pii
                   JOIN purchase_invoices pi ON pi.id = pii.purchase_invoice_id
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND pi.status IN " . self::COST_STATUSES . "
-                   AND COALESCE(pi.tax_date, pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                   AND pi.vat_deduction <> 'none'
+                   AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                  GROUP BY cur.code, rate_label
                  ORDER BY cur.code, base DESC";
         $stmt = $pdo->prepare($sql);
@@ -620,7 +625,7 @@ final class PurchaseSummaryAction
              LEFT JOIN expense_categories ec ON ec.id = pi.expense_category_id
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND COALESCE(pi.tax_date, pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+                   AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                    AND pi.status IN " . self::COST_STATUSES . "
                  GROUP BY pi.expense_category_id, ec.code, ec.label
                  ORDER BY total DESC";
@@ -746,20 +751,20 @@ final class PurchaseSummaryAction
     {
         $cost = $this->costCol($isVatPayer);
         $sql = "SELECT cur.code AS currency,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                                  THEN $cost ELSE 0 END) AS ytd,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
-                                  AND COALESCE(pi.tax_date, pi.issue_date) <= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
+                                  AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) <= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
                                  THEN $cost ELSE 0 END) AS prev_year_ytd,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
-                                  AND COALESCE(pi.tax_date, pi.issue_date) > DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
+                                  AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) > DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
                                  THEN $cost ELSE 0 END) AS prev_year_remainder,
-                       SUM(CASE WHEN YEAR(COALESCE(pi.tax_date, pi.issue_date)) = ?
+                       SUM(CASE WHEN YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
                                  THEN $cost ELSE 0 END) AS prev_year_full
                   FROM purchase_invoices pi
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND YEAR(COALESCE(pi.tax_date, pi.issue_date)) IN (?, ?)
+                   AND YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) IN (?, ?)
                    AND pi.status IN " . self::COST_STATUSES . "
                  GROUP BY cur.code";
         $stmt = $pdo->prepare($sql);
@@ -792,7 +797,7 @@ final class PurchaseSummaryAction
                   FROM purchase_invoices
                  WHERE supplier_id = ?
                    AND status IN " . self::COST_STATUSES . "
-                   AND COALESCE(tax_date, issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)";
+                   AND GREATEST(COALESCE(tax_date, issue_date), issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$sid]);
         $sizes = array_map(static fn ($v) => (float) $v, $stmt->fetchAll(\PDO::FETCH_COLUMN));

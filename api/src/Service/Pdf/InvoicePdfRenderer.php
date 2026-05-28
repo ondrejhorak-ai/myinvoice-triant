@@ -85,7 +85,7 @@ final class InvoicePdfRenderer
         }
 
         $rootDir = Bootstrap::rootDir();
-        $tmpDir = $rootDir . '/storage/cache/mpdf';
+        $tmpDir = \MyInvoice\Infrastructure\Config\RuntimePaths::storage('cache/mpdf');
         if (!is_dir($tmpDir)) {
             @mkdir($tmpDir, 0755, true);
         }
@@ -281,34 +281,8 @@ final class InvoicePdfRenderer
      */
     private function brandAccentCss(array $supplier): string
     {
-        if (empty($supplier['email_branding_enabled'])) return '';
-        $color = AccentColor::normalize($supplier['email_accent_color'] ?? null);
-        if ($color === null || $color === AccentColor::DEFAULT) return '';
-
-        // Světlé varianty akcentu (podíl akcentu nad bílou) — odpovídají base hodnotám
-        // vůči #3B2D83: pilulka bg #EFEAFF, "K úhradě" wash #F4F2F8, linky #D2CCDF/#C9C0E9.
-        $bgSoft     = AccentColor::tint($color, 0.08); // jemné pozadí (badge, K úhradě)
-        $lineSoft   = AccentColor::tint($color, 0.24); // tenké linky (mezisoučty, QR box)
-        $lineMedium = AccentColor::tint($color, 0.28); // o málo sytější (rámeček banky, CZK)
-        $badgeBorder = AccentColor::tint($color, 0.30); // ohraničení ISDOC pilulky
-
-        return "\n/* ─── Branding override (per-supplier accent color) ─── */\n"
-            . ".head { border-bottom-color: {$color}; }\n"
-            . ".brand-name, .doc-type { color: {$color}; }\n"
-            . ".parties h2, td.meta-label, .bank-label, .qr-box .qr-label { color: {$color}; }\n"
-            . "table.items th { background: {$color}; }\n"
-            . "table.totals-table tr.grand td { background: {$color}; }\n"
-            . "table.totals-table tr.to-pay td { border-top-color: {$color}; color: {$color}; background: {$bgSoft}; }\n"
-            . "table.totals-table tr.subtotal td { border-top-color: {$lineSoft}; }\n"
-            . "table.czk-recap td.czk-recap-title, table.czk-recap tr.grand td { color: {$color}; }\n"
-            . "table.czk-recap td.czk-recap-title { border-bottom-color: {$lineMedium}; }\n"
-            . "table.czk-recap tr.subtotal td { border-top-color: {$lineSoft}; }\n"
-            . "table.bank-frame { border-color: {$lineMedium}; }\n"
-            . ".qr-box { border-color: {$lineSoft}; }\n"
-            . ".isdoc-badge { color: {$color}; background: {$bgSoft}; border-color: {$badgeBorder}; }\n"
-            . ".note { border-left-color: {$color}; }\n"
-            . ".note.rc-note { border-left-color: #E8A547; }\n"
-            . ".wr-title, .wr-link { color: {$color}; }\n";
+        // Sdíleno s výkazem víceprací — viz PdfBranding::accentCss.
+        return PdfBranding::accentCss($supplier);
     }
 
     /**
@@ -616,7 +590,7 @@ final class InvoicePdfRenderer
         $issueDate = new \DateTimeImmutable($invoice['issue_date']);
         // Multi-supplier: supplier subfolder zabraňuje kolizi varsymbolu mezi suppliery
         $supplierId = (int) ($invoice['supplier_id'] ?? 1);
-        $dir = $rootDir . '/storage/invoices/sup-' . $supplierId . '/' . $issueDate->format('Y-m');
+        $dir = \MyInvoice\Infrastructure\Config\RuntimePaths::storage('invoices') . '/sup-' . $supplierId . '/' . $issueDate->format('Y-m');
 
         $vs = $invoice['varsymbol'] ?? ('draft-' . $invoice['id']);
         // Sanitize varsymbol pro filesystem — defense-in-depth proti path traversal

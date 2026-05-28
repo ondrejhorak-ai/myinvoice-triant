@@ -43,10 +43,12 @@ final class WorkReportPdfRenderer
         }
 
         $supplier = $this->resolveSupplier($invoice);
-        $logoPath = $this->resolveLogoPath($supplier);
+        // Logo + branding sdílené s fakturou (3 varianty hlavičky + accent barvy).
+        $logoPath = PdfBranding::logoPath($supplier, (int) ($invoice['supplier_id'] ?? 0));
 
         $cssPath = Bootstrap::rootDir() . '/styles/invoice.css';
         $css = is_file($cssPath) ? (string) file_get_contents($cssPath) : '';
+        $css .= PdfBranding::accentCss($supplier);
 
         $locale = (string) ($invoice['language'] ?? 'cs');
         $twig = $this->twig();
@@ -64,10 +66,11 @@ final class WorkReportPdfRenderer
             'thousand_sep'   => $locale === 'en' ? ',' : ' ',
             'css'            => '',
             'logo_path'      => $logoPath,
+            'logo_show_name' => $logoPath !== null && !empty($supplier['pdf_logo_show_name']),
         ]);
 
         $rootDir = Bootstrap::rootDir();
-        $tmpDir = $rootDir . '/storage/cache/mpdf';
+        $tmpDir = \MyInvoice\Infrastructure\Config\RuntimePaths::storage('cache/mpdf');
         if (!is_dir($tmpDir)) {
             @mkdir($tmpDir, 0755, true);
         }
@@ -94,7 +97,7 @@ final class WorkReportPdfRenderer
 
         $supplierId = (int) ($invoice['supplier_id'] ?? 1);
         $issueDate = new \DateTimeImmutable($invoice['issue_date']);
-        $dir = $rootDir . '/storage/work-reports/sup-' . $supplierId . '/' . $issueDate->format('Y-m');
+        $dir = \MyInvoice\Infrastructure\Config\RuntimePaths::storage('work-reports') . '/sup-' . $supplierId . '/' . $issueDate->format('Y-m');
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
 
         $vs = $invoice['varsymbol'] ?: ('draft-' . $invoice['id']);
@@ -145,15 +148,4 @@ final class WorkReportPdfRenderer
         return $live;
     }
 
-    private function resolveLogoPath(array $supplier): ?string
-    {
-        $logoPath = $supplier['logo_path'] ?? null;
-        if (!$logoPath) return null;
-        if (!is_file($logoPath)) {
-            $abs = Bootstrap::rootDir() . '/' . ltrim($logoPath, '/');
-            if (is_file($abs)) return $abs;
-            return null;
-        }
-        return $logoPath;
-    }
 }

@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.10] — 2026-05-28
+
+Zadávání částek s DPH na řádku faktury a oprava pádu Přehledu při neúplné odpovědi.
+
+### Added
+
+- **Zadání částky s DPH na řádku** (vydaná i přijatá faktura) — řádkové „Celkem s DPH" je nově editovatelné pole. Po zadání částky včetně DPH se zpětně dopočítá jednotková cena bez DPH (`částka / (1 + sazba) / množství`). Funguje i s výrazy (`1000*1.21`, desetinná čárka). U neplátce / reverse-charge je sazba 0.
+
+### Fixed
+
+- **Přehled (Dashboard) padal při neúplné odpovědi summary** (`TypeError … issued_count_ytd`) — přístup k `summary.kpi` je nově null-safe a stránka při chybové/neúplné odpovědi ukáže uvítací stav místo bílé obrazovky. Backendový souhrn navíc nespadne, pokud ještě neproběhla migrace `0062` (sloupec `flat_tax_band`).
+
+## [4.3.9] — 2026-05-28
+
+Sjednocení hlavičky PDF výkazu víceprací s fakturou.
+
+### Changed
+
+- **PDF výkazu víceprací — hlavička jako faktura:** logo už není přerostlé (omezeno na 72 × 20 mm jako u faktury) a respektuje **3 varianty** podle brandingu — bez brandingu textový název firmy / jen logo / logo + název (přepínač *Zobrazit i název firmy vedle loga*). Do výkazu se nově propisuje i **akcentová barva** brandingu.
+
+### Added
+
+- **Číslo projektu a smlouvy v PDF výkazu** — pokud jsou u zakázky vyplněny, zobrazí se v záhlaví výkazu (Vaše číslo / Vaše smlouva).
+
+## [4.3.8] — 2026-05-28
+
+Per-client číselné řady faktur, sledování paušální daně, konzistentní `MYINVOICE_DATA_DIR` a opravy importu z Fakturoidu.
+
+### Added
+
+- **Vlastní číselná řada faktury per klient** (*Klienti → detail klienta → Vlastní číslování faktur*) — volitelný formát čísla (vydaná / proforma / dobropis) a období counteru pro jednotlivé klienty; prázdné pole dědí nastavení dodavatele. Vhodné po migraci z Fakturoidu / iDokladu, kde měl každý klient vlastní řadu. Editor faktury ukazuje náhled čísla podle zvoleného klienta. Hlídá kolize formátů mezi klienty. (migrace `0061`, PR #55 — @Hermanik)
+- **Sledování paušální daně (§ 7a)** — v *Nastavení* lze u neplátce DPH zvolit pásmo (1./2./3., limit příjmů 1 / 1,5 / 2 mil. Kč). Na stránce *Tržby* se pak zobrazí dlaždice s využitím ročního limitu příjmů zvoleného pásma (zaplacené příjmy v kalendářním roce), barevně dle blízkosti stropu. (migrace `0062`)
+- **Oprava stavů importovaných faktur z Fakturoidu** — CLI nástroj `api/bin/fix-fakturoid-imported-statuses.php` dorovná u importovaných faktur stav (odesláno / zaplaceno / stornováno) podle Fakturoidu; idempotentní, neptřepisuje ručně změněné. (PR #54 — @Hermanik)
+
+### Fixed
+
+- **Import z Fakturoidu stahoval jen prvních 40 dokladů** — Fakturoid API v3 neposílá `Link` hlavičku pro stránkování (oproti dokumentaci); import nově projde všechny stránky. (PR #52 — @Hermanik)
+- **`MYINVOICE_DATA_DIR` nebyl konzistentně respektován** (#53) — PDF (cache i archiv), přílohy faktur, loga dodavatelů, importovaná PDF, zálohy, reset i cronové logy se nově ukládají pod zvolený data-dir (centrální resolver `RuntimePaths`). Dříve část souborů končila v adresáři aplikace i při nastaveném `MYINVOICE_DATA_DIR` (problém pro Docker single-volume / read-only root). Relativní cesty v DB zůstávají kompatibilní.
+- **Nastavení: zapnutí „Plátce DPH" vynuluje pásmo paušální daně** — paušál je neslučitelný s plátcovstvím DPH (§ 7a), uložení kombinace dříve skončilo chybou.
+- **CRM: nadpis „Přehled" zasahoval do KPI karet** — opraveno odsazení.
+
+## [4.3.7] — 2026-05-28
+
+Daňový audit (opravy DPH/KH/SHV výkazů a daně z příjmů), zpřehlednění CRM, samočinné odblokování aktualizace a řádkové „Celkem s DPH" u vydaných faktur.
+
+### Fixed
+
+- **Souhrnné hlášení — kód plnění:** poskytnutí služby do EU (`§ 9/1`) se hlásilo s chybným kódem plnění `2` (třístranný obchod) místo správného **`3`**. Opraveno dle DPHSHV XSD (`0` zboží, `2` třístranný, `3` služba).
+- **Daň z příjmů — vypadávání nákladů:** přijaté faktury **bez vyplněného DUZP** (`tax_date` NULL) vypadávaly z nákladů DPFO/DPPO (`GREATEST(NULL, …) = NULL`). Opraveno na NULL-safe variantu.
+- **Kontrolní hlášení — poměrný odpočet (§ 75):** u dokladů s poměrným odpočtem nad 10 000 Kč se v sekci B.2 nově nastavuje atribut `pomer='A'` (dříve napevno `'A'`/`'N'` nekonzistentně).
+- **Náklady — DPH na vstupu = nárok na odpočet:** graf „Rozpad DPH na vstupu" nově vyřazuje faktury bez nároku a krátí poměrný odpočet, takže odpovídá Knize DPH / DPHDP3 (ř. 40/41). Přejmenováno na „Nárok na odpočet DPH podle sazby".
+- **Aktualizace se zasekávala na „Upgrade probíhá…":** stav se nyní sám odblokuje, pokud je cílová verze už nasazená (např. update přes terminál) nebo příznak vypršel (watcher neběží). Přidáno tlačítko **„Zrušit / odblokovat"**.
+
+### Added
+
+- **Třístranný obchod (§ 17):** nové klasifikační kódy `30` (pořízení prostřední osobou → DPHDP3 ř. 30) a `31` (dodání prostřední osobou → ř. 31 + souhrnné hlášení kód 2). DPHDP3 nově generuje oddíl C (Veta3). (migrace `0060`)
+- **Registrace k DPH dle novely 2025:** indikátor obratu na stránce *Tržby* nově testuje **kalendářní rok** se dvěma prahy — `2 000 000 Kč` (plátcem od 1. 1. následujícího roku) a `2 536 500 Kč` (plátcem ze zákona ihned). Dříve klamavě „plovoucích 12 měsíců".
+- **Náklady — sjednocení období:** náklady se řadí dle pozdějšího z DUZP / vystavení (shodně se základem daně z příjmů).
+
+### Changed
+
+- **CRM dashboard — přehlednější filtr období:** přepínač období přesunut z horní lišty k analytické části, kterou skutečně řídí; KPI karty nahoře jsou označené jako „tento měsíc / od začátku roku" (na období nereagují) a sekce řízené obdobím nesou štítek `(N m)`.
+- **Vydané faktury — řádkové „Celkem s DPH":** u plátce DPH řádkové „Celkem" nově zobrazuje částku včetně DPH (mění se podle zvolené sazby), aby byl efekt sazby DPH viditelný; rozpad bez DPH / DPH zůstává v souhrnu.
+
 ## [4.3.6] — 2026-05-28
 
 Nová sekce **Náklady** ve Financích (statistiky a analýzy přijatých faktur, obdoba Tržeb) a rozšíření CRM o závazkové metriky.

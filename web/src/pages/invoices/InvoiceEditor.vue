@@ -15,6 +15,7 @@ import { projectsApi, type Project } from '@/api/projects'
 import { codebooksApi, type VatRate, type Currency, type Unit } from '@/api/codebooks'
 import { vatClassificationsApi, type VatClassification } from '@/api/vatClassifications'
 import { formatMoney, formatPercent } from '@/composables/useFormat'
+import { evalMath } from '@/directives/vMath'
 import { apiErrorMessage } from '@/api/errors'
 import { useSupplierStore } from '@/stores/supplier'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
@@ -199,7 +200,11 @@ async function loadVarsymbolPreview() {
     return
   }
   try {
-    const r = await invoicesApi.previewVarsymbol(form.value.invoice_type, form.value.issue_date)
+    const r = await invoicesApi.previewVarsymbol(
+      form.value.invoice_type,
+      form.value.issue_date,
+      form.value.client_id ?? undefined,
+    )
     varsymbolAutoPreview.value = r.varsymbol
     varsymbolAutoHasTemplate.value = r.has_template
   } catch {
@@ -207,7 +212,7 @@ async function loadVarsymbolPreview() {
     varsymbolAutoHasTemplate.value = false
   }
 }
-watch(() => [form.value.invoice_type, form.value.issue_date], () => {
+watch(() => [form.value.invoice_type, form.value.issue_date, form.value.client_id], () => {
   if (loaded.value && editedStatus.value === 'draft') loadVarsymbolPreview()
 })
 
@@ -540,8 +545,31 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
 
+/**
+ * Řádkové „Celkem" — u plátce DPH včetně DPH (aby bylo vidět, že sazba DPH má efekt;
+ * net základ + DPH je v souhrnu níže). U neplátce / reverse-charge je sazba 0 → = základ.
+ */
 function itemTotal(item: InvoiceItem): number {
-  return round2(item.quantity * item.unit_price_without_vat)
+  const base = round2(Number(item.quantity) * Number(item.unit_price_without_vat))
+  const vatRate = (form.value.reverse_charge || !supplierIsVatPayer.value)
+    ? 0
+    : (vatRates.value.find(v => v.id === item.vat_rate_id)?.rate_percent ?? 0)
+  return round2(base + round2(base * (vatRate / 100)))
+}
+
+/**
+ * Zadání částky s DPH na řádku → zpětný dopočet jednotkové ceny bez DPH
+ * (gross / (1 + sazba) / množství). Podporuje výrazy přes evalMath.
+ */
+function setItemGross(item: InvoiceItem, raw: string): void {
+  const gross = evalMath(raw)
+  if (gross === null) return
+  const qty = Number(item.quantity) || 0
+  if (qty === 0) return
+  const vatRate = (form.value.reverse_charge || !supplierIsVatPayer.value)
+    ? 0
+    : Number(vatRates.value.find(v => v.id === item.vat_rate_id)?.rate_percent ?? 0)
+  item.unit_price_without_vat = round2(gross / (1 + vatRate / 100) / qty)
 }
 
 // ─── WORK REPORT ────────────────────────────────────────────────
@@ -1032,7 +1060,7 @@ async function deleteDraft() {
               <th class="px-3 py-2 text-left font-medium w-16">{{ t('invoice.items_table.unit') }}</th>
               <th class="px-3 py-2 text-right font-medium w-32">{{ t('invoice.items_table.unit_price') }}</th>
               <th v-if="supplierIsVatPayer" class="px-3 py-2 text-center font-medium w-24">{{ t('invoice.totals.vat') }}</th>
-              <th class="px-3 py-2 text-right font-medium w-32">{{ t('invoice.totals.total') }}</th>
+              <th class="px-3 py-2 text-right font-medium w-32">{{ supplierIsVatPayer ? t('invoice.items_table.total_incl_vat') : t('invoice.totals.total') }}</th>
               <th class="px-3 py-2 w-12"></th>
             </tr>
           </thead>
@@ -1065,8 +1093,10 @@ async function deleteDraft() {
                   <option v-for="r in vatRates" :key="r.id" :value="r.id">{{ vatRateLabel(r) }}</option>
                 </select>
               </td>
-              <td class="px-3 py-2 text-right font-mono text-sm">
-                {{ formatMoney(itemTotal(item), form.currency) }}
+              <td class="px-3 py-2">
+                <input :value="itemTotal(item)" @change="setItemGross(item, ($event.target as HTMLInputElement).value)"
+                  type="text" inputmode="decimal" :title="t('invoice.items_table.gross_edit_hint')"
+                  class="w-full h-9 px-2 border border-neutral-200 rounded text-right font-mono text-sm" />
               </td>
               <td class="px-2 py-2 text-center">
                 <button type="button" @click="removeItem(i)" class="text-danger-500 hover:text-danger-600 text-lg leading-none">×</button>
@@ -1128,8 +1158,10 @@ async function deleteDraft() {
               </div>
             </div>
             <div class="flex items-baseline justify-between pt-1 border-t border-neutral-100">
-              <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">{{ t('invoice.totals.total') }}</span>
-              <span class="font-mono font-semibold">{{ formatMoney(itemTotal(item), form.currency) }}</span>
+              <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">{{ supplierIsVatPayer ? t('invoice.items_table.total_incl_vat') : t('invoice.totals.total') }}</span>
+              <input :value="itemTotal(item)" @change="setItemGross(item, ($event.target as HTMLInputElement).value)"
+                type="text" inputmode="decimal" :title="t('invoice.items_table.gross_edit_hint')"
+                class="w-32 h-9 px-2 border border-neutral-200 rounded text-right font-mono text-sm font-semibold" />
             </div>
           </div>
         </div>

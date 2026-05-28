@@ -40,15 +40,21 @@ onMounted(async () => {
 
 const isVatPayer = computed(() => summary.value?.is_vat_payer ?? false)
 
-const VAT_THRESHOLD_CZK = 2_000_000
+// Registrační limity DPH (§ 6 ZDPH, novela účinná od 1. 1. 2025) — testují se za KALENDÁŘNÍ rok:
+//   > 2 000 000 Kč → plátcem od 1. ledna následujícího roku (lze i dobrovolně dřív)
+//   > 2 536 500 Kč → plátcem ze zákona od dne následujícího po překročení
+const VAT_REG_THRESHOLD = 2_000_000
+const VAT_REG_THRESHOLD_IMMEDIATE = 2_536_500
+const VAT_REG_NEAR = VAT_REG_THRESHOLD * 0.8
 
-/** Pro CZK + plátce DPH zobrazujeme prahovou čáru a procentuální využití limitu. */
-const rolling12mCzk = computed(() => summary.value?.rolling_12m.find(r => r.currency === 'CZK') ?? null)
-
-const vatLimitPct = computed<number | null>(() => {
-  if (!isVatPayer.value || !rolling12mCzk.value) return null
-  return Math.round((rolling12mCzk.value.total / VAT_THRESHOLD_CZK) * 100)
+/** Obrat za aktuální kalendářní rok (CZK) — základ pro test registrační povinnosti k DPH. */
+const obratCzkThisYear = computed<number | null>(() => {
+  const cz = summary.value?.kpi?.per_currency?.find(c => c.currency === 'CZK')
+  return cz ? cz.this_year : null
 })
+const vatRegPct = computed<number | null>(() =>
+  obratCzkThisYear.value !== null ? Math.round((obratCzkThisYear.value / VAT_REG_THRESHOLD) * 100) : null
+)
 
 const statusCountsProjects = computed<Record<string, number>>(() => {
   const m: Record<string, number> = {}
@@ -107,7 +113,7 @@ const primaryCurrency = computed(() => projectStats.value?.primary_currency ?? '
 
 /** Obrat tento rok per měna — pole pro KPI tile. */
 const revenueThisYear = computed(() =>
-  (summary.value?.kpi.per_currency ?? []).map(c => ({
+  (summary.value?.kpi?.per_currency ?? []).map(c => ({
     currency: c.currency,
     total: c.this_year,
     change_pct: c.change_pct,
@@ -117,7 +123,7 @@ const revenueThisYear = computed(() =>
   }))
 )
 const revenuePrevYear = computed(() =>
-  (summary.value?.kpi.per_currency ?? []).map(c => ({
+  (summary.value?.kpi?.per_currency ?? []).map(c => ({
     currency: c.currency,
     total: c.prev_year,
     invoice_count: c.prev_year_invoice_count,
@@ -189,7 +195,7 @@ const hasAnyData = computed(() =>
       <p class="text-neutral-500">{{ t('stats.no_data') }}</p>
     </div>
 
-    <div v-else-if="summary" class="space-y-6">
+    <div v-else-if="summary && summary.kpi" class="space-y-6">
       <!-- Plovoucí 12měsíční obrat — KPI tiles per měna -->
       <div v-if="summary.rolling_12m.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div v-for="r in summary.rolling_12m" :key="`r12-${r.currency}`"
@@ -211,24 +217,63 @@ const hasAnyData = computed(() =>
           <div class="text-xs text-neutral-500 mt-1">
             {{ t('stats.rolling_12m_vs_prev', { total: formatMoney(r.prev_period_total, r.currency) }) }}
           </div>
-          <!-- DPH limit indikátor (jen CZK + plátce DPH). -->
-          <template v-if="r.currency === 'CZK' && isVatPayer">
-            <div class="mt-3">
-              <div class="h-2 bg-neutral-100 rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all"
-                  :class="r.total >= 2_000_000 ? 'bg-danger-500' : r.total >= 1_600_000 ? 'bg-warning-500' : 'bg-success-600'"
-                  :style="{ width: Math.min(100, (r.total / 2_000_000) * 100) + '%' }"></div>
-              </div>
-              <div class="text-xs mt-1.5"
-                :class="r.total >= 2_000_000 ? 'text-danger-500 font-medium' : r.total >= 1_600_000 ? 'text-warning-600' : 'text-neutral-500'">
-                <span v-if="r.total >= 2_000_000">{{ t('stats.rolling_12m_over_threshold') }}</span>
-                <span v-else-if="r.total >= 1_600_000">{{ t('stats.rolling_12m_near_threshold', { pct: vatLimitPct }) }}</span>
-                <span v-else>{{ t('stats.rolling_12m_ok', { pct: vatLimitPct }) }}</span>
-              </div>
-              <div class="text-[10px] text-neutral-400 mt-0.5">{{ t('stats.rolling_12m_vat_threshold') }}</div>
+          <div class="text-[11px] text-neutral-400 mt-2">{{ t('stats.rolling_12m_hint') }}</div>
+        </div>
+
+        <!-- Obrat pro registraci DPH (kalendářní rok) — relevantní pro neplátce -->
+        <div v-if="!isVatPayer && obratCzkThisYear !== null"
+          class="bg-white border rounded-lg p-5 shadow-sm"
+          :class="obratCzkThisYear >= VAT_REG_THRESHOLD ? 'border-danger-500/40 bg-danger-50/30'
+                : obratCzkThisYear >= VAT_REG_NEAR ? 'border-warning-500/50 bg-warning-50/30'
+                : 'border-neutral-200'">
+          <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('stats.vat_reg_title', { year: summary.year }) }}</div>
+          <div class="text-2xl font-semibold text-neutral-900 font-mono">{{ formatMoney(obratCzkThisYear, 'CZK') }}</div>
+          <div class="mt-3">
+            <div class="h-2 bg-neutral-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full transition-all"
+                :class="obratCzkThisYear >= VAT_REG_THRESHOLD ? 'bg-danger-500' : obratCzkThisYear >= VAT_REG_NEAR ? 'bg-warning-500' : 'bg-success-600'"
+                :style="{ width: Math.min(100, (obratCzkThisYear / VAT_REG_THRESHOLD) * 100) + '%' }"></div>
             </div>
-          </template>
-          <div v-else class="text-[11px] text-neutral-400 mt-2">{{ t('stats.rolling_12m_hint') }}</div>
+            <div class="text-xs mt-1.5"
+              :class="obratCzkThisYear >= VAT_REG_THRESHOLD ? 'text-danger-500 font-medium' : obratCzkThisYear >= VAT_REG_NEAR ? 'text-warning-600' : 'text-neutral-500'">
+              <span v-if="obratCzkThisYear >= VAT_REG_THRESHOLD_IMMEDIATE">{{ t('stats.vat_reg_over_immediate') }}</span>
+              <span v-else-if="obratCzkThisYear >= VAT_REG_THRESHOLD">{{ t('stats.vat_reg_over', { year: summary.year + 1 }) }}</span>
+              <span v-else-if="obratCzkThisYear >= VAT_REG_NEAR">{{ t('stats.vat_reg_near', { pct: vatRegPct }) }}</span>
+              <span v-else>{{ t('stats.vat_reg_ok', { pct: vatRegPct }) }}</span>
+            </div>
+            <div class="text-[10px] text-neutral-400 mt-0.5">{{ t('stats.vat_reg_thresholds') }}</div>
+          </div>
+        </div>
+
+        <!-- Paušální daň — limit příjmů pro zvolené pásmo (§ 7a ZDP) -->
+        <div v-if="summary.flat_tax_threshold && summary.flat_tax_threshold.applicable && summary.flat_tax_threshold.limit_czk"
+          class="bg-white border rounded-lg p-5 shadow-sm"
+          :class="summary.flat_tax_threshold.status === 'danger' ? 'border-danger-500/40 bg-danger-50/30'
+                : summary.flat_tax_threshold.status === 'warning' ? 'border-warning-500/50 bg-warning-50/30'
+                : 'border-neutral-200'">
+          <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">
+            {{ t('stats.flat_tax_title', { year: summary.flat_tax_threshold.year }) }}
+          </div>
+          <div class="text-2xl font-semibold text-neutral-900 font-mono">{{ formatMoney(summary.flat_tax_threshold.current_czk, 'CZK') }}</div>
+          <div class="mt-3">
+            <div class="h-2 bg-neutral-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full transition-all"
+                :class="summary.flat_tax_threshold.status === 'danger' ? 'bg-danger-500'
+                      : summary.flat_tax_threshold.status === 'warning' ? 'bg-warning-500'
+                      : summary.flat_tax_threshold.status === 'notice' ? 'bg-primary-500'
+                      : 'bg-success-600'"
+                :style="{ width: Math.min(100, summary.flat_tax_threshold.percent || 0) + '%' }"></div>
+            </div>
+            <div class="text-xs mt-1.5"
+              :class="summary.flat_tax_threshold.status === 'danger' ? 'text-danger-500 font-medium'
+                    : summary.flat_tax_threshold.status === 'warning' ? 'text-warning-600' : 'text-neutral-500'">
+              {{ t('stats.flat_tax_status', {
+                pct: summary.flat_tax_threshold.percent,
+                limit: formatMoney(summary.flat_tax_threshold.limit_czk, 'CZK'),
+              }) }}
+            </div>
+            <div class="text-[10px] text-neutral-400 mt-0.5">{{ t('stats.flat_tax_hint') }}</div>
+          </div>
         </div>
 
         <!-- Obrat tento rok per měna -->

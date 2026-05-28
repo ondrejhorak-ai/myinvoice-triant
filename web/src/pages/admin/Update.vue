@@ -12,6 +12,7 @@ const status = ref<UpdateStatus | null>(null)
 const health = ref<HealthResponse | null>(null)
 const checking = ref(false)
 const triggering = ref(false)
+const cancelling = ref(false)
 const triggerResult = ref<{ status: string; message?: string; instructions?: string[] } | null>(null)
 const errorMsg = ref<string | null>(null)
 
@@ -83,6 +84,23 @@ async function triggerUpgrade() {
   }
 }
 
+async function cancelStuckUpgrade() {
+  if (cancelling.value) return
+  if (!confirm(t('updates.cancel_stuck_confirm'))) return
+  cancelling.value = true
+  errorMsg.value = null
+  try {
+    await updateApi.cancel()
+    stopPolling()
+    triggerResult.value = null
+    await load()
+  } catch (e: unknown) {
+    errorMsg.value = (e as Error)?.message ?? 'Cancel failed'
+  } finally {
+    cancelling.value = false
+  }
+}
+
 function startPolling() {
   if (pollHandle !== null) return
   pollHandle = window.setInterval(async () => {
@@ -100,8 +118,13 @@ function stopPolling() {
   }
 }
 
-onMounted(() => {
-  void load()
+onMounted(async () => {
+  await load()
+  // Pokud je při otevření stránky upgrade „v běhu", spusť polling — backend se navíc
+  // sám uzdraví (prošlý flag / cílová verze už nasazená), takže se to nezasekne.
+  if (status.value?.upgrade_in_progress) {
+    startPolling()
+  }
 })
 onUnmounted(stopPolling)
 
@@ -366,18 +389,30 @@ function fmtDate(s?: string | null): string {
           {{ t('updates.in_progress_title') }}
         </h2>
         <p class="text-sm text-neutral-600 mt-1.5">{{ t('updates.in_progress_desc') }}</p>
+        <div class="mt-3 pt-3 border-t border-primary-200/60 flex items-center gap-3 flex-wrap">
+          <button type="button" @click="cancelStuckUpgrade" :disabled="cancelling"
+            class="cursor-pointer h-8 px-3 text-sm border border-neutral-300 bg-white hover:bg-neutral-50 rounded-md inline-flex items-center gap-1.5 disabled:opacity-50">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            {{ cancelling ? '…' : t('updates.cancel_stuck') }}
+          </button>
+          <span class="text-xs text-neutral-500">{{ t('updates.cancel_stuck_hint') }}</span>
+        </div>
       </section>
 
       <!-- Last result -->
       <section v-if="status.last_upgrade_result && !status.upgrade_in_progress"
         class="rounded-lg border p-5"
-        :class="status.last_upgrade_result.status === 'applied'
+        :class="['applied','success'].includes(status.last_upgrade_result.status)
           ? 'border-success-300 bg-success-50/40'
-          : 'border-error-300 bg-error-50/40'">
+          : status.last_upgrade_result.status === 'failed'
+            ? 'border-error-300 bg-error-50/40'
+            : 'border-warning-300 bg-warning-50/40'">
         <h2 class="text-lg font-semibold text-neutral-900">
-          {{ status.last_upgrade_result.status === 'applied'
+          {{ ['applied','success'].includes(status.last_upgrade_result.status)
             ? t('updates.result_applied')
-            : t('updates.result_failed') }}
+            : status.last_upgrade_result.status === 'failed'
+              ? t('updates.result_failed')
+              : t('updates.result_unknown') }}
         </h2>
         <div class="text-sm text-neutral-700 mt-1.5 space-y-0.5">
           <div v-if="status.last_upgrade_result.target_version">
