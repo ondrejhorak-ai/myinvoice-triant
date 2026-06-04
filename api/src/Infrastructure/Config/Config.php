@@ -178,7 +178,8 @@ final class Config
      */
     /**
      * Baseline defaults aplikované **před** cfg.php — jen pro non-secret veřejné
-     * konstanty (URLs třetích stran, timeouty, TTL cache). Vše, co je opravdu
+     * konstanty a statické registry služeb (URLs třetích stran, timeouty,
+     * TTL cache, výchozí parser class names). Vše, co je opravdu
      * tajné nebo per-instance (DB credentials, pepper, SMTP host, ...), tady
      * NESMÍ být — to musí přijít z cfg.php / ENV.
      *
@@ -201,6 +202,20 @@ final class Config
                 'wsdl'      => 'http://ec.europa.eu/taxation_customs/vies/services/checkVatService.wsdl',
                 'cache_ttl' => 10800,
                 'timeout'   => 8,
+            ],
+            // Registr plátců DPH (CRPDPH/MFČR) — zveřejněné bankovní účty + nespolehlivý plátce.
+            'crpdph' => [
+                'endpoint'  => 'https://adisrws.mfcr.cz/adistc/axis2/services/rozhraniCRPDPH.rozhraniCRPDPHSOAP',
+                'cache_ttl' => 86400,
+                'timeout'   => 8,
+            ],
+            'bank_email' => [
+                'notice_parsers' => [
+                    'regex' => \MyInvoice\Service\Bank\EmailNotice\Parser\RegexBankEmailNoticeParser::class,
+                    'raiffeisenbank' => \MyInvoice\Service\Bank\EmailNotice\Parser\RaiffeisenbankEmailNoticeParser::class,
+                    'unicredit' => \MyInvoice\Service\Bank\EmailNotice\Parser\UnicreditBankEmailNoticeParser::class,
+                    'csob' => \MyInvoice\Service\Bank\EmailNotice\Parser\CsobBankEmailNoticeParser::class,
+                ],
             ],
         ];
     }
@@ -272,6 +287,8 @@ final class Config
             'MYINVOICE_ARES_TIMEOUT'   => ['ares.timeout', 'int'],
             'MYINVOICE_VIES_REST_API'  => ['vies.rest_api', 'string'],
             'MYINVOICE_VIES_TIMEOUT'   => ['vies.timeout', 'int'],
+            'MYINVOICE_CRPDPH_ENDPOINT' => ['crpdph.endpoint', 'string'],
+            'MYINVOICE_CRPDPH_TIMEOUT'  => ['crpdph.timeout', 'int'],
 
             // Logging
             'MYINVOICE_LOG_LEVEL' => ['logging.level', 'string'],
@@ -312,7 +329,11 @@ final class Config
         // 3) Per-key ENV overrides
         foreach (self::envOverrideMap() as $envName => [$path, $type]) {
             $raw = getenv($envName);
-            if ($raw === false) {
+            // Nepřítomná i prázdná ENV se ignoruje. Docker Compose při mapovém
+            // zápisu `KEY: ${VAR}` dosadí prázdný řetězec i když VAR v .env chybí
+            // — bez tohoto guardu by takový prázdný override přebil hodnotu
+            // z cfg.php (např. SMTP z bind-mountnutého cfg.docker.php → smtp.port=0).
+            if ($raw === false || $raw === '') {
                 continue;
             }
             if (self::isUnresolvedEnvReference($raw)) {

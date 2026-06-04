@@ -38,6 +38,7 @@ final class RoleMiddleware implements MiddlewareInterface
         '/api/auth/setup-status',
         '/api/auth/setup',
         '/api/auth/setup-ares-lookup',
+        '/api/auth/setup-crpdph-lookup',
         '/api/auth/setup-sample',
         '/api/auth/login',
         '/api/auth/logout',
@@ -66,8 +67,14 @@ final class RoleMiddleware implements MiddlewareInterface
         '* #^/api/work-reports(/|$)#',
         '* #^/api/bank-statements(/|$)#',
         '* #^/api/bank-transactions(/|$)#',
+        // Dokumenty — účetní smí zakládat/upravovat/mazat (do koše) + spravovat složky
+        '* #^/api/documents(/|$)#',
+        '* #^/api/document-folders(/|$)#',
         // Codebooks read-only přes API (admin endpointy mají zvláštní cestu /api/admin/codebooks)
         'GET #^/api/codebooks(/|$)#',
+        // Vlastní podpisové profily účetních; Action vrstva hlídá feature flag i owner_user_id.
+        '* #^/api/settings/signing/profiles(/|$)#',
+        '* #^/api/settings/pdf-signing/user-defaults(/|$)#',
         // ZIP export může i účetní (read of mass PDF)
         'GET #^/api/admin/invoices-zip$#',
     ];

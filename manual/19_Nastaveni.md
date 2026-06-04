@@ -1,9 +1,11 @@
 # 19. Nastavení
 
-V hlavním menu **Systém** je rozbalovací podmenu se 6 sekcemi:
+V hlavním menu **Systém** je rozbalovací podmenu se sekcemi pro konfiguraci
+aplikace:
 
 - **Dodavatelé** — viz [18. Multi-supplier](18_Multi_supplier.md)
-- **Číselníky** — měny, DPH sazby, země, jednotky
+- **Bankovní účty** — měny, účty dodavatele, IMAP účty a bankovní e-mailová avíza
+- **Číselníky** — DPH sazby, země, jednotky a další pomocné seznamy
 - **Uživatelé** — správa lidí, kteří se přihlašují
 - **E-mail šablony** — texty automatických e-mailů
 - **Activity log** — kdo co změnil
@@ -19,7 +21,10 @@ V hlavním menu **Systém** je rozbalovací podmenu se 6 sekcemi:
 
 ### 19.1.1 Měny
 
-Každá měna pro aktuálního dodavatele = **1 bankovní účet**.
+Měny a bankovní účty aktuálního dodavatele jsou nově soustředěné na stránce
+**Systém → Bankovní účty**. Každý řádek představuje jeden bankovní účet v dané
+měně; pokud máš víc účtů pro stejnou měnu, založ více řádků se stejným kódem
+měny.
 
 | Pole | Význam |
 |---|---|
@@ -36,6 +41,10 @@ Každá měna pro aktuálního dodavatele = **1 bankovní účet**.
 > ⚠️ Po **změně bankovního účtu** se **automaticky invaliduje PDF cache**
 > všech faktur, které renderují bank info live (drafty + faktury bez
 > snapshotu). Faktury v stavu `issued+` mají immutable `bank_snapshot`.
+
+Na stejné stránce je i konfigurace **bankovních e-mailových avíz**: IMAP účty,
+mapování bankovní účet → IMAP účet → parser, parser provideri a přehled
+zpracovaných e-mailů. Detail je v [§ 13.7 Bankovní e-mailová avíza](13_Banka.md).
 
 ### 19.1.2 Sazby DPH
 
@@ -204,7 +213,14 @@ Použití:
 > standardně **neničí** activity log, ale lze nastavit retention v
 > `cfg.php → app.activity_log_retention_days`.
 
-## 19.6 Tipy
+## 19.6 Elektronické podpisy
+
+Elektronické podpisy mají vlastní stránku **Systém -> Elektronické podpisy**.
+Aktuální konfigurace už není jeden certifikát dodavatele, ale sada
+podpisových profilů a mapování pro jednotlivé výstupy. Detailní postup je v
+[kapitole 28. Elektronické podpisy](28_Elektronicke_podpisy.md).
+
+## 19.7 Tipy
 
 - **Test šablony** vždy před produkčním nasazením — typo v Twig syntaxi by
   rozbilo odesílání všem klientům.

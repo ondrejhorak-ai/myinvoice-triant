@@ -9,6 +9,7 @@ use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\EmailTemplateRepository;
 use MyInvoice\Service\Branding\AccentColor;
+use MyInvoice\Service\Signing\Email\EmailSigningService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Mailer as SymfonyMailer;
 use Symfony\Component\Mailer\Transport;
@@ -40,6 +41,7 @@ final class Mailer
         private readonly LoggerInterface $logger,
         private readonly Connection $db,
         private readonly EmailTemplateRepository $templates,
+        private readonly ?EmailSigningService $emailSigning = null,
     ) {}
 
     /**
@@ -48,6 +50,7 @@ final class Mailer
      * @param string[]      $cc
      * @param string[]      $bcc
      * @param array<int,array{path:string,name:string,contentType:string}> $attachments
+     * @param ?int          $userId Přihlášený uživatel pro výběr user podpisového profilu.
      * @return string Krátký SMTP server response z poslední odpovědi (např.
      *               „250 2.0.0 Ok: queued as ABCDEF"). Plný transcript jde
      *               do log/myinvoice-*.log na úrovni info.
@@ -61,6 +64,7 @@ final class Mailer
         array $cc = [],
         array $bcc = [],
         array $attachments = [],
+        ?int $userId = null,
     ): string {
         $twig = $this->twig();
 
@@ -95,7 +99,8 @@ final class Mailer
         if ($dbTpl !== null) {
             // DB šablona je editovatelná adminem — sandboxujeme proti SSTI
             $sandbox = $this->sandboxedTwig();
-            $vars['subject'] = $subjectOverride ?? $dbTpl['subject'];
+            $subjectTemplate = $subjectOverride ?? $dbTpl['subject'];
+            $vars['subject'] = $sandbox->createTemplate($subjectTemplate)->render($vars);
             $html = $sandbox->createTemplate($dbTpl['body_html'])->render($vars);
             $text = $sandbox->createTemplate($dbTpl['body_text'])->render($vars);
         } else {
@@ -169,6 +174,10 @@ final class Mailer
 
         foreach ($attachments as $att) {
             $email->attachFromPath($att['path'], $att['name'], $att['contentType']);
+        }
+
+        if ($this->emailSigning !== null) {
+            $email = $this->emailSigning->signIfEnabled($email, $code, $supplier, $userId);
         }
 
         // DKIM signer
@@ -495,6 +504,7 @@ final class Mailer
                 'password_reset'    => 'Obnova hesla — MyInvoice.cz',
                 'login_otp'         => 'Ověřovací kód pro přihlášení — MyInvoice.cz',
                 'invoice_send'      => 'Faktura — MyInvoice.cz',
+                'invoice_payment_thanks' => 'Poděkování za úhradu — MyInvoice.cz',
                 'invoice_reminder'  => 'Upomínka — MyInvoice.cz',
                 'proforma_reminder' => 'Připomínka zálohy — MyInvoice.cz',
                 'recurring_draft_reminder' => 'Koncept pravidelné faktury se brzy vystaví — MyInvoice.cz',
@@ -503,6 +513,7 @@ final class Mailer
                 'password_reset'    => 'Password reset — MyInvoice.cz',
                 'login_otp'         => 'Sign-in verification code — MyInvoice.cz',
                 'invoice_send'      => 'Invoice — MyInvoice.cz',
+                'invoice_payment_thanks' => 'Thank you for your payment — MyInvoice.cz',
                 'invoice_reminder'  => 'Reminder — MyInvoice.cz',
                 'proforma_reminder' => 'Advance payment reminder — MyInvoice.cz',
                 'recurring_draft_reminder' => 'Recurring invoice draft will be issued soon — MyInvoice.cz',

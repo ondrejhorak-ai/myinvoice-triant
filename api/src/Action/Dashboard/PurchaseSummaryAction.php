@@ -89,6 +89,26 @@ final class PurchaseSummaryAction
         return $isVatPayer ? 'pi.total_without_vat' : 'pi.total_with_vat';
     }
 
+    /**
+     * SQL predikát (cash sémantika, daňová evidence): zálohovou fakturu (advance)
+     * započti do NÁKLADŮ jen tehdy, když je ZAPLACENÁ a zároveň NENÍ spárovaná
+     * s vyúčtovací fakturou. Vyřaď ji, pokud:
+     *   • není zaplacená (received/booked) → cash ještě neodešel, výdaj nevznikl, NEBO
+     *   • je spárovaná s finální fakturou → tu nese plný náklad (advance_paid_amount
+     *     krátí jen amount_to_pay, ne total) → proti dvojímu započtení.
+     * Tj. zaplacená kartou + zatím bez faktury od dodavatele se počítá, dokud se
+     * nespáruje. Cashflow/závazky predikát NEPOUŽÍVAJÍ (nezaplacená záloha je závazek).
+     */
+    private function advanceCostExclude(string $alias = 'pi'): string
+    {
+        $p     = $alias === '' ? '' : $alias . '.';
+        $idRef = $alias === '' ? 'purchase_invoices.id' : $alias . '.id';
+        return " AND NOT (COALESCE({$p}document_kind, '') = 'advance'"
+             . " AND ({$p}status <> 'paid'"
+             . " OR EXISTS (SELECT 1 FROM purchase_invoices adv_s"
+             . " WHERE adv_s.advance_purchase_invoice_id = {$idRef})))";
+    }
+
     /** Počet aktivních (nearchivovaných) dodavatelů. */
     private function activeVendorsCount(\PDO $pdo, int $sid): int
     {
@@ -109,7 +129,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY cur.code";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$sid]);
@@ -134,7 +154,7 @@ final class PurchaseSummaryAction
                   FROM purchase_invoices pi
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY year, cur.code
                  ORDER BY year DESC, total DESC";
         $stmt = $pdo->prepare($sql);
@@ -177,7 +197,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) IN (?, ?)
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY cur.code";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -215,7 +235,7 @@ final class PurchaseSummaryAction
             "SELECT COUNT(*) FROM purchase_invoices
               WHERE supplier_id = ?
                 AND YEAR(COALESCE(tax_date, issue_date)) = ?
-                AND status IN " . self::COST_STATUSES
+                AND status IN " . self::COST_STATUSES . $this->advanceCostExclude('')
         );
         $stmt->execute([$sid, $year]);
         $purchaseCount = (int) $stmt->fetchColumn();
@@ -341,7 +361,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) = ?
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY c.id, c.company_name
                  ORDER BY total_czk DESC
                  LIMIT 12";
@@ -370,7 +390,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY c.id, c.company_name
                  ORDER BY total_czk DESC
                  LIMIT 12";
@@ -399,7 +419,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 23 MONTH), '%Y-%m-01')
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY cur.code, ym";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$sid]);
@@ -522,7 +542,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 24 MONTH)
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY cur.code";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$sid]);
@@ -577,7 +597,9 @@ final class PurchaseSummaryAction
      * jen plátce DPH. Odpovídá Knize DPH / DPHDP3 ř. 40/41:
      *   • faktury bez nároku (`vat_deduction = 'none'`) se vyřazují,
      *   • poměrný odpočet (`proportional`, § 75) se krátí na `vat_deduction_percent`,
-     *   • reverse-charge řádky se vykazují odděleně.
+     *   • reverse-charge řádky se vykazují odděleně,
+     *   • zálohové faktury (advance) se vyřazují úplně — nejsou daňový doklad, nárok
+     *     na odpočet nese až vyúčtovací faktura (konzistence s VatLedgerService).
      * @return list<array{label: string, base: float, currency: string}>
      */
     private function vatInputBreakdown12m(\PDO $pdo, int $sid): array
@@ -591,6 +613,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND pi.status IN " . self::COST_STATUSES . "
+                   AND COALESCE(pi.document_kind, '') <> 'advance'
                    AND pi.vat_deduction <> 'none'
                    AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
                  GROUP BY cur.code, rate_label
@@ -626,7 +649,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY pi.expense_category_id, ec.code, ec.label
                  ORDER BY total DESC";
         $stmt = $pdo->prepare($sql);
@@ -765,7 +788,7 @@ final class PurchaseSummaryAction
                   JOIN currencies cur ON cur.id = pi.currency_id
                  WHERE pi.supplier_id = ?
                    AND YEAR(GREATEST(COALESCE(pi.tax_date, pi.issue_date), pi.issue_date)) IN (?, ?)
-                   AND pi.status IN " . self::COST_STATUSES . "
+                   AND pi.status IN " . self::COST_STATUSES . $this->advanceCostExclude() . "
                  GROUP BY cur.code";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$year, $prevYear, $prevYear, $prevYear, $sid, $year, $prevYear]);
@@ -796,7 +819,7 @@ final class PurchaseSummaryAction
         $sql = "SELECT $cost * COALESCE(exchange_rate, 1) AS size_czk
                   FROM purchase_invoices
                  WHERE supplier_id = ?
-                   AND status IN " . self::COST_STATUSES . "
+                   AND status IN " . self::COST_STATUSES . $this->advanceCostExclude('') . "
                    AND GREATEST(COALESCE(tax_date, issue_date), issue_date) >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$sid]);

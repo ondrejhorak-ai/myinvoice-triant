@@ -36,6 +36,7 @@ final class SettingsAction
         private readonly IpMatcher $ipMatcher,
         private readonly InvoicePdfRenderer $pdf,
         private readonly Config $config,
+        private readonly \MyInvoice\Service\Ares\SupplierRegistryEnricher $enricher,
     ) {}
 
     /** Aktuální supplier (z X-Supplier-Id middleware). */
@@ -120,10 +121,10 @@ final class SettingsAction
 
             $stmt = $pdo->prepare(
                 'INSERT INTO supplier (company_name, display_name, street, city, zip, country_id,
-                                       ic, dic, is_vat_payer, email, phone, web, tagline,
+                                       ic, dic, is_vat_payer, email, phone, web, tagline, commercial_register, taxpayer_type,
                                        default_currency_id, default_vat_rate_id,
                                        default_payment_due_days, default_hourly_rate)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
             );
             $stmt->execute([
                 (string) $b['company_name'],
@@ -139,6 +140,8 @@ final class SettingsAction
                 $this->nullable($b, 'phone'),
                 $this->nullable($b, 'web'),
                 $this->nullable($b, 'tagline'),
+                $this->nullable($b, 'commercial_register'),
+                in_array($b['taxpayer_type'] ?? null, ['fo', 'po'], true) ? (string) $b['taxpayer_type'] : null,
                 $bootstrapCurId ?: 0,
                 $defaultVatId ?: 1,
                 (int) ($b['default_payment_due_days'] ?? 14),
@@ -154,6 +157,24 @@ final class SettingsAction
             $insertCur->execute([$newSupplierId, 'CZK', 'CZK — výchozí', 'Kč', 'Česká koruna', 'Czech Koruna', 2]);
             $newDefaultCurId = (int) $pdo->lastInsertId();
             $insertCur->execute([$newSupplierId, 'EUR', 'EUR — výchozí', '€', 'Euro', 'Euro', 2]);
+            $newEurCurId = (int) $pdo->lastInsertId();
+
+            // 2b. Volitelný bankovní účet (např. načtený z registru plátců DPH) → na seeded měnu.
+            $bank = isset($b['bank_account']) && is_array($b['bank_account']) ? $b['bank_account'] : null;
+            if ($bank !== null) {
+                $bankCcy = strtoupper((string) ($bank['currency'] ?? 'CZK'));
+                $targetCurId = $bankCcy === 'EUR' ? $newEurCurId : $newDefaultCurId;
+                $pdo->prepare(
+                    'UPDATE currencies SET account_number = ?, bank_code = ?, bank_name = ?, iban = ?, bic = ? WHERE id = ?'
+                )->execute([
+                    $this->nullable($bank, 'account_number'),
+                    $this->nullable($bank, 'bank_code'),
+                    $this->nullable($bank, 'bank_name'),
+                    $this->nullable($bank, 'iban'),
+                    $this->nullable($bank, 'bic'),
+                    $targetCurId,
+                ]);
+            }
 
             // 3. Update supplier.default_currency_id na CZK supplier
             $pdo->prepare('UPDATE supplier SET default_currency_id = ? WHERE id = ?')
@@ -172,6 +193,10 @@ final class SettingsAction
             return Json::error($response, 'create_failed', 'Vytvoření supplier selhalo: ' . $e->getMessage(), 500);
         }
 
+        // Po commitu (mimo DB transakci — síťové volání): doplň z veřejných registrů,
+        // co jde (čísla domu, NACE, spisová značka, typ poplatníka, kód FÚ).
+        $this->enricher->enrich($newSupplierId, $b['ic'] ?? null, $b['dic'] ?? null);
+
         $this->log($request, 'supplier.created', $newSupplierId, ['company_name' => $b['company_name'], 'ic' => $b['ic'] ?? null]);
         return Json::ok($response, ['id' => $newSupplierId], 201);
     }
@@ -188,15 +213,17 @@ final class SettingsAction
         $allowed = [
             'company_name', 'display_name', 'street', 'city', 'zip', 'country_id',
             'ic', 'dic', 'is_vat_payer', 'email', 'phone', 'web', 'tagline', 'commercial_register',
-            'default_currency_id', 'default_vat_rate_id', 'default_payment_due_days',
+            'default_currency_id', 'default_vat_rate_id', 'default_payment_due_days', 'default_payment_due_unit',
             // logo_path / signature_path se NIKDY nemění přes mass-assignment — jen přes
             // dedikované endpointy EmailBrandingAction::uploadLogo (multipart, processed by
             // SupplierLogoConverter do storage/branding/sup-N/). Mass-assign by umožnil
             // admin-planted LFI (security report @andrejtomci #2).
-            'default_hourly_rate', 'auto_send_reminders', 'auto_generate_recurring', 'embed_isdoc',
+            'default_hourly_rate', 'auto_send_reminders', 'reminder_days_after_due', 'auto_generate_recurring', 'embed_isdoc',
+            'default_prices_include_vat',
             'pohoda_account_code', 'pohoda_centre_code', 'pohoda_activity_code', 'pohoda_contract_code',
-            // Per-supplier konfigurace číslování faktur (migrace 0014)
+            // Per-supplier konfigurace číslování faktur (migrace 0014; přijaté 0095)
             'invoice_number_format', 'proforma_number_format', 'credit_note_number_format',
+            'purchase_invoice_number_format',
             'invoice_number_period',
             // Per-supplier branding emailů (migrace 0016) + PDF logo+název (migrace 0058)
             'email_branding_enabled', 'email_accent_color', 'pdf_logo_show_name',
@@ -207,6 +234,8 @@ final class SettingsAction
             // Doplňky pro DPH/KH XML VetaP (migrace 0043)
             'street_number_pop', 'street_number_orient',
             'opr_jmeno', 'opr_prijmeni', 'opr_postaveni',
+            // Děkovný e-mail za úhradu (issue #57)
+            'payment_thanks_enabled', 'payment_thanks_auto_send', 'payment_thanks_default_checked', 'payment_thanks_attach_paid_pdf',
         ];
 
         // Validace tax fields
@@ -262,7 +291,7 @@ final class SettingsAction
         }
         // Validace per-supplier varsymbol templatů: prázdný string → NULL (= fallback na cfg);
         // jinak max 60 znaků a musí obsahovat alespoň jeden counter placeholder {C+}.
-        foreach (['invoice_number_format', 'proforma_number_format', 'credit_note_number_format'] as $f) {
+        foreach (['invoice_number_format', 'proforma_number_format', 'credit_note_number_format', 'purchase_invoice_number_format'] as $f) {
             if (array_key_exists($f, $body)) {
                 $v = trim((string) ($body[$f] ?? ''));
                 if ($v === '') {
@@ -283,6 +312,11 @@ final class SettingsAction
         ) {
             return Json::error($response, 'validation_failed', "Neplatné invoice_number_period (year|month|none).", 400);
         }
+        if (array_key_exists('default_payment_due_unit', $body)
+            && !in_array($body['default_payment_due_unit'], ['days', 'month'], true)
+        ) {
+            return Json::error($response, 'validation_failed', "default_payment_due_unit musí být 'days' nebo 'month'.", 400);
+        }
         // Legacy: pokud frontend pošle 'default_currency' jako code, převedeme na id (scoped to supplier)
         if (isset($body['default_currency']) && !isset($body['default_currency_id'])) {
             $stmt = $this->db->pdo()->prepare(
@@ -291,16 +325,22 @@ final class SettingsAction
             $stmt->execute([$id, strtoupper((string) $body['default_currency'])]);
             $body['default_currency_id'] = (int) $stmt->fetchColumn();
         }
+        // Práh dní pro první upomínku je INT — clamp zrcadlí rozsah UI (1–365 dní),
+        // ať přímý API caller neuloží nesmyslnou hodnotu.
+        if (array_key_exists('reminder_days_after_due', $body)) {
+            $body['reminder_days_after_due'] = max(1, min(365, (int) $body['reminder_days_after_due']));
+        }
         $sets = [];
         $params = [];
         foreach ($allowed as $f) {
             if (array_key_exists($f, $body)) {
                 $sets[] = "$f = ?";
-                $params[] = in_array($f, ['is_vat_payer', 'auto_send_reminders', 'auto_generate_recurring', 'embed_isdoc', 'email_branding_enabled', 'pdf_logo_show_name'], true)
+                $params[] = in_array($f, ['is_vat_payer', 'auto_send_reminders', 'auto_generate_recurring', 'embed_isdoc', 'default_prices_include_vat', 'email_branding_enabled', 'pdf_logo_show_name', 'payment_thanks_enabled', 'payment_thanks_auto_send', 'payment_thanks_default_checked', 'payment_thanks_attach_paid_pdf'], true)
                     ? ((int) (bool) $body[$f])
                     : $body[$f];
             }
         }
+
         if (empty($sets)) return $this->respondSupplier($response, $id);
 
         $params[] = $id;
@@ -401,14 +441,30 @@ final class SettingsAction
         $row['default_vat_rate_id']      = (int) $row['default_vat_rate_id'];
         $row['default_currency_id']      = (int) $row['default_currency_id'];
         $row['default_payment_due_days'] = (int) $row['default_payment_due_days'];
+        $row['default_payment_due_unit'] = (string) ($row['default_payment_due_unit'] ?? 'days');
         $row['default_hourly_rate']      = (float) $row['default_hourly_rate'];
         $row['auto_send_reminders']      = (bool) $row['auto_send_reminders'];
+        $row['reminder_days_after_due']  = (int) ($row['reminder_days_after_due'] ?? 3);
         $row['auto_generate_recurring']  = (bool) ($row['auto_generate_recurring'] ?? true);
+        $row['default_prices_include_vat'] = (bool) ($row['default_prices_include_vat'] ?? false);
         $row['embed_isdoc']              = (bool) ($row['embed_isdoc'] ?? true);
         $row['email_branding_enabled']   = (bool) ($row['email_branding_enabled'] ?? false);
         $row['email_accent_color']       = (string) ($row['email_accent_color'] ?? '#3B2D83');
         $row['pdf_logo_show_name']       = (bool) ($row['pdf_logo_show_name'] ?? false);
         $row['has_email_logo']           = is_file(\MyInvoice\Infrastructure\Config\RuntimePaths::storage('supplier-logos') . '/sup-' . $row['id'] . '.png');
+        $row['payment_thanks_enabled']        = (bool) ($row['payment_thanks_enabled'] ?? false);
+        $row['payment_thanks_auto_send']      = (bool) ($row['payment_thanks_auto_send'] ?? false);
+        $row['payment_thanks_default_checked']= (bool) ($row['payment_thanks_default_checked'] ?? false);
+        $row['payment_thanks_attach_paid_pdf']= (bool) ($row['payment_thanks_attach_paid_pdf'] ?? false);
+        // Bezpečnost: do API NIKDY neposílat žádná tajemství. Redakce vzorem `*_enc`
+        // je odolná vůči nově přidaným šifrovaným sloupcům (původní explicitní výčet
+        // nechával unikat idoklad/fakturoid/anthropic credentials).
+        foreach (array_keys($row) as $k) {
+            if (str_ends_with((string) $k, '_enc')) {
+                unset($row[$k]);
+            }
+        }
+        unset($row['idoklad_access_token']);
         // Globální cfg fallback pro varsymbol — UI ho použije jako placeholder
         // u prázdných per-supplier polí (aby uživatel viděl, jaká šablona by se
         // použila kdyby ponechal pole prázdné).
@@ -416,6 +472,8 @@ final class SettingsAction
             'invoice'     => (string) $this->config->get('varsymbol.templates.invoice', ''),
             'proforma'    => (string) $this->config->get('varsymbol.templates.proforma', ''),
             'credit_note' => (string) $this->config->get('varsymbol.templates.credit_note', ''),
+            // Přijaté faktury nemají cfg fallback — výchozí je vestavěná šablona generátoru.
+            'purchase'    => \MyInvoice\Repository\PurchaseInvoiceRepository::PURCHASE_DEFAULT_TEMPLATE,
         ];
         return Json::ok($response, $row);
     }
@@ -433,7 +491,12 @@ final class SettingsAction
             'SELECT c.id, c.code, c.label, c.symbol, c.name_cs, c.name_en, c.decimals,
                     c.is_active, c.is_default,
                     c.account_number, c.bank_code, c.bank_name, c.iban, c.bic,
-                    (SELECT COUNT(*) FROM invoices i WHERE i.currency_id = c.id) AS invoices_count
+                    (
+                        (SELECT COUNT(*) FROM invoices i WHERE i.currency_id = c.id)
+                      + (SELECT COUNT(*) FROM purchase_invoices pi WHERE pi.currency_id = c.id OR pi.payment_currency_id = c.id)
+                      + (SELECT COUNT(*) FROM projects p WHERE p.currency_id = c.id)
+                      + (SELECT COUNT(*) FROM recurring_invoice_templates rit WHERE rit.currency_id = c.id)
+                    ) AS invoices_count
                FROM currencies c
               WHERE c.supplier_id = ?
            ORDER BY c.code, c.is_default DESC, c.label'
@@ -468,7 +531,7 @@ final class SettingsAction
         $code = (string) $row['code'];
 
         $body = (array) ($request->getParsedBody() ?? []);
-        $allowed = ['label', 'symbol', 'is_active', 'is_default', 'account_number', 'bank_code', 'bank_name', 'iban', 'bic'];
+        $allowed = ['label', 'symbol', 'decimals', 'is_active', 'is_default', 'account_number', 'bank_code', 'bank_name', 'iban', 'bic'];
         $sets = [];
         $params = [];
         foreach ($allowed as $f) {
@@ -476,6 +539,11 @@ final class SettingsAction
                 $sets[] = "$f = ?";
                 if (in_array($f, ['is_active', 'is_default'], true)) {
                     $params[] = (int) (bool) $body[$f];
+                } elseif ($f === 'decimals') {
+                    $params[] = max(0, min(6, (int) $body[$f]));
+                } elseif ($f === 'symbol') {
+                    // NOT NULL sloupec — prázdné ulož jako '' (ne null).
+                    $params[] = (string) $body[$f];
                 } else {
                     $params[] = ($body[$f] === '' || $body[$f] === null) ? null : $body[$f];
                 }
@@ -781,13 +849,29 @@ final class SettingsAction
         if ($ownerSid === 0) return Json::error($response, 'not_found', 'Měna nenalezena.', 404);
         if ($ownerSid !== $sid) return Json::error($response, 'wrong_supplier', 'Tato měna patří jinému supplier.', 403);
 
-        $stmt = $pdo->prepare('SELECT COUNT(*) FROM invoices WHERE currency_id = ?');
-        $stmt->execute([$id]);
-        $invoices = (int) $stmt->fetchColumn();
-        if ($invoices > 0) {
-            return Json::error($response, 'has_dependencies', "Měnu nelze smazat — má $invoices faktur.", 409);
+        // Použití napříč doklady (vydané, přijaté vč. platební měny, zakázky, pravidelné fakturace).
+        $stmt = $pdo->prepare(
+            'SELECT (
+                (SELECT COUNT(*) FROM invoices WHERE currency_id = ?)
+              + (SELECT COUNT(*) FROM purchase_invoices WHERE currency_id = ? OR payment_currency_id = ?)
+              + (SELECT COUNT(*) FROM projects WHERE currency_id = ?)
+              + (SELECT COUNT(*) FROM recurring_invoice_templates WHERE currency_id = ?)
+            ) AS cnt'
+        );
+        $stmt->execute([$id, $id, $id, $id, $id]);
+        $deps = (int) $stmt->fetchColumn();
+        if ($deps > 0) {
+            return Json::error($response, 'has_dependencies', "Měnu nelze smazat — je použita na $deps dokladech.", 409);
         }
-        $pdo->prepare('DELETE FROM currencies WHERE id = ?')->execute([$id]);
+        try {
+            $pdo->prepare('DELETE FROM currencies WHERE id = ?')->execute([$id]);
+        } catch (\PDOException $e) {
+            // Pojistka pro ostatní FK (cache přepočtů, výchozí měna klienta/dodavatele apod.).
+            if ($e->getCode() === '23000') {
+                return Json::error($response, 'has_dependencies', 'Měnu nelze smazat — je použita v jiných záznamech.', 409);
+            }
+            throw $e;
+        }
         $this->log($request, 'currency.deleted', $id, []);
         return Json::ok($response, ['deleted' => true]);
     }
