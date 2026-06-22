@@ -363,16 +363,31 @@ final class RecurringInvoiceGenerator
             $taxDate ?? $issueDate,
         );
 
+        // Placeholdery {YYYY}/{MM}/{DATE±…}/… v popisech položek a poznámkách (#108) —
+        // vyhodnocují se VŽDY (neznámé tokeny zůstávají netknuté → plná zpětná
+        // kompatibilita), vůči DUZP (u proformy issue_date), stejně jako month-sync níže.
+        $placeholderRef = new \DateTimeImmutable($taxDate ?? $issueDate);
+        $lang = (string) ($template['language'] ?? 'cs');
+        $noteAbove = $template['note_above_items'] !== null && $template['note_above_items'] !== ''
+            ? DescriptionPlaceholders::apply((string) $template['note_above_items'], $placeholderRef, $lang)
+            : ($template['note_above_items'] ?? null);
+        $noteBelow = $template['note_below_items'] !== null && $template['note_below_items'] !== ''
+            ? DescriptionPlaceholders::apply((string) $template['note_below_items'], $placeholderRef, $lang)
+            : ($template['note_below_items'] ?? null);
+
         $pdo->beginTransaction();
         try {
             $discountPercent = round(max(0.0, min(100.0, (float) ($template['discount_percent'] ?? 0))), 2);
-            // Výchozí kategorie tržby — default zakázky > klienta (sdílený helper,
-            // stejná logika jako createDraft a import). Faktura ze šablony tak dostane
-            // kategorii stejně jako ručně založená.
+            // Kategorie tržby — pevná kategorie šablony (#119) přebíjí dynamický
+            // fallback default zakázky > klienta (sdílený helper, stejná logika jako
+            // createDraft a import). Hodnota se na fakturu ukládá jako snapshot:
+            // pozdější změna šablony/zakázky/klienta už vygenerované faktury nemění.
             $projectId = !empty($template['project_id']) ? (int) $template['project_id'] : null;
-            $revenueCategoryId = InvoiceRepository::resolveDefaultRevenueCategoryId(
-                $pdo, (int) $template['client_id'], $projectId
-            );
+            $revenueCategoryId = !empty($template['revenue_category_id'])
+                ? (int) $template['revenue_category_id']
+                : InvoiceRepository::resolveDefaultRevenueCategoryId(
+                    $pdo, (int) $template['client_id'], $projectId
+                );
             $stmt = $pdo->prepare(
                 'INSERT INTO invoices
                    (invoice_type, client_id, project_id, supplier_id,
@@ -393,8 +408,8 @@ final class RecurringInvoiceGenerator
                 $template['reverse_charge'] ? 1 : 0,
                 !empty($template['prices_include_vat']) ? 1 : 0,
                 (string) ($template['language'] ?? 'cs'),
-                $template['note_above_items'] ?? null,
-                $template['note_below_items'] ?? null,
+                $noteAbove,
+                $noteBelow,
                 (string) ($template['payment_method'] ?? 'bank_transfer'),
                 $discountPercent,
                 (int) $template['id'],
@@ -417,9 +432,12 @@ final class RecurringInvoiceGenerator
             // a kódy byly NULL).
             $items = [];
             foreach ($template['items'] as $item) {
-                $description = $syncTarget !== null
-                    ? MonthSynchronizer::syncTo((string) $item['description'], $syncTarget)
-                    : (string) $item['description'];
+                // Pořadí: 1) placeholdery, 2) M/YYYY sync. Obojí míří na stejné ref.
+                // datum, takže sync je vůči výstupu placeholderů idempotentní.
+                $description = DescriptionPlaceholders::apply((string) $item['description'], $placeholderRef, $lang);
+                if ($syncTarget !== null) {
+                    $description = MonthSynchronizer::syncTo($description, $syncTarget);
+                }
                 $items[] = [
                     'description'            => $description,
                     'quantity'               => (float) $item['quantity'],

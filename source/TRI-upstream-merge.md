@@ -57,3 +57,20 @@ Smoke test:
 ## Migrations
 
 `migrate.php` runs all `db/migrations/*.sql` in sort order. TRI files `9000_*` run after upstream `0099_*`. No changes to migrator required.
+
+## Merge history
+
+### 2026-06-22 — upstream v4.37.3 (from v4.13.1)
+
+- **Branch:** `integration/upstream-v4.37.3` → merged to `master`
+- **Rollback tag:** `tri-baseline-pre-v4.37.3` (TRI plugin committed); DB dump `data/backups/myinvoice-20260622-084950.sql.gz`; Docker image `myinvoice-triant:rollback-20260622`
+- **Conflicts resolved (7 files):**
+  - `ClientRepository.php` — kept upstream `tax_number` + TRI `phone` + `tri_stats` JOIN
+  - `Routes.php` — upstream logbook routes + `TriRoutes::register()` at end
+  - `clients.ts` — merged `tri_*` fields + upstream `email_contacts`
+  - `AppLayout.vue` — upstream payment-orders + logbook nav with TRI `moduleId` sidebar keys
+  - `cs.json` / `en.json` — merged TRI nav keys + upstream logbook/payment_orders/smtp_logs
+  - `router/index.ts` — both `triRoutes` import and `useSupplierStore` (onboarding gate)
+- **New upstream migrations applied:** `0100`–`0114` (logbook, payment orders, client email contacts, tax_number, …)
+- **Sidebar `ALLOWED_MODULE_IDS` extended:** `payment-orders`, `logbook`
+- **Optional touches not yet done:** InvoiceDetail/InvoiceEditor cross-link to TRI job (still only in TRI invoice pages)

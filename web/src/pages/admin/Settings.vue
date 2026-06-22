@@ -1,13 +1,33 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { settingsApi, type Supplier } from '@/api/settings'
+import { settingsApi, type Supplier, type SelfCopyType, type SelfCopyMode } from '@/api/settings'
 import { clientsApi } from '@/api/clients'
+import { useSupplierStore } from '@/stores/supplier'
 import { useToast } from '@/composables/useToast'
 import { renderVarsymbolTemplate, hasCounterPlaceholder } from '@/utils/varsymbol'
 
 const { t } = useI18n()
 const toast = useToast()
+const supplierStore = useSupplierStore()
+
+// Po uložení propsat změny do supplier store (brief z /me) — jinak editor faktur
+// čte stale is_vat_payer/defaulty až do hard refreshe (issue #94).
+function syncSupplierStore(s: Supplier) {
+  supplierStore.patchSupplier(s.id, {
+    company_name: s.company_name,
+    ic: s.ic,
+    is_vat_payer: s.is_vat_payer,
+    is_identified: s.is_identified ?? false,
+    taxpayer_type: s.taxpayer_type ?? null,
+    default_payment_due_days: s.default_payment_due_days,
+    default_payment_due_unit: s.default_payment_due_unit,
+    default_prices_include_vat: s.default_prices_include_vat,
+    auto_send_reminders: s.auto_send_reminders,
+    payment_thanks_enabled: s.payment_thanks_enabled,
+    payment_thanks_default_checked: s.payment_thanks_default_checked,
+  })
+}
 
 const supplier = ref<Supplier | null>(null)
 const loading = ref(true)
@@ -108,6 +128,37 @@ const creditNoteFormatError = computed(() => validateAndPreview(supplier.value?.
 const purchasePreview       = computed(() => validateAndPreview(supplier.value?.purchase_invoice_number_format ?? null).preview)
 const purchaseFormatError   = computed(() => validateAndPreview(supplier.value?.purchase_invoice_number_format ?? null).error)
 
+// Kopie odchozích e-mailů dodavateli (migrace 0102) — UI stav 'inherit' znamená
+// „klíč v self_copy chybí" = živý fallback na cfg flagy (vzor číslování faktur).
+// Explicitní volba klíč zapíše; zpět na 'inherit' ho smaže. Prázdný objekt → null.
+function selfCopyComputed(ct: SelfCopyType) {
+  return computed<SelfCopyMode | 'inherit'>({
+    get: () => supplier.value?.self_copy?.[ct] ?? 'inherit',
+    set: (v) => {
+      if (!supplier.value) return
+      const sc = { ...(supplier.value.self_copy ?? {}) }
+      if (v === 'inherit') delete sc[ct]
+      else sc[ct] = v
+      supplier.value.self_copy = Object.keys(sc).length ? sc : null
+    },
+  })
+}
+const selfCopyDocuments = selfCopyComputed('documents')
+const selfCopyReminders = selfCopyComputed('reminders')
+const selfCopyApprovals = selfCopyComputed('approvals')
+
+/** Efektivní cfg hodnota pro volbu „dle konfigurace" — u schvalování může mít
+ *  žádost a upomínka v cfg různé flagy, pak ukážeme obě. */
+function selfCopyFallbackLabel(ct: SelfCopyType): string {
+  const fb = supplier.value?.cfg_self_copy_fallback
+  if (!fb) return ''
+  const lbl = (m: SelfCopyMode) => m === 'off' ? t('settings.self_copy.mode_off') : m.toUpperCase()
+  if (ct === 'approvals' && fb.approvals !== fb.approval_reminders) {
+    return t('settings.self_copy.inherit_split', { request: lbl(fb.approvals), reminder: lbl(fb.approval_reminders) })
+  }
+  return lbl(fb[ct])
+}
+
 async function load() {
   loading.value = true
   try {
@@ -138,6 +189,7 @@ async function saveSupplier() {
       ic: supplier.value.ic,
       dic: supplier.value.dic,
       is_vat_payer: supplier.value.is_vat_payer,
+      is_identified: supplier.value.is_identified ?? false,
       email: supplier.value.email,
       phone: supplier.value.phone,
       web: supplier.value.web,
@@ -153,6 +205,7 @@ async function saveSupplier() {
       payment_thanks_auto_send: supplier.value.payment_thanks_auto_send,
       payment_thanks_default_checked: supplier.value.payment_thanks_default_checked,
       payment_thanks_attach_paid_pdf: supplier.value.payment_thanks_attach_paid_pdf,
+      self_copy: supplier.value.self_copy ?? null,
       auto_generate_recurring: supplier.value.auto_generate_recurring,
       embed_isdoc: supplier.value.embed_isdoc,
       pohoda_account_code: supplier.value.pohoda_account_code,
@@ -187,6 +240,7 @@ async function saveSupplier() {
       opr_prijmeni: (supplier.value as any).opr_prijmeni ?? null,
       opr_postaveni: (supplier.value as any).opr_postaveni ?? null,
     })
+    syncSupplierStore(supplier.value)
     toast.success(t('common.saved'))
     bumpPreview()
   } catch (e: any) {
@@ -223,6 +277,7 @@ async function saveBranding(silent = false) {
     })
     // Merge response do reactive supplier (zachová local-only fields jako has_email_logo)
     supplier.value = { ...supplier.value, ...updated }
+    syncSupplierStore(supplier.value)
     if (!silent) toast.success(t('common.saved'))
     bumpPreview()
   } catch (e: any) {
@@ -338,9 +393,17 @@ async function removeLogo() {
           <div>
             <label class="flex items-center gap-2 text-sm mt-7">
               <input v-model="supplier.is_vat_payer" type="checkbox" class="rounded border-neutral-300 text-primary-600"
-                @change="supplier.is_vat_payer && ((supplier as any).flat_tax_band = 'none')" />
+                @change="supplier.is_vat_payer && (((supplier as any).flat_tax_band = 'none'), (supplier.is_identified = false))" />
               {{ t('settings.is_vat_payer') }}
             </label>
+            <!-- Identifikovaná osoba (§ 6g–6l ZDPH, #94) — jen pro neplátce; plátce ji vypne. -->
+            <label v-if="!supplier.is_vat_payer" class="flex items-center gap-2 text-sm mt-2">
+              <input v-model="supplier.is_identified" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
+              {{ t('settings.is_identified') }}
+            </label>
+            <p v-if="!supplier.is_vat_payer && supplier.is_identified" class="text-xs text-neutral-500 mt-1 ml-6">
+              {{ t('settings.is_identified_hint') }}
+            </p>
           </div>
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('settings.email') }} *</label>
@@ -442,6 +505,40 @@ async function removeLogo() {
                 {{ t('settings.payment_thanks_attach_paid_pdf') }}
               </label>
             </div>
+          </div>
+          <div class="md:col-span-2 border-t border-neutral-200 pt-3">
+            <p class="text-sm font-medium text-neutral-700">{{ t('settings.self_copy.title') }}</p>
+            <p class="text-xs text-neutral-500 mt-1">{{ t('settings.self_copy.hint', { email: supplier.email }) }}</p>
+            <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('settings.self_copy.type_documents') }}</label>
+                <select v-model="selfCopyDocuments" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
+                  <option value="inherit">{{ t('settings.self_copy.inherit', { value: selfCopyFallbackLabel('documents') }) }}</option>
+                  <option value="off">{{ t('settings.self_copy.mode_off') }}</option>
+                  <option value="cc">{{ t('settings.self_copy.mode_cc') }}</option>
+                  <option value="bcc">{{ t('settings.self_copy.mode_bcc') }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('settings.self_copy.type_reminders') }}</label>
+                <select v-model="selfCopyReminders" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
+                  <option value="inherit">{{ t('settings.self_copy.inherit', { value: selfCopyFallbackLabel('reminders') }) }}</option>
+                  <option value="off">{{ t('settings.self_copy.mode_off') }}</option>
+                  <option value="cc">{{ t('settings.self_copy.mode_cc') }}</option>
+                  <option value="bcc">{{ t('settings.self_copy.mode_bcc') }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('settings.self_copy.type_approvals') }}</label>
+                <select v-model="selfCopyApprovals" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
+                  <option value="inherit">{{ t('settings.self_copy.inherit', { value: selfCopyFallbackLabel('approvals') }) }}</option>
+                  <option value="off">{{ t('settings.self_copy.mode_off') }}</option>
+                  <option value="cc">{{ t('settings.self_copy.mode_cc') }}</option>
+                  <option value="bcc">{{ t('settings.self_copy.mode_bcc') }}</option>
+                </select>
+              </div>
+            </div>
+            <p class="text-xs text-neutral-500 mt-1">{{ t('settings.self_copy.approvals_note') }}</p>
           </div>
           <div class="md:col-span-2">
             <label class="flex items-center gap-2 text-sm">
