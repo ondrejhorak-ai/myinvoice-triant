@@ -96,6 +96,10 @@ final class ClientRepository
             $listWhere[] = 'c.default_expense_category_id = ?';
             $listParams[] = (int) $filters['expense_category_id'];
         }
+        if (!empty($filters['tri_tag_id'])) {
+            $listWhere[] = 'EXISTS (SELECT 1 FROM tri_client_tags tct WHERE tct.client_id = c.id AND tct.tag_id = ?)';
+            $listParams[] = (int) $filters['tri_tag_id'];
+        }
         $whereSql = implode(' AND ', $listWhere);
 
         // Count
@@ -127,21 +131,44 @@ final class ClientRepository
         // Whitelist řazení (defense proti SQLi přes user input).
         // Role-aware: u dodavatelů řadíme podle purchase aktivity (costs / last_purchase_date),
         // u zákazníků podle sales (revenue / last_invoice_date).
+        // TRI contacts list (tri_stats) řadí podle agregátů zakázek TRI.
+        $triStats = !empty($filters['tri_stats']);
         $isVendorView = ($filters['role'] ?? 'all') === 'vendors';
         $orderBy = match ($sort) {
             'revenue'       => $isVendorView
                 ? 'costs DESC, c.company_name'
-                : 'revenue DESC, c.company_name',
+                : ($triStats ? 'tri_revenue DESC, c.company_name' : 'revenue DESC, c.company_name'),
             'last_activity' => $isVendorView
                 ? 'last_purchase_date IS NULL, last_purchase_date DESC, c.company_name'
-                : 'last_invoice_date IS NULL, last_invoice_date DESC, c.company_name',
+                : ($triStats
+                    ? 'tri_last_job_date IS NULL, tri_last_job_date DESC, c.company_name'
+                    : 'last_invoice_date IS NULL, last_invoice_date DESC, c.company_name'),
             default         => 'c.company_name',
         };
 
         // Page — LIMIT/OFFSET přes bindValue(PARAM_INT) pro defense-in-depth proti SQLi
         $offset = max(0, ($page - 1) * $perPage);
+        $triStatsSql = $triStats
+            ? ",
+                       COALESCE(tj.tri_jobs_count, 0) AS tri_jobs_count,
+                       COALESCE(tj.tri_revenue, 0) AS tri_revenue,
+                       tj.tri_last_job_date"
+            : '';
+        $triJoinSql = $triStats
+            ? "
+             LEFT JOIN (
+                       SELECT jc.client_id,
+                              COUNT(DISTINCT j.id) AS tri_jobs_count,
+                              MAX(j.created_at) AS tri_last_job_date,
+                              COALESCE(SUM(CASE WHEN j.status IN ('confirmed', 'completed') THEN v.subtotal END), 0) AS tri_revenue
+                         FROM tri_job_contacts jc
+                         JOIN tri_jobs j ON j.id = jc.job_id AND j.supplier_id = ? AND j.archived_at IS NULL
+                    LEFT JOIN tri_quote_variants v ON v.id = j.approved_variant_id
+                     GROUP BY jc.client_id
+                   ) tj ON tj.client_id = c.id"
+            : '';
         // Cache `client_revenue_cache` — primární řádek vybíráme přes c.currency_default_id
-        $sql = "SELECT c.id, c.supplier_id, c.company_name, c.ic, c.dic, c.main_email, c.language,
+        $sql = "SELECT c.id, c.supplier_id, c.company_name, c.ic, c.dic, c.main_email, c.phone, c.language,
                        c.currency_default_id, cur.code AS currency_default,
                        c.reverse_charge, c.is_vat_payer, c.is_customer, c.is_vendor,
                        c.auto_send_reminders,
@@ -154,11 +181,11 @@ final class ClientRepository
                        COALESCE(crc.invoice_count, 0) AS invoice_count,
                        COALESCE(pi_agg.costs, 0) AS costs,
                        COALESCE(pi_agg.purchase_count, 0) AS purchase_count,
-                       pi_agg.last_purchase_date
+                       pi_agg.last_purchase_date{$triStatsSql}
                   FROM clients c
                   JOIN countries  co  ON co.id  = c.country_id
                   JOIN currencies cur ON cur.id = c.currency_default_id
-             LEFT JOIN client_revenue_cache crc ON crc.client_id = c.id AND crc.currency_id = c.currency_default_id
+             LEFT JOIN client_revenue_cache crc ON crc.client_id = c.id AND crc.currency_id = c.currency_default_id{$triJoinSql}
              LEFT JOIN (
                        -- Costs sumarizace přes vendory. Multi-currency:
                        -- EUR/USD/... přepočítáme na CZK přes pi.exchange_rate (CNB k DUZP).
@@ -193,7 +220,11 @@ final class ClientRepository
         $idx = 1;
         // supplier_id pro pi_agg subquery (purchase costs) — bind PŘED whereSql params,
         // protože subquery v FROM clauseu je evaluated jako první v SQL parser order.
-        $stmt->bindValue($idx++, (int) ($filters['supplier_id'] ?? 0), PDO::PARAM_INT);
+        $supplierId = (int) ($filters['supplier_id'] ?? 0);
+        $stmt->bindValue($idx++, $supplierId, PDO::PARAM_INT);
+        if ($triStats) {
+            $stmt->bindValue($idx++, $supplierId, PDO::PARAM_INT);
+        }
         foreach ($listParams as $v) {
             $stmt->bindValue($idx++, $v);
         }
@@ -201,6 +232,16 @@ final class ClientRepository
         $stmt->bindValue($idx++, $offset,  PDO::PARAM_INT);
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($triStats && $rows !== []) {
+            $tagsByClient = $this->triTagsForClients(
+                array_map(static fn (array $r) => (int) $r['id'], $rows),
+                $supplierId
+            );
+            foreach ($rows as &$row) {
+                $row['tri_tags'] = $tagsByClient[(int) $row['id']] ?? [];
+            }
+            unset($row);
+        }
 
         return [
             'data' => array_map(fn (array $r) => $this->cast($r), $rows),
@@ -559,6 +600,41 @@ final class ClientRepository
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * TRI tagy pro batch klientů (contacts list s tri_stats).
+     *
+     * @param list<int> $clientIds
+     * @return array<int, list<array{id:int, supplier_id:int, name:string, slug:string, color:string}>>
+     */
+    private function triTagsForClients(array $clientIds, int $supplierId): array
+    {
+        $clientIds = array_values(array_unique(array_filter(array_map('intval', $clientIds))));
+        if ($clientIds === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT ct.client_id, t.id, t.supplier_id, t.name, t.slug, t.color
+               FROM tri_client_tags ct
+               JOIN tri_tags t ON t.id = ct.tag_id AND t.supplier_id = ?
+              WHERE ct.client_id IN ($placeholders)
+              ORDER BY ct.client_id, t.name"
+        );
+        $stmt->execute(array_merge([$supplierId], $clientIds));
+        $byClient = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $clientId = (int) $row['client_id'];
+            $byClient[$clientId][] = [
+                'id'          => (int) $row['id'],
+                'supplier_id' => (int) $row['supplier_id'],
+                'name'        => (string) $row['name'],
+                'slug'        => (string) $row['slug'],
+                'color'       => (string) $row['color'],
+            ];
+        }
+        return $byClient;
+    }
+
     private function countryIdFromIso2(string $iso2): int
     {
         $iso2 = strtoupper($iso2);
@@ -610,6 +686,9 @@ final class ClientRepository
         if (array_key_exists('last_purchase_date', $row)) $row['last_purchase_date'] = $row['last_purchase_date'] ?: null;
         if (array_key_exists('last_invoice_date', $row)) $row['last_invoice_date'] = $row['last_invoice_date'] ?: null;
         if (array_key_exists('invoice_count', $row))     $row['invoice_count'] = (int) $row['invoice_count'];
+        if (array_key_exists('tri_jobs_count', $row))    $row['tri_jobs_count'] = (int) $row['tri_jobs_count'];
+        if (array_key_exists('tri_revenue', $row))       $row['tri_revenue'] = (float) $row['tri_revenue'];
+        if (array_key_exists('tri_last_job_date', $row)) $row['tri_last_job_date'] = $row['tri_last_job_date'] ?: null;
         return $row;
     }
 

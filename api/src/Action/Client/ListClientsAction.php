@@ -30,6 +30,8 @@ final class ListClientsAction
             'archived'            => !empty($q['filter']['archived']),
             'role'                => $role,
             'expense_category_id' => isset($q['expense_category_id']) ? (int) $q['expense_category_id'] : 0,
+            'tri_tag_id'          => isset($q['tri_tag_id']) ? (int) $q['tri_tag_id'] : 0,
+            'tri_stats'           => !empty($q['tri_stats']),
             'supplier_id'         => (int) $request->getAttribute(SupplierScopeMiddleware::ATTR_CURRENT_ID, 0),
         ];
         $page = max(1, (int) ($q['page'] ?? 1));

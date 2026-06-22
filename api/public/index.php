@@ -15,6 +15,7 @@ try {
 
     $msg = $e->getMessage();
     $missingCfg = str_contains($msg, 'cfg.php');
+    $phase = isset($app) ? 'run' : 'bootstrap';
     $isJson = isset($_SERVER['HTTP_ACCEPT']) && stripos((string) $_SERVER['HTTP_ACCEPT'], 'application/json') !== false;
 
     // Detekce produkce — pokud cfg.php existuje a obsahuje 'env' => 'production',
@@ -31,7 +32,7 @@ try {
     if (is_dir($logDir) && is_writable($logDir)) {
         @file_put_contents(
             $logDir . '/bootstrap-error.log',
-            sprintf("[%s] %s\n%s\n\n", date('Y-m-d H:i:s'), $msg, $e->getTraceAsString()),
+            sprintf("[%s] phase=%s %s\n%s\n\n", date('Y-m-d H:i:s'), $phase, $msg, $e->getTraceAsString()),
             FILE_APPEND
         );
     }

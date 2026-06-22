@@ -472,6 +472,22 @@ final class InvoiceRepository
             $where[] = 'i.project_id = ?';
             $params[] = (int) $filters['project_id'];
         }
+        $triJoin = '';
+        if (!empty($filters['tri_linked']) || !empty($filters['tri_job_id'])) {
+            $triJoin = ' INNER JOIN tri_job_invoices tji ON tji.invoice_id = i.id
+                          INNER JOIN tri_jobs tj ON tj.id = tji.job_id';
+            if (!empty($filters['tri_job_id'])) {
+                $where[] = 'tji.job_id = ?';
+                $params[] = (int) $filters['tri_job_id'];
+            }
+        } elseif (!empty($filters['tri_columns'])) {
+            $triJoin = ' LEFT JOIN tri_job_invoices tji ON tji.invoice_id = i.id
+                         LEFT JOIN tri_jobs tj ON tj.id = tji.job_id';
+            if (!empty($filters['tri_job_id'])) {
+                $where[] = 'tji.job_id = ?';
+                $params[] = (int) $filters['tri_job_id'];
+            }
+        }
         if (!empty($filters['year'])) {
             $where[] = 'YEAR(COALESCE(i.tax_date, i.issue_date)) = ?';
             $params[] = (int) $filters['year'];
@@ -521,6 +537,7 @@ final class InvoiceRepository
                    JOIN clients c ON c.id = i.client_id
               LEFT JOIN projects p ON p.id = i.project_id
                    JOIN currencies cur ON cur.id = i.currency_id
+                   $triJoin
                   WHERE $whereSql"
             );
             $cntStmt->execute($params);
@@ -540,11 +557,13 @@ final class InvoiceRepository
                        p.name AS project_name,
                        p.requires_work_report_approval AS project_requires_approval,
                        EXISTS (SELECT 1 FROM work_reports wr WHERE wr.invoice_id = i.id) AS has_work_report,
-                       DATE_FORMAT(COALESCE(i.tax_date, i.issue_date), '%Y-%m') AS month_bucket
-                  FROM invoices i
+                       DATE_FORMAT(COALESCE(i.tax_date, i.issue_date), '%Y-%m') AS month_bucket"
+            . ($triJoin !== '' ? ', tji.job_id AS tri_job_id, tj.number AS tri_job_number, tj.title AS tri_job_title' : '')
+            . " FROM invoices i
                   JOIN clients c ON c.id = i.client_id
              LEFT JOIN projects p ON p.id = i.project_id
                   JOIN currencies cur ON cur.id = i.currency_id
+                  $triJoin
                  WHERE $whereSql
                  ORDER BY COALESCE(i.tax_date, i.issue_date) DESC, i.id DESC";
 
@@ -1075,6 +1094,11 @@ final class InvoiceRepository
         }
         if (array_key_exists('revenue_category_id', $row)) {
             $row['revenue_category_id'] = $row['revenue_category_id'] !== null ? (int) $row['revenue_category_id'] : null;
+        }
+        if (array_key_exists('tri_job_id', $row) && $row['tri_job_id'] !== null) {
+            $row['tri_job_id'] = (int) $row['tri_job_id'];
+            $row['tri_job_number'] = isset($row['tri_job_number']) ? (string) $row['tri_job_number'] : null;
+            $row['tri_job_title'] = isset($row['tri_job_title']) ? (string) $row['tri_job_title'] : null;
         }
         return $row;
     }

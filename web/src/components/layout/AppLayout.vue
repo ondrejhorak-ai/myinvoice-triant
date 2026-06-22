@@ -121,6 +121,7 @@ const ICONS = {
   tax_archive: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4',
   tax_book:   'M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25',
   tax_optimizer: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z',
+  tri_jobs: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
 }
 
 const navSections = computed<NavSection[]>(() => {
@@ -167,6 +168,15 @@ const navSections = computed<NavSection[]>(() => {
       ],
     },
     {
+      title: t('nav.section_triant'),
+      accent: 'primary',
+      items: [
+        { moduleId: 'tri-contacts', to: '/tri/contacts', label: t('nav.tri_contacts'), icon: ICONS.clients, newTo: '/tri/contacts/new' },
+        { moduleId: 'tri-jobs', to: '/tri/jobs', label: t('nav.tri_jobs'), icon: ICONS.tri_jobs, newTo: '/tri/jobs/new' },
+        { moduleId: 'tri-invoices', to: '/tri/invoices', label: t('nav.tri_invoices'), icon: ICONS.invoices, newTo: '/tri/invoices/new' },
+      ],
+    },
+    {
       title: t('nav.section_documents'),
       accent: 'neutral',
       items: [
@@ -207,6 +217,7 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'updates', to: '/admin/update', label: t('nav.updates'), icon: ICONS.updates },
         { moduleId: 'api-tokens', to: '/profile/api-tokens', label: t('nav.api_tokens'), icon: ICONS.api_tokens },
         { moduleId: TRI_SETTINGS_MODULE_ID, to: '/admin/tri-settings', label: t('nav.tri_settings'), icon: ICONS.settings },
+        { moduleId: 'tri-tags', to: '/admin/tri-tags', label: t('nav.tri_tags'), icon: ICONS.clients },
       ],
     })
   }

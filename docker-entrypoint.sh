@@ -1,6 +1,14 @@
 #!/usr/bin/env sh
 set -eu
 
+# Bind-mount /data (app-data) může přijít z hostitele jako root:root — www-data
+# pak nemůže psát logy/storage a Monolog při prvním zápisu shodí request jako 503.
+if [ -d /data ]; then
+  mkdir -p /data/log /data/storage/invoices /data/storage/uploads /data/storage/backup \
+    /data/storage/sessions /data/storage/cache /data/private
+  chown -R www-data:www-data /data/log /data/storage /data/private 2>/dev/null || true
+fi
+
 if [ "${MYINVOICE_SKIP_MIGRATIONS:-0}" != "1" ]; then
   attempts="${MYINVOICE_MIGRATE_ATTEMPTS:-20}"
   delay="${MYINVOICE_MIGRATE_DELAY:-3}"

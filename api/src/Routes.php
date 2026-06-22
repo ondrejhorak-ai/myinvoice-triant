@@ -580,6 +580,8 @@ final class Routes
         $app->get   ('/api/documents/{id:[0-9]+}/preview',    [DocumentFileAction::class, 'preview']);
         $app->get   ('/api/documents/{id:[0-9]+}/thumb',      [DocumentFileAction::class, 'thumb']);
 
+        \MyInvoice\Tri\TriRoutes::register($app);
+
         // 404 fallback pro /api/*
         $app->any('/api/{path:.*}', function ($req, $res) {
             return \MyInvoice\Http\Json::error($res, 'not_found', 'Route not found', 404);

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { triRoutes } from './tri'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -74,6 +75,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'profile/password',       name: 'profile-password',      component: () => import('@/pages/PasswordChange.vue') },
       { path: 'profile/api-tokens',     name: 'profile-api-tokens',    component: () => import('@/pages/ApiTokens.vue') },
       { path: 'profile/signing-profiles', name: 'profile-signing-profiles', redirect: '/admin/electronic-signatures' },
+      ...triRoutes,
     ],
   },
   { path: '/login',  name: 'login',  component: () => import('@/pages/Login.vue'),          meta: { public: true } },

@@ -202,6 +202,9 @@ export interface InvoiceListItem {
   project_requires_approval?: boolean
   has_work_report?: boolean
   month_bucket: string
+  tri_job_id?: number
+  tri_job_number?: string | null
+  tri_job_title?: string | null
 }
 
 export interface MonthGroup {

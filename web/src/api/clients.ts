@@ -1,4 +1,5 @@
 import { api } from './client'
+import type { TriTag } from './tri'
 
 export interface Client {
   id: number
@@ -57,6 +58,11 @@ export interface Client {
   last_purchase_date?: string | null
   last_invoice_date?: string | null
   invoice_count?: number
+  /** TRI job aggregates (when list called with tri_stats=1). */
+  tri_jobs_count?: number
+  tri_revenue?: number
+  tri_last_job_date?: string | null
+  tri_tags?: TriTag[]
   created_at?: string
   updated_at?: string
 }
@@ -183,7 +189,7 @@ export interface ClientListResponse {
 export type ClientRoleFilter = 'all' | 'customers' | 'vendors'
 
 export const clientsApi = {
-  list: (params?: { q?: string; page?: number; per_page?: number; archived?: boolean; role?: ClientRoleFilter; sort?: 'name' | 'revenue' | 'last_activity'; expense_category_id?: number | null }) =>
+  list: (params?: { q?: string; page?: number; per_page?: number; archived?: boolean; role?: ClientRoleFilter; sort?: 'name' | 'revenue' | 'last_activity'; expense_category_id?: number | null; tri_tag_id?: number | null; tri_stats?: boolean }) =>
     api
       .get<ClientListResponse>('/clients', {
         params: {
@@ -193,6 +199,8 @@ export const clientsApi = {
           sort: params?.sort,
           role: params?.role && params.role !== 'all' ? params.role : undefined,
           expense_category_id: params?.expense_category_id || undefined,
+          tri_tag_id: params?.tri_tag_id || undefined,
+          tri_stats: params?.tri_stats ? 1 : undefined,
           ...(params?.archived ? { 'filter[archived]': 1 } : {}),
         },
       })

@@ -54,6 +54,10 @@ final class TriSidebarSettingsAction
         'updates',
         'api-tokens',
         'help',
+        'tri-contacts',
+        'tri-jobs',
+        'tri-invoices',
+        'tri-tags',
     ];
 
     public function __construct(

@@ -33,9 +33,16 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+function dismissBootstrapErrorOverlay(): void {
+  document.getElementById('bootstrap-error-overlay')?.remove()
+}
+
 // 401 → redirect na /login (kromě situace kdy už jsme na /login nebo /setup)
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    dismissBootstrapErrorOverlay()
+    return response
+  },
   (error) => {
     const status = error.response?.status
     const code = error.response?.data?.error?.code
