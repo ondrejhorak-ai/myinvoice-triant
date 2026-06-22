@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { bankNameByCode, isKnownBankName } from '@/utils/czBankCodes'
 import {
   settingsApi,
   type BankEmailAccountMapping,
@@ -58,6 +59,14 @@ const bankDraftAccounts = ref<CrpDphAccount[]>([])
 const supplierHasDic = computed(() => /^\d{8,10}$/.test((supplier.value?.dic || '').replace(/\D/g, '')))
 
 const currencyDraft = reactive<Partial<CurrencyAccount>>({})
+// Auto-doplnění názvu banky podle kódu (číselník ČNB). Přepíše jen prázdný
+// nebo z číselníku pocházející název — ručně zadaný text nepřepisuje.
+watch(() => currencyDraft.bank_code, (code) => {
+  const name = bankNameByCode(code)
+  if (name && (!currencyDraft.bank_name || isKnownBankName(currencyDraft.bank_name))) {
+    currencyDraft.bank_name = name
+  }
+})
 const imapDraft = reactive<Partial<BankEmailImapSettings> & { password?: string }>(defaultImapDraft())
 const regexFieldDefinitions = [
   { key: 'variable_symbol', required: true },
@@ -608,8 +617,8 @@ async function deleteMessage(m: BankEmailProcessedMessage) {
             <p class="text-xs text-neutral-500 mt-0.5">{{ t('bank_accounts.currencies_subtitle') }}</p>
           </div>
           <button type="button" @click="startNewCurrencyAccount()"
-            class="cursor-pointer shrink-0 self-start sm:self-auto whitespace-nowrap h-9 px-3 bg-surface border border-neutral-300 rounded-md text-sm hover:bg-neutral-50">
-            {{ t('bank_accounts.new_account') }}
+            class="cursor-pointer shrink-0 self-start sm:self-auto whitespace-nowrap inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md">
+            + {{ t('bank_accounts.new_account') }}
           </button>
         </header>
 
