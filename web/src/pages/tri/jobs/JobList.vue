@@ -88,6 +88,7 @@ watch([q, status], () => load())
               <th class="text-left text-xs uppercase tracking-wide text-neutral-500 px-3 py-2 border-b border-neutral-200">{{ t('tri.jobs.number') }}</th>
               <th class="text-left text-xs uppercase tracking-wide text-neutral-500 px-3 py-2 border-b border-neutral-200">{{ t('tri.jobs.title_field') }}</th>
               <th class="text-left text-xs uppercase tracking-wide text-neutral-500 px-3 py-2 border-b border-neutral-200">{{ t('tri.jobs.customer') }}</th>
+              <th class="text-left text-xs uppercase tracking-wide text-neutral-500 px-3 py-2 border-b border-neutral-200">{{ t('tri.jobs.assignees') }}</th>
               <th class="text-left text-xs uppercase tracking-wide text-neutral-500 px-3 py-2 border-b border-neutral-200">{{ t('tri.jobs.status') }}</th>
               <th class="text-right text-xs uppercase tracking-wide text-neutral-500 px-3 py-2 border-b border-neutral-200"></th>
             </tr>
@@ -102,6 +103,7 @@ watch([q, status], () => load())
               <td class="px-3 py-2 font-mono text-sm">{{ job.number }}</td>
               <td class="px-3 py-2">{{ job.title }}</td>
               <td class="px-3 py-2">{{ job.customer_name || '—' }}</td>
+              <td class="px-3 py-2">{{ job.assignees?.map((a) => a.name).join(', ') || '—' }}</td>
               <td class="px-3 py-2">
                 <span class="text-xs px-2 py-0.5 rounded bg-neutral-100 text-neutral-600">{{ t(statusLabels[job.status] || job.status) }}</span>
               </td>

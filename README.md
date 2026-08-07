@@ -486,7 +486,7 @@ Pokud nechceš Docker (např. cílový deploy je IIS / Apache na holém železe)
 
 ### Předpoklady
 
-- **PHP 8.5+** s extensions: `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `json`, `iconv`, `gd`
+- **PHP 8.5+** s extensions: `pdo`, `pdo_mysql`, `mbstring`, `openssl`, `json`, `iconv`, `gd`, `exif`
 - **MariaDB 10.6+** (doporučeno 11.x)
 - **Composer 2.x**, **Node.js 22+**, **pnpm 10+**
 - **Redis** (volitelné — fallback na MariaDB MEMORY)

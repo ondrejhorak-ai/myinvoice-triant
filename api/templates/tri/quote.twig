@@ -1,0 +1,201 @@
+{# Cenová nabídka TRI — mPDF + Twig #}
+<!doctype html>
+<html lang="{{ locale|default('cs') }}">
+<head>
+<meta charset="utf-8">
+<title></title>
+</head>
+<body>
+
+<table class="quote-header">
+  <tr>
+    <td class="quote-brand">
+      {% if logo_path and logo_path is not empty %}
+        <img src="{{ logo_path }}" alt="{{ supplier.company_name }}" width="190">
+        {% if logo_show_name %}<span class="quote-brand-name">{{ supplier.display_name|default(supplier.company_name) }}</span>{% endif %}
+      {% else %}
+        <div class="triant-wordmark">{{ supplier.display_name|default(supplier.company_name) }}</div>
+      {% endif %}
+    </td>
+    <td class="quote-heading">
+      <div class="quote-title">{{ t('CENOVÁ NABÍDKA', 'PRICE QUOTATION') }}</div>
+      <div class="variant-badge">{{ t('VARIANTA', 'OPTION') }} {{ variant.variant_code }}</div>
+    </td>
+  </tr>
+</table>
+
+<table class="quote-overview">
+  <tr>
+    <td class="overview-card customer-card">
+      <table class="overview-card-layout"><tr>
+        <td class="overview-card-content">
+          <div class="overview-kicker">{{ t('ZÁKAZNÍK', 'CUSTOMER') }}</div>
+          {% if client.company_name %}
+            <div class="overview-title">{{ client.company_name }}</div>
+            {% set full_name = ((client.first_name|default('')) ~ ' ' ~ (client.last_name|default('')))|trim %}
+            {% if full_name and full_name != client.company_name %}<div>{{ full_name }}</div>{% endif %}
+            {% if client.street %}<div>{{ client.street }}</div>{% endif %}
+            {% if client.zip or client.city %}<div>{{ client.zip }} {{ client.city }}</div>{% endif %}
+            {% if client.phone %}<div>{{ client.phone }}</div>{% endif %}
+            {% if client.main_email %}<div>{{ client.main_email }}</div>{% endif %}
+            {% if client.ic or client.dic %}
+              <div class="overview-ids">
+                {% if client.ic %}{{ t('IČO', 'Reg. No.') }}: {{ client.ic }}{% endif %}
+                {% if client.ic and client.dic %}<span class="separator">&nbsp;·&nbsp;</span>{% endif %}
+                {% if client.dic %}{{ t('DIČ', 'VAT ID') }}: {{ client.dic }}{% endif %}
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="overview-title">—</div>
+          {% endif %}
+        </td>
+        <td class="overview-card-icon"><img src="{{ icons.customer }}" alt=""></td>
+      </tr></table>
+    </td>
+    <td class="overview-gap">&nbsp;</td>
+    <td class="overview-card site-card">
+      <table class="overview-card-layout"><tr>
+        <td class="overview-card-content">
+          <div class="overview-kicker">{{ t('MÍSTO REALIZACE', 'PROJECT SITE') }}</div>
+          {% if job.site_street %}<div class="overview-title">{{ job.site_street }}</div>{% endif %}
+          {% if job.site_zip or job.site_city %}<div>{{ job.site_zip }} {{ job.site_city }}</div>{% endif %}
+          {% if not job.site_street and not job.site_city %}<div class="overview-title">—</div>{% endif %}
+          {% if job.title %}<div class="site-type">{{ job.title }}</div>{% endif %}
+        </td>
+        <td class="overview-card-icon"><img src="{{ icons.site }}" alt=""></td>
+      </tr></table>
+    </td>
+    <td class="overview-gap">&nbsp;</td>
+    <td class="overview-meta">
+      <table class="offer-meta">
+        <tr>
+          <td class="meta-icon"><img src="{{ icons.offer }}" alt=""></td>
+          <td class="meta-label">{{ t('NABÍDKA', 'QUOTATION') }}</td>
+          <td class="meta-value">{{ variant.number }}</td>
+        </tr>
+        <tr>
+          <td class="meta-icon"><img src="{{ icons.calendar }}" alt=""></td>
+          <td class="meta-label">{{ t('VYSTAVENO', 'ISSUED') }}</td>
+          <td class="meta-value">{{ variant.job_date|date(date_format) }}</td>
+        </tr>
+        <tr>
+          <td class="meta-icon"><img src="{{ icons.clock }}" alt=""></td>
+          <td class="meta-label">{{ t('PLATNOST', 'VALIDITY') }}</td>
+          <td class="meta-value">
+            {% if validity_days is not null %}{{ validity_days }} {{ t('DNÍ', 'DAYS') }}
+            {% elseif valid_until %}{{ valid_until|date(date_format) }}
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="meta-icon"><img src="{{ icons.author }}" alt=""></td>
+          <td class="meta-label">{{ t('VYPRACOVAL', 'PREPARED BY') }}</td>
+          <td class="meta-value">{{ assignees ? assignees|join(', ') : job.owner_name|default('—') }}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+{% if variant_image_path %}
+  <div class="variant-image"><img src="{{ variant_image_path }}" alt="{{ variant.variant_code }}"></div>
+{% endif %}
+
+{% if variant.note_above_items %}
+  <div class="quote-note quote-note-above">{{ variant.note_above_items|nl2br }}</div>
+{% endif %}
+
+<table class="quote-items">
+  <thead>
+    <tr>
+      <th class="item-ref">{{ t('OZNAČENÍ', 'REF.') }}</th>
+      <th class="item-description">{{ t('NÁZEV A POPIS', 'NAME AND DESCRIPTION') }}</th>
+      <th class="item-qty">{{ t('MNOŽSTVÍ', 'QTY') }}</th>
+      <th class="item-net">{{ supplier.is_vat_payer ? t('CENA BEZ DPH', 'EXCL. VAT') : t('CENA', 'PRICE') }}</th>
+      {% if supplier.is_vat_payer %}<th class="item-vat">{{ t('DPH', 'VAT') }}</th>{% endif %}
+      <th class="item-gross">{{ supplier.is_vat_payer ? t('CELKEM S DPH', 'INCL. VAT') : t('CELKEM', 'TOTAL') }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for block in blocks %}
+      {% if block.kind == 'section' %}
+        <tr class="quote-section-header">
+          <td colspan="{{ supplier.is_vat_payer ? 6 : 5 }}">{{ block.title }}</td>
+        </tr>
+        {% for item in block.items %}
+          {% include 'quote_line.twig' with { item: item, supplier: supplier } %}
+        {% endfor %}
+        {% if block.subtotal > 0 %}
+          <tr class="quote-section-subtotal">
+            <td colspan="3">{{ t('Mezisoučet', 'Subtotal') }} {{ block.title }}</td>
+            <td class="money">{{ block.subtotal|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
+            {% if supplier.is_vat_payer %}<td>&nbsp;</td>{% endif %}
+            <td class="money strong">{{ (supplier.is_vat_payer ? block.gross_subtotal : block.subtotal)|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
+          </tr>
+        {% endif %}
+      {% else %}
+        {% include 'quote_line.twig' with { item: block.item, supplier: supplier } %}
+      {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+
+<table class="quote-closing">
+  <tr>
+    <td class="closing-notes">
+      {% if variant.note_below_items %}
+        <div class="info-line"><span class="info-icon"><img src="{{ icons.check }}" alt=""></span><span>{{ variant.note_below_items|nl2br }}</span></div>
+      {% endif %}
+      <div class="info-line"><span class="info-icon"><img src="{{ icons.info }}" alt=""></span><span>
+        {{ t('Tento dokument je cenová nabídka, nejedná se o daňový doklad.', 'This document is a price quotation, not a tax document.') }}
+        {% if valid_until %} {{ t('Platnost do', 'Valid until') }} {{ valid_until|date(date_format) }}.{% endif %}
+      </span></div>
+      {% if not supplier.is_vat_payer %}
+        <div class="info-line"><span class="info-icon"><img src="{{ icons.info }}" alt=""></span><span>{{ t('Dodavatel není plátce DPH.', 'The supplier is not a VAT payer.') }}</span></div>
+      {% endif %}
+    </td>
+    <td class="closing-gap">&nbsp;</td>
+    <td class="summary-panel">
+      <table class="summary-table">
+        {% if variant.discount_total > 0 %}
+          <tr><td class="summary-label">{{ t('CENA PŘED SLEVOU', 'BEFORE DISCOUNT') }}</td><td class="summary-value">{{ (variant.subtotal + variant.discount_total)|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>
+          <tr><td class="summary-label">{{ t('SLEVA', 'DISCOUNT') }}</td><td class="summary-value">−{{ variant.discount_total|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>
+        {% endif %}
+        <tr><td class="summary-label">{{ t('MEZISOUČET', 'SUBTOTAL') }}</td><td class="summary-value">{{ variant.subtotal|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>
+        {% if supplier.is_vat_payer %}
+          {% if variant.vat_base_21 > 0 %}<tr><td class="summary-label">{{ t('DPH', 'VAT') }} 21&nbsp;%</td><td class="summary-value">{{ variant.vat_amount_21|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>{% endif %}
+          {% if variant.vat_base_12 > 0 %}<tr><td class="summary-label">{{ t('DPH', 'VAT') }} 12&nbsp;%</td><td class="summary-value">{{ variant.vat_amount_12|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>{% endif %}
+          {% if variant.vat_base_0 > 0 %}<tr><td class="summary-label">{{ t('ZÁKLAD DPH', 'VAT BASE') }} 0&nbsp;%</td><td class="summary-value">{{ variant.vat_base_0|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>{% endif %}
+        {% endif %}
+        <tr class="summary-grand">
+          <td class="summary-label">{{ supplier.is_vat_payer ? t('CELKEM S DPH', 'TOTAL INCL. VAT') : t('CELKEM', 'TOTAL') }}</td>
+          <td class="summary-value">{{ variant.total_with_vat|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<div class="standard-terms">
+  <div class="terms-title">{{ t('PODMÍNKY NABÍDKY', 'QUOTATION TERMS') }}</div>
+  <table class="terms-columns">
+    <tr>
+      <td class="terms-left">
+        <p><strong>Platební podmínky:</strong> Záloha 50% předem pro potvrzení objednávky. Doplatek je nutné uhradit před dodáním nebo montáží.<br>Platba hotově a kartou je možná pouze na prodejně předem.</p>
+        <p><strong>Termíny dodání:</strong> Uváděné termíny dodání jsou pouze orientační a mohou se měnit v závislosti na vytíženosti výroby.</p>
+        <p><strong>Doprava a montáž:</strong> Cena za dopravu a montáž se počítá samostatně a není zahrnuta v ceně nábytku.</p>
+      </td>
+      <td class="terms-right">
+        <p><strong>Výkresy:</strong> Na atypické výrobky je nutné odsouhlasit výrobní výkresy, které se mohou lišit od vizualizace a návrhu. Informace uvedené ve výrobních výkresech jsou závazné a mají přednost před informacemi z nabídky a objednávky.</p>
+        <p class="terms-emphasis">Na informace dohodnuté pouze ústně nebude brán zřetel. Doporučujeme veškeré dohody a změny sjednat písemně.</p>
+        <p>Tato cenová nabídka je sestavena s maximální pozorností, avšak není vyloučena možnost chyby.</p>
+        <p>Platnost cenové nabídky je {{ validity_days|default(30) }} dní od data vytvoření.</p>
+      </td>
+    </tr>
+  </table>
+</div>
+
+{% if supplier.commercial_register %}<div class="commercial-register">{{ supplier.commercial_register }}</div>{% endif %}
+
+</body>
+</html>

@@ -9,6 +9,7 @@ import { formatMoney, formatDate } from '@/composables/useFormat'
 import { useRowLink } from '@/composables/useRowLink'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { clientIsIncomplete } from '@/utils/clientCompleteness'
 
 type RoleFilter = 'all' | 'customers' | 'vendors'
 
@@ -194,6 +195,11 @@ function openClient(c: Client, e?: MouseEvent) {
             <td class="px-4 py-3">
               <div class="flex items-center gap-2">
                 <div class="font-medium text-neutral-900">{{ c.company_name }}</div>
+                <span
+                  v-if="clientIsIncomplete(c)"
+                  class="text-warning-600"
+                  :title="t('client.incomplete_list_hint')"
+                >⚠</span>
                 <span v-if="c.is_customer !== false && c.is_vendor === true"
                       class="inline-block px-1.5 py-0 text-[10px] bg-primary-100 text-primary-700 rounded font-medium uppercase tracking-wide"
                       :title="t('client.dual_role_tooltip')">K+D</span>
@@ -203,7 +209,7 @@ function openClient(c: Client, e?: MouseEvent) {
               <div v-if="c.archived_at" class="text-xs text-neutral-400 mt-0.5">{{ t('common.archived') }}</div>
             </td>
             <td class="px-4 py-3 font-mono text-xs text-neutral-600">{{ c.ic || '—' }}</td>
-            <td class="px-4 py-3 text-neutral-600">{{ c.main_email }}</td>
+            <td class="px-4 py-3 text-neutral-600">{{ c.main_email?.trim() || '—' }}</td>
             <td class="px-4 py-3 text-center">
               <template v-if="roleFilter === 'vendors'">
                 <span v-if="c.purchase_count" class="inline-block px-2 py-0.5 text-xs bg-warning-50 text-warning-700 rounded">
@@ -257,7 +263,10 @@ function openClient(c: Client, e?: MouseEvent) {
           class="cursor-pointer hover:bg-neutral-50 transition px-4 py-3"
         >
           <div class="flex items-baseline justify-between gap-2">
-            <div class="font-medium text-neutral-900 truncate">{{ c.company_name }}</div>
+            <div class="font-medium text-neutral-900 truncate flex items-center gap-1.5">
+              <span>{{ c.company_name }}</span>
+              <span v-if="clientIsIncomplete(c)" class="text-warning-600 shrink-0" :title="t('client.incomplete_list_hint')">⚠</span>
+            </div>
             <div class="font-mono text-sm whitespace-nowrap">
               <template v-if="roleFilter === 'vendors'">
                 <span v-if="c.costs && c.costs > 0">{{ formatMoney(c.costs, 'CZK') }}</span>

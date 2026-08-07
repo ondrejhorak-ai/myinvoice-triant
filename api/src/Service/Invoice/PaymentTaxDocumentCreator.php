@@ -6,6 +6,7 @@ namespace MyInvoice\Service\Invoice;
 
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\InvoiceRepository;
+use MyInvoice\Tri\Repository\JobInvoiceRepository;
 use PDO;
 
 /**
@@ -34,6 +35,7 @@ final class PaymentTaxDocumentCreator
         private readonly Connection $db,
         private readonly InvoiceRepository $repo,
         private readonly InvoiceCalculator $calc,
+        private readonly JobInvoiceRepository $jobInvoices,
     ) {}
 
     /**
@@ -110,7 +112,16 @@ final class PaymentTaxDocumentCreator
                         "UPDATE invoices SET parent_invoice_id = ? WHERE id = ? AND invoice_type = 'tax_document'"
                     )->execute([(int) $payment['invoice_id'], (int) $existing['id']]);
                 }
-                return (int) $existing['id'];
+                $taxDocId = (int) $existing['id'];
+                $proformaForLink = $this->repo->find((int) $payment['invoice_id']);
+                if ($proformaForLink !== null) {
+                    $this->jobInvoices->inheritJobLink(
+                        $taxDocId,
+                        (int) $payment['invoice_id'],
+                        (int) $proformaForLink['supplier_id'],
+                    );
+                }
+                return $taxDocId;
             }
         }
 
@@ -244,6 +255,7 @@ final class PaymentTaxDocumentCreator
             throw $e;
         }
 
+        $this->jobInvoices->inheritJobLink($taxDocId, (int) $proforma['id'], (int) $proforma['supplier_id']);
         $this->calc->recompute($taxDocId);
         return $taxDocId;
     }

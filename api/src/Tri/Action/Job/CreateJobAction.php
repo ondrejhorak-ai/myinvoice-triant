@@ -8,6 +8,7 @@ use MyInvoice\Http\Json;
 use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\IpMatcher;
 use MyInvoice\Tri\Repository\JobRepository;
+use MyInvoice\Tri\Service\JobActivityLogger;
 use MyInvoice\Tri\Service\JobNumberConflictException;
 use MyInvoice\Tri\Service\JobNumberFormatException;
 use MyInvoice\Tri\Support\TriRequest;
@@ -20,6 +21,7 @@ final class CreateJobAction
         private readonly JobRepository $repo,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
+        private readonly JobActivityLogger $activity,
     ) {}
 
     public function __invoke(Request $request, Response $response): Response
@@ -35,9 +37,10 @@ final class CreateJobAction
         $supplierId = TriRequest::supplierId($request);
         $ownerId = isset($body['owner_user_id']) ? (int) $body['owner_user_id'] : TriRequest::userId($request);
         $clientIds = array_map('intval', (array) ($body['client_ids'] ?? []));
+        $assigneeUserIds = array_map('intval', (array) ($body['assignee_user_ids'] ?? []));
 
         try {
-            $job = $this->repo->create($supplierId, $body, $ownerId, $clientIds);
+            $job = $this->repo->create($supplierId, $body, $ownerId, $clientIds, $assigneeUserIds);
         } catch (JobNumberConflictException) {
             return Json::error($response, 'conflict', 'Toto číslo zakázky už existuje.', 409);
         } catch (JobNumberFormatException) {
@@ -45,6 +48,10 @@ final class CreateJobAction
         }
 
         $this->log($request, 'tri_job.created', (int) $job['id'], ['number' => $job['number']]);
+        $this->activity->event((int) $job['id'], TriRequest::userId($request), 'job_created', [
+            'number' => (string) $job['number'],
+            'title'  => (string) $job['title'],
+        ]);
 
         return Json::ok($response, $job, 201);
     }

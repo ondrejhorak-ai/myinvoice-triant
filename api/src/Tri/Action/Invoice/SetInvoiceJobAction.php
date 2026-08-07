@@ -11,6 +11,7 @@ use MyInvoice\Repository\InvoiceRepository;
 use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\IpMatcher;
 use MyInvoice\Tri\Repository\JobInvoiceRepository;
+use MyInvoice\Tri\Service\JobActivityLogger;
 use MyInvoice\Tri\Support\TriRequest;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -22,6 +23,7 @@ final class SetInvoiceJobAction
         private readonly JobInvoiceRepository $jobInvoices,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
+        private readonly JobActivityLogger $activity,
     ) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
@@ -36,6 +38,8 @@ final class SetInvoiceJobAction
         $body = (array) ($request->getParsedBody() ?? []);
         $jobId = $body['job_id'] ?? null;
 
+        $previousJob = $this->jobInvoices->jobForInvoiceScoped($invoiceId, $supplierId);
+
         try {
             if ($jobId === null || $jobId === '') {
                 $this->jobInvoices->unlink($invoiceId, $supplierId);
@@ -47,10 +51,27 @@ final class SetInvoiceJobAction
         }
 
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
+        $userId = (int) ($user['id'] ?? 0);
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
-        $this->logger->log('tri.invoice_job_linked', (int) ($user['id'] ?? 0), 'invoice', $invoiceId, [
+        $this->logger->log('tri.invoice_job_linked', $userId, 'invoice', $invoiceId, [
             'job_id' => $jobId,
         ], $ip, $request->getHeaderLine('User-Agent'));
+
+        $varsymbol = isset($invoice['varsymbol']) && $invoice['varsymbol'] !== null ? (string) $invoice['varsymbol'] : null;
+        $newJobId = $jobId !== null && $jobId !== '' ? (int) $jobId : null;
+        $previousJobId = $previousJob !== null ? (int) $previousJob['id'] : null;
+        if ($previousJobId !== null && $previousJobId !== $newJobId) {
+            $this->activity->event($previousJobId, $userId, 'invoice_unlinked', [
+                'invoice_id' => $invoiceId,
+                'varsymbol'  => $varsymbol,
+            ]);
+        }
+        if ($newJobId !== null && $newJobId !== $previousJobId) {
+            $this->activity->event($newJobId, $userId, 'invoice_linked', [
+                'invoice_id' => $invoiceId,
+                'varsymbol'  => $varsymbol,
+            ]);
+        }
 
         $job = $this->jobInvoices->jobForInvoiceScoped($invoiceId, $supplierId);
 

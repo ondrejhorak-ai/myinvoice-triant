@@ -7,9 +7,12 @@ import { useSupplierStore } from '@/stores/supplier'
 import { updateApi, type PublicVersion } from '@/api/update'
 import { settingsApi } from '@/api/settings'
 import { TRI_SETTINGS_MODULE_ID, normalizeHiddenSidebarModules } from '@/config/triSidebar'
+import { SHOW_LOCALE_SWITCHER, SHOW_THEME_TOGGLE } from '@/config/triUi'
 import SupplierSwitcher from './SupplierSwitcher.vue'
 import GlobalSearch from './GlobalSearch.vue'
 import ThemeToggle from './ThemeToggle.vue'
+import TriTopbarNav from './tri/TriTopbarNav.vue'
+import TriLogo from './tri/TriLogo.vue'
 
 const { t, locale } = useI18n()
 function setLocale(l: 'cs' | 'en') {
@@ -355,13 +358,13 @@ onMounted(async () => {
     <!-- ═════════════════════ TOPBAR ═════════════════════ -->
     <header class="sticky top-0 z-30 bg-surface border-b border-neutral-200">
       <div class="h-14 px-4 flex items-center justify-between gap-3">
-        <!-- Logo -->
-        <RouterLink to="/" class="flex items-center gap-2.5 shrink-0" @click="mobileOpen = false">
-          <img src="/styles/logo.svg" alt="MyInvoice" class="w-8 h-8" />
-          <span class="text-sm font-semibold leading-tight select-none">
-            My<span class="text-primary-600">Invoice</span><span class="text-neutral-400 font-normal">.cz</span>
-          </span>
-        </RouterLink>
+        <!-- Logo + přímé odkazy na TRI agendy -->
+        <div class="flex items-center gap-4 min-w-0">
+          <RouterLink to="/" class="flex items-center shrink-0 text-neutral-900" @click="mobileOpen = false">
+            <TriLogo class="h-7 w-auto" />
+          </RouterLink>
+          <TriTopbarNav />
+        </div>
 
         <!-- Pravá strana topbaru -->
         <div class="flex items-center gap-2 text-sm">
@@ -411,8 +414,8 @@ onMounted(async () => {
             :title="t('auth.profile_title')"
           >{{ auth.user?.name }}</RouterLink>
 
-          <!-- Locale switcher (CZ / EN s SVG vlajkami) -->
-          <div class="hidden sm:inline-flex items-center border border-neutral-200 rounded-md overflow-hidden">
+          <!-- Locale switcher (CZ / EN s SVG vlajkami) — TRIANT: skryto (viz config/triUi.ts) -->
+          <div v-if="SHOW_LOCALE_SWITCHER" class="hidden sm:inline-flex items-center border border-neutral-200 rounded-md overflow-hidden">
             <button
               @click="setLocale('cs')" title="Čeština" aria-label="Čeština"
               class="cursor-pointer h-8 px-2 inline-flex items-center"
@@ -440,8 +443,8 @@ onMounted(async () => {
             </button>
           </div>
 
-          <!-- Přepínač motivu (System / Light / Dark) — na mobilu je v drawer patičce -->
-          <div class="hidden sm:inline-flex">
+          <!-- Přepínač motivu (System / Light / Dark) — TRIANT: skryto (viz config/triUi.ts) -->
+          <div v-if="SHOW_THEME_TOGGLE" class="hidden sm:inline-flex">
             <ThemeToggle />
           </div>
 
@@ -463,11 +466,11 @@ onMounted(async () => {
             class="cursor-pointer hidden sm:inline-flex px-3 h-8 items-center text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50"
           >{{ t('nav.logout') }}</button>
 
-          <!-- Hamburger (mobile, < lg) -->
+          <!-- Hamburger — TRIANT: na všech šířkách (menu je vždy v draweru) -->
           <button
             type="button" @click="mobileOpen = !mobileOpen"
             :aria-expanded="mobileOpen" aria-label="Menu"
-            class="lg:hidden inline-flex items-center justify-center w-9 h-9 rounded-md text-neutral-700 hover:bg-neutral-100"
+            class="cursor-pointer inline-flex items-center justify-center w-9 h-9 rounded-md text-neutral-700 hover:bg-neutral-100"
           >
             <svg v-if="!mobileOpen" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -497,22 +500,22 @@ onMounted(async () => {
     <!-- ═════════════════════ TĚLO: SIDEBAR + OBSAH ═════════════════════ -->
     <div class="flex flex-1 min-h-0">
 
-      <!-- Mobile backdrop -->
+      <!-- Backdrop draweru — TRIANT: drawer na všech šířkách (dřív jen mobil, desktop měl trvalý sidebar) -->
       <div
         v-if="mobileOpen" @click="mobileOpen = false"
-        class="lg:hidden fixed inset-0 bg-black/50 z-20"
+        class="fixed inset-0 bg-black/50 z-20"
         aria-hidden="true"
       ></div>
 
-      <!-- ── SIDEBAR ── -->
+      <!-- ── SIDEBAR (drawer za hamburgerem) ── -->
       <aside
         :class="[
-          'fixed lg:sticky top-14 z-30 lg:z-auto',
+          'fixed top-14 z-30',
           'h-[calc(100vh-3.5rem)] w-60 shrink-0',
           'bg-surface border-r border-neutral-200',
           'flex flex-col',
           'transition-transform duration-200 ease-in-out',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full',
         ]"
       >
         <nav class="flex-1 overflow-y-auto scrollbar-slim px-2.5 py-3">
@@ -620,12 +623,12 @@ onMounted(async () => {
               </svg>
             </a>
           </div>
-          <!-- Přepínač motivu (System / Light / Dark) — mobilní varianta -->
-          <div class="flex">
+          <!-- Přepínač motivu (System / Light / Dark) — mobilní varianta — TRIANT: skryto (viz config/triUi.ts) -->
+          <div v-if="SHOW_THEME_TOGGLE" class="flex">
             <ThemeToggle />
           </div>
           <div class="flex items-center justify-between gap-3">
-            <div class="inline-flex items-center border border-neutral-200 bg-surface rounded-md overflow-hidden">
+            <div v-if="SHOW_LOCALE_SWITCHER" class="inline-flex items-center border border-neutral-200 bg-surface rounded-md overflow-hidden">
               <button
                 @click="setLocale('cs')" title="Čeština"
                 class="cursor-pointer h-9 px-3 inline-flex items-center"

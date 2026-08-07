@@ -6,6 +6,7 @@ namespace MyInvoice\Service\Invoice;
 
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\InvoiceRepository;
+use MyInvoice\Tri\Repository\JobInvoiceRepository;
 
 /**
  * Vytvoří DRAFT finální faktury (typu `invoice`) k zaplacené proformě.
@@ -27,6 +28,7 @@ final class FinalFromProformaCreator
         private readonly Connection $db,
         private readonly InvoiceRepository $repo,
         private readonly InvoiceCalculator $calc,
+        private readonly JobInvoiceRepository $jobInvoices,
     ) {}
 
     /**
@@ -63,7 +65,9 @@ final class FinalFromProformaCreator
         $existing->execute([$proformaId]);
         $existingId = $existing->fetchColumn();
         if ($existingId !== false) {
-            return (int) $existingId;
+            $finalId = (int) $existingId;
+            $this->jobInvoices->inheritJobLink($finalId, $proformaId, (int) $proforma['supplier_id']);
+            return $finalId;
         }
 
         $taxDate = $taxDate ?? date('Y-m-d');
@@ -222,6 +226,7 @@ final class FinalFromProformaCreator
             throw $e;
         }
 
+        $this->jobInvoices->inheritJobLink($finalId, $proformaId, (int) $proforma['supplier_id']);
         $this->calc->recompute($finalId);
         return $finalId;
     }

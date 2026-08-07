@@ -193,3 +193,17 @@ v **Nastavení → E-maily → E-mail šablony**.
 - **Číslo projektu / smlouvy** se na PDF zobrazí jen pokud je vyplněné.
 - **Fakturační e-maily** doporučujeme vždy — admin firmy obvykle nemá rád, když
   faktura jde jen jemu osobně místo na účetní oddělení.
+
+## 14.9 Obrázky v cenové nabídce
+
+V editoru varianty cenové nabídky může mít každá položka jeden ilustrační
+obrázek. V buňce názvu klikni na ikonu fotoaparátu a vyber soubor ve formátu
+**JPG, PNG, WebP nebo GIF**. Maximální velikost nahrávaného souboru je 10 MiB.
+
+Po nahrání se zobrazí náhled. Obrázek lze stejným tlačítkem nahradit nebo
+křížkem odebrat. Přiřazení obrázku k položce se dokončí tlačítkem **Uložit**
+společně s ostatními změnami nabídky.
+
+Systém obrázek automaticky otočí, zmenší a datově optimalizuje; původní velký
+soubor se neuchovává. V PDF se náhled zobrazí vlevo vedle názvu a popisu,
+zachová si poměr stran a nepřekročí rozměr 36 × 36 mm.

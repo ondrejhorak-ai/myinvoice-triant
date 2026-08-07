@@ -22,7 +22,6 @@ import { apiErrorMessage } from '@/api/errors'
 import { useSupplierStore } from '@/stores/supplier'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import ClientFormModal from '@/components/modals/ClientFormModal.vue'
-import ProjectFormModal from '@/components/modals/ProjectFormModal.vue'
 import TriJobLinkField from '@/components/tri/TriJobLinkField.vue'
 import { triApi } from '@/api/tri'
 
@@ -432,16 +431,7 @@ onMounted(async () => {
     if (route.query.client_id) {
       form.value.client_id = Number(route.query.client_id)
       await ensureClientLoaded(form.value.client_id!)
-      await loadProjects(form.value.client_id!)
       await applyClientDefaults(form.value.client_id!)
-    }
-    if (route.query.project_id) {
-      form.value.project_id = Number(route.query.project_id)
-      await applyProjectDefaults(form.value.project_id!)
-    } else if (projects.value.length === 1) {
-      // Pokud klient má jen jeden projekt, předvyplň ho.
-      form.value.project_id = projects.value[0].id
-      await applyProjectDefaults(form.value.project_id)
     }
     if (route.query.tri_job_id) {
       const jobId = Number(route.query.tri_job_id)
@@ -451,7 +441,6 @@ onMounted(async () => {
         if (job.customer_client_id) {
           form.value.client_id = job.customer_client_id
           await ensureClientLoaded(job.customer_client_id, job.customer_name ?? undefined)
-          await loadProjects(job.customer_client_id)
           await applyClientDefaults(job.customer_client_id)
         }
       }
@@ -474,9 +463,8 @@ async function loadProjects(clientId: number) {
   projects.value = await projectsApi.listForClient(clientId)
 }
 
-// Inline client/project creation přes modal — UX zlepšení, žádné opouštění editoru.
+// Inline client creation přes modal — UX zlepšení, žádné opouštění editoru.
 const clientModalOpen = ref(false)
-const projectModalOpen = ref(false)
 const triJobId = ref<number | null>(null)
 
 async function onClientCreatedInModal(client: Client) {
@@ -488,25 +476,13 @@ async function onClientCreatedInModal(client: Client) {
   await onClientChange()
 }
 
-async function onProjectCreatedInModal(project: Project) {
-  projects.value = [project, ...projects.value.filter(p => p.id !== project.id)]
-  form.value.project_id = project.id
-  projectModalOpen.value = false
-  await onProjectChange()
-}
-
 async function onClientChange() {
   form.value.project_id = null
   if (form.value.client_id) {
     const c = clients.value.find(cc => cc.id === form.value.client_id)
     if (c) selectedClientOption.value = clientToOption(c)
-    await loadProjects(form.value.client_id)
     await applyClientDefaults(form.value.client_id)
     await verifyClientVies(form.value.client_id)
-    if (projects.value.length === 1) {
-      form.value.project_id = projects.value[0].id
-      await applyProjectDefaults(form.value.project_id)
-    }
   } else {
     selectedClientOption.value = null
     viesResult.value = null
@@ -568,38 +544,10 @@ async function verifyClientVies(clientId: number) {
   }
 }
 
-async function onProjectChange() {
-  if (form.value.project_id) await applyProjectDefaults(form.value.project_id)
-}
-
 function onCurrencyChange() {
   const c = currencies.value.find(x => x.id === form.value.currency_id)
   if (c) form.value.currency = c.code
 }
-
-async function applyProjectDefaults(projectId: number) {
-  const p = projects.value.find(p => p.id === projectId)
-  if (!p) return
-  form.value.currency_id = p.currency_id
-  form.value.currency = p.currency
-  form.value.due_date = computeDueDate(form.value.issue_date, p.payment_due_days, (p.payment_due_unit ?? 'days') as DueUnit)
-  // Výchozí kategorie tržby zakázky — PŘEDNOST před klientem. Aplikuje se při výběru
-  // zakázky (konzistentní s tím, že zakázka přepisuje měnu/splatnost). Když zakázka
-  // default nemá, ponecháme hodnotu z klienta.
-  if (p.default_revenue_category_id != null) {
-    form.value.revenue_category_id = p.default_revenue_category_id
-  }
-  // Pokud má jen jednu prázdnou položku (bez popisu), refresh sazby z projektu.
-  if (form.value.items.length === 1 && (form.value.items[0].description || '').trim() === '') {
-    form.value.items[0].unit_price_without_vat = p.hourly_rate
-    form.value.items[0].unit = defaultItemUnit()
-  }
-  if (wrItems.value.length === 1 && (wrItems.value[0].description || '').trim() === '') {
-    wrItems.value[0].rate = p.hourly_rate
-  }
-}
-
-// (žádné watch hooky pro typ ani datumy — proforma nemá DUZP, viz template)
 
 function addItem() {
   form.value.items.push(blankItem())
@@ -793,98 +741,6 @@ async function loadWorkReport() {
 const wrItemsValid = computed(() => wrItems.value.filter(i => (i.description || '').trim() !== ''))
 const wrTotalHours = computed(() => wrItemsValid.value.reduce((s, i) => s + (Number(i.hours) || 0), 0))
 const wrTotalAmount = computed(() => wrItemsValid.value.reduce((s, i) => s + (Number(i.hours) || 0) * (Number(i.rate) || 0), 0))
-
-function addWrItem() {
-  // 1. project hourly rate, 2. client hourly rate, 3. existing WR row rate, 4. default 1500
-  const projectRate = projects.value.find(p => p.id === form.value.project_id)?.hourly_rate
-  const clientRate = clients.value.find(c => c.id === form.value.client_id)?.hourly_rate
-  const previousRate = wrItems.value[wrItems.value.length - 1]?.rate
-  const defaultRate = (projectRate && projectRate > 0) ? projectRate
-    : (clientRate && clientRate > 0) ? clientRate
-    : (previousRate && previousRate > 0) ? previousRate
-    : 1500
-  wrItems.value.push({ description: '', hours: 1, rate: defaultRate, order_index: wrItems.value.length })
-  focusLastRow('[data-row-input="inv-wr"]')
-}
-function removeWrItem(idx: number) {
-  wrItems.value.splice(idx, 1)
-}
-
-function moveWrItem(idx: number, dir: -1 | 1) {
-  const newIdx = idx + dir
-  if (newIdx < 0 || newIdx >= wrItems.value.length) return
-  const [item] = wrItems.value.splice(idx, 1)
-  wrItems.value.splice(newIdx, 0, item)
-}
-function openWorkReport() {
-  if (wrItems.value.length === 0) {
-    const date = (form.value.tax_date || form.value.issue_date || '').slice(0, 7) // YYYY-MM
-    wrTitle.value = date ? t('invoice.wr_title_with_date', { date }) : t('invoice.work_report')
-    addWrItem()
-  }
-  wrOpen.value = true
-}
-
-// Přenese sumu výkazu jako jednu položku faktury (popis = title výkazu, qty = 1, cena = celková suma výkazu).
-// Pokud už existuje položka se stejným popisem (= title výkazu), AKTUALIZUJE ji
-// (množství / cena / DPH zůstává); jinak přidá novou. Tím se opětovné kliknutí
-// "Přenést jako položku faktury" po editaci výkazu chová jako sync, ne jako duplicate.
-function pushWrToInvoiceItem() {
-  if (wrItemsValid.value.length === 0) return
-  const totalAmount = wrTotalAmount.value
-  const defaultVatId = defaultVatRateId()
-  const description = wrTitle.value || t('invoice.work_report')
-  // Cíleně "ks" (kus) — výkaz se přenáší jako 1 × celková suma.
-  // Když uživatel "ks" v číselníku nemá, fallback na literál (přidá free-text).
-  const unit = units.value.find(u => u.code === 'ks')?.code || 'ks'
-
-  // 1. Položka se shodným popisem → sync (aktualizace ceny).
-  // 2. Jinak prázdná položka (z blankItem na nové faktuře) → naplň ji, ne push.
-  //    Cena se ignoruje — blankItem default cenu předvyplňuje z project.hourly_rate
-  //    (nebo client.hourly_rate fallback), takže placeholder typicky cenu má.
-  // 3. Jinak nová položka.
-  const existing = form.value.items.find(it => (it.description || '').trim() === description.trim())
-  const empty = !existing
-    ? form.value.items.find(it => (it.description || '').trim() === '')
-    : undefined
-  const target = existing || empty
-
-  if (target) {
-    target.description = description
-    target.quantity = 1
-    target.unit = unit
-    target.unit_price_without_vat = totalAmount
-    // vat_rate_id záměrně neměníme — uživatel ho mohl ručně změnit
-  } else {
-    form.value.items.push({
-      description,
-      quantity: 1,
-      unit,
-      unit_price_without_vat: totalAmount,
-      vat_rate_id: defaultVatId,
-      order_index: form.value.items.length,
-    })
-  }
-}
-
-async function deleteWorkReport() {
-  if (!confirm(t('invoice.wr_delete_confirm'))) return
-  // Pokud je faktura už uložená, smaž i z DB; jinak jen lokálně.
-  if (invoiceId.value) {
-    try {
-      await invoicesApi.deleteWorkReport(invoiceId.value, isForce.value)
-    } catch (e: any) {
-      // 404 = výkaz v DB neexistuje (nový), pokračuj s lokálním clear
-      if (e?.response?.status !== 404) {
-        error.value = apiErrorMessage(e, t('invoice.wr_delete_failed'))
-        return
-      }
-    }
-  }
-  wrItems.value = []
-  wrTitle.value = ''
-  wrOpen.value = false
-}
 
 /**
  * Pokud uživatel má otevřený výkaz s položkami, ověř jestli odpovídá faktuře.
@@ -1178,7 +1034,7 @@ async function deleteDraft() {
       <!-- Klient + zakázka + datumy -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.client') }} &amp; {{ t('invoice.project') }}</h3>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.client') }}</h3>
           <div class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.doc_type') }} *</label>
@@ -1235,28 +1091,6 @@ async function deleteDraft() {
                 <template v-else-if="viesResult.status === 'no_dic'">
                   <span class="text-neutral-400">{{ t('invoice.vies.no_dic') }}</span>
                 </template>
-              </div>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.project') }}</label>
-              <div class="flex gap-2">
-                <div class="flex-1 min-w-0">
-                  <SearchableSelect
-                    :model-value="form.project_id"
-                    @update:model-value="(v) => { form.project_id = v; onProjectChange() }"
-                    :options="projects.map(p => ({ value: p.id, label: p.name + (p.status !== 'active' ? ` (${p.status})` : ''), secondary: p.project_number ?? undefined }))"
-                    :placeholder="t('invoice.no_project')"
-                    :disabled="!form.client_id"
-                  />
-                </div>
-                <button type="button" @click="projectModalOpen = true" :disabled="!form.client_id"
-                  class="cursor-pointer shrink-0 h-9 px-3 inline-flex items-center gap-1.5 border border-primary-500/40 text-primary-700 hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-md text-sm font-medium"
-                  :title="t('project.new_title')">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span class="hidden sm:inline">{{ t('invoice.new_project_short') }}</span>
-                </button>
               </div>
             </div>
             <TriJobLinkField
@@ -1509,33 +1343,6 @@ async function deleteDraft() {
         </div>
       </div>
 
-      <!-- Klasifikace (VAT pro DPH přiznání + volitelný revenue tag) -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h2 class="text-sm font-medium text-neutral-700 mb-3">{{ t('invoice.classification.title') }}</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1">{{ t('invoice.classification.vat_classification') }}</label>
-            <select v-model="form.vat_classification_code" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
-              <option :value="null">— {{ t('invoice.classification.no_vat_class') }} —</option>
-              <option v-for="vc in vatClassifications" :key="vc.id" :value="vc.code">
-                {{ vc.code }} — {{ vc.label.length > 60 ? vc.label.slice(0, 60) + '…' : vc.label }}
-              </option>
-            </select>
-            <p class="text-xs text-neutral-500 mt-1">{{ t('invoice.classification.vat_classification_hint') }}</p>
-          </div>
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1">{{ t('invoice.classification.revenue_category') }}</label>
-            <select v-model="form.revenue_category_id" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
-              <option :value="null">— {{ t('invoice.classification.revenue_category_none') }} —</option>
-              <option v-for="rc in revenueCategories" :key="rc.id" :value="rc.id">
-                {{ rc.label }} ({{ rc.code }})
-              </option>
-            </select>
-            <p class="text-xs text-neutral-500 mt-1">{{ t('invoice.classification.revenue_category_hint') }}</p>
-          </div>
-        </div>
-      </div>
-
       <!-- Sumace + poznámky -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="md:col-span-2 space-y-4">
@@ -1605,162 +1412,6 @@ async function deleteDraft() {
               }) }}
             </div>
           </dl>
-        </div>
-      </div>
-
-      <!-- Výkaz víceprací -->
-      <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
-        <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.work_report') }}</h3>
-          <div class="flex items-center gap-2">
-            <button v-if="!wrOpen" type="button" @click="openWorkReport"
-              class="cursor-pointer px-4 h-9 text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 font-medium rounded-md inline-flex items-center gap-1.5">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-              {{ t('invoice.wr_add') }}
-            </button>
-            <button v-if="wrOpen && wrItems.length > 0" type="button" @click="pushWrToInvoiceItem"
-              class="cursor-pointer px-4 h-9 text-sm bg-success-600 hover:bg-success-600 text-white font-semibold rounded-md inline-flex items-center gap-1.5 shadow-sm">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
-              {{ t('invoice.wr_push_to_item') }}
-            </button>
-            <button v-if="wrOpen && wrItems.length > 0" type="button" @click="deleteWorkReport"
-              class="cursor-pointer px-3 h-8 text-xs border border-danger-500/50 text-danger-500 hover:bg-danger-50 rounded-md">
-              {{ t('invoice.wr_delete') }}
-            </button>
-          </div>
-        </header>
-        <div v-if="wrOpen" class="p-5 space-y-3">
-          <input v-model="wrTitle" type="text" :placeholder="t('invoice.wr_title')"
-            class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm" />
-          <!-- Desktop: tabulka -->
-          <div class="hidden md:block overflow-x-auto">
-          <table class="w-full text-sm table-sticky-first">
-            <thead class="bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
-              <tr>
-                <th class="px-2 py-2 w-12"></th>
-                <th class="px-3 py-2 text-left font-medium">{{ t('invoice.wr_description') }}</th>
-                <th class="px-3 py-2 text-left font-medium w-36">{{ t('invoice.wr_date') }}</th>
-                <th class="px-3 py-2 text-right font-medium w-24">{{ t('invoice.wr_hours') }}</th>
-                <th class="px-3 py-2 text-right font-medium w-28">{{ t('invoice.wr_rate') }}</th>
-                <th class="px-3 py-2 text-right font-medium w-32">{{ t('invoice.wr_total') }}</th>
-                <th class="px-2 py-2 w-10"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-neutral-200">
-              <tr v-for="(it, i) in wrItems" :key="i">
-                <td class="px-2 py-2 text-center text-xs text-neutral-400">
-                  <button type="button" @click="moveWrItem(i, -1)" :disabled="i === 0"
-                          :title="t('invoice.wr_move_up')"
-                          class="block w-5 h-4 hover:text-neutral-700 disabled:opacity-30">▲</button>
-                  <button type="button" @click="moveWrItem(i, 1)" :disabled="i === wrItems.length - 1"
-                          :title="t('invoice.wr_move_down')"
-                          class="block w-5 h-4 hover:text-neutral-700 disabled:opacity-30">▼</button>
-                </td>
-                <td class="px-2 py-1.5">
-                  <input v-model="it.description" type="text" data-row-input="inv-wr" class="w-full h-9 px-2 border border-neutral-300 rounded text-sm" />
-                </td>
-                <td class="px-2 py-1.5">
-                  <input v-model="it.work_date" type="date" class="w-full h-9 px-2 border border-neutral-300 rounded text-sm font-mono" />
-                </td>
-                <td class="px-2 py-1.5">
-                  <input v-model.number="it.hours" type="number" step="0.25" min="0" class="w-full h-9 px-2 border border-neutral-300 rounded text-sm text-right font-mono" />
-                </td>
-                <td class="px-2 py-1.5">
-                  <input v-model.number="it.rate" type="number" step="1" min="0" class="w-full h-9 px-2 border border-neutral-300 rounded text-sm text-right font-mono" />
-                </td>
-                <td class="px-3 py-1.5 text-right font-mono text-neutral-700">
-                  {{ formatMoney((Number(it.hours) || 0) * (Number(it.rate) || 0), form.currency) }}
-                </td>
-                <td class="px-2 py-1.5 text-center">
-                  <button type="button" @click="removeWrItem(i)" :title="t('common.delete')"
-                          class="cursor-pointer text-danger-500 hover:text-danger-600 text-lg leading-none">×</button>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot class="bg-neutral-50 font-semibold">
-              <tr>
-                <td colspan="3" class="p-2">
-                  <button type="button" @click="addWrItem"
-                    class="cursor-pointer px-3 h-8 text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 font-medium rounded-md inline-flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                    {{ t('invoice.wr_add_row') }}
-                  </button>
-                </td>
-                <td v-if="wrItems.length > 0" class="px-3 py-2 text-right font-mono">
-                  <span class="text-neutral-400 font-normal mr-2">Σ</span>{{ wrTotalHours.toFixed(2) }} h
-                </td>
-                <td v-else></td>
-                <td></td>
-                <td v-if="wrItems.length > 0" class="px-3 py-2 text-right font-mono whitespace-nowrap" colspan="2">
-                  {{ formatMoney(wrTotalAmount, form.currency) }}
-                </td>
-                <td v-else colspan="2"></td>
-              </tr>
-            </tfoot>
-          </table>
-          </div>
-
-          <!-- Mobile: stack karet -->
-          <div class="md:hidden space-y-2">
-            <div v-for="(it, i) in wrItems" :key="`m-${i}`"
-              class="border border-neutral-200 rounded-md p-3 space-y-2 bg-neutral-50/30">
-              <div class="flex items-center justify-between text-xs text-neutral-500">
-                <span class="font-mono">#{{ i + 1 }}</span>
-                <div class="flex items-center gap-1">
-                  <button type="button" @click="moveWrItem(i, -1)" :disabled="i === 0"
-                          :title="t('invoice.wr_move_up')"
-                          class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-neutral-300 text-neutral-600 hover:bg-neutral-50 rounded disabled:opacity-30 disabled:cursor-not-allowed">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
-                  </button>
-                  <button type="button" @click="moveWrItem(i, 1)" :disabled="i === wrItems.length - 1"
-                          :title="t('invoice.wr_move_down')"
-                          class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-neutral-300 text-neutral-600 hover:bg-neutral-50 rounded disabled:opacity-30 disabled:cursor-not-allowed">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                  </button>
-                  <button type="button" @click="removeWrItem(i)" class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-danger-500/40 text-danger-500 hover:bg-danger-50 rounded text-lg leading-none">×</button>
-                </div>
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.wr_description') }}</label>
-                <input v-model="it.description" type="text" data-row-input="inv-wr" class="w-full h-10 px-3 border border-neutral-300 rounded text-sm bg-surface" />
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.wr_date') }}</label>
-                  <input v-model="it.work_date" type="date" class="w-full h-10 px-3 border border-neutral-300 rounded text-sm font-mono bg-surface" />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.wr_hours') }}</label>
-                  <input v-model.number="it.hours" type="number" inputmode="decimal" step="0.25" min="0" class="w-full h-10 px-3 border border-neutral-300 rounded text-right font-mono text-sm bg-surface" />
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-2 items-end">
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.wr_rate') }}</label>
-                  <input v-model.number="it.rate" type="number" inputmode="decimal" step="1" min="0" class="w-full h-10 px-3 border border-neutral-300 rounded text-right font-mono text-sm bg-surface" />
-                </div>
-                <div class="text-right pb-2">
-                  <div class="text-xs font-medium text-neutral-500 uppercase tracking-wide">{{ t('invoice.wr_total') }}</div>
-                  <div class="font-mono text-sm font-semibold">
-                    {{ formatMoney((Number(it.hours) || 0) * (Number(it.rate) || 0), form.currency) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button type="button" @click="addWrItem"
-              class="cursor-pointer w-full h-10 text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 font-medium rounded-md inline-flex items-center justify-center gap-1.5">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-              {{ t('invoice.wr_add_row') }}
-            </button>
-            <div v-if="wrItems.length > 0" class="bg-neutral-50 rounded-md px-3 py-2 flex items-center justify-between font-semibold text-sm">
-              <span class="font-mono">Σ {{ wrTotalHours.toFixed(2) }} h</span>
-              <span class="font-mono">{{ formatMoney(wrTotalAmount, form.currency) }}</span>
-            </div>
-          </div>
-
-          <p class="text-xs text-neutral-500">
-            {{ t('invoice.wr_hint', { title: wrTitle, hours: wrTotalHours.toFixed(2), rate: wrItems[0]?.rate || 0, currency: form.currency }) }}
-          </p>
         </div>
       </div>
 
@@ -1842,9 +1493,5 @@ async function deleteDraft() {
     <ClientFormModal v-if="clientModalOpen"
       @created="onClientCreatedInModal"
       @close="clientModalOpen = false" />
-    <ProjectFormModal v-if="projectModalOpen && form.client_id"
-      :client-id="form.client_id"
-      @created="onProjectCreatedInModal"
-      @close="projectModalOpen = false" />
   </div>
 </template>

@@ -83,7 +83,6 @@ final class JobInvoiceBuilder
             'client_id'    => (int) $job['customer_client_id'],
             'issue_date'   => $today,
             'due_date'     => $this->defaultDueDate((int) $job['customer_client_id'], $today),
-            'note_above_items' => $text,
         ]);
 
         $invoiceId = $this->invoices->createDraft($payload, $userId);

@@ -105,6 +105,7 @@ final class PdfBranding
             . ".note.rc-note { border-left-color: #E8A547; }\n"
             . ".footer { border-top-color: {$lineSoft}; }\n"
             . ".footer-name { color: {$color}; }\n"
-            . ".wr-title, .wr-link { color: {$color}; }\n";
+            . ".wr-title, .wr-link { color: {$color}; }\n"
+            . "tr.quote-section-header td { color: {$color}; }\n";
     }
 }

@@ -8,6 +8,7 @@ import { formatMoney, formatDate } from '@/composables/useFormat'
 import { useRowLink } from '@/composables/useRowLink'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { clientIsIncomplete } from '@/utils/clientCompleteness'
 
 const { t } = useI18n()
 const auth = useAuthStore()
@@ -143,10 +144,17 @@ function openContact(c: Client, e?: MouseEvent) {
             class="cursor-pointer hover:bg-neutral-50"
           >
             <td class="px-4 py-3">
-              <div class="font-medium text-neutral-900">{{ c.company_name }}</div>
+              <div class="font-medium text-neutral-900 flex items-center gap-1.5">
+                <span>{{ c.company_name }}</span>
+                <span
+                  v-if="clientIsIncomplete(c)"
+                  class="text-warning-600"
+                  :title="t('client.incomplete_list_hint')"
+                >⚠</span>
+              </div>
               <div v-if="c.archived_at" class="text-xs text-neutral-400 mt-0.5">{{ t('common.archived') }}</div>
             </td>
-            <td class="px-4 py-3 text-neutral-600">{{ c.main_email }}</td>
+            <td class="px-4 py-3 text-neutral-600">{{ c.main_email?.trim() || '—' }}</td>
             <td class="px-4 py-3 text-neutral-600">{{ c.phone || '—' }}</td>
             <td class="px-4 py-3">
               <div v-if="c.tri_tags?.length" class="flex flex-wrap gap-1">
@@ -187,7 +195,10 @@ function openContact(c: Client, e?: MouseEvent) {
           class="cursor-pointer hover:bg-neutral-50 transition px-4 py-3"
         >
           <div class="flex items-baseline justify-between gap-2">
-            <div class="font-medium text-neutral-900 truncate">{{ c.company_name }}</div>
+            <div class="font-medium text-neutral-900 truncate flex items-center gap-1.5">
+              <span>{{ c.company_name }}</span>
+              <span v-if="clientIsIncomplete(c)" class="text-warning-600 shrink-0" :title="t('client.incomplete_list_hint')">⚠</span>
+            </div>
             <div class="font-mono text-sm whitespace-nowrap">
               <span v-if="c.tri_revenue && c.tri_revenue > 0">{{ formatMoney(Math.round(c.tri_revenue), 'CZK', 0) }}</span>
               <span v-else class="text-neutral-300">—</span>

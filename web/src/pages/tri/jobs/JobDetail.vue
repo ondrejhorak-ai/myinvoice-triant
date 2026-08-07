@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { formatMoney, formatDate, statusLabel, typeLabel, statusBadgeClass } from '@/composables/useFormat'
 import JobHeaderInfo from './JobHeaderInfo.vue'
+import JobActivityFeed from './JobActivityFeed.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -172,7 +173,7 @@ onMounted(() => load())
 
 <template>
   <div v-if="loading" class="text-neutral-500">{{ t('common.loading') }}</div>
-  <div v-else-if="job" class="max-w-5xl space-y-4">
+  <div v-else-if="job" class="space-y-4">
     <RouterLink
       to="/tri/jobs"
       class="inline-flex items-center text-sm text-neutral-600 hover:text-neutral-900"
@@ -180,6 +181,10 @@ onMounted(() => load())
       ← {{ t('tri.jobs.back_to_list') }}
     </RouterLink>
 
+    <!-- Dva sloupce na širokých obrazovkách: vlevo zakázka, vpravo komunikace (chat) -->
+    <div class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start">
+
+    <div class="space-y-4 min-w-0">
     <!-- Záhlaví zakázky -->
     <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
       <div class="flex flex-col gap-4 p-5 border-b border-neutral-200 md:flex-row md:items-start md:justify-between">
@@ -208,6 +213,12 @@ onMounted(() => load())
           <div>
             <span class="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.quote.created_date') }}</span>
             <p class="h-10 flex items-center text-sm font-medium text-neutral-800">{{ formatDate(jobCreationDate) }}</p>
+          </div>
+
+          <!-- Vypracoval -->
+          <div v-if="job.assignees?.length">
+            <span class="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.jobs.assignees') }}</span>
+            <p class="min-h-10 flex items-center text-sm font-medium text-neutral-800">{{ job.assignees.map((a) => a.name).join(', ') }}</p>
           </div>
 
           <!-- Upravit zakázku -->
@@ -373,6 +384,15 @@ onMounted(() => load())
           </tbody>
         </table>
       </div>
+    </div>
+    </div>
+
+    <!-- Komunikace (chat + log událostí) — pravý sloupec, na užších obrazovkách pod obsahem -->
+    <div class="space-y-4 min-w-0">
+      <h2 class="text-lg font-semibold">{{ t('tri.activity.title') }}</h2>
+      <JobActivityFeed :job-id="jobId" />
+    </div>
+
     </div>
 
     <!-- Modal: zálohová faktura -->

@@ -20,6 +20,7 @@ require __DIR__ . '/../vendor/autoload.php';
 use MyInvoice\Bootstrap;
 use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Infrastructure\Config\RuntimePaths;
 use MyInvoice\Service\Cron\CronRun;
 
 $rootDir = Bootstrap::rootDir();
@@ -101,6 +102,62 @@ if ($exportIds !== []) {
 }
 $report['monthly_export_jobs']  = count($exportIds);
 $report['monthly_export_files'] = $exportFilesDeleted;
+
+// 7) Nepoužité náhledy položek nabídek. Prodleva chrání čerstvě nahrané
+// obrázky, které uživatel ještě nepřipojil běžným uložením varianty.
+$quoteImagesDeleted = 0;
+$quoteImageFilesDeleted = 0;
+try {
+    $rows = $pdo->query(
+        "SELECT qi.id, qi.supplier_id, qi.stored_name
+           FROM tri_quote_images qi
+      LEFT JOIN tri_quote_line_items li ON li.image_id = qi.id
+          WHERE li.id IS NULL AND qi.last_uploaded_at < NOW() - INTERVAL 24 HOUR"
+    )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    $delete = $pdo->prepare(
+        'DELETE qi FROM tri_quote_images qi
+          LEFT JOIN tri_quote_line_items li ON li.image_id = qi.id
+         WHERE qi.id = ? AND li.id IS NULL AND qi.last_uploaded_at < NOW() - INTERVAL 24 HOUR'
+    );
+    foreach ($rows as $row) {
+        $delete->execute([(int) $row['id']]);
+        if ($delete->rowCount() !== 1) continue;
+        $quoteImagesDeleted++;
+        $name = (string) $row['stored_name'];
+        if (!preg_match('/\A[a-f0-9]{64}\.jpg\z/', $name)) continue;
+        $base = realpath(RuntimePaths::storage('tri-quote-images') . '/sup-' . (int) $row['supplier_id']);
+        $path = realpath(RuntimePaths::storage('tri-quote-images') . '/sup-' . (int) $row['supplier_id'] . '/' . $name);
+        if ($base !== false && $path !== false && is_file($path)
+            && str_starts_with(strtolower($path), strtolower($base) . DIRECTORY_SEPARATOR)
+            && @unlink($path)) {
+            $quoteImageFilesDeleted++;
+        }
+    }
+
+    // Druhá vrstva uklidí osiřelé soubory po případném pádu mezi zápisem
+    // souboru a DB nebo po dřívějším neúspěšném unlinku.
+    $known = [];
+    foreach ($pdo->query('SELECT supplier_id, stored_name FROM tri_quote_images')->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+        $known[(int) $row['supplier_id'] . '/' . (string) $row['stored_name']] = true;
+    }
+    $storageRoot = RuntimePaths::storage('tri-quote-images');
+    foreach (glob($storageRoot . '/sup-*/*.jpg') ?: [] as $path) {
+        if (!preg_match('~[/\\]sup-([0-9]+)[/\\]([a-f0-9]{64}\.jpg)\z~', $path, $m)) continue;
+        if (isset($known[(int) $m[1] . '/' . $m[2]])) continue;
+        if ((int) @filemtime($path) >= time() - 86400) continue;
+        $rootReal = realpath($storageRoot);
+        $pathReal = realpath($path);
+        if ($rootReal !== false && $pathReal !== false && is_file($pathReal)
+            && str_starts_with(strtolower($pathReal), strtolower($rootReal) . DIRECTORY_SEPARATOR)
+            && @unlink($pathReal)) {
+            $quoteImageFilesDeleted++;
+        }
+    }
+} catch (PDOException) {
+    // Instalace před migrací 9011 — cleanup nesmí zablokovat ostatní úlohy.
+}
+$report['tri_quote_images'] = $quoteImagesDeleted;
+$report['tri_quote_image_files'] = $quoteImageFilesDeleted;
 
 // Pročisti cron_runs — drž max 500 posledních záznamů na skript.
 $report['cron_runs_purged'] = CronRun::purgeOld($pdo, 500);

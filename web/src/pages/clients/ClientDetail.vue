@@ -14,6 +14,8 @@ import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import SendWorkReportLinkModal from '@/components/modals/SendWorkReportLinkModal.vue'
 import ActionBar, { type ActionItem } from '@/components/ui/ActionBar.vue'
+import ClientIncompleteBanner from '@/components/clients/ClientIncompleteBanner.vue'
+import { clientMissingAddress, clientMissingEmail } from '@/utils/clientCompleteness'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -372,6 +374,12 @@ const clientActions = computed<ActionItem[]>(() => {
       <ActionBar :actions="clientActions" />
     </div>
 
+    <ClientIncompleteBanner
+      v-if="client"
+      :client="client"
+      :edit-to="`/clients/${client.id}/edit`"
+    />
+
     <!-- Detaily plátce DPH (na vyžádání z registru plátců DPH / MFČR) -->
     <div v-if="vatInfoOpen" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
       <div class="flex items-center justify-between mb-3">
@@ -423,7 +431,7 @@ const clientActions = computed<ActionItem[]>(() => {
         <dl class="space-y-2 text-sm">
           <div>
             <dt class="text-neutral-500">{{ t('client.email') }}</dt>
-            <dd class="text-neutral-900">{{ client.main_email }}</dd>
+            <dd class="text-neutral-900">{{ clientMissingEmail(client) ? t('client.missing_value') : client.main_email }}</dd>
           </div>
           <div v-if="client.phone">
             <dt class="text-neutral-500">{{ t('client.telephone') }}</dt>
@@ -458,9 +466,14 @@ const clientActions = computed<ActionItem[]>(() => {
       <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.section_address') }}</h3>
         <div class="text-sm text-neutral-900 leading-relaxed">
-          {{ client.street }}<br />
-          {{ client.zip }} {{ client.city }}<br />
-          {{ client.country_iso2 }}
+          <template v-if="clientMissingAddress(client)">
+            <span class="text-neutral-400">{{ t('client.missing_value') }}</span>
+          </template>
+          <template v-else>
+            {{ client.street }}<br />
+            {{ client.zip }} {{ client.city }}<br />
+            {{ client.country_iso2 }}
+          </template>
         </div>
       </div>
 

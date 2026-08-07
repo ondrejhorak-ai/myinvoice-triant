@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS tri_quote_sections (
   id               BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   quote_variant_id BIGINT UNSIGNED NOT NULL,
   sort_order       INT UNSIGNED NOT NULL DEFAULT 0,
-  title            VARCHAR(190) NOT NULL,
+  title            TEXT NOT NULL,
   KEY idx_tri_qs_variant (quote_variant_id),
   CONSTRAINT fk_tri_qs_variant FOREIGN KEY (quote_variant_id) REFERENCES tri_quote_variants(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS tri_quote_line_items (
   sort_order           INT UNSIGNED NOT NULL DEFAULT 0,
   catalog_item_id      BIGINT UNSIGNED NULL,
   designation          VARCHAR(120) NOT NULL DEFAULT '',
-  title                VARCHAR(190) NOT NULL,
+  title                TEXT NOT NULL,
   description          TEXT NULL,
   quantity             DECIMAL(12,3) NOT NULL,
   unit                 VARCHAR(20) NOT NULL DEFAULT 'ks',

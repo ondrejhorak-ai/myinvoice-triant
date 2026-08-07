@@ -3,7 +3,9 @@ import LinkedDocumentsPanel from '@/components/documents/LinkedDocumentsPanel.vu
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { invoicesApi, type Invoice, type WorkReport, type ApprovalStatus, type InvoiceAttachment, type AdvanceCandidate } from '@/api/invoices'
+import { invoicesApi, type Invoice, type WorkReport, type InvoiceAttachment, type AdvanceCandidate } from '@/api/invoices'
+import { clientsApi, type Client } from '@/api/clients'
+import { clientMissingAddress } from '@/utils/clientCompleteness'
 import {
   settingsApi,
   type PdfSignatureDocumentEntityType,
@@ -38,6 +40,10 @@ const route = useRoute()
 const router = useRouter()
 
 const invoice = ref<Invoice | null>(null)
+const clientForWarnings = ref<Client | null>(null)
+const clientAddressMissing = computed(() =>
+  clientForWarnings.value ? clientMissingAddress(clientForWarnings.value) : false,
+)
 const triJob = ref<TriJobLink | null>(null)
 const wrModalOpen = ref(false)
 const loading = ref(true)
@@ -62,16 +68,13 @@ const cancelReason = ref('')
 // Send modal state
 const sendOpen = ref(false)
 const sendTo = ref('')
+const sendHasNoRecipient = computed(() => sendOpen.value && !sendTo.value.trim())
 const sendNote = ref('')
 
 // Reminder modal state
 const reminderOpen = ref(false)
 
 // Approval modals
-const approvalStatusOpen = ref(false)
-const approvalStatusDraft = ref<ApprovalStatus>('none')
-const approvalRejectReason = ref('')
-
 const activity = ref<Array<{ id: number; user_email: string | null; user_name: string | null; action: string; payload: any; ip: string | null; created_at: string }>>([])
 const activityOpen = ref(false)
 const pdfHistory = ref<Array<{ id: number; filename: string; size_bytes: number; sha256: string; was_sent: boolean; sent_to: string[] | null; reason: string; archived_at: string }>>([])
@@ -85,7 +88,6 @@ const signatureSelections = ref<Partial<Record<PdfSignatureDocumentEntityType, P
 const signingProfiles = ref<SigningProfile[]>([])
 const signatureSelectionLoading = ref(false)
 const signatureSelectionSaving = ref<PdfSignatureDocumentEntityType | null>(null)
-const wrHasDates = computed(() => !!workReport.value?.items.some(i => !!i.work_date))
 const hasPdfSigningProfiles = computed(() => signingProfiles.value.some(
   profile => profile.is_active && profile.allowed_usages.includes('pdf'),
 ))
@@ -112,6 +114,10 @@ async function load() {
   loading.value = true
   invoice.value = await invoicesApi.get(Number(route.params.id))
   loading.value = false
+  clientForWarnings.value = null
+  if (invoice.value?.client_id) {
+    clientsApi.get(invoice.value.client_id).then(c => { clientForWarnings.value = c }).catch(() => {})
+  }
   if (auth.canWrite) {
     await loadSignatureProfiles()
     if (hasPdfSigningProfiles.value) loadSignatureSelection('invoice')
@@ -435,7 +441,6 @@ useHotkey('escape', () => {
   else if (cancelOpen.value)  cancelOpen.value = false
   else if (sendOpen.value)    sendOpen.value = false
   else if (reminderOpen.value) reminderOpen.value = false
-  else if (approvalStatusOpen.value) approvalStatusOpen.value = false
 })
 
 // Děkovný e-mail za úhradu (issue #57)
@@ -710,15 +715,19 @@ const canSendTestReminder = computed(() =>
 
 function openSendModal() {
   if (!invoice.value) return
-  // Pre-fill recipients: client_main_email + project billing emails (de-duplikováno).
-  // Stejná logika jako backend SendEmailAction::resolveRecipients — ať uživatel
-  // v modalu vidí přesně to, co se odešle (a může to libovolně upravit).
-  const main = invoice.value.client_main_email || ''
-  const billing = (invoice.value.project_billing_emails || []).map(b => b.email)
-  const all = [main, ...billing].filter(Boolean)
-  sendTo.value = Array.from(new Set(all)).join(', ')
   sendNote.value = ''
-  sendOpen.value = true
+  sendTo.value = ''
+  void (async () => {
+    try {
+      const r = await invoicesApi.recipients(invoice.value!.id, 'documents')
+      sendTo.value = r.to.join(', ')
+    } catch {
+      const main = invoice.value!.client_main_email || ''
+      const billing = (invoice.value!.project_billing_emails || []).map(b => b.email)
+      sendTo.value = Array.from(new Set([main, ...billing].filter(Boolean))).join(', ')
+    }
+    sendOpen.value = true
+  })()
 }
 
 async function send() {
@@ -876,46 +885,6 @@ async function requestApprovalTest() {
   }
 }
 
-function openApprovalStatusModal() {
-  if (!invoice.value) return
-  approvalStatusDraft.value = invoice.value.approval_status
-  approvalRejectReason.value = invoice.value.approval_rejection_reason || ''
-  approvalStatusOpen.value = true
-}
-
-async function updateApprovalStatus() {
-  if (!invoice.value) return
-  if (approvalStatusDraft.value === 'rejected' && !approvalRejectReason.value.trim()) {
-    toast.error(t('invoice.approval.reason_required'))
-    return
-  }
-  busy.value = 'approval-status'
-  try {
-    // approved: komentář volitelný, rejected: reason povinný, none: nic neposílat (reset)
-    const text = approvalStatusDraft.value === 'none'
-      ? undefined
-      : (approvalRejectReason.value.trim() || undefined)
-    const r = await invoicesApi.updateApprovalStatus(
-      invoice.value.id,
-      approvalStatusDraft.value,
-      text,
-    )
-    invoice.value = r.invoice
-    approvalStatusOpen.value = false
-    if (r.auto_send_error) {
-      toast.error(t('invoice.approval.auto_send_failed', { error: r.auto_send_error }))
-    } else if (r.auto_send && r.auto_send.sent_to.length > 0) {
-      toast.success(t('invoice.approval.approved_and_sent', { recipients: r.auto_send.sent_to.join(', ') }))
-    } else {
-      toast.success(t('invoice.approval.status_updated'))
-    }
-    invoicesApi.activity(invoice.value.id).then(a => { activity.value = a }).catch(() => {})
-  } catch (e: any) {
-    toast.error(e?.response?.data?.error?.message || t('invoice.approval.status_update_failed'))
-  } finally {
-    busy.value = null
-  }
-}
 </script>
 
 <template>
@@ -1039,9 +1008,6 @@ async function updateApprovalStatus() {
             {{ invoice.client_company_name }}
           </RouterLink>
         </div>
-        <div v-if="invoice.project_name" class="text-sm text-neutral-600">
-          {{ invoice.project_name }}
-        </div>
         <div v-if="triJob" class="text-sm text-neutral-600">
           <span class="text-neutral-500">{{ t('tri.invoices.job_label') }}:</span>
           <RouterLink
@@ -1051,6 +1017,10 @@ async function updateApprovalStatus() {
             {{ triJob.number }}
           </RouterLink>
           <span> — {{ triJob.title }}</span>
+        </div>
+        <div v-if="invoice.created_by_name" class="text-sm text-neutral-600">
+          <span class="text-neutral-500">{{ t('tri.invoices.issued_by') }}:</span>
+          <span class="ml-1">{{ invoice.created_by_name }}</span>
         </div>
         <div v-if="invoice.client_main_email || invoice.project_billing_emails?.length" class="text-xs text-neutral-500 flex flex-wrap gap-x-3 gap-y-0.5">
           <span v-if="invoice.client_main_email">✉ {{ invoice.client_main_email }}</span>
@@ -1064,6 +1034,13 @@ async function updateApprovalStatus() {
         <span v-if="invoice.client_ic && invoice.client_dic">, </span>
         <span v-if="invoice.client_dic">{{ t('common.dic') }} {{ invoice.client_dic }}</span>
       </div>
+    </div>
+
+    <div
+      v-if="clientAddressMissing"
+      class="rounded-md bg-warning-50 border border-warning-500/30 px-4 py-3 text-sm text-warning-800"
+    >
+      {{ t('invoice.client_missing_address') }}
     </div>
 
     <!-- Mark paid modal -->
@@ -1147,6 +1124,7 @@ async function updateApprovalStatus() {
         <h3 class="text-lg font-semibold mb-3">{{ t('invoice.modals.send_title') }}</h3>
         <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.modals.send_recipients') }}</label>
         <input v-model="sendTo" type="text" class="w-full h-10 px-3 border border-neutral-300 rounded-md mb-2 text-sm" />
+        <p v-if="sendHasNoRecipient" class="text-xs text-warning-600 mb-2">{{ t('invoice.send_no_recipient_warning') }}</p>
         <p class="text-xs text-neutral-500 mb-4">{{ t('invoice.modals.send_default_hint') }}</p>
         <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.modals.send_note_label') }}</label>
         <textarea v-model="sendNote" rows="4" maxlength="5000"
@@ -1466,14 +1444,6 @@ async function updateApprovalStatus() {
       <p class="text-sm text-neutral-700 whitespace-pre-wrap">{{ invoice.note_below_items }}</p>
     </div>
 
-    <div v-if="invoice.revenue_category_label" class="bg-surface border border-neutral-200 rounded-lg px-5 py-3 shadow-sm flex items-center justify-between text-sm">
-      <span class="text-neutral-500">{{ t('invoice.classification.revenue_category') }}</span>
-      <span class="font-medium text-neutral-900">
-        {{ invoice.revenue_category_label }}
-        <span class="text-neutral-400">({{ invoice.revenue_category_code }})</span>
-      </span>
-    </div>
-
     <!-- Elektronický podpis dokumentu -->
     <div v-if="canManageSignatureSelection" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
       <header class="px-5 py-3 border-b border-neutral-200">
@@ -1544,170 +1514,6 @@ async function updateApprovalStatus() {
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-
-
-    <!-- Výkaz víceprací -->
-    <div v-if="workReport" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
-      <header class="px-5 py-3 border-b border-neutral-200 flex items-baseline justify-between gap-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.work_report') }}</h3>
-        <span class="text-sm text-neutral-700">{{ workReport.title }}</span>
-      </header>
-      <!-- Desktop: tabulka -->
-      <div class="hidden md:block overflow-x-auto">
-      <table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
-          <tr>
-            <th class="text-left px-5 py-2 font-medium">{{ t('invoice.wr_description') }}</th>
-            <th v-if="wrHasDates" class="text-left px-4 py-2 font-medium w-32">{{ t('invoice.wr_date') }}</th>
-            <th class="text-right px-4 py-2 font-medium w-28">{{ t('invoice.wr_hours') }}</th>
-            <th class="text-right px-4 py-2 font-medium w-32">{{ t('invoice.wr_rate') }}</th>
-            <th class="text-right px-5 py-2 font-medium w-36">{{ t('invoice.wr_total') }}</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-neutral-100">
-          <tr v-for="(it, i) in workReport.items" :key="i">
-            <td class="px-5 py-2 text-neutral-800 whitespace-pre-wrap">{{ it.description }}</td>
-            <td v-if="wrHasDates" class="px-4 py-2 text-neutral-600 whitespace-nowrap">{{ formatDate(it.work_date) }}</td>
-            <td class="px-4 py-2 text-right font-mono">{{ Number(it.hours).toLocaleString('cs', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</td>
-            <td class="px-4 py-2 text-right font-mono">{{ formatMoney(it.rate, invoice.currency) }}</td>
-            <td class="px-5 py-2 text-right font-mono">{{ formatMoney(Number(it.hours) * Number(it.rate), invoice.currency) }}</td>
-          </tr>
-          <tr class="bg-neutral-50 font-semibold">
-            <td class="px-5 py-2 text-right" :colspan="wrHasDates ? 2 : 1">{{ t('invoice.totals.total') }}</td>
-            <td class="px-4 py-2 text-right font-mono">{{ workReport.total_hours.toLocaleString('cs', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} h</td>
-            <td></td>
-            <td class="px-5 py-2 text-right font-mono">{{ formatMoney(workReport.total_amount, invoice.currency) }}</td>
-          </tr>
-        </tbody>
-      </table>
-      </div>
-
-      <!-- Mobile: stack karet -->
-      <div class="md:hidden divide-y divide-neutral-100">
-        <div v-for="(it, i) in workReport.items" :key="`m-${i}`" class="p-3 space-y-1">
-          <div class="text-sm whitespace-pre-wrap text-neutral-800">{{ it.description }}</div>
-          <div class="flex items-baseline justify-between text-xs text-neutral-500">
-            <span v-if="wrHasDates" class="font-mono">{{ formatDate(it.work_date) }}</span>
-            <span v-else></span>
-            <span>
-              <span class="font-mono text-neutral-700">{{ Number(it.hours).toLocaleString('cs', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} h</span>
-              <span class="text-neutral-400 mx-1.5">·</span>
-              <span class="font-mono">{{ formatMoney(it.rate, invoice.currency) }}</span>
-              <span class="text-neutral-400 mx-1.5">·</span>
-              <span class="font-mono font-semibold text-neutral-900">{{ formatMoney(Number(it.hours) * Number(it.rate), invoice.currency) }}</span>
-            </span>
-          </div>
-        </div>
-        <div class="bg-neutral-50 p-3 flex items-center justify-between font-semibold">
-          <span class="font-mono">Σ {{ workReport.total_hours.toLocaleString('cs', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} h</span>
-          <span class="font-mono">{{ formatMoney(workReport.total_amount, invoice.currency) }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Stav schválení výkazu — viditelné jen pokud projekt vyžaduje + výkaz existuje -->
-    <div v-if="requiresApproval" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
-      <header class="px-5 py-3 border-b border-neutral-200">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.approval.section_title') }}</h3>
-      </header>
-      <div class="px-5 py-4">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <dl class="space-y-1.5 text-sm flex-1 min-w-[260px]">
-            <div class="flex items-baseline gap-3">
-              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.current_status') }}</dt>
-              <dd>
-                <span class="inline-block px-2 py-0.5 rounded text-xs font-medium" :class="approvalBadgeClass">
-                  {{ t('invoice.approval.status_' + approvalStatus) }}
-                </span>
-              </dd>
-            </div>
-            <div v-if="invoice.approval_requested_at" class="flex items-baseline gap-3">
-              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.requested_at') }}</dt>
-              <dd class="font-mono text-xs">{{ invoice.approval_requested_at }}</dd>
-            </div>
-            <div v-if="invoice.approval_token_expires_at && approvalStatus === 'requested'" class="flex items-baseline gap-3">
-              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.expires_at') }}</dt>
-              <dd class="font-mono text-xs"
-                :class="approvalTokenExpired ? 'text-warning-600 font-semibold' : ''">
-                {{ invoice.approval_token_expires_at }}
-                <span v-if="approvalTokenExpired" class="ml-1">({{ t('invoice.approval.status_expired') }})</span>
-              </dd>
-            </div>
-            <div v-if="invoice.approval_reminder_count > 0" class="flex items-baseline gap-3">
-              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.reminders_sent') }}</dt>
-              <dd class="text-xs">
-                {{ invoice.approval_reminder_count }}×
-                <span v-if="invoice.approval_reminder_at" class="text-neutral-500">
-                  ({{ t('invoice.approval.last_reminder') }}: {{ invoice.approval_reminder_at }})
-                </span>
-              </dd>
-            </div>
-            <div v-if="invoice.approval_decided_at" class="flex items-baseline gap-3">
-              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.decided_at') }}</dt>
-              <dd class="font-mono text-xs">{{ invoice.approval_decided_at }}</dd>
-            </div>
-            <div v-if="invoice.approval_decided_by_email" class="flex items-baseline gap-3">
-              <dt class="text-neutral-500 w-32">{{ t('invoice.approval.decided_by') }}</dt>
-              <dd class="text-xs">{{ invoice.approval_decided_by_email }}</dd>
-            </div>
-            <div v-if="invoice.approval_rejection_reason" class="flex items-baseline gap-3">
-              <dt class="text-neutral-500 w-32">
-                {{ approvalStatus === 'rejected'
-                    ? t('invoice.approval.rejection_reason')
-                    : t('invoice.approval.comment') }}
-              </dt>
-              <dd class="text-sm whitespace-pre-wrap"
-                :class="approvalStatus === 'rejected' ? 'text-danger-600' : 'text-neutral-700'">
-                {{ invoice.approval_rejection_reason }}
-              </dd>
-            </div>
-          </dl>
-          <button v-if="isAdmin" @click="openApprovalStatusModal" :disabled="busy !== null"
-            class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md">
-            {{ t('invoice.approval.change_status') }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Approval status modal (admin) -->
-    <div v-if="approvalStatusOpen" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div class="bg-surface rounded-xl shadow-lg max-w-md w-full p-5">
-        <h3 class="text-lg font-semibold mb-3">{{ t('invoice.approval.modal_title') }}</h3>
-        <p class="text-sm text-neutral-600 mb-3">{{ t('invoice.approval.modal_hint') }}</p>
-        <div class="space-y-2 mb-4">
-          <label v-for="opt in (['none','approved','rejected'] as const)" :key="opt"
-            class="flex items-start gap-2 p-3 border rounded-md cursor-pointer"
-            :class="approvalStatusDraft === opt ? 'border-primary-500 bg-primary-50' : 'border-neutral-200'">
-            <input type="radio" v-model="approvalStatusDraft" :value="opt" class="mt-1" />
-            <div>
-              <div class="font-medium text-sm">{{ t('invoice.approval.status_' + opt) }}</div>
-              <div class="text-xs text-neutral-500">{{ t('invoice.approval.modal_desc_' + opt) }}</div>
-            </div>
-          </label>
-        </div>
-        <div v-if="approvalStatusDraft === 'rejected'" class="mb-4">
-          <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.approval.rejection_reason') }} *</label>
-          <textarea v-model="approvalRejectReason" rows="2" required
-            class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
-        </div>
-        <div v-else-if="approvalStatusDraft === 'approved'" class="mb-4">
-          <label class="block text-sm font-medium text-neutral-700 mb-1">
-            {{ t('invoice.approval.comment') }}
-            <span class="text-xs text-neutral-500 font-normal">({{ t('invoice.approval.comment_optional') }})</span>
-          </label>
-          <textarea v-model="approvalRejectReason" rows="2"
-            class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
-        </div>
-        <div class="flex justify-end gap-2">
-          <button @click="approvalStatusOpen = false" class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50">{{ t('common.cancel') }}</button>
-          <button @click="updateApprovalStatus" :disabled="busy !== null"
-            class="cursor-pointer px-4 h-9 text-sm bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white font-medium rounded-md">
-            {{ busy === 'approval-status' ? '…' : t('common.save') }}
-          </button>
-        </div>
       </div>
     </div>
 

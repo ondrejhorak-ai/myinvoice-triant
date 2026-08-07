@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, RouterLink, onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { triApi, type TriQuoteVariant, type TriQuoteLineItem, type TriJob, type TriVariantStatus } from '@/api/tri'
+import { triApi, type TriQuoteVariant, type TriQuoteLineItem, type TriQuoteImage, type TriJob, type TriVariantStatus } from '@/api/tri'
+import { apiErrorMessage } from '@/api/errors'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { formatMoney } from '@/composables/useFormat'
@@ -14,11 +15,23 @@ import {
 } from '@/composables/useTriQuotePricing'
 import JobHeaderInfo from './JobHeaderInfo.vue'
 import QuoteAdjustmentPanel from './QuoteAdjustmentPanel.vue'
+import VariantItemsNotionTable from './VariantItemsNotionTable.vue'
+import QuoteLineImageControl from './QuoteLineImageControl.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const toast = useToast()
 const auth = useAuthStore()
+
+type TableUi = 'classic' | 'notion'
+const TABLE_UI_KEY = 'tri.variantEditor.tableUi'
+const tableUi = ref<TableUi>(
+  (localStorage.getItem(TABLE_UI_KEY) as TableUi) === 'classic' ? 'classic' : 'notion',
+)
+function setTableUi(ui: TableUi) {
+  tableUi.value = ui
+  localStorage.setItem(TABLE_UI_KEY, ui)
+}
 
 const variantStatusOptions: TriVariantStatus[] = ['draft', 'sent', 'approved']
 const statusUpdating = ref(false)
@@ -115,7 +128,7 @@ function formatLineAmount(value: number): string {
   return new Intl.NumberFormat(locale.value === 'en' ? 'en-US' : 'cs-CZ', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(Math.round(value))
 }
 
 function wrapRow(l: TriQuoteLineItem): Row {
@@ -150,23 +163,103 @@ function isPanelOpen(id: string): boolean {
   return expandedPanels.value.has(id)
 }
 
+function resolveLineRow(entry: unknown): Row | null {
+  if (!entry || typeof entry !== 'object') return null
+  const e = entry as Record<string, unknown>
+  if (e.kind === 'item' && e.row && typeof e.row === 'object') return e.row as Row
+  if (typeof e._uid === 'string') return entry as Row
+  return null
+}
+
+/** DnD can briefly insert a raw Row into `blocks` — wrap before pricing/save/render.
+ *  Writes to reactive state ONLY when a structural fix is needed, otherwise the
+ *  deep watcher below would re-trigger itself forever. */
+let normalizing = false
+function normalizeBlocksInPlace() {
+  if (normalizing) return
+  normalizing = true
+  try {
+    let changed = false
+    const next: Block[] = []
+    for (const b of blocks.value as unknown[]) {
+      if (!b || typeof b !== 'object') {
+        changed = true
+        continue
+      }
+      const rec = b as Record<string, unknown>
+      if (!('kind' in rec) && typeof rec._uid === 'string') {
+        const row = b as Row
+        row.quote_section_id = null
+        row.section_temp_id = null
+        next.push({ kind: 'item', row })
+        changed = true
+        continue
+      }
+      if (rec.kind === 'item') {
+        const item = b as ItemBlock
+        if (!item.row) {
+          changed = true
+          continue
+        }
+        next.push(item)
+        continue
+      }
+      if (rec.kind === 'section') {
+        const section = b as SectionBlock
+        const fixed: Row[] = []
+        let sectionChanged = false
+        for (const it of section.items as unknown[]) {
+          const row = resolveLineRow(it)
+          if (!row) {
+            sectionChanged = true
+            continue
+          }
+          if (it !== row) sectionChanged = true
+          fixed.push(row)
+        }
+        if (sectionChanged) {
+          for (const row of fixed) {
+            row.quote_section_id = null
+            row.section_temp_id = section.tempId
+          }
+          section.items = fixed
+          changed = true
+        }
+        next.push(section)
+        continue
+      }
+      changed = true
+    }
+    if (changed) blocks.value = next
+  } finally {
+    normalizing = false
+  }
+}
+
+watch(blocks, () => normalizeBlocksInPlace(), { deep: true, flush: 'pre' })
+
 function buildPricingInput(): { sections: TriPricingSection[]; lines: TriPricingLine[] } {
   const sections: TriPricingSection[] = []
   const lines: TriPricingLine[] = []
-  for (const b of blocks.value) {
-    if (b.kind === 'section') {
+  for (const b of blocks.value as unknown[]) {
+    if (!b || typeof b !== 'object') continue
+    const rec = b as Record<string, unknown>
+    if (rec.kind === 'section') {
+      const section = b as SectionBlock
       sections.push({
-        tempId: b.tempId,
-        discount_type: b.discount_type ?? null,
-        discount_value: b.discount_value ?? null,
-        commission_type: b.commission_type ?? null,
-        commission_value: b.commission_value ?? null,
+        tempId: section.tempId,
+        discount_type: section.discount_type ?? null,
+        discount_value: section.discount_value ?? null,
+        commission_type: section.commission_type ?? null,
+        commission_value: section.commission_value ?? null,
       })
-      for (const row of b.items) {
-        lines.push(rowToPricingLine(row, b.tempId))
+      for (const entry of section.items as unknown[]) {
+        const row = resolveLineRow(entry)
+        if (row) lines.push(rowToPricingLine(row, section.tempId))
       }
     } else {
-      lines.push(rowToPricingLine(b.row, null))
+      const row = resolveLineRow(b)
+      if (row) lines.push(rowToPricingLine(row, null))
     }
   }
   return { sections, lines }
@@ -199,12 +292,30 @@ const pricingResult = computed(() => {
 const lineIndexByUid = computed(() => {
   const map = new Map<string, number>()
   let idx = 0
-  for (const b of blocks.value) {
-    if (b.kind === 'item') map.set(b.row._uid, idx++)
-    else for (const row of b.items) map.set(row._uid, idx++)
+  for (const b of blocks.value as unknown[]) {
+    if (!b || typeof b !== 'object') continue
+    const rec = b as Record<string, unknown>
+    if (rec.kind === 'section') {
+      for (const entry of (b as SectionBlock).items as unknown[]) {
+        const row = resolveLineRow(entry)
+        if (row) map.set(row._uid, idx++)
+      }
+    } else {
+      const row = resolveLineRow(b)
+      if (row) map.set(row._uid, idx++)
+    }
   }
   return map
 })
+
+function sectionItemsAsRows(section: SectionBlock): Row[] {
+  const out: Row[] = []
+  for (const entry of section.items as unknown[]) {
+    const row = resolveLineRow(entry)
+    if (row) out.push(row)
+  }
+  return out
+}
 
 const hasQuoteCommission = computed(
   () => !!quoteCommissionType.value && (quoteCommissionValue.value ?? 0) > 0,
@@ -237,11 +348,11 @@ function lineOwnDiscount(row: Row): number {
 }
 
 function sectionTotal(section: SectionBlock): number {
-  return section.items.reduce((s, r) => s + linePreview(r), 0)
+  return sectionItemsAsRows(section).reduce((s, r) => s + linePreview(r), 0)
 }
 
 function sectionOfferTotal(section: SectionBlock): number {
-  return section.items.reduce((s, r) => s + (lineResult(r)?.offer ?? 0), 0)
+  return sectionItemsAsRows(section).reduce((s, r) => s + (lineResult(r)?.offer ?? 0), 0)
 }
 
 function sectionDiscountAmount(section: SectionBlock): number {
@@ -406,26 +517,55 @@ async function load() {
 }
 
 function stripRow(r: Row): TriQuoteLineItem {
-  const { _uid, ...rest } = r
+  const { _uid, image, ...rest } = r
   void _uid
+  void image
   return rest
 }
 
+function setRowImage(row: Row, image: TriQuoteImage) {
+  row.image_id = image.id
+  row.image = image
+}
+
+function removeRowImage(row: Row) {
+  row.image_id = null
+  row.image = null
+}
+
 function serializeState(): string {
-  const serializedBlocks = blocks.value.map((b) => {
-    if (b.kind === 'item') {
-      return { kind: 'item' as const, row: stripRow(b.row) }
-    }
-    return {
-      kind: 'section' as const,
-      tempId: b.tempId,
-      title: b.title,
-      discount_type: b.discount_type ?? null,
-      discount_value: b.discount_value ?? null,
-      commission_type: b.commission_type ?? null,
-      commission_value: b.commission_value ?? null,
-      items: b.items.map(stripRow),
-    }
+  type SerializedBlock =
+    | { kind: 'item'; row: ReturnType<typeof stripRow> }
+    | {
+        kind: 'section'
+        tempId: string
+        title: string
+        discount_type: TriAdjustmentType | null
+        discount_value: number | null
+        commission_type: TriAdjustmentType | null
+        commission_value: number | null
+        items: ReturnType<typeof stripRow>[]
+      }
+  const serializedBlocks = (blocks.value as unknown[]).flatMap((b): SerializedBlock[] => {
+    const row = resolveLineRow(b)
+    if (row) return [{ kind: 'item' as const, row: stripRow(row) }]
+    if (!b || typeof b !== 'object' || (b as Block).kind !== 'section') return []
+    const section = b as SectionBlock
+    return [
+      {
+        kind: 'section' as const,
+        tempId: section.tempId,
+        title: section.title,
+        discount_type: section.discount_type ?? null,
+        discount_value: section.discount_value ?? null,
+        commission_type: section.commission_type ?? null,
+        commission_value: section.commission_value ?? null,
+        items: (section.items as unknown[]).flatMap((it) => {
+          const r = resolveLineRow(it)
+          return r ? [stripRow(r)] : []
+        }),
+      },
+    ]
   })
   return JSON.stringify({
     blocks: serializedBlocks,
@@ -446,8 +586,24 @@ function syncBaseline() {
 
 const isDirty = computed(() => !loading.value && serializeState() !== baseline.value)
 
+const hasLineItems = computed(() =>
+  blocks.value.some(
+    (b) => b.kind === 'item' || (b.kind === 'section' && b.items.length > 0),
+  ),
+)
+
+async function downloadPdf() {
+  if (!variant.value) return
+  if (isDirty.value) {
+    await save()
+    if (isDirty.value) return
+  }
+  window.open(triApi.variants.pdfUrl(variantId.value, false), '_blank')
+}
+
 async function save() {
   if (!variant.value) return
+  normalizeBlocksInPlace()
   saving.value = true
   try {
     const sectionsPayload: Record<string, unknown>[] = []
@@ -494,7 +650,7 @@ async function save() {
       toast.error(t('tri.quote.lock_conflict'))
       await load()
     } else {
-      toast.error(t('common.error'))
+      toast.error(apiErrorMessage(e, t('common.error')))
     }
   } finally {
     saving.value = false
@@ -606,6 +762,20 @@ onBeforeUnmount(() => {
               class="h-10 px-3 border border-neutral-300 rounded-lg text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
             />
           </div>
+
+          <!-- Stáhnout PDF -->
+          <div v-if="hasLineItems">
+            <span class="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5 invisible select-none" aria-hidden="true">&nbsp;</span>
+            <button
+              type="button"
+              :disabled="saving"
+              class="cursor-pointer h-10 px-3 text-sm border border-primary-500/40 rounded-lg text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1.5 disabled:opacity-50"
+              @click="downloadPdf"
+            >
+              <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+              {{ t('invoice.download_pdf') }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -624,203 +794,273 @@ onBeforeUnmount(() => {
       <textarea v-model="noteAboveItems" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
     </div>
 
-    <!-- Items / sections table -->
-    <div
-      v-if="blocks.length"
-      class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden"
-    >
-      <!-- Column header -->
-      <div
-        :class="[gridCols, 'bg-neutral-50 border-b border-neutral-200 px-3 py-2 text-xs uppercase tracking-wide text-neutral-500']"
-      >
-        <span></span>
-        <span class="px-2">{{ t('tri.quote.designation') }}</span>
-        <span class="px-2">{{ t('tri.jobs.title_field') }}</span>
-        <span class="px-2">{{ t('tri.quote.quantity') }}</span>
-        <span class="px-2 text-right">{{ t('tri.quote.unit_price') }}</span>
-        <span class="px-2 text-right">{{ t('tri.quote.vat_rate') }}</span>
-        <span class="text-right">{{ t('tri.quote.line_total') }}</span>
-        <span></span>
+    <!-- Table UI toggle -->
+    <div class="flex items-center justify-end">
+      <div class="inline-flex h-8 items-center rounded-md border border-neutral-200 bg-surface p-0.5 text-xs">
+        <button
+          type="button"
+          :class="[
+            'cursor-pointer h-7 px-2.5 rounded transition-colors',
+            tableUi === 'classic' ? 'bg-neutral-100 text-neutral-900 font-medium' : 'text-neutral-500 hover:text-neutral-800',
+          ]"
+          @click="setTableUi('classic')"
+        >
+          {{ t('tri.quote.table_ui_classic') }}
+        </button>
+        <button
+          type="button"
+          :class="[
+            'cursor-pointer h-7 px-2.5 rounded transition-colors',
+            tableUi === 'notion' ? 'bg-neutral-100 text-neutral-900 font-medium' : 'text-neutral-500 hover:text-neutral-800',
+          ]"
+          @click="setTableUi('notion')"
+        >
+          {{ t('tri.quote.table_ui_notion') }}
+        </button>
       </div>
+    </div>
 
-      <template v-for="(block, bi) in blocks" :key="block.kind === 'section' ? block.tempId : block.row._uid">
-        <div v-if="gapBeforeBlock(bi)" class="bg-neutral-50 h-6" aria-hidden="true"></div>
+    <!-- Notion-like items table -->
+    <VariantItemsNotionTable
+      v-if="tableUi === 'notion'"
+      v-model:blocks="blocks"
+      :line-offer="lineOffer"
+      :line-after="lineAfter"
+      :line-own-discount="lineOwnDiscount"
+      :line-result="lineResult"
+      :section-total="sectionTotal"
+      :section-offer-total="sectionOfferTotal"
+      :section-discount-amount="sectionDiscountAmount"
+      :is-line-commission-overridden="isLineCommissionOverridden"
+      :has-quote-commission="hasQuoteCommission"
+      :format-line-amount="formatLineAmount"
+      :variant-id="variantId"
+      :can-write="auth.canWrite"
+      @add-line="addLine"
+      @add-line-to-section="addLineToSection"
+      @add-section="addSection"
+      @delete-standalone="deleteStandalone"
+      @delete-section-item="(section, ii) => deleteSectionItem(section, ii)"
+      @delete-section="deleteSection"
+    />
 
-        <!-- Standalone item -->
-        <div v-if="block.kind === 'item'" class="border-b border-neutral-100">
-          <div :class="[gridCols, 'group hover:bg-neutral-50 px-3 py-2']">
-            <div :class="[arrowCellClass, rowHoverActionClass]">
-              <button type="button" :class="arrowBtnClass" :disabled="bi === 0" :title="t('tri.quote.move_up')" @click="moveStandaloneItem(bi, -1)">▲</button>
-              <button type="button" :class="arrowBtnClass" :disabled="bi === blocks.length - 1" :title="t('tri.quote.move_down')" @click="moveStandaloneItem(bi, 1)">▼</button>
-            </div>
-            <input v-model="block.row.designation" :class="[inputGhostClass, 'w-full']" />
-            <textarea v-model="block.row.title" v-autosize rows="1" :class="[titleAreaClass, 'w-full']"></textarea>
-            <input v-model.number="block.row.quantity" type="number" step="0.001" :class="[inputGhostClass, noSpinClass, 'w-full']" />
-            <input v-model.number="block.row.base_unit_price" type="number" step="0.01" :class="[inputGhostClass, noSpinClass, inputRightClass, 'w-full']" />
-            <select v-model.number="block.row.vat_rate" :class="[inputGhostClass, inputRightClass, 'w-full']">
-              <option :value="21">21</option>
-              <option :value="12">12</option>
-              <option :value="0">0</option>
-            </select>
-            <div :class="lineTotalClass">
-              <span>{{ formatLineAmount(lineOffer(block.row)) }}</span>
-              <template v-if="!isPanelOpen(block.row._uid) && lineOwnDiscount(block.row) > 0">
-                <span :class="[lineTotalSubClass, 'text-danger-600']">−{{ formatLineAmount(lineOwnDiscount(block.row)) }}</span>
-                <span :class="[lineTotalSubClass, 'text-neutral-700']">{{ formatLineAmount(lineAfter(block.row)) }}</span>
-              </template>
-            </div>
-            <div :class="['flex items-center justify-center gap-0.5', rowHoverActionClass]">
-              <button
-                type="button"
-                :class="[adjBtnClass, isPanelOpen(block.row._uid) && adjBtnActiveClass]"
-                :title="t('tri.quote.adjustments_toggle')"
-                @click="togglePanel(block.row._uid)"
-              >%</button>
-              <button type="button" :class="delBtnClass" :title="t('common.delete')" @click="deleteStandalone(bi)">×</button>
-            </div>
-          </div>
-          <div v-if="isPanelOpen(block.row._uid)" :class="gridCols">
-            <QuoteAdjustmentPanel
-              v-model:discount-type="block.row.line_discount_type"
-              v-model:discount-value="block.row.line_discount_value"
-              v-model:commission-type="block.row.markup_type"
-              v-model:commission-value="block.row.markup_value"
-              :commission-overridden="isLineCommissionOverridden()"
-              :offer-amount="lineOffer(block.row)"
-              :discount-amount="lineOwnDiscount(block.row)"
-              :commission-amount="lineResult(block.row)?.markupAmount"
-              :final-amount="lineAfter(block.row)"
-            />
-          </div>
+    <!-- Classic items / sections table -->
+    <template v-else>
+      <div
+        v-if="blocks.length"
+        class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden"
+      >
+        <!-- Column header -->
+        <div
+          :class="[gridCols, 'bg-neutral-50 border-b border-neutral-200 px-3 py-2 text-xs uppercase tracking-wide text-neutral-500']"
+        >
+          <span></span>
+          <span class="px-2">{{ t('tri.quote.designation') }}</span>
+          <span class="px-2">{{ t('tri.jobs.title_field') }}</span>
+          <span class="px-2">{{ t('tri.quote.quantity') }}</span>
+          <span class="px-2 text-right">{{ t('tri.quote.unit_price') }}</span>
+          <span class="px-2 text-right">{{ t('tri.quote.vat_rate') }}</span>
+          <span class="text-right">{{ t('tri.quote.line_total') }}</span>
+          <span></span>
         </div>
 
-        <!-- Section -->
-        <template v-else>
-          <!-- Section header strip -->
-          <div class="group bg-primary-50/60 border-b border-neutral-200 border-l-[3px] border-l-primary-400">
-            <div class="flex items-center gap-1.5 px-3 py-2">
-              <div :class="[arrowCellClass, rowHoverActionClass]">
-                <button type="button" :class="arrowBtnClass" :disabled="bi === 0" :title="t('tri.quote.move_up')" @click="moveSection(bi, -1)">▲</button>
-                <button type="button" :class="arrowBtnClass" :disabled="bi === blocks.length - 1" :title="t('tri.quote.move_down')" @click="moveSection(bi, 1)">▼</button>
-              </div>
-              <input
-                v-model="block.title"
-                :class="[inputGhostClass, 'flex-1 h-10 !text-[17px] font-semibold text-neutral-700']"
-              />
-              <button
-                type="button"
-                :class="[adjBtnClass, rowHoverActionClass, isPanelOpen(block.tempId) && adjBtnActiveClass]"
-                :title="t('tri.quote.adjustments_toggle')"
-                @click="togglePanel(block.tempId)"
-              >%</button>
-              <button type="button" :class="[delBtnClass, rowHoverActionClass]" :title="t('tri.quote.delete_section')" @click="deleteSection(bi)">×</button>
-            </div>
-            <div v-if="isPanelOpen(block.tempId)" class="px-3 pb-2">
-              <QuoteAdjustmentPanel
-                v-model:discount-type="block.discount_type"
-                v-model:discount-value="block.discount_value"
-                v-model:commission-type="block.commission_type"
-                v-model:commission-value="block.commission_value"
-                :commission-overridden="hasQuoteCommission"
-                :offer-amount="sectionOfferTotal(block)"
-                :discount-amount="sectionDiscountAmount(block)"
-                :final-amount="sectionTotal(block)"
-              />
-            </div>
-          </div>
+        <template v-for="(block, bi) in blocks" :key="block.kind === 'section' ? block.tempId : block.row._uid">
+          <div v-if="gapBeforeBlock(bi)" class="bg-neutral-50 h-6" aria-hidden="true"></div>
 
-          <!-- Section item rows -->
-          <div
-            v-for="(row, ii) in block.items"
-            :key="row._uid"
-            class="border-b border-neutral-100 border-l-[3px] border-l-primary-200 bg-primary-50/20"
-          >
-            <div :class="[gridCols, 'group hover:bg-primary-50/40 px-3 py-2']">
+          <!-- Standalone item -->
+          <div v-if="block.kind === 'item'" class="border-b border-neutral-100">
+            <div :class="[gridCols, 'group hover:bg-neutral-50 px-3 py-2']">
               <div :class="[arrowCellClass, rowHoverActionClass]">
-                <button type="button" :class="arrowBtnClass" :title="t('tri.quote.move_up')" @click="moveSectionItem(block, ii, -1)">▲</button>
-                <button type="button" :class="arrowBtnClass" :title="t('tri.quote.move_down')" @click="moveSectionItem(block, ii, 1)">▼</button>
+                <button type="button" :class="arrowBtnClass" :disabled="bi === 0" :title="t('tri.quote.move_up')" @click="moveStandaloneItem(bi, -1)">▲</button>
+                <button type="button" :class="arrowBtnClass" :disabled="bi === blocks.length - 1" :title="t('tri.quote.move_down')" @click="moveStandaloneItem(bi, 1)">▼</button>
               </div>
-              <input v-model="row.designation" :class="[inputGhostClass, 'w-full']" />
-              <textarea v-model="row.title" v-autosize rows="1" :class="[titleAreaClass, 'w-full']"></textarea>
-              <input v-model.number="row.quantity" type="number" step="0.001" :class="[inputGhostClass, noSpinClass, 'w-full']" />
-              <input v-model.number="row.base_unit_price" type="number" step="0.01" :class="[inputGhostClass, noSpinClass, inputRightClass, 'w-full']" />
-              <select v-model.number="row.vat_rate" :class="[inputGhostClass, inputRightClass, 'w-full']">
+              <input v-model="block.row.designation" :class="[inputGhostClass, 'w-full']" />
+              <div class="flex min-w-0 items-start">
+                <QuoteLineImageControl
+                  :variant-id="variantId"
+                  :image="block.row.image ?? null"
+                  :disabled="!auth.canWrite"
+                  @uploaded="setRowImage(block.row, $event)"
+                  @removed="removeRowImage(block.row)"
+                />
+                <textarea v-model="block.row.title" v-autosize rows="1" :class="[titleAreaClass, 'min-w-0 flex-1']"></textarea>
+              </div>
+              <input v-model.number="block.row.quantity" type="number" step="0.001" :class="[inputGhostClass, noSpinClass, 'w-full']" />
+              <input v-model.number="block.row.base_unit_price" type="number" step="0.01" :class="[inputGhostClass, noSpinClass, inputRightClass, 'w-full']" />
+              <select v-model.number="block.row.vat_rate" :class="[inputGhostClass, inputRightClass, 'w-full']">
                 <option :value="21">21</option>
                 <option :value="12">12</option>
                 <option :value="0">0</option>
               </select>
-            <div :class="lineTotalClass">
-              <span>{{ formatLineAmount(lineOffer(row)) }}</span>
-              <template v-if="!isPanelOpen(row._uid) && lineOwnDiscount(row) > 0">
-                <span :class="[lineTotalSubClass, 'text-danger-600']">−{{ formatLineAmount(lineOwnDiscount(row)) }}</span>
-                <span :class="[lineTotalSubClass, 'text-neutral-700']">{{ formatLineAmount(lineAfter(row)) }}</span>
-              </template>
-            </div>
+              <div :class="lineTotalClass">
+                <span>{{ formatLineAmount(lineOffer(block.row)) }}</span>
+                <template v-if="!isPanelOpen(block.row._uid) && lineOwnDiscount(block.row) > 0">
+                  <span :class="[lineTotalSubClass, 'text-danger-600']">−{{ formatLineAmount(lineOwnDiscount(block.row)) }}</span>
+                  <span :class="[lineTotalSubClass, 'text-neutral-700']">{{ formatLineAmount(lineAfter(block.row)) }}</span>
+                </template>
+              </div>
               <div :class="['flex items-center justify-center gap-0.5', rowHoverActionClass]">
                 <button
                   type="button"
-                  :class="[adjBtnClass, isPanelOpen(row._uid) && adjBtnActiveClass]"
+                  :class="[adjBtnClass, isPanelOpen(block.row._uid) && adjBtnActiveClass]"
                   :title="t('tri.quote.adjustments_toggle')"
-                  @click="togglePanel(row._uid)"
+                  @click="togglePanel(block.row._uid)"
                 >%</button>
-                <button type="button" :class="delBtnClass" :title="t('common.delete')" @click="deleteSectionItem(block, ii)">×</button>
+                <button type="button" :class="delBtnClass" :title="t('common.delete')" @click="deleteStandalone(bi)">×</button>
               </div>
             </div>
-            <div v-if="isPanelOpen(row._uid)" :class="gridCols">
+            <div v-if="isPanelOpen(block.row._uid)" :class="gridCols">
               <QuoteAdjustmentPanel
-                v-model:discount-type="row.line_discount_type"
-                v-model:discount-value="row.line_discount_value"
-                v-model:commission-type="row.markup_type"
-                v-model:commission-value="row.markup_value"
-                :commission-overridden="isLineCommissionOverridden(block)"
-                :offer-amount="lineOffer(row)"
-                :discount-amount="lineOwnDiscount(row)"
-                :commission-amount="lineResult(row)?.markupAmount"
-                :final-amount="lineAfter(row)"
+                v-model:discount-type="block.row.line_discount_type"
+                v-model:discount-value="block.row.line_discount_value"
+                v-model:commission-type="block.row.markup_type"
+                v-model:commission-value="block.row.markup_value"
+                :commission-overridden="isLineCommissionOverridden()"
+                :offer-amount="lineOffer(block.row)"
+                :discount-amount="lineOwnDiscount(block.row)"
+                :commission-amount="lineResult(block.row)?.markupAmount"
+                :final-amount="lineAfter(block.row)"
               />
             </div>
           </div>
 
-          <!-- Section footer: add line + subtotal (stejný grid jako řádky → částka zarovnaná doprava) -->
-          <div :class="[gridCols, 'bg-neutral-50/60 border-b border-neutral-200 border-l-[3px] border-l-primary-400 px-3 py-2']">
-            <span></span>
-            <button type="button" class="col-span-5 cursor-pointer text-xs text-primary-600 hover:text-primary-700 text-left" @click="addLineToSection(block)">
-              {{ t('tri.quote.add_line') }}
-            </button>
-            <div class="flex flex-col items-end text-sm leading-tight">
-              <div class="flex items-center justify-end gap-1">
-                <span class="text-neutral-600">{{ t('tri.quote.section_total') }}:</span>
-                <span class="font-semibold font-mono tabular-nums text-neutral-900">{{ formatLineAmount(sectionOfferTotal(block)) }}</span>
+          <!-- Section -->
+          <template v-else>
+            <!-- Section header strip -->
+            <div class="group bg-primary-50/60 border-b border-neutral-200 border-l-[3px] border-l-primary-400">
+              <div class="flex items-center gap-1.5 px-3 py-2">
+                <div :class="[arrowCellClass, rowHoverActionClass]">
+                  <button type="button" :class="arrowBtnClass" :disabled="bi === 0" :title="t('tri.quote.move_up')" @click="moveSection(bi, -1)">▲</button>
+                  <button type="button" :class="arrowBtnClass" :disabled="bi === blocks.length - 1" :title="t('tri.quote.move_down')" @click="moveSection(bi, 1)">▼</button>
+                </div>
+                <input
+                  v-model="block.title"
+                  :class="[inputGhostClass, 'flex-1 h-10 !text-[17px] font-semibold text-neutral-700']"
+                />
+                <button
+                  type="button"
+                  :class="[adjBtnClass, rowHoverActionClass, isPanelOpen(block.tempId) && adjBtnActiveClass]"
+                  :title="t('tri.quote.adjustments_toggle')"
+                  @click="togglePanel(block.tempId)"
+                >%</button>
+                <button type="button" :class="[delBtnClass, rowHoverActionClass]" :title="t('tri.quote.delete_section')" @click="deleteSection(bi)">×</button>
               </div>
-              <template v-if="!isPanelOpen(block.tempId) && sectionDiscountAmount(block) > 0">
-                <span :class="[lineTotalSubClass, 'text-danger-600 font-mono']">−{{ formatLineAmount(sectionDiscountAmount(block)) }}</span>
-                <span :class="[lineTotalSubClass, 'text-neutral-700 font-mono']">{{ formatLineAmount(sectionTotal(block)) }}</span>
-              </template>
+              <div v-if="isPanelOpen(block.tempId)" class="px-3 pb-2">
+                <QuoteAdjustmentPanel
+                  v-model:discount-type="block.discount_type"
+                  v-model:discount-value="block.discount_value"
+                  v-model:commission-type="block.commission_type"
+                  v-model:commission-value="block.commission_value"
+                  :commission-overridden="hasQuoteCommission"
+                  :offer-amount="sectionOfferTotal(block)"
+                  :discount-amount="sectionDiscountAmount(block)"
+                  :final-amount="sectionTotal(block)"
+                />
+              </div>
             </div>
-            <span></span>
-          </div>
+
+            <!-- Section item rows -->
+            <div
+              v-for="(row, ii) in block.items"
+              :key="row._uid"
+              class="border-b border-neutral-100 border-l-[3px] border-l-primary-200 bg-primary-50/20"
+            >
+              <div :class="[gridCols, 'group hover:bg-primary-50/40 px-3 py-2']">
+                <div :class="[arrowCellClass, rowHoverActionClass]">
+                  <button type="button" :class="arrowBtnClass" :title="t('tri.quote.move_up')" @click="moveSectionItem(block, ii, -1)">▲</button>
+                  <button type="button" :class="arrowBtnClass" :title="t('tri.quote.move_down')" @click="moveSectionItem(block, ii, 1)">▼</button>
+                </div>
+                <input v-model="row.designation" :class="[inputGhostClass, 'w-full']" />
+                <div class="flex min-w-0 items-start">
+                  <QuoteLineImageControl
+                    :variant-id="variantId"
+                    :image="row.image ?? null"
+                    :disabled="!auth.canWrite"
+                    @uploaded="setRowImage(row, $event)"
+                    @removed="removeRowImage(row)"
+                  />
+                  <textarea v-model="row.title" v-autosize rows="1" :class="[titleAreaClass, 'min-w-0 flex-1']"></textarea>
+                </div>
+                <input v-model.number="row.quantity" type="number" step="0.001" :class="[inputGhostClass, noSpinClass, 'w-full']" />
+                <input v-model.number="row.base_unit_price" type="number" step="0.01" :class="[inputGhostClass, noSpinClass, inputRightClass, 'w-full']" />
+                <select v-model.number="row.vat_rate" :class="[inputGhostClass, inputRightClass, 'w-full']">
+                  <option :value="21">21</option>
+                  <option :value="12">12</option>
+                  <option :value="0">0</option>
+                </select>
+              <div :class="lineTotalClass">
+                <span>{{ formatLineAmount(lineOffer(row)) }}</span>
+                <template v-if="!isPanelOpen(row._uid) && lineOwnDiscount(row) > 0">
+                  <span :class="[lineTotalSubClass, 'text-danger-600']">−{{ formatLineAmount(lineOwnDiscount(row)) }}</span>
+                  <span :class="[lineTotalSubClass, 'text-neutral-700']">{{ formatLineAmount(lineAfter(row)) }}</span>
+                </template>
+              </div>
+                <div :class="['flex items-center justify-center gap-0.5', rowHoverActionClass]">
+                  <button
+                    type="button"
+                    :class="[adjBtnClass, isPanelOpen(row._uid) && adjBtnActiveClass]"
+                    :title="t('tri.quote.adjustments_toggle')"
+                    @click="togglePanel(row._uid)"
+                  >%</button>
+                  <button type="button" :class="delBtnClass" :title="t('common.delete')" @click="deleteSectionItem(block, ii)">×</button>
+                </div>
+              </div>
+              <div v-if="isPanelOpen(row._uid)" :class="gridCols">
+                <QuoteAdjustmentPanel
+                  v-model:discount-type="row.line_discount_type"
+                  v-model:discount-value="row.line_discount_value"
+                  v-model:commission-type="row.markup_type"
+                  v-model:commission-value="row.markup_value"
+                  :commission-overridden="isLineCommissionOverridden(block)"
+                  :offer-amount="lineOffer(row)"
+                  :discount-amount="lineOwnDiscount(row)"
+                  :commission-amount="lineResult(row)?.markupAmount"
+                  :final-amount="lineAfter(row)"
+                />
+              </div>
+            </div>
+
+            <!-- Section footer: add line + subtotal -->
+            <div :class="[gridCols, 'bg-neutral-50/60 border-b border-neutral-200 border-l-[3px] border-l-primary-400 px-3 py-2']">
+              <span></span>
+              <button type="button" class="col-span-5 cursor-pointer text-xs text-primary-600 hover:text-primary-700 text-left" @click="addLineToSection(block)">
+                + {{ t('tri.quote.add_line_to_section') }}
+              </button>
+              <div class="flex flex-col items-end text-sm leading-tight">
+                <div class="flex items-center justify-end gap-1">
+                  <span class="text-neutral-600">{{ t('tri.quote.section_total_named', { name: block.title || t('tri.quote.sections') }) }}:</span>
+                  <span class="font-semibold font-mono tabular-nums text-neutral-900">{{ formatLineAmount(sectionOfferTotal(block)) }}</span>
+                </div>
+                <template v-if="!isPanelOpen(block.tempId) && sectionDiscountAmount(block) > 0">
+                  <span :class="[lineTotalSubClass, 'text-danger-600 font-mono']">−{{ formatLineAmount(sectionDiscountAmount(block)) }}</span>
+                  <span :class="[lineTotalSubClass, 'text-neutral-700 font-mono']">{{ formatLineAmount(sectionTotal(block)) }}</span>
+                </template>
+              </div>
+              <span></span>
+            </div>
+          </template>
         </template>
-      </template>
 
-      <div v-if="lastBlockIsSection" class="bg-neutral-50 h-6" aria-hidden="true"></div>
-    </div>
+        <div v-if="lastBlockIsSection" class="bg-neutral-50 h-6" aria-hidden="true"></div>
+      </div>
 
-    <div class="flex gap-2">
-      <button
-        type="button"
-        class="cursor-pointer inline-flex items-center gap-1.5 h-7 px-2.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
-        @click="addSection"
-      >
-        {{ t('tri.quote.add_section') }}
-      </button>
-      <button
-        type="button"
-        class="cursor-pointer inline-flex items-center gap-1.5 h-7 px-2.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
-        @click="addLine()"
-      >
-        {{ t('tri.quote.add_line') }}
-      </button>
-    </div>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="cursor-pointer inline-flex items-center gap-1.5 h-7 px-2.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
+          @click="addSection"
+        >
+          {{ t('tri.quote.add_section') }}
+        </button>
+        <button
+          type="button"
+          class="cursor-pointer inline-flex items-center gap-1.5 h-7 px-2.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
+          @click="addLine()"
+        >
+          {{ t('tri.quote.add_line') }}
+        </button>
+      </div>
+    </template>
 
     <!-- Poznámka pod položkami + souhrn cen -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
@@ -852,31 +1092,31 @@ onBeforeUnmount(() => {
         <div class="space-y-1.5 text-sm">
         <div class="flex justify-between">
           <span class="text-neutral-500">{{ t('tri.quote.total_base') }}</span>
-          <span class="font-mono">{{ formatMoney(previewTotals.subtotal, 'CZK') }}</span>
+          <span class="font-mono tabular-nums">{{ formatMoney(Math.round(previewTotals.subtotal), 'CZK', 0) }}</span>
         </div>
         <div v-if="previewTotals.discountTotal > 0" class="flex justify-between text-danger-600">
           <span>{{ t('tri.quote.total_discount') }}</span>
-          <span class="font-mono">−{{ formatMoney(previewTotals.discountTotal, 'CZK') }}</span>
+          <span class="font-mono tabular-nums">−{{ formatMoney(Math.round(previewTotals.discountTotal), 'CZK', 0) }}</span>
         </div>
         <div v-if="previewTotals.commissionTotal > 0" class="flex justify-between text-primary-700">
           <span>{{ t('tri.quote.total_commission') }}</span>
-          <span class="font-mono">+{{ formatMoney(previewTotals.commissionTotal, 'CZK') }}</span>
+          <span class="font-mono tabular-nums">+{{ formatMoney(Math.round(previewTotals.commissionTotal), 'CZK', 0) }}</span>
         </div>
         <div v-if="previewTotals.base21 > 0" class="flex justify-between text-neutral-600">
-          <span>{{ t('tri.quote.vat_21') }} <span class="text-neutral-400">({{ formatMoney(previewTotals.base21, 'CZK') }})</span></span>
-          <span class="font-mono">{{ formatMoney(previewTotals.vat21, 'CZK') }}</span>
+          <span>{{ t('tri.quote.vat_21') }} <span class="text-neutral-400">({{ formatMoney(Math.round(previewTotals.base21), 'CZK', 0) }})</span></span>
+          <span class="font-mono tabular-nums">{{ formatMoney(Math.round(previewTotals.vat21), 'CZK', 0) }}</span>
         </div>
         <div v-if="previewTotals.base12 > 0" class="flex justify-between text-neutral-600">
-          <span>{{ t('tri.quote.vat_12') }} <span class="text-neutral-400">({{ formatMoney(previewTotals.base12, 'CZK') }})</span></span>
-          <span class="font-mono">{{ formatMoney(previewTotals.vat12, 'CZK') }}</span>
+          <span>{{ t('tri.quote.vat_12') }} <span class="text-neutral-400">({{ formatMoney(Math.round(previewTotals.base12), 'CZK', 0) }})</span></span>
+          <span class="font-mono tabular-nums">{{ formatMoney(Math.round(previewTotals.vat12), 'CZK', 0) }}</span>
         </div>
         <div v-if="previewTotals.base0 > 0" class="flex justify-between text-neutral-600">
-          <span>{{ t('tri.quote.vat_0') }} <span class="text-neutral-400">({{ formatMoney(previewTotals.base0, 'CZK') }})</span></span>
-          <span class="font-mono">—</span>
+          <span>{{ t('tri.quote.vat_0') }} <span class="text-neutral-400">({{ formatMoney(Math.round(previewTotals.base0), 'CZK', 0) }})</span></span>
+          <span class="font-mono tabular-nums">—</span>
         </div>
         <div class="flex justify-between pt-2 mt-1 border-t border-neutral-200 font-semibold text-base">
           <span>{{ t('tri.quote.total_with_vat') }}</span>
-          <span class="font-mono">{{ formatMoney(previewTotals.total, 'CZK') }}</span>
+          <span class="font-mono tabular-nums">{{ formatMoney(Math.round(previewTotals.total), 'CZK', 0) }}</span>
         </div>
         </div>
       </div>

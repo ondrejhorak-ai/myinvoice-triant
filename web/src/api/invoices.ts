@@ -149,6 +149,7 @@ export interface Invoice {
   cancelled_at: string | null
   pdf_path: string | null
   created_at: string
+  created_by_name?: string | null
   updated_at: string
   /** Výsledek děkovného e-mailu (issue #57) — vrací mark-paid, jen když se odesílalo. */
   payment_thanks?: { status: 'sent' | 'skipped' | 'failed'; reason?: string; recipients?: string[] } | null

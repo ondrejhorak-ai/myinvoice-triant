@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace MyInvoice\Tri;
 
+use MyInvoice\Tri\Action\Activity\CreateJobCommentAction;
+use MyInvoice\Tri\Action\Activity\DeleteJobCommentAction;
+use MyInvoice\Tri\Action\Activity\ListJobActivityAction;
+use MyInvoice\Tri\Action\Activity\UpdateJobCommentAction;
 use MyInvoice\Tri\Action\Job\ArchiveJobAction;
 use MyInvoice\Tri\Action\Job\CheckJobNumberAction;
 use MyInvoice\Tri\Action\Job\CreateJobAction;
 use MyInvoice\Tri\Action\Job\DeleteJobAction;
 use MyInvoice\Tri\Action\Job\GetJobAction;
+use MyInvoice\Tri\Action\Job\ListJobUsersAction;
 use MyInvoice\Tri\Action\Job\ListJobsAction;
 use MyInvoice\Tri\Action\Job\SuggestJobNumberAction;
 use MyInvoice\Tri\Action\Job\UpdateJobAction;
@@ -17,7 +22,10 @@ use MyInvoice\Tri\Action\Quote\ApproveVariantAction;
 use MyInvoice\Tri\Action\Quote\CreateVariantAction;
 use MyInvoice\Tri\Action\Quote\DuplicateVariantAction;
 use MyInvoice\Tri\Action\Quote\GetVariantAction;
+use MyInvoice\Tri\Action\Quote\GetLineImageAction;
+use MyInvoice\Tri\Action\Quote\PdfAction as QuotePdfAction;
 use MyInvoice\Tri\Action\Quote\SaveVariantAction;
+use MyInvoice\Tri\Action\Quote\UploadLineImageAction;
 use MyInvoice\Tri\Action\Quote\UpdateVariantStatusAction;
 use MyInvoice\Tri\Action\Tag\CreateTagAction;
 use MyInvoice\Tri\Action\Tag\DeleteTagAction;
@@ -46,6 +54,7 @@ final class TriRoutes
         $app->put('/api/tri/clients/{id:[0-9]+}/tags', SetClientTagsAction::class);
 
         // Jobs (Zakázky TRI)
+        $app->get('/api/tri/users', ListJobUsersAction::class);
         $app->get('/api/tri/jobs', ListJobsAction::class);
         $app->get('/api/tri/jobs/suggest-number', SuggestJobNumberAction::class);
         $app->get('/api/tri/jobs/check-number', CheckJobNumberAction::class);
@@ -56,9 +65,18 @@ final class TriRoutes
         $app->post('/api/tri/jobs/{id:[0-9]+}/archive', ArchiveJobAction::class);
         $app->delete('/api/tri/jobs/{id:[0-9]+}', DeleteJobAction::class);
 
+        // Job activity (chat + log událostí)
+        $app->get('/api/tri/jobs/{id:[0-9]+}/activity', ListJobActivityAction::class);
+        $app->post('/api/tri/jobs/{id:[0-9]+}/activity', CreateJobCommentAction::class);
+        $app->put('/api/tri/activity/{id:[0-9]+}', UpdateJobCommentAction::class);
+        $app->delete('/api/tri/activity/{id:[0-9]+}', DeleteJobCommentAction::class);
+
         // Quote variants
         $app->post('/api/tri/jobs/{job_id:[0-9]+}/variants', CreateVariantAction::class);
         $app->get('/api/tri/variants/{id:[0-9]+}', GetVariantAction::class);
+        $app->get('/api/tri/variants/{id:[0-9]+}/pdf', QuotePdfAction::class);
+        $app->post('/api/tri/variants/{id:[0-9]+}/images', UploadLineImageAction::class);
+        $app->get('/api/tri/quote-images/{id:[0-9]+}', GetLineImageAction::class);
         $app->put('/api/tri/variants/{id:[0-9]+}', SaveVariantAction::class);
         $app->post('/api/tri/variants/{id:[0-9]+}/duplicate', DuplicateVariantAction::class);
         $app->post('/api/tri/variants/{id:[0-9]+}/status', UpdateVariantStatusAction::class);

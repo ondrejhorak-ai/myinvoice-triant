@@ -26,6 +26,20 @@ final class SaveVariantAction
             if ($e->getMessage() === 'LOCK_VERSION_CONFLICT') {
                 return Json::error($response, 'conflict', 'Varianta byla mezitím upravena jiným uživatelem.', 409);
             }
+            if ($e->getMessage() === 'INVALID_QUOTE_IMAGE') {
+                return Json::error($response, 'invalid_image', 'Vybraný obrázek není dostupný.', 400);
+            }
+            throw $e;
+        } catch (\PDOException $e) {
+            // SQLSTATE 22001 = string data right truncation (too long for column)
+            if ($e->getCode() === '22001' || str_contains($e->getMessage(), '22001')) {
+                return Json::error(
+                    $response,
+                    'validation_failed',
+                    'Některý text je příliš dlouhý (název položky, označení nebo sekce).',
+                    400
+                );
+            }
             throw $e;
         }
         if ($variant === null) {

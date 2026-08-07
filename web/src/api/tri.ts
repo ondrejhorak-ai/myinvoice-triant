@@ -19,7 +19,16 @@ export interface TriJobContact {
   main_email: string | null
   phone: string | null
   ic: string | null
+  street?: string | null
+  city?: string | null
+  zip?: string | null
+  country_iso2?: string | null
   tags: TriTag[]
+}
+
+export interface TriJobAssignee {
+  user_id: number
+  name: string
 }
 
 export interface TriJob {
@@ -41,6 +50,7 @@ export interface TriJob {
   site_country: string
   notes: string | null
   contacts?: TriJobContact[]
+  assignees?: TriJobAssignee[]
   variants?: TriQuoteVariantSummary[]
   initial_variant_id?: number
   created_at?: string
@@ -70,8 +80,18 @@ export interface TriQuoteSection {
   commission_value?: number | null
 }
 
+export interface TriQuoteImage {
+  id: number
+  url: string
+  width_px: number
+  height_px: number
+  size_bytes: number
+}
+
 export interface TriQuoteLineItem {
   id?: number
+  image_id?: number | null
+  image?: TriQuoteImage | null
   quote_section_id?: number | null
   section_temp_id?: string | null
   sort_order?: number
@@ -148,6 +168,24 @@ export interface TriJobLink {
   title: string
 }
 
+export interface TriJobActivityItem {
+  id: number
+  job_id: number
+  user_id: number | null
+  user_name: string | null
+  kind: 'comment' | 'event'
+  event_type: string | null
+  body: string | null
+  payload: Record<string, unknown> | null
+  created_at: string
+  updated_at: string | null
+}
+
+export interface TriJobActivityPage {
+  data: TriJobActivityItem[]
+  has_more: boolean
+}
+
 export const triApi = {
   tags: {
     list: () => api.get<{ data: TriTag[] }>('/tri/tags').then((r) => r.data.data),
@@ -162,6 +200,7 @@ export const triApi = {
       api.put<{ tags: TriTag[] }>(`/tri/clients/${clientId}/tags`, { tag_ids: tagIds }).then((r) => r.data.tags),
   },
   jobs: {
+    listUsers: () => api.get<{ data: Array<{ id: number; name: string }> }>('/tri/users').then((r) => r.data.data),
     list: (params?: Record<string, string | number>) =>
       api.get<{ data: TriJob[]; meta: { total: number; page: number; pages: number } }>('/tri/jobs', { params }).then((r) => r.data),
     get: (id: number) => api.get<TriJob>(`/tri/jobs/${id}`).then((r) => r.data),
@@ -187,6 +226,30 @@ export const triApi = {
     updateStatus: (id: number, status: TriVariantStatus) =>
       api.post<TriQuoteVariant>(`/tri/variants/${id}/status`, { status }).then((r) => r.data),
     approve: (id: number) => api.post<TriQuoteVariant>(`/tri/variants/${id}/approve`).then((r) => r.data),
+    uploadImage: (id: number, file: File) => {
+      const data = new FormData()
+      data.append('file', file)
+      return api.post<TriQuoteImage>(`/tri/variants/${id}/images`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then((r) => r.data)
+    },
+    pdfUrl: (id: number, download: boolean = false) => {
+      const sid = localStorage.getItem('myinvoice.current_supplier_id')
+      const params = new URLSearchParams()
+      if (download) params.set('download', '1')
+      if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+      const qs = params.toString()
+      return `/api/tri/variants/${id}/pdf${qs ? '?' + qs : ''}`
+    },
+  },
+  activity: {
+    list: (jobId: number, params?: { before_id?: number; after_id?: number; limit?: number }) =>
+      api.get<TriJobActivityPage>(`/tri/jobs/${jobId}/activity`, { params }).then((r) => r.data),
+    create: (jobId: number, body: string) =>
+      api.post<TriJobActivityItem>(`/tri/jobs/${jobId}/activity`, { body }).then((r) => r.data),
+    update: (id: number, body: string) =>
+      api.put<TriJobActivityItem>(`/tri/activity/${id}`, { body }).then((r) => r.data),
+    remove: (id: number) => api.delete(`/tri/activity/${id}`),
   },
   jobInvoices: {
     list: (jobId: number) =>

@@ -4,6 +4,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { invoicesApi, type Invoice, type WorkReport, type ApprovalStatus, type InvoiceAttachment, type AdvanceCandidate, type InvoicePayment } from '@/api/invoices'
+import { clientsApi, type Client } from '@/api/clients'
+import { clientMissingAddress } from '@/utils/clientCompleteness'
 import {
   settingsApi,
   type PdfSignatureDocumentEntityType,
@@ -39,6 +41,10 @@ const route = useRoute()
 const router = useRouter()
 
 const invoice = ref<Invoice | null>(null)
+const clientForWarnings = ref<Client | null>(null)
+const clientAddressMissing = computed(() =>
+  clientForWarnings.value ? clientMissingAddress(clientForWarnings.value) : false,
+)
 const wrModalOpen = ref(false)
 const loading = ref(true)
 const busy = ref<string | null>(null)
@@ -62,6 +68,7 @@ const cancelReason = ref('')
 // Send modal state
 const sendOpen = ref(false)
 const sendTo = ref('')
+const sendHasNoRecipient = computed(() => sendOpen.value && !sendTo.value.trim())
 const sendNote = ref('')
 // #86 — vyřešení příjemci z backendu (provenance chips + editovatelné cc/bcc)
 const sendCcText = ref('')
@@ -142,6 +149,10 @@ async function load() {
   loading.value = true
   invoice.value = await invoicesApi.get(Number(route.params.id))
   loading.value = false
+  clientForWarnings.value = null
+  if (invoice.value?.client_id) {
+    clientsApi.get(invoice.value.client_id).then(c => { clientForWarnings.value = c }).catch(() => {})
+  }
   if (auth.canWrite) {
     await loadSignatureProfiles()
     if (hasPdfSigningProfiles.value) loadSignatureSelection('invoice')
@@ -1275,6 +1286,13 @@ const invoiceActions = computed<ActionItem[]>(() => {
       </div>
     </div>
 
+    <div
+      v-if="clientAddressMissing"
+      class="rounded-md bg-warning-50 border border-warning-500/30 px-4 py-3 text-sm text-warning-800"
+    >
+      {{ t('invoice.client_missing_address') }}
+    </div>
+
     <!-- Mark paid modal -->
     <div v-if="markPaidOpen" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
       <div class="bg-surface rounded-xl shadow-lg max-w-sm w-full p-5">
@@ -1397,6 +1415,7 @@ const invoiceActions = computed<ActionItem[]>(() => {
         <h3 class="text-lg font-semibold mb-3">{{ t('invoice.modals.send_title') }}</h3>
         <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.modals.send_recipients') }}</label>
         <input v-model="sendTo" type="text" class="w-full h-10 px-3 border border-neutral-300 rounded-md mb-2 text-sm" />
+        <p v-if="sendHasNoRecipient" class="text-xs text-warning-600 mb-2">{{ t('invoice.send_no_recipient_warning') }}</p>
 
         <!-- CC/BCC — editovatelné; zobrazí se když je resolver naplnil, jinak na klik -->
         <template v-if="sendCcBccVisible">

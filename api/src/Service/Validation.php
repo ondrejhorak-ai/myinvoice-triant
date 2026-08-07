@@ -19,17 +19,9 @@ final class Validation
         if (empty($data['company_name']) || !is_string($data['company_name']) || trim($data['company_name']) === '') {
             $err['company_name'][] = 'Firma / jméno je povinné';
         }
-        if (empty($data['street']) || trim((string) $data['street']) === '') {
-            $err['street'][] = 'Ulice je povinná';
-        }
-        if (empty($data['city']) || trim((string) $data['city']) === '') {
-            $err['city'][] = 'Město je povinné';
-        }
-        if (empty($data['zip']) || trim((string) $data['zip']) === '') {
-            $err['zip'][] = 'PSČ je povinné';
-        }
-        if (empty($data['main_email']) || !filter_var($data['main_email'], FILTER_VALIDATE_EMAIL)) {
-            $err['main_email'][] = 'Hlavní email je povinný a musí být platný';
+        $mainEmail = trim((string) ($data['main_email'] ?? ''));
+        if ($mainEmail !== '' && !filter_var($mainEmail, FILTER_VALIDATE_EMAIL)) {
+            $err['main_email'][] = 'Hlavní email musí být platný';
         }
         if (!empty($data['phone']) && strlen((string) $data['phone']) > 40) {
             $err['phone'][] = 'Telefon je příliš dlouhý';

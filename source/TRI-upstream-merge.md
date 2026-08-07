@@ -25,6 +25,21 @@ After each upstream merge, re-apply if conflicts removed them:
 
 3. [web/src/components/layout/AppLayout.vue](../web/src/components/layout/AppLayout.vue) — TRIANT nav section + [TriSidebarSettingsAction.php](../api/src/Action/Settings/TriSidebarSettingsAction.php) `ALLOWED_MODULE_IDS` for `tri-jobs`, `tri-contacts`, `tri-invoices`, `tri-tags`.
 
+### AppLayout.vue — TRI layout customizations (since 2026-07)
+
+Beyond the TRIANT nav section, `AppLayout.vue` carries these TRI UI changes. After an upstream merge, prefer the upstream version of conflicting blocks and re-apply:
+
+1. **Imports** (script top): `SHOW_LOCALE_SWITCHER, SHOW_THEME_TOGGLE` from `@/config/triUi`, plus `TriTopbarNav` and `TriLogo` from `./tri/`.
+2. **Topbar logo** — upstream `<img src="/styles/logo.svg">` + "MyInvoice.cz" text replaced by `<TriLogo class="h-7 w-auto" />` inside the home `RouterLink`, followed by `<TriTopbarNav />` (direct links to Kontakty/Zakázky/Faktury TRI).
+3. **Locale switcher + ThemeToggle** — both desktop topbar and mobile drawer-footer variants get `v-if="SHOW_LOCALE_SWITCHER"` / `v-if="SHOW_THEME_TOGGLE"` (markup kept, just not rendered).
+4. **Sidebar is always a drawer** (hamburger on all widths):
+   - backdrop `div`: remove `lg:hidden`
+   - `<aside>`: `fixed lg:sticky` → `fixed`, remove `lg:z-auto`, `-translate-x-full lg:translate-x-0` → `-translate-x-full`
+   - hamburger button: remove `lg:hidden`
+5. **AppShell.vue** (login/setup) — logo replaced by `<TriLogo class="h-9 w-auto text-neutral-900" />`, "MyInvoice.cz" heading removed.
+
+TRI-only files involved (no upstream conflicts expected): `web/src/config/triUi.ts`, `web/src/components/layout/tri/TriTopbarNav.vue`, `web/src/components/layout/tri/TriLogo.vue`.
+
 Optional small upstream touches (document in merge notes):
 
 - `ClientRepository` / `ListClientsAction` — `tri_tag_id` filter on Klienti list.

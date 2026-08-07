@@ -7,6 +7,7 @@ namespace MyInvoice\Tri\Action\Invoice;
 use MyInvoice\Http\Json;
 use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\IpMatcher;
+use MyInvoice\Tri\Service\JobActivityLogger;
 use MyInvoice\Tri\Service\JobInvoiceBuilder;
 use MyInvoice\Tri\Support\TriRequest;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -18,6 +19,7 @@ final class CreateAdvanceInvoiceAction
         private readonly JobInvoiceBuilder $builder,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
+        private readonly JobActivityLogger $activity,
     ) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
@@ -42,6 +44,10 @@ final class CreateAdvanceInvoiceAction
         $this->logger->log('tri.advance_invoice_created', $userId, 'invoice', $invoiceId, [
             'job_id' => $jobId,
         ], $ip, $request->getHeaderLine('User-Agent'));
+        $this->activity->event($jobId, $userId, 'invoice_created', [
+            'invoice_kind' => 'advance',
+            'invoice_id'   => $invoiceId,
+        ]);
 
         return Json::ok($response, [
             'invoice_id' => $invoiceId,

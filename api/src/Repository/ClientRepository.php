@@ -168,7 +168,9 @@ final class ClientRepository
                    ) tj ON tj.client_id = c.id"
             : '';
         // Cache `client_revenue_cache` — primární řádek vybíráme přes c.currency_default_id
-        $sql = "SELECT c.id, c.supplier_id, c.company_name, c.ic, c.dic, c.tax_number, c.main_email, c.phone, c.language,
+        $sql = "SELECT c.id, c.supplier_id, c.company_name, c.ic, c.dic, c.tax_number,
+                       c.street, c.city, c.zip,
+                       c.main_email, c.phone, c.language,
                        c.currency_default_id, cur.code AS currency_default,
                        c.reverse_charge, c.is_vat_payer, c.is_customer, c.is_vendor, c.is_fuel_station,
                        c.auto_send_reminders,

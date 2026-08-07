@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import TriLogo from './tri/TriLogo.vue'
 defineProps<{ title?: string }>()
 const { t } = useI18n()
 </script>
@@ -8,11 +9,8 @@ const { t } = useI18n()
   <div class="min-h-screen flex flex-col bg-neutral-50">
     <header class="border-b border-neutral-200 bg-surface">
       <div class="max-w-6xl mx-auto px-6 py-4 flex items-center gap-3">
-        <img src="/styles/logo.svg" alt="MyInvoice" class="w-9 h-9" />
+        <TriLogo class="h-9 w-auto text-neutral-900" />
         <div>
-          <h1 class="text-lg font-semibold leading-tight">
-            My<span class="text-primary-600">Invoice</span><span class="text-neutral-500 font-normal">.cz</span>
-          </h1>
           <p class="text-xs text-neutral-500 leading-tight">{{ title ?? t('app.subtitle') }}</p>
         </div>
       </div>

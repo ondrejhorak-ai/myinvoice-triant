@@ -63,7 +63,12 @@ final class JobRepository
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
         return [
-            'data' => array_map(fn (array $r) => $this->castSummary($r), $rows),
+            'data' => array_map(function (array $r) {
+                $summary = $this->castSummary($r);
+                $summary['assignees'] = $this->loadAssignees((int) $r['id']);
+
+                return $summary;
+            }, $rows),
             'meta' => [
                 'total'    => $total,
                 'page'     => $page,
@@ -91,15 +96,31 @@ final class JobRepository
 
         $job = $this->castFull($row);
         $job['contacts'] = $this->loadContacts($id);
+        $job['assignees'] = $this->loadAssignees($id);
 
         return $job;
     }
 
+    /** @return list<array{id: int, name: string}> */
+    public function listActiveUsers(): array
+    {
+        $stmt = $this->db->pdo()->query(
+            'SELECT id, name FROM users WHERE is_active = 1 ORDER BY name'
+        );
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        return array_map(static fn (array $r) => [
+            'id'   => (int) $r['id'],
+            'name' => (string) $r['name'],
+        ], $rows);
+    }
+
     /**
      * @param list<int> $clientIds
+     * @param list<int> $assigneeUserIds
      * @throws JobNumberConflictException|JobNumberFormatException
      */
-    public function create(int $supplierId, array $data, int $ownerUserId, array $clientIds): array
+    public function create(int $supplierId, array $data, int $ownerUserId, array $clientIds, array $assigneeUserIds = []): array
     {
         $pdo = $this->db->pdo();
         $yearSuffix = $this->numbers->getYearSuffix();
@@ -134,6 +155,8 @@ final class JobRepository
             ]);
             $jobId = (int) $pdo->lastInsertId();
             $this->syncContacts($pdo, $jobId, $clientIds);
+            $assignees = $assigneeUserIds !== [] ? $assigneeUserIds : [$ownerUserId];
+            $this->syncAssignees($pdo, $jobId, $assignees);
 
             $variantCode = 'A';
             $variantNumber = $this->numbers->formatVariantNumber($number, $variantCode);
@@ -163,8 +186,9 @@ final class JobRepository
 
     /**
      * @param list<int> $clientIds
+     * @param list<int>|null $assigneeUserIds null = beze změny; prázdné pole = fallback na zakladatele
      */
-    public function update(int $id, int $supplierId, array $data, array $clientIds): ?array
+    public function update(int $id, int $supplierId, array $data, array $clientIds, ?array $assigneeUserIds = null): ?array
     {
         $existing = $this->find($id, $supplierId);
         if ($existing === null) {
@@ -203,6 +227,11 @@ final class JobRepository
                 $supplierId,
             ]);
             $this->syncContacts($pdo, $id, $clientIds);
+
+            if ($assigneeUserIds !== null) {
+                $fallback = $assigneeUserIds !== [] ? $assigneeUserIds : [(int) $existing['owner_user_id']];
+                $this->syncAssignees($pdo, $id, $fallback);
+            }
 
             if ($numberChanged) {
                 $this->cascadeJobNumber($pdo, $id, $number);
@@ -270,9 +299,11 @@ final class JobRepository
     {
         $stmt = $this->db->pdo()->prepare(
             'SELECT jc.sort_order, c.id, c.company_name, c.first_name, c.last_name,
-                    c.main_email, c.phone, c.ic
+                    c.main_email, c.phone, c.ic, c.street, c.city, c.zip,
+                    co.iso2 AS country_iso2
                FROM tri_job_contacts jc
                JOIN clients c ON c.id = jc.client_id
+               JOIN countries co ON co.id = c.country_id
               WHERE jc.job_id = ?
               ORDER BY jc.sort_order'
         );
@@ -289,12 +320,50 @@ final class JobRepository
                 'last_name'    => $row['last_name'] !== null ? (string) $row['last_name'] : null,
                 'main_email'   => $row['main_email'] !== null ? (string) $row['main_email'] : null,
                 'phone'        => $row['phone'] !== null ? (string) $row['phone'] : null,
-                'ic'           => $row['ic'] !== null ? (string) $row['ic'] : null,
-                'tags'         => $this->tags->tagsForClient($clientId),
+                'ic'             => $row['ic'] !== null ? (string) $row['ic'] : null,
+                'street'         => $row['street'] !== null ? (string) $row['street'] : null,
+                'city'           => $row['city'] !== null ? (string) $row['city'] : null,
+                'zip'            => $row['zip'] !== null ? (string) $row['zip'] : null,
+                'country_iso2'   => $row['country_iso2'] !== null ? (string) $row['country_iso2'] : null,
+                'tags'           => $this->tags->tagsForClient($clientId),
             ];
         }
 
         return $out;
+    }
+
+    /** @return list<array{user_id: int, name: string}> */
+    private function loadAssignees(int $jobId): array
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT ju.user_id, u.name
+               FROM tri_job_users ju
+               JOIN users u ON u.id = ju.user_id
+              WHERE ju.job_id = ?
+              ORDER BY ju.sort_order'
+        );
+        $stmt->execute([$jobId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        return array_map(static fn (array $r) => [
+            'user_id' => (int) $r['user_id'],
+            'name'    => (string) $r['name'],
+        ], $rows);
+    }
+
+    /** @param list<int> $userIds */
+    private function syncAssignees(PDO $pdo, int $jobId, array $userIds): void
+    {
+        $unique = array_values(array_unique(array_map('intval', $userIds)));
+        $pdo->prepare('DELETE FROM tri_job_users WHERE job_id = ?')->execute([$jobId]);
+        $ins = $pdo->prepare(
+            'INSERT INTO tri_job_users (job_id, user_id, sort_order) VALUES (?, ?, ?)'
+        );
+        foreach ($unique as $i => $userId) {
+            if ($userId > 0) {
+                $ins->execute([$jobId, $userId, $i]);
+            }
+        }
     }
 
     /** @param list<int> $clientIds */

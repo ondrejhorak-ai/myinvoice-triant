@@ -61,6 +61,14 @@ final class MpdfFontConfig
             'I'  => 'Montserrat-Italic.ttf',
             'BI' => 'Montserrat-BoldItalic.ttf',
         ];
+        // Open Sans používá TRI cenová nabídka, aby odpovídala firemním
+        // materiálům. Ostatní PDF nadále používají výchozí Montserrat.
+        $fontData['opensans'] = [
+            'R'  => 'OpenSans-Regular.ttf',
+            'B'  => 'OpenSans-Bold.ttf',
+            'I'  => 'OpenSans-Italic.ttf',
+            'BI' => 'OpenSans-BoldItalic.ttf',
+        ];
         // Monospace pro číselné pasáže (CSS na ně cílí přes font-family:'jetbrainsmono').
         // Kurzíva se v mono nepoužívá → I/BI mapujeme na R/B.
         $fontData['jetbrainsmono'] = [

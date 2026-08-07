@@ -6,22 +6,37 @@ namespace MyInvoice\Tri\Action\Quote;
 
 use MyInvoice\Http\Json;
 use MyInvoice\Tri\Repository\QuoteRepository;
+use MyInvoice\Tri\Service\JobActivityLogger;
 use MyInvoice\Tri\Support\TriRequest;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 final class ApproveVariantAction
 {
-    public function __construct(private readonly QuoteRepository $repo) {}
+    public function __construct(
+        private readonly QuoteRepository $repo,
+        private readonly JobActivityLogger $activity,
+    ) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
     {
         if (TriRequest::userRole($request) === 'readonly') {
             return Json::error($response, 'forbidden', 'Nedostatečná oprávnění.', 403);
         }
-        $variant = $this->repo->approveVariant((int) $args['id'], TriRequest::supplierId($request));
+        $supplierId = TriRequest::supplierId($request);
+        $before = $this->repo->findVariant((int) $args['id'], $supplierId);
+        $variant = $this->repo->approveVariant((int) $args['id'], $supplierId);
         if ($variant === null) {
             return Json::error($response, 'not_found', 'Varianta nenalezena.', 404);
+        }
+
+        if ($before !== null && (string) $before['status'] !== 'approved') {
+            $this->activity->event((int) $variant['job_id'], TriRequest::userId($request), 'variant_approved', [
+                'variant_code' => (string) $variant['variant_code'],
+                'number'       => (string) $variant['number'],
+                'from'         => (string) $before['status'],
+                'to'           => 'approved',
+            ]);
         }
 
         return Json::ok($response, $variant);

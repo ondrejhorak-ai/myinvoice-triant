@@ -118,6 +118,16 @@ final class JobInvoiceRepository
         $this->db->pdo()->prepare('DELETE FROM tri_job_invoices WHERE invoice_id = ?')->execute([$invoiceId]);
     }
 
+    /** Zkopíruje vazbu na zakázku TRI ze zdrojové faktury (typicky proforma) na cílovou. */
+    public function inheritJobLink(int $targetInvoiceId, int $sourceInvoiceId, int $supplierId): void
+    {
+        $job = $this->jobForInvoiceScoped($sourceInvoiceId, $supplierId);
+        if ($job === null) {
+            return;
+        }
+        $this->link($targetInvoiceId, (int) $job['id'], $supplierId);
+    }
+
     /** @return array{id:int, number:string, title:string}|null */
     public function jobForInvoice(int $invoiceId): ?array
     {

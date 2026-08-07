@@ -7,6 +7,7 @@ namespace MyInvoice\Tri\Repository;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Tri\Service\JobNumberService;
 use MyInvoice\Tri\Service\QuoteCalculator;
+use MyInvoice\Tri\Service\QuoteImageService;
 use PDO;
 
 final class QuoteRepository
@@ -49,7 +50,7 @@ final class QuoteRepository
 
         $variant = $this->castVariantFull($row);
         $variant['sections'] = $this->loadSections($variantId);
-        $variant['line_items'] = $this->loadLineItems($variantId);
+        $variant['line_items'] = $this->loadLineItems($variantId, $supplierId);
 
         return $variant;
     }
@@ -102,6 +103,7 @@ final class QuoteRepository
 
         $sectionsInput = (array) ($payload['sections'] ?? []);
         $linesInput = (array) ($payload['line_items'] ?? []);
+        $this->assertImagesBelongToSupplier($linesInput, $supplierId);
 
         $calcResult = $this->calculator->calculateVariant($sectionsInput, $linesInput, [
             'quote_discount_type'    => $payload['quote_discount_type'] ?? null,
@@ -187,11 +189,11 @@ final class QuoteRepository
 
             $lIns = $pdo->prepare(
                 'INSERT INTO tri_quote_line_items (
-                    quote_variant_id, quote_section_id, sort_order, designation, title, description,
+                    quote_variant_id, quote_section_id, image_id, sort_order, designation, title, description,
                     quantity, unit, base_unit_price, vat_rate,
                     markup_type, markup_value, markup_amount,
                     line_discount_type, line_discount_value, line_total
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $lineCalcIndex = 0;
             foreach ($linesInput as $i => $line) {
@@ -211,6 +213,7 @@ final class QuoteRepository
                 $lIns->execute([
                     $variantId,
                     $sectionId,
+                    !empty($line['image_id']) ? (int) $line['image_id'] : null,
                     isset($line['sort_order']) ? (int) $line['sort_order'] : $i,
                     (string) ($line['designation'] ?? ''),
                     (string) ($line['title'] ?? ''),
@@ -287,6 +290,7 @@ final class QuoteRepository
                     'markup_value'         => $l['markup_value'],
                     'line_discount_type'   => $l['line_discount_type'],
                     'line_discount_value'  => $l['line_discount_value'],
+                    'image_id'             => $l['image_id'],
                 ];
             }, $source['line_items']),
         ];
@@ -386,15 +390,21 @@ final class QuoteRepository
     }
 
     /** @return list<array<string, mixed>> */
-    private function loadLineItems(int $variantId): array
+    private function loadLineItems(int $variantId, int $supplierId): array
     {
         $stmt = $this->db->pdo()->prepare(
-            'SELECT * FROM tri_quote_line_items WHERE quote_variant_id = ? ORDER BY sort_order'
+            'SELECT li.*,
+                    qi.sha256 AS image_sha256, qi.width_px AS image_width_px,
+                    qi.height_px AS image_height_px, qi.size_bytes AS image_size_bytes
+               FROM tri_quote_line_items li
+          LEFT JOIN tri_quote_images qi ON qi.id = li.image_id AND qi.supplier_id = ?
+              WHERE li.quote_variant_id = ? ORDER BY li.sort_order'
         );
-        $stmt->execute([$variantId]);
+        $stmt->execute([$supplierId, $variantId]);
 
         return array_map(fn (array $r) => [
             'id'                  => (int) $r['id'],
+            'image_id'            => $r['image_id'] !== null ? (int) $r['image_id'] : null,
             'quote_section_id'    => $r['quote_section_id'] !== null ? (int) $r['quote_section_id'] : null,
             'sort_order'          => (int) $r['sort_order'],
             'designation'         => (string) $r['designation'],
@@ -410,7 +420,40 @@ final class QuoteRepository
             'line_discount_type'  => $r['line_discount_type'],
             'line_discount_value' => $r['line_discount_value'] !== null ? (float) $r['line_discount_value'] : null,
             'line_total'          => (float) $r['line_total'],
+            'image'               => $r['image_id'] !== null && $r['image_sha256'] !== null ? [
+                'id'         => (int) $r['image_id'],
+                'url'        => QuoteImageService::url((int) $r['image_id'], (string) $r['image_sha256']),
+                'width_px'   => (int) $r['image_width_px'],
+                'height_px'  => (int) $r['image_height_px'],
+                'size_bytes' => (int) $r['image_size_bytes'],
+            ] : null,
         ], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+    }
+
+    /** @param list<mixed> $lines */
+    private function assertImagesBelongToSupplier(array $lines, int $supplierId): void
+    {
+        $ids = [];
+        foreach ($lines as $line) {
+            if (is_array($line) && !empty($line['image_id'])) {
+                $ids[] = (int) $line['image_id'];
+            }
+        }
+        $ids = array_values(array_unique(array_filter($ids, static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT id FROM tri_quote_images WHERE supplier_id = ? AND id IN ($placeholders)"
+        );
+        $stmt->execute([$supplierId, ...$ids]);
+        $found = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        sort($ids);
+        sort($found);
+        if ($ids !== $found) {
+            throw new \RuntimeException('INVALID_QUOTE_IMAGE');
+        }
     }
 
     /** @param array<string, mixed> $row */

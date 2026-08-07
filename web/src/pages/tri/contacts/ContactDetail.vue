@@ -13,6 +13,8 @@ import TopProjectsBarChart from '@/components/charts/TopProjectsBarChart.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import ClientTagEditor from '@/components/tri/ClientTagEditor.vue'
+import ClientIncompleteBanner from '@/components/clients/ClientIncompleteBanner.vue'
+import { clientMissingAddress, clientMissingEmail } from '@/utils/clientCompleteness'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -360,6 +362,12 @@ async function deleteClient() {
       </div>
     </div>
 
+    <ClientIncompleteBanner
+      v-if="client"
+      :client="client"
+      :edit-to="`/tri/contacts/${client.id}/edit`"
+    />
+
     <!-- Detaily plátce DPH (na vyžádání z registru plátců DPH / MFČR) -->
     <div v-if="vatInfoOpen" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
       <div class="flex items-center justify-between mb-3">
@@ -397,7 +405,7 @@ async function deleteClient() {
         <dl class="space-y-2 text-sm">
           <div>
             <dt class="text-neutral-500">{{ t('client.email') }}</dt>
-            <dd class="text-neutral-900">{{ client.main_email }}</dd>
+            <dd class="text-neutral-900">{{ clientMissingEmail(client) ? t('client.missing_value') : client.main_email }}</dd>
           </div>
           <div v-if="client.phone">
             <dt class="text-neutral-500">{{ t('client.telephone') }}</dt>
@@ -410,9 +418,14 @@ async function deleteClient() {
       <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.section_address') }}</h3>
         <div class="text-sm text-neutral-900 leading-relaxed">
-          {{ client.street }}<br />
-          {{ client.zip }} {{ client.city }}<br />
-          {{ client.country_iso2 }}
+          <template v-if="clientMissingAddress(client)">
+            <span class="text-neutral-400">{{ t('client.missing_value') }}</span>
+          </template>
+          <template v-else>
+            {{ client.street }}<br />
+            {{ client.zip }} {{ client.city }}<br />
+            {{ client.country_iso2 }}
+          </template>
         </div>
       </div>
 
