@@ -5,6 +5,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  /* 4px spacing grid (Tailwind: p-1 = 4px, p-2 = 8px, …) */
+  --spacing: 0.25rem;
+
   /* ─── Primary — indigo (sladěno s MyWebdesign.cz brand #3B2D83) ─── */
   --color-primary-50:  #F4F2FB;
   --color-primary-100: #E5E0F4;
@@ -17,17 +20,17 @@
   --color-primary-800: #2E2367;
   --color-primary-900: #211A4B;
 
-  /* ─── Neutral (teplá šedá s nádechem indigo) ─── */
-  --color-neutral-50:  #FBFAFD;   /* page background */
-  --color-neutral-100: #F4F2F8;   /* subtle tint */
-  --color-neutral-200: #E7E3EE;   /* borders */
-  --color-neutral-300: #D2CCDF;
-  --color-neutral-400: #A7A0BA;
-  --color-neutral-500: #7A748C;
-  --color-neutral-600: #5A5470;
-  --color-neutral-700: #403B52;
-  --color-neutral-800: #2A2638;
-  --color-neutral-900: #15131D;   /* text */
+  /* ─── Neutral — Untitled UI gray (chladnější, bez indigo nádechu) ─── */
+  --color-neutral-50:  #F9FAFB;   /* page background */
+  --color-neutral-100: #F2F4F7;   /* subtle tint */
+  --color-neutral-200: #EAECF0;   /* borders */
+  --color-neutral-300: #D0D5DD;
+  --color-neutral-400: #98A2B3;
+  --color-neutral-500: #667085;
+  --color-neutral-600: #475467;
+  --color-neutral-700: #344054;
+  --color-neutral-800: #1D2939;
+  --color-neutral-900: #101828;   /* text */
 
   /* ─── Surfaces (hodnoty přepínané v .dark) ─── */
   --color-surface:   #FFFFFF;   /* karty, panely, modály, topbar, sidebar (light = bílá) */
@@ -55,9 +58,9 @@
   --color-danger-500:  #D45B5B;   /* soft coral */
   --color-danger-600:  #B84545;
 
-  /* ─── Status badges (faktury) ─── */
-  --color-status-draft-bg:     #F4F2F8;
-  --color-status-draft-fg:     #5A5470;
+  /* ─── Status badges (faktury) — draft/cancelled mapované na novou neutral škálu ─── */
+  --color-status-draft-bg:     #F2F4F7;
+  --color-status-draft-fg:     #475467;
   --color-status-issued-bg:    #E5E0F4;
   --color-status-issued-fg:    #3B2D83;
   --color-status-sent-bg:      #D7E8F6;
@@ -66,16 +69,30 @@
   --color-status-paid-fg:      #2E7B53;
   --color-status-overdue-bg:   #FBEDED;
   --color-status-overdue-fg:   #B84545;
-  --color-status-cancelled-bg: #F4F2F8;
-  --color-status-cancelled-fg: #A7A0BA;
+  --color-status-cancelled-bg: #F2F4F7;
+  --color-status-cancelled-fg: #98A2B3;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
+  /* Untitled UI radius: 8 / 12 / 16 (sm zůstává 4px = spacing grid) */
   --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Untitled UI stíny (šedá 900 @ nízká opacity) */
+  --shadow-xs: 0 1px 2px 0 rgb(16 24 40 / 0.05);
+  --shadow-sm: 0 1px 3px 0 rgb(16 24 40 / 0.10), 0 1px 2px -1px rgb(16 24 40 / 0.10);
+  --shadow-md: 0 4px 8px -2px rgb(16 24 40 / 0.10), 0 2px 4px -2px rgb(16 24 40 / 0.06);
+  --shadow-lg: 0 12px 16px -4px rgb(16 24 40 / 0.08), 0 4px 6px -2px rgb(16 24 40 / 0.03);
+  --shadow-focus-ring: 0 0 0 4px var(--color-primary-100);
+
+  /* Focus ring — 4px světlý primary (utility `ring` / `focus-ring`) */
+  --ring-width: 4px;
+  --default-ring-width: 4px;
+  --color-ring: #E5E0F4; /* primary-100 */
+  --default-ring-color: #E5E0F4;
 }
 
 /* ═══════════════════════ DARK MODE ═══════════════════════
@@ -83,27 +100,27 @@
  * Neutral škála se obrací (50 = nejtmavší pozadí … 900 = nejsvětlejší text),
  * takže ~3400 výskytů bg-neutral-50 / text-neutral-900 / border-neutral-200
  * se překlopí samo. bg-white se nahrazuje za bg-surface (viz převod komponent).
- * Laděno k indigo brandu #3B2D83. Light mód zůstává beze změny.
+ * Neutral je chladná Untitled gray; primary indigo #3B2D83 zůstává.
  * How to apply: .dark třídu na <html> řídí composable useTheme. */
 .dark {
   /* Nativní ovládací prvky (kalendář u input[type=date], scrollbary, checkboxy…)
      vykreslit tmavě — jinak je kalendář černý na tmavém a špatně vidět. */
   color-scheme: dark;
 
-  /* Neutral — invertovaná, teplá indigo tmavá */
-  --color-neutral-50:  #14121C;   /* page background */
-  --color-neutral-100: #1C1A28;   /* subtle tint / hover */
-  --color-neutral-200: #2C2840;   /* borders */
-  --color-neutral-300: #3B3656;
-  --color-neutral-400: #6B6488;   /* velmi tlumené/disabled — mírně zesvětleno */
-  --color-neutral-500: #968FAD;   /* muted text (popisky/placeholdery) — ~4.3 → ~5.5:1 (AA) */
-  --color-neutral-600: #A8A1BE;   /* sekundární text */
-  --color-neutral-700: #C6C0DA;
-  --color-neutral-800: #E2DEEC;
-  --color-neutral-900: #F3F1F9;   /* hlavní text */
+  /* Neutral — invertovaná, chladná Untitled gray (50 = bg … 900 = text) */
+  --color-neutral-50:  #161B26;   /* page background */
+  --color-neutral-100: #1C2230;   /* subtle tint / hover */
+  --color-neutral-200: #2B3242;   /* borders */
+  --color-neutral-300: #3A4254;
+  --color-neutral-400: #61646C;   /* disabled */
+  --color-neutral-500: #8A8F99;   /* muted text — AA na tmavém */
+  --color-neutral-600: #A8ADB8;   /* sekundární text */
+  --color-neutral-700: #D0D5DD;
+  --color-neutral-800: #EAECF0;
+  --color-neutral-900: #F5F7FA;   /* hlavní text */
 
   /* Plochy nad pozadím */
-  --color-surface:   #1E1B2B;   /* karty / panely / topbar / sidebar */
+  --color-surface:   #1F242F;   /* karty / panely / topbar / sidebar */
 
   /* Primary — zesvětlené pro kontrast a sytost na tmavém podkladu */
   --color-primary-50:  #221C3A;   /* soft pill bg (bg-primary-50) */
@@ -135,6 +152,29 @@
   --color-amber-700:  #E2AE5C;
   --color-purple-50:  #241A33;
   --color-purple-700: #C2A6EC;
+
+  /* Stíny + focus ring na tmavém (stejný 4px primary wash) */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.32);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.40), 0 1px 2px -1px rgb(0 0 0 / 0.32);
+  --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.40), 0 2px 4px -2px rgb(0 0 0 / 0.32);
+  --shadow-lg: 0 12px 16px -4px rgb(0 0 0 / 0.48), 0 4px 6px -2px rgb(0 0 0 / 0.24);
+  --shadow-focus-ring: 0 0 0 4px var(--color-primary-50);
+  --color-ring: #2C2450; /* primary-100 dark */
+  --default-ring-color: #2C2450;
+
+  /* Status badges — tmavé tinty, aby světlé light hodnoty v dark nezářily */
+  --color-status-draft-bg:     #1C2230;
+  --color-status-draft-fg:     #A8ADB8;
+  --color-status-issued-bg:    #221C3A;
+  --color-status-issued-fg:    #B7AAE8;
+  --color-status-sent-bg:      #122231;
+  --color-status-sent-fg:      #7CBCE8;
+  --color-status-paid-bg:      #16261D;
+  --color-status-paid-fg:      #6FC79A;
+  --color-status-overdue-bg:   #2C1717;
+  --color-status-overdue-fg:   #E08989;
+  --color-status-cancelled-bg: #1C2230;
+  --color-status-cancelled-fg: #61646C;
 }
 
 html, body {
@@ -148,6 +188,20 @@ html, body {
 #app { min-height: 100vh; }
 
 @layer components {
+  /*
+   * Untitled UI focus ring: 4px světlý primary wash.
+   * How to apply: class="focus-ring" na input/button (A2 primitiva).
+   * Existující focus:ring-2 zůstává; tahle třída je pro nový vzhled.
+   */
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus,
+  .focus-ring:focus-visible {
+    border-color: var(--color-primary-500);
+    box-shadow: var(--shadow-focus-ring);
+  }
+
   /*
    * Sticky první sloupec pro list-tabulky.
    * Why: na mobilu (<768px) jsou listové tabulky širší než viewport;
