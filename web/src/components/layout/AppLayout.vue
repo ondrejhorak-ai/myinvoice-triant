@@ -13,6 +13,7 @@ import GlobalSearch from './GlobalSearch.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import TriTopbarNav from './tri/TriTopbarNav.vue'
 import TriLogo from './tri/TriLogo.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 
 const { t, locale } = useI18n()
 function setLocale(l: 'cs' | 'en') {
@@ -75,18 +76,9 @@ interface NavItem {
 interface NavSection {
   /** Hlavička sekce; pokud chybí, položky jsou bez visual grouping */
   title?: string
-  /** Color accent pro vertikální pruh + text. Tailwind utility class group. */
+  /** Color accent (data); vizuál sekcí je Untitled muted caption, ne barevný pill. */
   accent?: 'primary' | 'warning' | 'success' | 'danger' | 'neutral'
   items: NavItem[]
-}
-
-/** Mapování accent → soft pill (background + text) per sekce. */
-const ACCENT_CLASSES: Record<NonNullable<NavSection['accent']>, string> = {
-  primary: 'bg-primary-50  text-primary-700',
-  warning: 'bg-warning-50  text-warning-600',
-  success: 'bg-success-50  text-success-600',
-  danger:  'bg-danger-50   text-danger-500',
-  neutral: 'bg-neutral-100 text-neutral-600',
 }
 
 /** Outline icon paths — Heroicons style, stroke 2, viewBox 24, currentColor */
@@ -356,10 +348,10 @@ onMounted(async () => {
   <div class="min-h-screen flex flex-col bg-neutral-50">
 
     <!-- ═════════════════════ TOPBAR ═════════════════════ -->
-    <header class="sticky top-0 z-30 bg-surface border-b border-neutral-200">
-      <div class="h-14 px-4 flex items-center justify-between gap-3">
+    <header class="sticky top-0 z-30 bg-surface border-b border-neutral-200 shadow-xs">
+      <div class="h-14 px-4 sm:px-6 flex items-center justify-between gap-3">
         <!-- Logo + přímé odkazy na TRI agendy -->
-        <div class="flex items-center gap-4 min-w-0">
+        <div class="flex items-center gap-3 min-w-0">
           <RouterLink to="/" class="flex items-center shrink-0 text-neutral-900" @click="mobileOpen = false">
             <TriLogo class="h-7 w-auto" />
           </RouterLink>
@@ -367,33 +359,34 @@ onMounted(async () => {
         </div>
 
         <!-- Pravá strana topbaru -->
-        <div class="flex items-center gap-2 text-sm">
+        <div class="flex items-center gap-1.5 text-sm">
           <!-- Rychlé vytvoření (desktop, jen pro zapisující) — jedno decentní tlačítko s menu -->
           <div v-if="auth.canWrite" class="relative hidden lg:block">
-            <button
-              type="button" @click="quickOpen = !quickOpen"
-              class="cursor-pointer inline-flex items-center gap-1.5 h-8 pl-2 pr-2.5 text-sm rounded-md border border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-primary-700 transition-colors"
-              :class="{ 'bg-neutral-50 text-primary-700': quickOpen }"
-              :aria-expanded="quickOpen" :aria-label="t('nav.quick_new')"
+            <UiButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              @click="quickOpen = !quickOpen"
+              :aria-expanded="quickOpen"
+              :aria-label="t('nav.quick_new')"
             >
-              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
-              </svg>
-              <span>{{ t('nav.quick_new') }}</span>
-              <svg class="w-3 h-3 ml-0.5 transition" :class="{ 'rotate-180': quickOpen }" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+              <template #icon>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
+                </svg>
+              </template>
+              {{ t('nav.quick_new') }}
+            </UiButton>
             <transition
               enter-active-class="transition duration-100 ease-out"
               enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100"
               leave-active-class="transition duration-75 ease-in"
               leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95"
             >
-              <div v-if="quickOpen" class="absolute right-0 mt-1 w-52 bg-surface border border-neutral-200 rounded-lg shadow-lg py-1 z-40">
+              <div v-if="quickOpen" class="absolute right-0 mt-1.5 w-56 bg-surface border border-neutral-200 rounded-lg shadow-md py-1 z-40">
                 <RouterLink
                   v-for="s in quickActions" :key="s.to" :to="s.to" @click="quickOpen = false"
-                  class="flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-700"
+                  class="flex items-center gap-2.5 h-10 px-3 text-sm text-neutral-700 hover:bg-neutral-100"
                 >
                   <svg class="w-4 h-4 shrink-0 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" :d="s.icon" />
@@ -410,7 +403,7 @@ onMounted(async () => {
           <!-- Jméno uživatele (desktop) — link na profil (heslo + 2FA v záložkách). -->
           <RouterLink
             to="/profile/password"
-            class="hidden lg:inline text-sm text-neutral-600 hover:text-primary-700 hover:underline"
+            class="hidden lg:inline-flex items-center h-9 px-2.5 rounded-md text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
             :title="t('auth.profile_title')"
           >{{ auth.user?.name }}</RouterLink>
 
@@ -451,7 +444,7 @@ onMounted(async () => {
           <!-- Nápověda -->
           <a
             href="/manual" target="_blank" rel="noopener"
-            class="hidden sm:inline-flex w-8 h-8 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 hover:text-primary-700"
+            class="hidden sm:inline-flex w-9 h-9 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
             :title="t('nav.help')"
             :aria-label="t('nav.help')"
           >
@@ -461,16 +454,18 @@ onMounted(async () => {
           </a>
 
           <!-- Odhlásit (desktop) -->
-          <button
+          <UiButton
+            variant="ghost"
+            size="sm"
+            class="hidden sm:inline-flex"
             @click="logout"
-            class="cursor-pointer hidden sm:inline-flex px-3 h-8 items-center text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50"
-          >{{ t('nav.logout') }}</button>
+          >{{ t('nav.logout') }}</UiButton>
 
           <!-- Hamburger — TRIANT: na všech šířkách (menu je vždy v draweru) -->
           <button
             type="button" @click="mobileOpen = !mobileOpen"
             :aria-expanded="mobileOpen" aria-label="Menu"
-            class="cursor-pointer inline-flex items-center justify-center w-9 h-9 rounded-md text-neutral-700 hover:bg-neutral-100"
+            class="cursor-pointer inline-flex items-center justify-center w-10 h-10 rounded-md text-neutral-700 hover:bg-neutral-100"
           >
             <svg v-if="!mobileOpen" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -511,24 +506,23 @@ onMounted(async () => {
       <aside
         :class="[
           'fixed top-14 z-30',
-          'h-[calc(100vh-3.5rem)] w-60 shrink-0',
-          'bg-surface border-r border-neutral-200',
+          'h-[calc(100vh-3.5rem)] w-64 shrink-0',
+          'bg-surface border-r border-neutral-200 shadow-xs',
           'flex flex-col',
           'transition-transform duration-200 ease-in-out',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         ]"
       >
-        <nav class="flex-1 overflow-y-auto scrollbar-slim px-2.5 py-3">
+        <nav class="flex-1 overflow-y-auto scrollbar-slim px-3 py-3">
           <!-- Globální vyhledávač (před Přehled) — našeptává menu + hledá klienty/faktury -->
           <GlobalSearch :menu-items="flatNavItems" @navigated="mobileOpen = false" />
 
           <template v-for="(section, si) in visibleNavSections" :key="si">
-            <!-- Section title — soft pill background v barvě sekce -->
-            <div v-if="section.title" :class="si === 0 ? 'pt-1 pb-1.5' : 'pt-4 pb-1.5'">
-              <div
-                class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider"
-                :class="section.accent ? ACCENT_CLASSES[section.accent] : 'bg-neutral-100 text-neutral-600'"
-              >{{ section.title }}</div>
+            <!-- Section title — Untitled: jemný uppercase popisek, ne barevný pill -->
+            <div v-if="section.title" :class="si === 0 ? 'px-3 pt-2 pb-1' : 'px-3 pt-5 pb-1'">
+              <div class="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+                {{ section.title }}
+              </div>
             </div>
 
             <!-- Items: external (např. Nápověda → /manual v novém tabu) vs internal route -->
@@ -538,13 +532,13 @@ onMounted(async () => {
                 :href="item.to"
                 target="_blank"
                 rel="noopener"
-                class="flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-sm transition-colors leading-tight text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
+                class="flex items-center gap-3 h-10 px-3 rounded-lg text-sm transition-colors leading-tight text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
               >
-                <svg class="w-[15px] h-[15px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
                 </svg>
                 {{ item.label }}
-                <svg class="w-3 h-3 ml-auto text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <svg class="w-3.5 h-3.5 ml-auto text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                 </svg>
               </a>
@@ -553,15 +547,15 @@ onMounted(async () => {
                   :to="item.to"
                   active-class=""
                   exact-active-class=""
-                  class="flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-sm transition-colors leading-tight"
+                  class="flex items-center gap-3 h-10 px-3 rounded-lg text-sm transition-colors leading-tight"
                   :class="[
                     isActive(item.to)
                       ? 'bg-primary-50 text-primary-700 font-medium'
                       : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100',
-                    item.newTo && auth.canWrite ? 'pr-8' : '',
+                    item.newTo && auth.canWrite ? 'pr-9' : '',
                   ]"
                 >
-                  <svg class="w-[15px] h-[15px] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
                   </svg>
                   {{ item.label }}
@@ -572,7 +566,7 @@ onMounted(async () => {
                   :to="item.newTo"
                   :title="t('nav.quick_new')"
                   :aria-label="t('nav.quick_new')"
-                  class="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-5 h-5 rounded-md text-neutral-400 hover:text-primary-700 hover:bg-primary-100 transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+                  class="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-7 h-7 rounded-md text-neutral-400 hover:text-primary-700 hover:bg-primary-100 transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
                 >
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m4-4H8M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
@@ -665,11 +659,12 @@ onMounted(async () => {
 
       <!-- ── HLAVNÍ OBSAH ── -->
       <div class="flex-1 min-w-0 flex flex-col">
-        <main class="flex-1 px-5 sm:px-8 py-6 w-full">
+        <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <RouterView />
         </main>
 
-        <footer class="px-5 sm:px-8 py-5 border-t border-neutral-200 text-xs text-neutral-500 flex flex-wrap items-center gap-x-1.5 gap-y-1 leading-none">
+        <footer class="border-t border-neutral-200">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 text-xs text-neutral-500 flex flex-wrap items-center gap-x-1.5 gap-y-1 leading-none">
           <span>Developed by</span>
           <a href="https://mywebdesign.cz" target="_blank" rel="noopener" class="hover:text-neutral-700">MyWebdesign.cz s.r.o.</a>
           <span aria-hidden="true">·</span>
@@ -686,6 +681,7 @@ onMounted(async () => {
           <span aria-hidden="true">·</span>
           <button type="button" @click="featureOpen = true"
                   class="cursor-pointer text-primary-600 hover:text-primary-700 font-medium">{{ t('support.feature_link') }}</button>
+          </div>
         </footer>
       </div>
     </div>

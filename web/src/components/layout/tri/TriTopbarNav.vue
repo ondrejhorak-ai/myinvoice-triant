@@ -29,7 +29,7 @@ function isActive(to: string): boolean {
       :to="link.to"
       active-class=""
       exact-active-class=""
-      class="inline-flex items-center h-8 px-3 rounded-md text-sm transition-colors leading-tight whitespace-nowrap"
+      class="inline-flex items-center h-9 px-3 rounded-lg text-sm transition-colors leading-tight whitespace-nowrap"
       :class="isActive(link.to)
         ? 'bg-primary-50 text-primary-700 font-medium'
         : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'"
