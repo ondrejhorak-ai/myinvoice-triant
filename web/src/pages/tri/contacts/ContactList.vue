@@ -8,6 +8,12 @@ import { formatMoney, formatDate } from '@/composables/useFormat'
 import { useRowLink } from '@/composables/useRowLink'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiInput from '@/components/ui/UiInput.vue'
+import UiTable from '@/components/ui/UiTable.vue'
 import { clientIsIncomplete } from '@/utils/clientCompleteness'
 
 const { t } = useI18n()
@@ -79,35 +85,40 @@ function openContact(c: Client, e?: MouseEvent) {
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4">
-      <h1 class="text-2xl font-semibold">{{ t('tri.contacts.title') }}</h1>
-      <RouterLink
-        v-if="auth.canWrite"
-        to="/tri/contacts/new"
-        class="inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md"
-      >
-        + {{ t('tri.contacts.new') }}
-      </RouterLink>
-    </div>
+    <UiPageHeader :title="t('tri.contacts.title')">
+      <template #actions>
+        <UiButton v-if="auth.canWrite" to="/tri/contacts/new" size="sm">
+          <template #icon>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>
+          </template>
+          {{ t('tri.contacts.new') }}
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
-    <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <UiCard>
       <div class="px-4 py-3 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center gap-3">
-        <input
+        <UiInput
           v-model="search"
           type="search"
+          size="sm"
+          class="flex-1"
           :placeholder="t('common.search')"
-          class="flex-1 h-9 px-3 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
-        />
-        <label class="flex items-center gap-2 text-sm text-neutral-700">
+        >
+          <template #prefix>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg>
+          </template>
+        </UiInput>
+        <label class="flex items-center gap-2 text-sm text-neutral-700 shrink-0">
           <input v-model="showArchived" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
           {{ t('client.show_archived') }}
         </label>
         <select v-model.number="triTagFilter"
-          class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface">
+          class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs">
           <option :value="null">{{ t('tri.tags.label') }} — {{ t('common.all') }}</option>
           <option v-for="tag in triTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
         </select>
-        <select v-model="sort" class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface"
+        <select v-model="sort" class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs"
           :title="t('common.sort_by')">
           <option value="name">{{ t('common.sort_name') }}</option>
           <option value="revenue">{{ t('common.sort_revenue') }}</option>
@@ -122,26 +133,25 @@ function openContact(c: Client, e?: MouseEvent) {
         :cta="t('tri.contacts.create_first')"
         to="/tri/contacts/new" />
 
-      <!-- Desktop: tabulka -->
-      <div v-else class="hidden md:block overflow-x-auto"><table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
-          <tr>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('client.company') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('client.email') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('client.phone') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.tags.label') }}</th>
-            <th class="text-center px-4 py-2.5 font-medium">{{ t('nav.projects') }}</th>
-            <th class="text-right px-4 py-2.5 font-medium">{{ t('common.revenue') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('common.last_activity') }}</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-neutral-100">
+      <div v-else class="hidden md:block">
+        <UiTable>
+          <template #head>
+            <tr>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('client.company') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('client.email') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('client.phone') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.tags.label') }}</th>
+              <th class="text-center px-4 py-2.5 font-medium">{{ t('nav.projects') }}</th>
+              <th class="text-right px-4 py-2.5 font-medium">{{ t('common.revenue') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('common.last_activity') }}</th>
+            </tr>
+          </template>
           <tr
             v-for="c in filteredItems"
             :key="c.id"
             @click="openContact(c, $event)"
             @auxclick.prevent="openContact(c, $event)"
-            class="cursor-pointer hover:bg-neutral-50"
+            class="cursor-pointer"
           >
             <td class="px-4 py-3">
               <div class="font-medium text-neutral-900 flex items-center gap-1.5">
@@ -151,8 +161,8 @@ function openContact(c: Client, e?: MouseEvent) {
                   class="text-warning-600"
                   :title="t('client.incomplete_list_hint')"
                 >⚠</span>
+                <UiBadge v-if="c.archived_at" variant="draft">{{ t('common.archived') }}</UiBadge>
               </div>
-              <div v-if="c.archived_at" class="text-xs text-neutral-400 mt-0.5">{{ t('common.archived') }}</div>
             </td>
             <td class="px-4 py-3 text-neutral-600">{{ c.main_email?.trim() || '—' }}</td>
             <td class="px-4 py-3 text-neutral-600">{{ c.phone || '—' }}</td>
@@ -168,9 +178,7 @@ function openContact(c: Client, e?: MouseEvent) {
               <span v-else class="text-neutral-300">—</span>
             </td>
             <td class="px-4 py-3 text-center">
-              <span v-if="c.tri_jobs_count" class="inline-block px-2 py-0.5 text-xs bg-primary-50 text-primary-700 rounded">
-                {{ c.tri_jobs_count }}
-              </span>
+              <UiBadge v-if="c.tri_jobs_count" variant="primary">{{ c.tri_jobs_count }}</UiBadge>
               <span v-else class="text-neutral-300">—</span>
             </td>
             <td class="px-4 py-3 text-right font-mono">
@@ -182,8 +190,8 @@ function openContact(c: Client, e?: MouseEvent) {
               <span v-else class="text-neutral-300">—</span>
             </td>
           </tr>
-        </tbody>
-      </table></div>
+        </UiTable>
+      </div>
 
       <!-- Mobile: karty -->
       <div v-if="items.length" class="md:hidden divide-y divide-neutral-100">
@@ -204,7 +212,7 @@ function openContact(c: Client, e?: MouseEvent) {
               <span v-else class="text-neutral-300">—</span>
             </div>
           </div>
-          <div v-if="c.archived_at" class="text-xs text-neutral-400 mt-0.5">{{ t('common.archived') }}</div>
+          <div v-if="c.archived_at" class="mt-0.5"><UiBadge variant="draft">{{ t('common.archived') }}</UiBadge></div>
           <div class="mt-1 text-xs text-neutral-500 truncate">
             <span v-if="c.main_email">{{ c.main_email }}</span>
             <span v-if="c.main_email && c.phone" class="text-neutral-400"> · </span>
@@ -224,21 +232,19 @@ function openContact(c: Client, e?: MouseEvent) {
               <span v-if="c.tri_last_job_date">{{ formatDate(c.tri_last_job_date) }}</span>
               <span v-else class="text-neutral-300">—</span>
             </span>
-            <span v-if="c.tri_jobs_count" class="px-2 py-0.5 bg-primary-50 text-primary-700 rounded">
+            <UiBadge v-if="c.tri_jobs_count" variant="primary">
               {{ t('nav.projects') }}: {{ c.tri_jobs_count }}
-            </span>
+            </UiBadge>
           </div>
         </div>
       </div>
 
       <div v-if="items.length" class="px-4 py-3 border-t border-neutral-200 flex items-center justify-between text-sm">
         <span class="text-neutral-500">{{ t('common.loaded_count', { loaded: filteredItems.length, total: total }) }}</span>
-        <button v-if="page < pages" @click="load(false)" :disabled="loadingMore"
-          class="cursor-pointer h-9 px-4 text-sm bg-primary-600 hover:bg-primary-700 text-white font-medium disabled:opacity-50 rounded-md inline-flex items-center gap-1.5">
+        <UiButton v-if="page < pages" size="sm" :loading="loadingMore" :disabled="loadingMore" @click="load(false)">
           {{ loadingMore ? t('common.loading_more') : t('common.load_more') }}
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-        </button>
+        </UiButton>
       </div>
-    </div>
+    </UiCard>
   </div>
 </template>
