@@ -26,7 +26,8 @@ import TriJobLinkField from '@/components/tri/TriJobLinkField.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
-import { triApi } from '@/api/tri'
+import { triApi, type TriPriceListItem } from '@/api/tri'
+import CatalogPickerModal from '@/pages/tri/jobs/CatalogPickerModal.vue'
 
 const supplierStore = useSupplierStore()
 
@@ -554,6 +555,39 @@ function onCurrencyChange() {
 
 function addItem() {
   form.value.items.push(blankItem())
+  focusLastRow('[data-row-input="inv-item"]')
+}
+
+const catalogOpen = ref(false)
+
+function vatRateIdFromPercent(percent: number): number {
+  const match = selectableVatRates.value.find((v) => Number(v.rate_percent) === Number(percent))
+  return match?.id ?? defaultVatRateId()
+}
+
+function snapshotToInvoiceItem(item: TriPriceListItem): InvoiceItem {
+  const qtyRaw = item.default_quantity > 0 ? item.default_quantity : 1
+  const qty = form.value.invoice_type === 'credit_note' ? -Math.abs(qtyRaw) : qtyRaw
+  const head = [item.designation, item.title].filter((part) => (part || '').trim() !== '').join(' ').trim()
+  const extra = (item.description || '').trim()
+  const description = head && extra ? `${head}\n${extra}` : (head || extra)
+  const unit = (item.unit || '').trim() || defaultItemUnit()
+  return {
+    description,
+    quantity: qty,
+    unit,
+    unit_price_without_vat: item.base_unit_price,
+    vat_rate_id: vatRateIdFromPercent(item.vat_rate),
+    order_index: form.value.items.length,
+  }
+}
+
+function insertFromCatalog(items: TriPriceListItem[]) {
+  for (const item of items) {
+    const row = snapshotToInvoiceItem(item)
+    row.order_index = form.value.items.length
+    form.value.items.push(row)
+  }
   focusLastRow('[data-row-input="inv-item"]')
 }
 
@@ -1218,11 +1252,16 @@ async function deleteDraft() {
 
       <!-- Položky -->
       <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs">
-        <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
+        <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-2">
           <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.items') }}</h3>
-          <UiButton type="button" size="sm" @click="addItem">
-            {{ t('invoice.add_item') }}
-          </UiButton>
+          <div class="flex items-center gap-2">
+            <UiButton type="button" variant="outline" size="sm" @click="catalogOpen = true">
+              {{ t('tri.quote.insert_from_catalog') }}
+            </UiButton>
+            <UiButton type="button" size="sm" @click="addItem">
+              {{ t('invoice.add_item') }}
+            </UiButton>
+          </div>
         </div>
         <div v-if="requiresPositiveAmountToPay" class="px-5 py-3 border-b border-neutral-100 text-xs text-neutral-500">
           {{ t('invoice.negative_item_hint') }}
@@ -1494,5 +1533,6 @@ async function deleteDraft() {
     <ClientFormModal v-if="clientModalOpen"
       @created="onClientCreatedInModal"
       @close="clientModalOpen = false" />
+    <CatalogPickerModal v-model:open="catalogOpen" @insert="insertFromCatalog" />
   </div>
 </template>
