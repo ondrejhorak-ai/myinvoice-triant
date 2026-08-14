@@ -100,6 +100,72 @@ final class CalendarEventRulesTest extends TestCase
         ], $days);
     }
 
+    public function testShiftsForcePlanned(): void
+    {
+        $row = CalendarEventRules::normalize([
+            'calendar'  => 'shifts',
+            'title'     => 'Ranní',
+            'starts_at' => '2026-08-17',
+            'status'    => 'confirmed',
+        ]);
+        $this->assertSame('planned', $row['status']);
+    }
+
+    public function testDispatchRejectsInProgress(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('INVALID_STATUS');
+        CalendarEventRules::normalize([
+            'calendar'  => 'dispatch',
+            'title'     => 'Expedice',
+            'starts_at' => '2026-08-17',
+            'status'    => 'in_progress',
+        ]);
+    }
+
+    public function testProductionAllowsInProgressAndDone(): void
+    {
+        $progress = CalendarEventRules::normalize([
+            'calendar'  => 'production',
+            'title'     => 'CNC',
+            'station'   => 'vyroba',
+            'starts_at' => '2026-08-17',
+            'status'    => 'in_progress',
+        ]);
+        $this->assertSame('in_progress', $progress['status']);
+        $done = CalendarEventRules::normalize([
+            'calendar'  => 'production',
+            'title'     => 'CNC',
+            'station'   => 'vyroba',
+            'starts_at' => '2026-08-17',
+            'status'    => 'done',
+        ]);
+        $this->assertSame('done', $done['status']);
+    }
+
+    public function testProductionRejectsConfirmed(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('INVALID_STATUS');
+        CalendarEventRules::normalize([
+            'calendar'  => 'production',
+            'title'     => 'CNC',
+            'station'   => 'vyroba',
+            'starts_at' => '2026-08-17',
+            'status'    => 'confirmed',
+        ]);
+    }
+
+    public function testNextStatusTransitions(): void
+    {
+        $this->assertSame('confirmed', CalendarEventRules::nextStatus('dispatch', 'planned'));
+        $this->assertSame('planned', CalendarEventRules::nextStatus('dispatch', 'confirmed'));
+        $this->assertSame('in_progress', CalendarEventRules::nextStatus('production', 'planned'));
+        $this->assertSame('done', CalendarEventRules::nextStatus('production', 'in_progress'));
+        $this->assertNull(CalendarEventRules::nextStatus('production', 'done'));
+        $this->assertNull(CalendarEventRules::nextStatus('shifts', 'planned'));
+    }
+
     public function testEndBeforeStartFails(): void
     {
         $this->expectException(\InvalidArgumentException::class);

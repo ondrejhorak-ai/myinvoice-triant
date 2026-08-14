@@ -23,10 +23,25 @@ const toast = useToast()
 
 const KINDS: TriCalendarKind[] = ['shifts', 'dispatch', 'production']
 const STATIONS: TriCalendarStation[] = ['konstrukce', 'vyroba', 'kompletace', 'lakovna', 'expedice', 'montaz']
-const KIND_CLASS: Record<TriCalendarKind, string> = {
-  shifts: 'bg-primary-100 text-primary-800',
-  dispatch: 'bg-amber-100 text-amber-900',
-  production: 'bg-emerald-100 text-emerald-800',
+
+function nextStatusOf(calendar: TriCalendarKind, status: string): string | null {
+  if (calendar === 'dispatch') return status === 'planned' ? 'confirmed' : status === 'confirmed' ? 'planned' : null
+  if (calendar === 'production') return status === 'planned' ? 'in_progress' : status === 'in_progress' ? 'done' : null
+  return null
+}
+
+function eventClass(ev: { calendar: TriCalendarKind; status: string }) {
+  if (ev.calendar === 'dispatch') {
+    return ev.status === 'confirmed'
+      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+      : 'bg-transparent text-amber-900 border border-dashed border-amber-400'
+  }
+  if (ev.calendar === 'production') {
+    if (ev.status === 'done') return 'bg-neutral-100 text-neutral-500 border border-neutral-200'
+    if (ev.status === 'in_progress') return 'bg-emerald-100 text-emerald-800 border border-emerald-400 ring-1 ring-emerald-500'
+    return 'bg-transparent text-emerald-800 border border-dashed border-emerald-400'
+  }
+  return 'bg-primary-100 text-primary-800 border border-primary-200'
 }
 
 const kind = ref<TriCalendarKind>('production')
@@ -203,6 +218,14 @@ async function remove() {
   }
 }
 
+function statusActionKey(calendar: TriCalendarKind, status: string) {
+  const next = nextStatusOf(calendar, status)
+  if (calendar === 'dispatch') return next === 'confirmed' ? 'confirm' : 'unconfirm'
+  if (next === 'in_progress') return 'start_progress'
+  if (next === 'done') return 'mark_done'
+  return null
+}
+
 function shift(dir: number) {
   if (view.value === 'month') {
     cursor.value = new Date(cursor.value.getFullYear(), cursor.value.getMonth() + dir, 1)
@@ -275,7 +298,8 @@ watch([kind, view, rangeFrom, rangeTo], () => load())
             v-for="ev in eventsOn(day)"
             :key="ev.id"
             class="mb-1 w-full truncate rounded-md px-1.5 py-0.5 text-xs font-medium"
-            :class="KIND_CLASS[ev.calendar]"
+            :class="eventClass(ev)"
+            :title="`${ev.title} — ${t(`tri.calendar.status_${ev.status}`)}`"
             @click.stop="openEdit(ev)"
           >
             {{ ev.title }}
@@ -317,6 +341,20 @@ watch([kind, view, rangeFrom, rangeTo], () => load())
           <UiInput v-if="!form.all_day" v-model="form.ends_time" type="time" :label="' '" :disabled="!auth.canWrite" />
         </div>
         <UiInput v-model="form.note" :label="t('tri.calendar.note')" :disabled="!auth.canWrite" />
+        <div v-if="form.calendar !== 'shifts'" class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-medium text-neutral-700">{{ t('tri.calendar.status') }}</span>
+          <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="eventClass({ calendar: form.calendar, status: form.status })">
+            {{ t(`tri.calendar.status_${form.status}`) }}
+          </span>
+          <UiButton
+            v-if="auth.canWrite && nextStatusOf(form.calendar, form.status)"
+            variant="outline"
+            size="sm"
+            @click="form.status = nextStatusOf(form.calendar, form.status) ?? form.status"
+          >
+            {{ t(`tri.calendar.${statusActionKey(form.calendar, form.status)}`) }}
+          </UiButton>
+        </div>
         <div v-if="editing?.job_id" class="text-sm">
           <RouterLink class="text-primary-700 font-medium hover:underline" :to="{ name: 'tri-job-detail', params: { id: editing.job_id } }">
             {{ t('tri.calendar.open_job') }} {{ editing.job_number }}

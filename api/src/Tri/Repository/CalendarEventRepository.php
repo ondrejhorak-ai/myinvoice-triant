@@ -33,6 +33,28 @@ final class CalendarEventRepository
         return ['data' => array_map([$this, 'cast'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [])];
     }
 
+    /**
+     * Nadcházející expedice a výroba zakázky (od $from včetně).
+     *
+     * @return array{data: list<array<string, mixed>>}
+     */
+    public function listUpcomingForJob(int $supplierId, int $jobId, string $from): array
+    {
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT e.*, j.number AS job_number, j.title AS job_title
+               FROM tri_calendar_events e
+          LEFT JOIN tri_jobs j ON j.id = e.job_id
+              WHERE e.supplier_id = ? AND e.job_id = ?
+                AND e.calendar IN ('dispatch', 'production')
+                AND COALESCE(e.ends_at, e.starts_at) >= ?
+           ORDER BY e.starts_at, e.id
+              LIMIT 20"
+        );
+        $stmt->execute([$supplierId, $jobId, $from]);
+
+        return ['data' => array_map([$this, 'cast'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [])];
+    }
+
     /** @return array<string, mixed>|null */
     public function find(int $id, int $supplierId): ?array
     {

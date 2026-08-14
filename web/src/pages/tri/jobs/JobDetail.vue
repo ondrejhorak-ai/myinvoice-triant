@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { triApi, type TriJob, type TriVariantStatus, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler } from '@/api/tri'
+import { triApi, type TriJob, type TriVariantStatus, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler, type TriCalendarEvent } from '@/api/tri'
 import { invoicesApi, type InvoiceListItem } from '@/api/invoices'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -32,6 +32,8 @@ const invoicesLoading = ref(false)
 const travelers = ref<TriTraveler[]>([])
 const travelersLoading = ref(false)
 const travelersBusy = ref(false)
+const calendarEvents = ref<TriCalendarEvent[]>([])
+const calendarLoading = ref(false)
 
 const advanceModalOpen = ref(false)
 const advancePercent = ref(50)
@@ -121,6 +123,16 @@ async function loadTravelers() {
   }
 }
 
+async function loadCalendar() {
+  calendarLoading.value = true
+  try {
+    const r = await triApi.calendar.listForJob(jobId.value)
+    calendarEvents.value = r.data
+  } finally {
+    calendarLoading.value = false
+  }
+}
+
 async function generateTravelers() {
   travelersBusy.value = true
   try {
@@ -142,7 +154,7 @@ async function load() {
   loading.value = true
   try {
     job.value = await triApi.jobs.get(jobId.value)
-    await Promise.all([loadInvoices(), loadTravelers()])
+    await Promise.all([loadInvoices(), loadTravelers(), loadCalendar()])
   } finally {
     loading.value = false
   }
@@ -423,6 +435,35 @@ onMounted(() => load())
           </tr>
         </UiTable>
       </div>
+    </UiCard>
+
+    <UiCard>
+      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
+        <h3 class="font-semibold text-neutral-900">{{ t('tri.calendar.upcoming') }}</h3>
+        <UiButton variant="outline" size="sm" :to="{ name: 'tri-calendar' }">
+          {{ t('tri.calendar.open_calendar') }}
+        </UiButton>
+      </div>
+      <div v-if="calendarLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
+      <div v-else-if="calendarEvents.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.calendar.upcoming_empty') }}</div>
+      <ul v-else class="divide-y divide-neutral-100">
+        <li v-for="ev in calendarEvents" :key="ev.id" class="px-5 py-3 flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm font-medium text-neutral-900">{{ ev.title }}</div>
+            <div class="mt-0.5 text-xs text-neutral-500">
+              {{ t(`tri.calendar.${ev.calendar}`) }}
+              <span v-if="ev.station"> · {{ t(`tri.calendar.station_${ev.station}`) }}</span>
+              · {{ formatDate(ev.starts_at.slice(0, 10)) }}
+            </div>
+          </div>
+          <span
+            class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="ev.status === 'done' ? 'bg-neutral-100 text-neutral-600' : ev.status === 'confirmed' || ev.status === 'in_progress' ? 'bg-emerald-50 text-emerald-800' : 'border border-dashed border-neutral-300 text-neutral-600'"
+          >
+            {{ t(`tri.calendar.status_${ev.status}`) }}
+          </span>
+        </li>
+      </ul>
     </UiCard>
 
     <UiCard>

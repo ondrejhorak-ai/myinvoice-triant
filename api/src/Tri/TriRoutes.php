@@ -51,6 +51,7 @@ use MyInvoice\Tri\Action\Calendar\CreateCalendarEventAction;
 use MyInvoice\Tri\Action\Calendar\DeleteCalendarEventAction;
 use MyInvoice\Tri\Action\Calendar\GetCalendarEventAction;
 use MyInvoice\Tri\Action\Calendar\ListCalendarEventsAction;
+use MyInvoice\Tri\Action\Calendar\ListJobCalendarEventsAction;
 use MyInvoice\Tri\Action\Calendar\UpdateCalendarEventAction;
 use MyInvoice\Tri\Action\Traveler\GenerateTravelersAction;
 use MyInvoice\Tri\Action\Traveler\GetTravelerAction;
@@ -134,5 +135,6 @@ final class TriRoutes
         $app->get('/api/tri/calendar/{id:[0-9]+}', GetCalendarEventAction::class);
         $app->put('/api/tri/calendar/{id:[0-9]+}', UpdateCalendarEventAction::class);
         $app->delete('/api/tri/calendar/{id:[0-9]+}', DeleteCalendarEventAction::class);
+        $app->get('/api/tri/jobs/{id:[0-9]+}/calendar', ListJobCalendarEventsAction::class);
     }
 }

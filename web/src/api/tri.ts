@@ -416,6 +416,8 @@ export const triApi = {
   calendar: {
     list: (params: { calendar: TriCalendarKind; from: string; to: string }) =>
       api.get<{ data: TriCalendarEvent[] }>('/tri/calendar', { params }).then((r) => r.data),
+    listForJob: (jobId: number) =>
+      api.get<{ data: TriCalendarEvent[] }>(`/tri/jobs/${jobId}/calendar`).then((r) => r.data),
     get: (id: number) => api.get<TriCalendarEvent>(`/tri/calendar/${id}`).then((r) => r.data),
     create: (payload: Record<string, unknown>) =>
       api.post<TriCalendarEvent>('/tri/calendar', payload).then((r) => r.data),

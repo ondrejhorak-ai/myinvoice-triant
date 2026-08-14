@@ -59,9 +59,7 @@ final class CalendarEventRules
         }
 
         $status = (string) ($body['status'] ?? 'planned');
-        if (!in_array($status, self::STATUSES, true)) {
-            throw new \InvalidArgumentException('INVALID_STATUS');
-        }
+        $status = self::constrainStatus($calendar, $status);
 
         $jobId = $body['job_id'] ?? null;
         if ($jobId === '' || $jobId === null) {
@@ -166,6 +164,37 @@ final class CalendarEventRules
         }
 
         return $dt->format('Y-m-d H:i:s');
+    }
+
+    /** @return list<string> */
+    public static function allowedStatuses(string $calendar): array
+    {
+        return match ($calendar) {
+            'dispatch'   => ['planned', 'confirmed'],
+            'production' => ['planned', 'in_progress', 'done'],
+            default      => ['planned'],
+        };
+    }
+
+    public static function nextStatus(string $calendar, string $status): ?string
+    {
+        return match ($calendar) {
+            'dispatch'   => $status === 'planned' ? 'confirmed' : ($status === 'confirmed' ? 'planned' : null),
+            'production' => $status === 'planned' ? 'in_progress' : ($status === 'in_progress' ? 'done' : null),
+            default      => null,
+        };
+    }
+
+    public static function constrainStatus(string $calendar, string $status): string
+    {
+        $allowed = self::allowedStatuses($calendar);
+        if (in_array($status, $allowed, true)) {
+            return $status;
+        }
+        if ($calendar === 'shifts') {
+            return 'planned';
+        }
+        throw new \InvalidArgumentException('INVALID_STATUS');
     }
 
     private static function boolish(mixed $value): bool
