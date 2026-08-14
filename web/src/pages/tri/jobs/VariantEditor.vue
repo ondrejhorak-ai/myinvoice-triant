@@ -17,6 +17,8 @@ import JobHeaderInfo from './JobHeaderInfo.vue'
 import QuoteAdjustmentPanel from './QuoteAdjustmentPanel.vue'
 import VariantItemsNotionTable from './VariantItemsNotionTable.vue'
 import QuoteLineImageControl from './QuoteLineImageControl.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -71,9 +73,9 @@ const noteBelowItems = ref('')
 const expandedPanels = ref<Set<string>>(new Set())
 
 const inputGhostClass =
-  'h-8 px-2 rounded-md text-sm bg-transparent border border-transparent hover:border-neutral-200 focus:bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none'
+  'h-8 px-2 rounded-md text-sm bg-transparent border border-transparent hover:border-neutral-200 focus:bg-surface shadow-xs outline-none focus-ring'
 const titleAreaClass =
-  'min-h-8 py-1.5 px-2 rounded-md text-sm bg-transparent border border-transparent hover:border-neutral-200 focus:bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none resize-none overflow-hidden whitespace-pre-wrap leading-snug'
+  'min-h-8 py-1.5 px-2 rounded-md text-sm bg-transparent border border-transparent hover:border-neutral-200 focus:bg-surface shadow-xs outline-none focus-ring resize-none overflow-hidden whitespace-pre-wrap leading-snug'
 const noSpinClass =
   '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 const gridCols =
@@ -681,7 +683,7 @@ function variantStatusPillClass(status: TriVariantStatus, active: boolean): stri
     sent: 'text-teal-700',
     approved: 'text-success-700',
   }
-  return `${base} bg-surface shadow-sm font-semibold ${map[status]}`
+  return `${base} bg-surface shadow-xs font-semibold ${map[status]}`
 }
 
 onBeforeRouteLeave(() => {
@@ -704,40 +706,37 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="loading" class="text-neutral-500">{{ t('common.loading') }}</div>
-  <div v-else-if="variant" class="max-w-5xl space-y-4">
+  <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
+  <div v-else-if="variant" class="max-w-5xl space-y-6">
     <RouterLink
       :to="{ name: 'tri-job-detail', params: { id: jobId } }"
-      class="inline-flex items-center text-sm text-neutral-600 hover:text-neutral-900"
+      class="text-sm text-neutral-500 hover:text-neutral-900"
     >
       ← {{ t('tri.jobs.detail') }}
     </RouterLink>
 
     <!-- Záhlaví varianty -->
-    <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
-      <!-- Horní pruh: zakázka + výrazná varianta + stav + datum vytvoření -->
+    <UiCard>
       <div class="flex flex-col gap-4 p-5 border-b border-neutral-200 md:flex-row md:items-start md:justify-between">
         <div class="min-w-0">
-          <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.quote.header_job') }}</p>
+          <p class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.quote.header_job') }}</p>
           <p class="mt-1 text-3xl font-bold font-mono tracking-tight text-neutral-900">{{ variant.job_number }}</p>
           <h1 class="mt-1 text-lg font-medium text-neutral-600 break-words">{{ variant.job_title }}</h1>
         </div>
 
         <div class="flex flex-wrap items-start gap-5 shrink-0">
-          <!-- Výrazné zobrazení varianty -->
           <div>
-            <span class="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.quote.variant_label') }}</span>
-            <div class="flex h-10 min-w-10 items-center justify-center rounded-lg bg-primary-600 px-3 shadow-sm">
+            <span class="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.quote.variant_label') }}</span>
+            <div class="flex h-10 min-w-10 items-center justify-center rounded-md bg-primary-600 px-3 shadow-xs">
               <span class="text-xl font-bold leading-none text-white">{{ variant.variant_code }}</span>
             </div>
           </div>
 
-          <!-- Stav varianty -->
           <div>
-            <span class="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.quote.status_label') }}</span>
+            <span class="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.quote.status_label') }}</span>
             <div
               v-if="auth.canWrite"
-              class="inline-flex h-10 items-center gap-0.5 rounded-lg bg-neutral-100 p-1"
+              class="inline-flex h-10 items-center gap-0.5 rounded-md bg-neutral-100 p-1"
             >
               <button
                 v-for="s in variantStatusOptions"
@@ -753,28 +752,20 @@ onBeforeUnmount(() => {
             <p v-else class="h-10 flex items-center text-sm font-medium text-neutral-800">{{ t(`tri.quote.status_${variant.status}`) }}</p>
           </div>
 
-          <!-- Datum vytvoření (předvyplněné, ručně upravitelné) -->
           <div>
-            <label class="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.quote.created_date') }}</label>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.quote.created_date') }}</label>
             <input
               v-model="variant.job_date"
               type="date"
-              class="h-10 px-3 border border-neutral-300 rounded-lg text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+              class="h-10 px-3 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs outline-none focus-ring"
             />
           </div>
 
-          <!-- Stáhnout PDF -->
           <div v-if="hasLineItems">
-            <span class="block text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5 invisible select-none" aria-hidden="true">&nbsp;</span>
-            <button
-              type="button"
-              :disabled="saving"
-              class="cursor-pointer h-10 px-3 text-sm border border-primary-500/40 rounded-lg text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1.5 disabled:opacity-50"
-              @click="downloadPdf"
-            >
-              <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+            <span class="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5 invisible select-none" aria-hidden="true">&nbsp;</span>
+            <UiButton type="button" variant="outline" size="sm" :disabled="saving" :loading="saving" @click="downloadPdf">
               {{ t('invoice.download_pdf') }}
-            </button>
+            </UiButton>
           </div>
         </div>
       </div>
@@ -786,13 +777,13 @@ onBeforeUnmount(() => {
         :site-city="job.site_city"
         :site-zip="job.site_zip"
       />
-    </div>
+    </UiCard>
 
     <!-- Poznámka nad položkami -->
-    <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-      <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.quote.note_above') }}</label>
-      <textarea v-model="noteAboveItems" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
-    </div>
+    <UiCard padding>
+      <label class="block text-sm font-medium text-neutral-700 mb-1.5">{{ t('tri.quote.note_above') }}</label>
+      <textarea v-model="noteAboveItems" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring"></textarea>
+    </UiCard>
 
     <!-- Table UI toggle -->
     <div class="flex items-center justify-end">
@@ -848,11 +839,11 @@ onBeforeUnmount(() => {
     <template v-else>
       <div
         v-if="blocks.length"
-        class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden"
+        class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden"
       >
         <!-- Column header -->
         <div
-          :class="[gridCols, 'bg-neutral-50 border-b border-neutral-200 px-3 py-2 text-xs uppercase tracking-wide text-neutral-500']"
+          :class="[gridCols, 'bg-neutral-50 border-b border-neutral-200 px-3 py-2.5 text-[12px] uppercase tracking-wide text-neutral-500']"
         >
           <span></span>
           <span class="px-2">{{ t('tri.quote.designation') }}</span>
@@ -1045,36 +1036,27 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="flex gap-2">
-        <button
-          type="button"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-7 px-2.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
-          @click="addSection"
-        >
+        <UiButton type="button" variant="outline" size="sm" @click="addSection">
           {{ t('tri.quote.add_section') }}
-        </button>
-        <button
-          type="button"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-7 px-2.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
-          @click="addLine()"
-        >
+        </UiButton>
+        <UiButton type="button" variant="outline" size="sm" @click="addLine()">
           {{ t('tri.quote.add_line') }}
-        </button>
+        </UiButton>
       </div>
     </template>
 
     <!-- Poznámka pod položkami + souhrn cen -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
-      <div class="sm:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.quote.note_below') }}</label>
-        <textarea v-model="noteBelowItems" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
-      </div>
+      <UiCard padding class="sm:col-span-2">
+        <label class="block text-sm font-medium text-neutral-700 mb-1.5">{{ t('tri.quote.note_below') }}</label>
+        <textarea v-model="noteBelowItems" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring"></textarea>
+      </UiCard>
 
-      <!-- Totals -->
-      <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm p-4 space-y-3">
+      <UiCard padding>
         <div class="border-b border-neutral-100 pb-3">
           <button
             type="button"
-            class="text-xs text-primary-600 hover:text-primary-700 cursor-pointer"
+            class="text-xs text-primary-700 hover:text-primary-800 cursor-pointer font-medium"
             @click="togglePanel('variant-adjustments')"
           >
             {{ isPanelOpen('variant-adjustments') ? '▼' : '▶' }}
@@ -1119,25 +1101,21 @@ onBeforeUnmount(() => {
           <span class="font-mono tabular-nums">{{ formatMoney(Math.round(previewTotals.total), 'CZK', 0) }}</span>
         </div>
         </div>
-      </div>
+      </UiCard>
     </div>
 
-    <!-- Action bar -->
-    <div class="bg-surface border border-neutral-200 rounded-lg p-4 flex justify-between items-center shadow-sm">
-      <RouterLink
-        :to="{ name: 'tri-job-detail', params: { id: jobId } }"
-        class="px-4 py-2 text-sm text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
-      >
-        {{ t('common.back') }}
-      </RouterLink>
-      <button
-        type="button"
-        class="cursor-pointer inline-flex items-center gap-1.5 h-10 px-5 bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white text-sm font-medium rounded-md"
-        :disabled="saving"
-        @click="save"
-      >
-        {{ saving ? t('common.saving') : t('common.save') }}
-      </button>
-    </div>
+    <UiCard>
+      <div class="p-4 flex justify-between items-center">
+        <UiButton
+          :to="{ name: 'tri-job-detail', params: { id: jobId } }"
+          variant="ghost"
+        >
+          {{ t('common.back') }}
+        </UiButton>
+        <UiButton type="button" :loading="saving" :disabled="saving" @click="save">
+          {{ saving ? t('common.saving') : t('common.save') }}
+        </UiButton>
+      </div>
+    </UiCard>
   </div>
 </template>

@@ -43,15 +43,15 @@ const commissionValueModel = computed({
 })
 
 const inputClass =
-  'h-7 px-2 rounded-md text-xs bg-surface border border-neutral-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none'
+  'h-7 px-2 rounded-md text-xs bg-surface border border-neutral-300 shadow-xs outline-none focus-ring'
 const selectClass = `${inputClass} w-14`
 const rowGridClass = 'grid grid-cols-[auto_96px_56px] items-center gap-1.5'
 const labelClass =
-  'text-[11px] font-semibold uppercase tracking-wide text-neutral-500 text-right pr-1 inline-flex items-center justify-end gap-1'
+  'text-[11px] font-semibold uppercase tracking-wider text-neutral-400 text-right pr-1 inline-flex items-center justify-end gap-1'
 </script>
 
 <template>
-  <div class="col-span-full border-t border-neutral-100 bg-neutral-50/80 px-3 py-2.5">
+  <div class="col-span-full border-t border-neutral-100 bg-neutral-50 px-3 py-2.5">
     <div class="flex flex-col items-end gap-2">
       <div :class="rowGridClass">
         <span :class="labelClass">

@@ -14,7 +14,7 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - [x] **A3 — Shell.** `AppLayout.vue`: sidebar podle Untitled UI (sekce s jemnými popisky, položky 40px, aktivní stav plný pill v primary-50/primary-700, hover neutral-100), topbar vyčistit, page canvas `max-w` + konzistentní padding. `AppShell.vue` (login) sladit. **Zachovat TRI úpravy:** drawer chování na všech šířkách, `TriLogo`, `TriTopbarNav`, skryté přepínače (`SHOW_LOCALE_SWITCHER/SHOW_THEME_TOGGLE`).
 - [x] **A4 — Restyle TRI Kontakty** (`pages/tri/contacts/**`): list, detail, form modal — nasadit primitiva z A2, tabulka + page header + empty state podle Untitled.
 - [x] **A5 — Restyle TRI Zakázky** (`JobList.vue`, `JobForm.vue`, `JobDetail.vue`): karty, status badge, dvousloupcový detail, chat feed vizuálně sladit.
-- [ ] **A6 — Restyle editor varianty** (`VariantEditor.vue`, `VariantItemsNotionTable.vue`, `QuoteAdjustmentPanel.vue`): tabulka položek, toolbar, souhrn cen — Untitled table + inputs. Neměnit chování kalkulací.
+- [x] **A6 — Restyle editor varianty** (`VariantEditor.vue`, `VariantItemsNotionTable.vue`, `QuoteAdjustmentPanel.vue`): tabulka položek, toolbar, souhrn cen — Untitled table + inputs. Neměnit chování kalkulací.
 - [ ] **A7 — Restyle TRI Faktury** (`pages/tri/invoices/**`): list, editor, detail, ActionBar.
 
 ### B. Ceníky
@@ -62,3 +62,4 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - **2026-08-13 21:56 A3** — Shell: sidebar 40px pill (active primary-50/700), jemná sekční popiska, topbar vyčištěný, canvas `max-w-7xl`. Drawer / TriLogo / TriTopbarNav / skryté toggle zachovány. AppShell + login karta sladěny.
 - **2026-08-13 22:05 A4** — Restyle TRI kontakty (list/detail/form) na A2 primitiva: UiPageHeader, UiCard, UiTable, UiButton, UiInput, EmptyState. KPI/grafy na detailu jen shadow-xs. Embedded ContactForm (JobForm modal) zachován.
 - **2026-08-14 07:00 A5** — Restyle TRI zakázky: list (header/table/badge/empty), form (card + inputs), dvousloupcový detail (varianty + faktury v kartách), chat feed na UiCard/UiButton. Dvou-sloupcový layout zachován.
+- **2026-08-14 07:05 A6** — Restyle editor varianty: UiCard/UiButton, focus-ring na ghost inputs, Untitled hlavička tabulky (notion i classic), panel slev/provizí. Kalkulace beze změny.

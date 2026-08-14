@@ -6,6 +6,7 @@ import type { TriQuoteImage, TriQuoteLineItem } from '@/api/tri'
 import type { TriAdjustmentType } from '@/composables/useTriQuotePricing'
 import QuoteAdjustmentPanel from './QuoteAdjustmentPanel.vue'
 import QuoteLineImageControl from './QuoteLineImageControl.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 
 type Row = TriQuoteLineItem & { _uid: string }
 interface ItemBlock {
@@ -353,16 +354,16 @@ onMounted(() => {
 
 <template>
   <div class="space-y-3">
-    <div class="bg-surface border border-neutral-300 rounded-lg overflow-hidden shadow-sm">
+    <div class="bg-surface border border-neutral-200 rounded-lg overflow-hidden shadow-xs">
       <div
-        class="grid bg-neutral-100 border-b border-neutral-300 text-[11px] font-semibold uppercase tracking-wide text-neutral-500 select-none"
+        class="grid bg-neutral-50 border-b border-neutral-200 text-[12px] font-semibold uppercase tracking-wide text-neutral-500 select-none"
         :style="{ gridTemplateColumns }"
       >
-        <div class="border-r border-neutral-300" />
+        <div class="border-r border-neutral-200" />
         <div
           v-for="key in (['designation', 'title', 'quantity', 'unitPrice', 'vat', 'total'] as ColKey[])"
           :key="key"
-          class="relative px-2 py-2 border-r border-neutral-300 flex items-center"
+          class="relative px-2 py-2.5 border-r border-neutral-200 flex items-center"
           :class="key === 'unitPrice' || key === 'vat' || key === 'total' ? 'justify-end' : ''"
         >
           <span class="truncate">
@@ -420,7 +421,7 @@ onMounted(() => {
                     </svg>
                   </div>
                   <div class="border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
-                    <input v-model="row.designation" class="w-full h-full min-h-9 px-2 text-sm bg-transparent outline-none" />
+                    <input v-model="row.designation" class="w-full h-full min-h-9 px-2 text-sm bg-transparent outline-none focus-ring" />
                   </div>
                   <div class="flex min-w-0 border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
                     <QuoteLineImageControl
@@ -434,7 +435,7 @@ onMounted(() => {
                       v-model="row.title"
                       v-autosize
                       rows="1"
-                      class="min-w-0 flex-1 min-h-9 py-2 px-2 text-sm bg-transparent outline-none resize-none overflow-hidden whitespace-pre-wrap leading-snug"
+                      class="min-w-0 flex-1 min-h-9 py-2 px-2 text-sm bg-transparent outline-none focus-ring resize-none overflow-hidden whitespace-pre-wrap leading-snug"
                     />
                   </div>
                   <div class="border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
@@ -442,7 +443,7 @@ onMounted(() => {
                       v-model.number="row.quantity"
                       type="number"
                       step="0.001"
-                      :class="[noSpinClass, 'w-full h-full min-h-9 px-2 text-sm font-mono tabular-nums bg-transparent outline-none']"
+                      :class="[noSpinClass, 'w-full h-full min-h-9 px-2 text-sm font-mono tabular-nums bg-transparent outline-none focus-ring']"
                     />
                   </div>
                   <div class="border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
@@ -450,13 +451,13 @@ onMounted(() => {
                       v-model.number="row.base_unit_price"
                       type="number"
                       step="1"
-                      :class="[noSpinClass, 'w-full h-full min-h-9 px-2 text-sm font-mono tabular-nums text-right bg-transparent outline-none']"
+                      :class="[noSpinClass, 'w-full h-full min-h-9 px-2 text-sm font-mono tabular-nums text-right bg-transparent outline-none focus-ring']"
                     />
                   </div>
                   <div class="border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
                     <select
                       v-model.number="row.vat_rate"
-                      class="w-full h-full min-h-9 px-1 text-sm font-mono tabular-nums text-right bg-transparent outline-none"
+                      class="w-full h-full min-h-9 px-1 text-sm font-mono tabular-nums text-right bg-transparent outline-none focus-ring"
                     >
                       <option :value="21">21</option>
                       <option :value="12">12</option>
@@ -506,7 +507,7 @@ onMounted(() => {
             </template>
 
             <template v-else>
-              <div class="group/sec flex items-center gap-2 px-2 py-2 bg-neutral-100 border-b border-neutral-300 border-l-[3px] border-l-primary-500">
+              <div class="group/sec flex items-center gap-2 px-2 py-2 bg-primary-50/60 border-b border-neutral-200 border-l-[3px] border-l-primary-400">
                 <div
                   class="drag-handle cursor-grab active:cursor-grabbing flex items-center justify-center w-5 shrink-0 text-neutral-300 group-hover/sec:text-neutral-500"
                   :title="t('tri.quote.drag_handle')"
@@ -519,7 +520,7 @@ onMounted(() => {
                 </div>
                 <input
                   v-model="block.title"
-                  class="flex-1 h-9 px-2 rounded text-[15px] font-semibold text-neutral-800 bg-transparent border border-transparent hover:border-neutral-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none"
+                  class="flex-1 h-9 px-2 rounded-md text-[15px] font-semibold text-neutral-800 bg-transparent border border-transparent hover:border-neutral-200 shadow-xs outline-none focus-ring"
                 />
                 <span class="text-xs text-neutral-400 tabular-nums shrink-0">{{ block.items.length }}</span>
               </div>
@@ -555,7 +556,7 @@ onMounted(() => {
                           </svg>
                         </div>
                         <div class="border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
-                          <input v-model="row.designation" class="w-full h-full min-h-9 px-2 text-sm bg-transparent outline-none" />
+                          <input v-model="row.designation" class="w-full h-full min-h-9 px-2 text-sm bg-transparent outline-none focus-ring" />
                         </div>
                         <div class="flex min-w-0 border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
                           <QuoteLineImageControl
@@ -569,7 +570,7 @@ onMounted(() => {
                             v-model="row.title"
                             v-autosize
                             rows="1"
-                            class="min-w-0 flex-1 min-h-9 py-2 px-2 text-sm bg-transparent outline-none resize-none overflow-hidden whitespace-pre-wrap leading-snug"
+                            class="min-w-0 flex-1 min-h-9 py-2 px-2 text-sm bg-transparent outline-none focus-ring resize-none overflow-hidden whitespace-pre-wrap leading-snug"
                           />
                         </div>
                         <div class="border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
@@ -577,7 +578,7 @@ onMounted(() => {
                             v-model.number="row.quantity"
                             type="number"
                             step="0.001"
-                            :class="[noSpinClass, 'w-full h-full min-h-9 px-2 text-sm font-mono tabular-nums bg-transparent outline-none']"
+                            :class="[noSpinClass, 'w-full h-full min-h-9 px-2 text-sm font-mono tabular-nums bg-transparent outline-none focus-ring']"
                           />
                         </div>
                         <div class="border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
@@ -585,11 +586,11 @@ onMounted(() => {
                             v-model.number="row.base_unit_price"
                             type="number"
                             step="1"
-                            :class="[noSpinClass, 'w-full h-full min-h-9 px-2 text-sm font-mono tabular-nums text-right bg-transparent outline-none']"
+                            :class="[noSpinClass, 'w-full h-full min-h-9 px-2 text-sm font-mono tabular-nums text-right bg-transparent outline-none focus-ring']"
                           />
                         </div>
                         <div class="border-r border-neutral-200 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500/30">
-                          <select v-model.number="row.vat_rate" class="w-full h-full min-h-9 px-1 text-sm font-mono tabular-nums text-right bg-transparent outline-none">
+                          <select v-model.number="row.vat_rate" class="w-full h-full min-h-9 px-1 text-sm font-mono tabular-nums text-right bg-transparent outline-none focus-ring">
                             <option :value="21">21</option>
                             <option :value="12">12</option>
                             <option :value="0">0</option>
@@ -639,11 +640,11 @@ onMounted(() => {
                 </template>
               </draggable>
 
-              <div class="border-t border-neutral-200 border-l-[3px] border-l-primary-500 bg-neutral-100/80">
+              <div class="border-t border-neutral-200 border-l-[3px] border-l-primary-400 bg-neutral-50">
                 <div class="flex items-center gap-2 px-2 py-2">
                   <button
                     type="button"
-                    class="cursor-pointer text-xs text-primary-600 hover:text-primary-700 shrink-0"
+                    class="cursor-pointer text-xs text-primary-700 hover:text-primary-800 shrink-0"
                     @click="emit('addLineToSection', block)"
                   >
                     + {{ t('tri.quote.add_line_to_section') }}
@@ -694,20 +695,12 @@ onMounted(() => {
     </div>
 
     <div class="flex gap-2">
-      <button
-        type="button"
-        class="cursor-pointer inline-flex items-center gap-1.5 h-7 px-2.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
-        @click="emit('addSection')"
-      >
+      <UiButton type="button" variant="outline" size="sm" @click="emit('addSection')">
         {{ t('tri.quote.add_section') }}
-      </button>
-      <button
-        type="button"
-        class="cursor-pointer inline-flex items-center gap-1.5 h-7 px-2.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
-        @click="emit('addLine')"
-      >
+      </UiButton>
+      <UiButton type="button" variant="outline" size="sm" @click="emit('addLine')">
         {{ t('tri.quote.add_line') }}
-      </button>
+      </UiButton>
     </div>
   </div>
 </template>
