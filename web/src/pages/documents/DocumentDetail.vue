@@ -8,6 +8,8 @@ import { documentsApi, type DocItem, type EntityType, type LinkSearchResult } fr
 import { docTypeBadge, formatBytes, canInline } from '@/components/documents/docFormat'
 import EntityLinkPicker from '@/components/documents/EntityLinkPicker.vue'
 import TagInput from '@/components/documents/TagInput.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -149,33 +151,26 @@ onMounted(load)
     </nav>
 
     <!-- Header -->
-    <div class="flex items-start gap-3">
-      <button type="button" class="text-neutral-400 hover:text-neutral-700 mt-1" @click="router.back()">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
-      </button>
-      <span :class="['shrink-0 px-2 py-1 rounded text-xs font-semibold', docTypeBadge(doc.doc_type).class]">{{ docTypeBadge(doc.doc_type).label }}</span>
-      <div class="min-w-0 flex-1">
-        <h1 class="text-lg font-semibold text-neutral-800 truncate">{{ doc.title }}</h1>
-        <p class="text-xs text-neutral-500">
-          {{ doc.original_name }} · {{ formatBytes(doc.size_bytes) }} · {{ doc.created_at.slice(0, 16) }}
-        </p>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <a :href="documentsApi.downloadUrl(doc.id)" class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium rounded-md border border-neutral-300 text-neutral-700 hover:bg-neutral-50">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+    <UiPageHeader :title="doc.title" :subtitle="`${doc.original_name} · ${formatBytes(doc.size_bytes)} · ${doc.created_at.slice(0, 16)}`">
+      <template #below>
+        <div class="mt-2">
+          <span :class="['shrink-0 px-2 py-1 rounded-full text-xs font-medium', docTypeBadge(doc.doc_type).class]">{{ docTypeBadge(doc.doc_type).label }}</span>
+        </div>
+      </template>
+      <template #actions>
+        <UiButton :href="documentsApi.downloadUrl(doc.id)" variant="outline" size="sm">
           {{ t('documents.download') }}
-        </a>
-        <button v-if="auth.canWrite" type="button" class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium rounded-md border border-danger-300 text-danger-500 hover:bg-danger-50" @click="onTrash">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" /></svg>
+        </UiButton>
+        <UiButton v-if="auth.canWrite" type="button" variant="danger" size="sm" @click="onTrash">
           {{ t('documents.delete') }}
-        </button>
-      </div>
-    </div>
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <!-- Left: preview -->
       <div class="lg:col-span-2 space-y-4">
-        <div v-if="previewTarget" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+        <div v-if="previewTarget" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
           <div class="flex items-center justify-between px-4 py-2 border-b border-neutral-100">
             <span class="text-sm font-medium text-neutral-600">
               {{ t('documents.preview') }}
@@ -199,7 +194,7 @@ onMounted(load)
         </div>
 
         <!-- DMS message panel (ZFO) -->
-        <div v-if="doc.dms_message" class="bg-surface border border-neutral-200 rounded-lg shadow-sm p-4">
+        <div v-if="doc.dms_message" class="bg-surface border border-neutral-200 rounded-lg shadow-xs p-4">
           <h3 class="text-sm font-medium text-neutral-700 mb-3">{{ t('documents.dms.title') }}</h3>
           <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <div><dt class="text-neutral-400 text-xs">{{ t('documents.dms.message_id') }}</dt><dd class="text-neutral-800">{{ doc.dms_message.dm_id || '—' }}</dd></div>
@@ -213,7 +208,7 @@ onMounted(load)
         </div>
 
         <!-- Attachments (ZFO children) -->
-        <div v-if="doc.attachments && doc.attachments.length" class="bg-surface border border-neutral-200 rounded-lg shadow-sm p-4">
+        <div v-if="doc.attachments && doc.attachments.length" class="bg-surface border border-neutral-200 rounded-lg shadow-xs p-4">
           <h3 class="text-sm font-medium text-neutral-700 mb-3">{{ t('documents.attachments') }} ({{ doc.attachments.length }})</h3>
           <ul class="space-y-1">
             <li v-for="a in doc.attachments" :key="a.id" :class="['flex items-center gap-3 px-2 py-1.5 rounded', previewTarget && previewTarget.id === a.id ? 'bg-primary-50' : 'hover:bg-neutral-50']">
@@ -235,7 +230,7 @@ onMounted(load)
       <!-- Right: metadata + links -->
       <div class="space-y-4">
         <!-- Metadata -->
-        <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm p-4 space-y-3">
+        <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs p-4 space-y-3">
           <h3 class="text-sm font-medium text-neutral-700">{{ t('documents.metadata') }}</h3>
           <div>
             <label class="block text-xs text-neutral-400 mb-1">{{ t('documents.name') }}</label>
@@ -264,7 +259,7 @@ onMounted(load)
         </div>
 
         <!-- Links (oboustranné párování) -->
-        <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm p-4 space-y-3">
+        <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs p-4 space-y-3">
           <h3 class="text-sm font-medium text-neutral-700">{{ t('documents.linked_to') }}</h3>
           <ul v-if="doc.links && doc.links.length" class="space-y-1">
             <li v-for="l in doc.links" :key="l.entity_type + '-' + l.entity_id" class="flex items-start gap-2 text-sm">

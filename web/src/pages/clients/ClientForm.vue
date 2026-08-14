@@ -8,6 +8,8 @@ import { expenseCategoriesApi, type ExpenseCategory } from '@/api/expenseCategor
 import { revenueCategoriesApi, type RevenueCategory } from '@/api/revenueCategories'
 import { useToast } from '@/composables/useToast'
 import { useSupplierStore } from '@/stores/supplier'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 
 /**
  * V `embedded` módu komponenta nečte route, neredirektuje a vrací výsledek
@@ -33,6 +35,11 @@ const isEdit = computed(() =>
   !props.embedded && route.params.id !== undefined && route.params.id !== 'new'
 )
 const clientId = computed(() => (isEdit.value ? Number(route.params.id) : null))
+const pageTitle = computed(() =>
+  isEdit.value
+    ? t('client.edit_title')
+    : (route.query.role === 'vendor' ? t('purchase_invoice.new_vendor') : t('client.new_title')),
+)
 
 // Splatnost — UI preset selector. 'inherit' = dědit supplier default; ostatní hodnoty
 // zapíšou do form pevnou dvojici (payment_due_default, payment_due_unit). 'custom'
@@ -418,15 +425,12 @@ async function submit() {
 
 <template>
   <div :class="embedded ? '' : 'max-w-3xl'">
-    <div v-if="!embedded" class="flex items-center justify-between mb-4">
-      <h1 class="text-2xl font-semibold">
-        {{ isEdit ? t('client.edit_title')
-          : (route.query.role === 'vendor' ? t('purchase_invoice.new_vendor') : t('client.new_title')) }}
-      </h1>
-      <RouterLink to="/clients" class="text-sm text-neutral-600 hover:text-neutral-900">{{ t('client.back_to_list') }}</RouterLink>
+    <div v-if="!embedded" class="mb-4">
+      <RouterLink to="/clients" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('client.back_to_list') }}</RouterLink>
+      <UiPageHeader :title="pageTitle" />
     </div>
 
-    <form @submit.prevent="submit" autocomplete="off" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <form @submit.prevent="submit" autocomplete="off" class="bg-surface border border-neutral-200 rounded-lg shadow-xs">
       <div class="p-5 space-y-4">
         <!-- Lookup helpers -->
         <div class="bg-primary-50 border border-primary-200 rounded-md p-3">
@@ -831,13 +835,11 @@ async function submit() {
       </div>
 
       <div class="px-5 py-3 border-t border-neutral-200 bg-neutral-50 flex justify-end gap-3 rounded-b-lg">
-        <button v-if="embedded" type="button" @click="emit('cancel')"
-          class="px-4 h-10 border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface text-sm font-medium">{{ t('common.cancel') }}</button>
-        <RouterLink v-else to="/clients" class="px-4 h-10 leading-10 border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface text-sm font-medium">{{ t('common.cancel') }}</RouterLink>
-        <button type="submit" :disabled="submitting"
-          class="px-5 h-10 bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white text-sm font-medium rounded-md">
+        <UiButton v-if="embedded" type="button" variant="outline" @click="emit('cancel')">{{ t('common.cancel') }}</UiButton>
+        <UiButton v-else to="/clients" variant="outline">{{ t('common.cancel') }}</UiButton>
+        <UiButton type="submit" :loading="submitting" :disabled="submitting">
           {{ submitting ? t('common.saving') : (isEdit ? t('common.save') : t('common.create')) }}
-        </button>
+        </UiButton>
       </div>
     </form>
   </div>

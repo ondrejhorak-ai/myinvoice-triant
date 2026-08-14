@@ -45,10 +45,12 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 
 ### G. Polish (nekonečná sekce — když je vše výše hotové, přidávej a ber odsud)
 
-- [x] **G1 — Restyle core Faktury** (`pages/invoices/**`) do Untitled vzhledu.
-- [ ] **G2 — Restyle Dashboard, Klienti, Dokumenty.**
+- [x] **G1 — Restyle core Faktury** (`pages/invoices/`**) do Untitled vzhledu.
+
+- [x] **G2 — Restyle Dashboard, Klienti, Dokumenty.**
+
 - [ ] **G3 — Restyle zbývajících core stránek** (banka, výkazy, admin, recurring…) — po menších dávkách, jedna oblast na tick.
-- [ ] **G4 — PDF nabídky:** sladit `styles/quote.css` s novým vizuálem (typografie, hlavička).
+- [ ] **G4 — PDF nabídky:** zachova beze změn.
 - [ ] **G5 — PDF faktury:** opatrně sladit `styles/invoice.css` (nezasahovat do náležitostí dokladu).
 - [ ] **G6 — Mobile pass:** karty/tabulky nových agend na malých šířkách.
 - [ ] **G7 — Empty states + loading skeletony** všech nových agend.
@@ -77,4 +79,5 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - **2026-08-14 13:50 E1** — Reklamace: migrace `9016`, CRUD + chat `/api/tri/complaints`, eventy do `tri_job_activity` (opened/closed/reopened). FE list+detail s chatem, sekce na zakázce, sidebar. PHPUnit `ComplaintRulesTest`. `CzkRecapTest` (jádro DPH) padá 511.66 vs 511.67 — mimo řez, neopraveno.
 - **2026-08-14 13:52 F1** — Manuál: kapitoly 42–45 (Ceníky, Průvodky, Kalendář, Reklamace), `14_Zakazky.md` § 14.10 (Vyrábíme, hodiny, odkazy), INDEX sekce TRIANT. HTML+PDF regenerováno. `manual/manual.css` už zrcadlí A1 tokeny.
 - **2026-08-14 14:05 G1** — Restyle core faktur (`InvoiceList/Detail/Editor`): UiPageHeader, UiButton, UiCard, UiInput, UiBadge, ActionBar v headeru detailu, shadow-xs, Untitled caption/thead. Chování faktur/DPH beze změny.
+- **2026-08-14 14:15 G2** — Restyle Dashboard, Klienti (list/detail/form) a Dokumenty (browser/detail): primitiva A2, shadow-xs, Untitled caption/thead. KPI čísla a chování beze změny.
 

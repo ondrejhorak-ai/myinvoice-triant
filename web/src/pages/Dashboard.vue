@@ -13,6 +13,7 @@ import TopClientsPieChart from '@/components/charts/TopClientsPieChart.vue'
 import TaxNetWidget from '@/components/dashboard/TaxNetWidget.vue'
 import ActionItemsWidget from '@/components/dashboard/ActionItemsWidget.vue'
 import WorkReportModal from '@/components/modals/WorkReportModal.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -123,7 +124,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
 <template>
   <div>
     <!-- Onboarding gate (#151): dodavatel přeskočen v setupu → bez něj nelze nic založit -->
-    <div v-if="!hasSupplier" class="max-w-2xl mx-auto bg-surface border border-neutral-200 rounded-lg shadow-sm p-8 text-center">
+    <div v-if="!hasSupplier" class="max-w-2xl mx-auto bg-surface border border-neutral-200 rounded-lg shadow-xs p-8 text-center">
       <div class="w-14 h-14 bg-primary-100 rounded-full mx-auto mb-4 flex items-center justify-center">
         <svg class="w-7 h-7 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4"/>
@@ -131,10 +132,9 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
       </div>
       <h2 class="text-xl font-semibold mb-2">{{ t('dashboard.no_supplier.title') }}</h2>
       <p class="text-neutral-500 mb-6">{{ t('dashboard.no_supplier.intro') }}</p>
-      <RouterLink v-if="isAdmin" to="/admin/codebooks?create=supplier"
-        class="px-5 h-10 inline-flex items-center bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md">
+      <UiButton v-if="isAdmin" to="/admin/codebooks?create=supplier">
         {{ t('dashboard.no_supplier.cta_admin') }}
-      </RouterLink>
+      </UiButton>
       <p v-else class="text-sm text-neutral-600">{{ t('dashboard.no_supplier.non_admin') }}</p>
     </div>
 
@@ -149,12 +149,8 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
       <h2 class="text-lg font-semibold mb-2">{{ t('dashboard.welcome') }}</h2>
       <p class="text-neutral-500 mb-6">{{ t('common.no_data') }}</p>
       <div class="flex justify-center gap-3">
-        <RouterLink v-if="auth.canWrite" to="/clients/new" class="px-4 h-10 inline-flex items-center bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md">
-          {{ t('client.new') }}
-        </RouterLink>
-        <RouterLink v-if="auth.canWrite" to="/invoices/new" class="px-4 h-10 inline-flex items-center border border-neutral-300 text-neutral-700 hover:bg-neutral-50 text-sm font-medium rounded-md">
-          {{ t('invoice.new') }}
-        </RouterLink>
+        <UiButton v-if="auth.canWrite" to="/clients/new">{{ t('client.new') }}</UiButton>
+        <UiButton v-if="auth.canWrite" to="/invoices/new" variant="outline">{{ t('invoice.new') }}</UiButton>
       </div>
     </div>
 
@@ -172,7 +168,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
         </h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           <div v-for="d in summary.draft_invoices" :key="d.id"
-            class="bg-surface border border-neutral-200 rounded-lg p-4 shadow-sm flex flex-col gap-2">
+            class="bg-surface border border-neutral-200 rounded-lg p-4 shadow-xs flex flex-col gap-2">
             <div class="flex items-start justify-between gap-2">
               <RouterLink :to="`/clients/${d.client_id}`" class="font-medium text-neutral-900 hover:text-primary-700 hover:underline truncate" :title="d.client_company_name">
                 {{ d.client_company_name }}
@@ -219,7 +215,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
           <!-- Revenue card: 1 měna → vysoký vlevo (2 řádky); více měn → široký (2 sloupce) -->
           <div v-for="c in summary.kpi.per_currency" :key="c.currency"
             @click="router.push({ path: '/invoices', query: { year: String(summary.year), currency: c.currency } })"
-            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition"
+            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition"
             :class="singleCurrency ? 'lg:row-span-2 flex flex-col' : 'md:col-span-2'">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.revenue', { year: summary.year, currency: c.currency }) }}</div>
             <div class="text-2xl font-semibold text-neutral-900 font-mono">{{ formatMoney(c.this_year, c.currency) }}</div>
@@ -242,14 +238,14 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
 
           <!-- 4 single-column boxes: issued count, overdue, upcoming, avg payment -->
           <div @click="router.push({ path: '/invoices', query: { year: String(summary.year) } })"
-            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition">
+            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.issued_count', { year: summary.year }) }}</div>
             <div class="text-2xl font-semibold text-neutral-900">{{ summary.kpi.issued_count_ytd }}</div>
             <div class="text-xs text-neutral-400 mt-1">{{ t('dashboard.invoices_unit') }}</div>
           </div>
 
           <div @click="router.push({ path: '/invoices', query: { year: 'all', overdue: '1' } })"
-            class="bg-surface border rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition" :class="summary.kpi.overdue_count > 0 ? 'border-danger-500/40' : 'border-neutral-200'">
+            class="bg-surface border rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition" :class="summary.kpi.overdue_count > 0 ? 'border-danger-500/40' : 'border-neutral-200'">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.overdue') }}</div>
             <div class="text-2xl font-semibold" :class="summary.kpi.overdue_count > 0 ? 'text-danger-500' : 'text-neutral-900'">
               {{ summary.kpi.overdue_count }}
@@ -261,7 +257,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
           </div>
 
           <div @click="router.push({ path: '/invoices', query: { year: 'all', unpaid: '1' } })"
-            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition">
+            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.upcoming') }}</div>
             <div class="text-2xl font-semibold text-neutral-900">{{ summary.unpaid_upcoming.length }}</div>
             <div class="text-xs mt-1 text-neutral-400 flex flex-wrap gap-x-3">
@@ -271,7 +267,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
           </div>
 
           <div @click="router.push('/stats')"
-            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition">
+            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.avg_payment') }}</div>
             <div class="text-2xl font-semibold text-neutral-900">
               {{ summary.kpi.avg_payment_days !== null ? summary.kpi.avg_payment_days + ' ' + t('dashboard.days') : '—' }}
@@ -291,7 +287,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- Costs YTD -->
           <div @click="router.push({ path: '/purchase-invoices', query: { year: String(summary.year) } })"
-            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition">
+            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.purchase_costs_ytd', { year: summary.year }) }}</div>
             <div class="text-2xl font-semibold text-neutral-900 font-mono">{{ formatMoney(summary.kpi.purchase_costs_ytd, 'CZK') }}</div>
             <div class="text-xs text-neutral-400 mt-1">{{ summary.kpi.purchase_count_ytd }} {{ t('dashboard.invoices_unit') }}</div>
@@ -299,7 +295,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
 
           <!-- Unpaid -->
           <div @click="router.push({ path: '/purchase-invoices', query: { unpaid: '1' } })"
-            class="bg-surface border rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition"
+            class="bg-surface border rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition"
             :class="(summary.kpi.purchase_unpaid_count ?? 0) > 0 ? 'border-warning-500/40' : 'border-neutral-200'">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.purchase_unpaid') }}</div>
             <div class="text-2xl font-semibold"
@@ -314,7 +310,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
 
           <!-- Overdue (vždy zobrazené pro grid alignment, červené pokud > 0) -->
           <div @click="router.push({ path: '/purchase-invoices', query: { overdue: '1' } })"
-            class="bg-surface border rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition"
+            class="bg-surface border rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition"
             :class="(summary.kpi.purchase_overdue_count ?? 0) > 0 ? 'border-danger-500/40' : 'border-neutral-200'">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.purchase_overdue') }}</div>
             <div class="text-2xl font-semibold"
@@ -332,7 +328,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
 
           <!-- 4. box: mini graf nákladů (12 měsíců, CZK) — odkaz do CRM analytics -->
           <RouterLink to="/crm"
-            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm hover:bg-neutral-50 hover:border-primary-300 transition flex flex-col">
+            class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs hover:bg-neutral-50 hover:border-primary-300 transition flex flex-col">
             <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.costs_trend_12m') }}</div>
             <div v-if="hasCostsData" class="mt-1 flex-1 flex items-end">
               <SparklineChart class="w-full"
@@ -350,7 +346,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
         <RouterLink
           v-if="isAdmin && summary.pending_approvals && summary.pending_approvals.requested > 0"
           to="/admin/approvals"
-          class="bg-surface border rounded-lg p-5 shadow-sm hover:bg-primary-50 transition cursor-pointer"
+          class="bg-surface border rounded-lg p-5 shadow-xs hover:bg-primary-50 transition cursor-pointer"
           :class="summary.pending_approvals.overdue > 0 ? 'border-warning-500/50' : 'border-primary-500/40'">
           <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.pending_approvals') }}</div>
           <div class="text-2xl font-semibold"
@@ -378,7 +374,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div v-for="b in summary.due_buckets" :key="`db-today-${b.currency}`"
           @click="router.push({ path: '/invoices', query: { year: 'all', unpaid: '1' } })"
-          class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition"
+          class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition"
           :class="{ 'border-warning-500/40 bg-warning-50/20': b.today_count > 0 }">
           <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.due_today') }}</div>
           <div class="text-2xl font-semibold" :class="b.today_count > 0 ? 'text-warning-600' : 'text-neutral-300'">
@@ -390,14 +386,14 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
         </div>
         <div v-for="b in summary.due_buckets" :key="`db-week-${b.currency}`"
           @click="router.push({ path: '/invoices', query: { year: 'all', unpaid: '1' } })"
-          class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition">
+          class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition">
           <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.due_this_week') }}</div>
           <div class="text-2xl font-semibold text-neutral-900">{{ b.week_count }}</div>
           <div class="text-xs mt-1 font-mono text-neutral-500">{{ formatMoney(b.week_total, b.currency) }}</div>
         </div>
         <div v-for="b in summary.due_buckets" :key="`db-month-${b.currency}`"
           @click="router.push({ path: '/invoices', query: { year: 'all', unpaid: '1' } })"
-          class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm cursor-pointer hover:border-primary-300 transition">
+          class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs cursor-pointer hover:border-primary-300 transition">
           <div class="text-xs uppercase tracking-wide text-neutral-500 mb-1">{{ t('dashboard.due_this_month') }}</div>
           <div class="text-2xl font-semibold text-neutral-900">{{ b.month_count }}</div>
           <div class="text-xs mt-1 font-mono text-neutral-500">{{ formatMoney(b.month_total, b.currency) }}</div>
@@ -406,9 +402,9 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
       </section>
 
       <!-- Cash-flow forecast 30 / 60 / 90 dní — kolik se očekává inkasovat -->
-      <div v-if="summary.cashflow_forecast.length" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div v-if="summary.cashflow_forecast.length" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <div class="flex items-baseline justify-between mb-4">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('dashboard.cashflow_forecast') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('dashboard.cashflow_forecast') }}</h3>
           <span class="text-xs text-neutral-400">{{ t('dashboard.cashflow_forecast_hint') }}</span>
         </div>
         <div class="grid grid-cols-3 gap-4">
@@ -431,7 +427,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- Po splatnosti -->
-        <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+        <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
             <h3 class="font-semibold">{{ t('dashboard.overdue_table') }}</h3>
             <div class="flex items-center gap-2">
@@ -449,7 +445,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
           </div>
           <!-- Desktop: tabulka -->
           <div v-else class="hidden md:block overflow-x-auto"><table class="w-full text-sm table-sticky-first">
-            <thead class="bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
+            <thead class="bg-neutral-50 text-[12px] text-neutral-500 uppercase tracking-wide">
               <tr>
                 <th class="px-3 py-2 text-left font-medium">{{ t('type.invoice') }}</th>
                 <th class="px-3 py-2 text-left font-medium">{{ t('nav.clients') }}</th>
@@ -496,7 +492,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
         </div>
 
         <!-- Nezaplacené -->
-        <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+        <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
           <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
             <h3 class="font-semibold">{{ t('dashboard.unpaid_upcoming') }}</h3>
             <div class="flex items-center gap-2">
@@ -514,7 +510,7 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
           </div>
           <!-- Desktop: tabulka -->
           <div v-else class="hidden md:block overflow-x-auto"><table class="w-full text-sm table-sticky-first">
-            <thead class="bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
+            <thead class="bg-neutral-50 text-[12px] text-neutral-500 uppercase tracking-wide">
               <tr>
                 <th class="px-3 py-2 text-left font-medium">{{ t('type.invoice') }}</th>
                 <th class="px-3 py-2 text-left font-medium">{{ t('nav.clients') }}</th>
@@ -551,14 +547,14 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
 
       <!-- Top klienti — posledních 12 měsíců: tabulka vlevo, koláč vpravo -->
       <div v-if="summary.top_clients_12m.length" class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-      <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+      <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
         <header class="px-5 py-3 border-b border-neutral-200">
           <h3 class="font-semibold">{{ t('dashboard.top_clients_12m') }}</h3>
         </header>
         <!-- Desktop: tabulka -->
         <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-sm table-sticky-first">
-          <thead class="bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
+          <thead class="bg-neutral-50 text-[12px] text-neutral-500 uppercase tracking-wide">
             <tr>
               <th class="px-4 py-2 text-left font-medium w-8">#</th>
               <th class="px-4 py-2 text-left font-medium">{{ t('nav.clients') }}</th>
@@ -611,9 +607,9 @@ const hasCostsData = computed(() => (summary.value?.purchase_costs_by_month ?? [
       </div>
 
       <!-- Koláč Top klienti — totožná data, druhý úhel pohledu (vždy v CZK po přepočtu) -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <div class="flex items-baseline justify-between mb-4">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('dashboard.top_clients_12m_share') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('dashboard.top_clients_12m_share') }}</h3>
           <span class="text-xs font-mono text-neutral-500">CZK</span>
         </div>
         <TopClientsPieChart :clients="summary.top_clients_12m" />

@@ -15,6 +15,9 @@ import { useAuthStore } from '@/stores/auth'
 import SendWorkReportLinkModal from '@/components/modals/SendWorkReportLinkModal.vue'
 import ActionBar, { type ActionItem } from '@/components/ui/ActionBar.vue'
 import ClientIncompleteBanner from '@/components/clients/ClientIncompleteBanner.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
 import { clientMissingAddress, clientMissingEmail } from '@/utils/clientCompleteness'
 
 const { t } = useI18n()
@@ -359,20 +362,20 @@ const clientActions = computed<ActionItem[]>(() => {
   <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
 
   <div v-else-if="client" class="space-y-6">
-    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
-      <div class="min-w-0">
-        <RouterLink to="/clients" class="text-sm text-neutral-600 hover:text-neutral-900">{{ t('client.back_to_list') }}</RouterLink>
-        <h1 class="text-2xl font-semibold mt-1">{{ client.company_name }}</h1>
-        <div class="text-sm text-neutral-500 mt-1 flex flex-wrap items-center gap-x-2">
+    <RouterLink to="/clients" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('client.back_to_list') }}</RouterLink>
+    <UiPageHeader :title="client.company_name">
+      <template #below>
+        <div class="mt-1 text-sm text-neutral-500 flex flex-wrap items-center gap-x-2">
           <span v-if="client.ic"><span>{{ t('common.ic') }}</span> <span class="font-mono">{{ client.ic }}</span></span>
-          <!-- Národní daňové číslo (#120): SK DIČ / Steuernummer / NIP / Adószám; u SK je `dic` = IČ DPH -->
           <span v-if="client.tax_number">· <span>{{ taxNumberLabel ?? t('common.tax_number') }}</span> <span class="font-mono">{{ client.tax_number }}</span></span>
           <span v-if="client.dic">· <span>{{ dicIsSk ? t('common.ic_dph') : t('common.dic') }}</span> <span class="font-mono">{{ client.dic }}</span></span>
-          <span v-if="client.archived_at" class="px-2 py-0.5 text-xs bg-neutral-100 text-neutral-600 rounded">{{ t('common.archived') }}</span>
+          <UiBadge v-if="client.archived_at" variant="neutral">{{ t('common.archived') }}</UiBadge>
         </div>
-      </div>
-      <ActionBar :actions="clientActions" />
-    </div>
+      </template>
+      <template #actions>
+        <ActionBar :actions="clientActions" />
+      </template>
+    </UiPageHeader>
 
     <ClientIncompleteBanner
       v-if="client"
@@ -381,9 +384,9 @@ const clientActions = computed<ActionItem[]>(() => {
     />
 
     <!-- Detaily plátce DPH (na vyžádání z registru plátců DPH / MFČR) -->
-    <div v-if="vatInfoOpen" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+    <div v-if="vatInfoOpen" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('client.vat_payer_details') }}</h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.vat_payer_details') }}</h3>
         <button @click="vatInfoOpen = false" class="cursor-pointer text-neutral-400 hover:text-neutral-700 text-sm leading-none">✕</button>
       </div>
       <div v-if="vatInfoLoading" class="text-sm text-neutral-500">{{ t('common.loading') }}</div>
@@ -426,8 +429,8 @@ const clientActions = computed<ActionItem[]>(() => {
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <!-- Kontakt -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.section_contact') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.section_contact') }}</h3>
         <dl class="space-y-2 text-sm">
           <div>
             <dt class="text-neutral-500">{{ t('client.email') }}</dt>
@@ -463,8 +466,8 @@ const clientActions = computed<ActionItem[]>(() => {
       </div>
 
       <!-- Adresa -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.section_address') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.section_address') }}</h3>
         <div class="text-sm text-neutral-900 leading-relaxed">
           <template v-if="clientMissingAddress(client)">
             <span class="text-neutral-400">{{ t('client.missing_value') }}</span>
@@ -478,8 +481,8 @@ const clientActions = computed<ActionItem[]>(() => {
       </div>
 
       <!-- Nastavení -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('nav.settings') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('nav.settings') }}</h3>
         <dl class="space-y-2 text-sm">
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('client.language_label') }}</dt><dd class="font-mono">{{ client.language.toUpperCase() }}</dd></div>
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('common.currency') }}</dt><dd class="font-mono">{{ client.currency_default }}</dd></div>
@@ -492,8 +495,8 @@ const clientActions = computed<ActionItem[]>(() => {
 
     <!-- KPI: nezaplaceno + po splatnosti -->
     <div v-if="(client.unpaid_summary?.length ?? 0) > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.unpaid') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.unpaid') }}</h3>
         <div class="space-y-1">
           <div v-for="u in client.unpaid_summary || []" :key="`u-${u.currency}`" class="flex items-baseline justify-between">
             <span class="text-2xl font-semibold font-mono text-neutral-900">{{ formatMoney(u.unpaid_total, u.currency) }}</span>
@@ -501,7 +504,7 @@ const clientActions = computed<ActionItem[]>(() => {
           </div>
         </div>
       </div>
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm" :class="overdueAny ? 'border-danger-500/40' : ''">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs" :class="overdueAny ? 'border-danger-500/40' : ''">
         <h3 class="text-sm font-semibold uppercase tracking-wide mb-3" :class="overdueAny ? 'text-danger-500' : 'text-neutral-500'">{{ t('client.overdue') }}</h3>
         <div class="space-y-1">
           <div v-for="u in client.unpaid_summary || []" :key="`o-${u.currency}`" class="flex items-baseline justify-between">
@@ -514,15 +517,15 @@ const clientActions = computed<ActionItem[]>(() => {
 
     <!-- Obrat: graf po měsících + sumace po letech -->
     <div v-if="(client.revenue_by_month?.length ?? 0) > 0" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="md:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="md:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <div class="flex items-baseline justify-between mb-3">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('client.revenue_by_month') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.revenue_by_month') }}</h3>
           <span class="text-xs font-mono text-neutral-500">{{ primaryCurrency }}<span v-if="revenueIsMultiCurrency" class="ml-1 text-neutral-400 normal-case">({{ t('client.converted_from', { ccys: revenueCurrencies.join(', ') }) }})</span></span>
         </div>
         <MonthlyRevenueChart :labels="monthlyChart.labels" :values="monthlyChart.values" :currency="primaryCurrency" />
       </div>
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.revenue_by_year') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.revenue_by_year') }}</h3>
         <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <tbody class="divide-y divide-neutral-100">
@@ -539,15 +542,15 @@ const clientActions = computed<ActionItem[]>(() => {
 
     <!-- Náklady (přijaté faktury) — graf po měsících + sumace po letech -->
     <div v-if="purchaseByMonth.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="md:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="md:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <div class="flex items-baseline justify-between mb-3">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('client.costs_by_month') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.costs_by_month') }}</h3>
           <span class="text-xs font-mono text-neutral-500">{{ purchaseDisplayCurrency }}<span v-if="purchaseIsMultiCurrency" class="ml-1 text-neutral-400 normal-case">({{ t('client.converted_from', { ccys: purchaseCurrencies.join(', ') }) }})</span></span>
         </div>
         <MonthlyRevenueChart :labels="purchaseMonthlyChart.labels" :values="purchaseMonthlyChart.values" :currency="purchaseDisplayCurrency" />
       </div>
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.costs_by_year') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.costs_by_year') }}</h3>
         <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <tbody class="divide-y divide-neutral-100">
@@ -569,18 +572,18 @@ const clientActions = computed<ActionItem[]>(() => {
 
     <!-- Obrat podle zakázek — graf + tabulka -->
     <div v-if="projectsTable.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <div class="flex items-baseline justify-between mb-3">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('client.revenue_by_project') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.revenue_by_project') }}</h3>
           <span class="text-xs font-mono text-neutral-500">{{ primaryCurrency }}</span>
         </div>
         <TopProjectsBarChart :labels="projectsChart.labels" :values="projectsChart.values" :currency="primaryCurrency" />
       </div>
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.revenue_by_project_table') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.revenue_by_project_table') }}</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="text-xs text-neutral-500 uppercase tracking-wide">
+            <thead class="text-[12px] text-neutral-500 uppercase tracking-wide">
               <tr>
                 <th class="text-left py-2 font-medium">{{ t('project.name') }}</th>
                 <th class="text-right py-2 font-medium">{{ t('common.revenue') }}</th>
@@ -606,20 +609,19 @@ const clientActions = computed<ActionItem[]>(() => {
 
     <!-- Zakázky — visible pokud is_customer NEBO existují zakázky -->
     <div v-if="client.is_customer !== false || (client.projects?.length ?? 0) > 0"
-         class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+         class="bg-surface border border-neutral-200 rounded-lg shadow-xs">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold">{{ t('client.projects') }}</h3>
-        <RouterLink v-if="auth.canWrite" :to="`/projects/new?client_id=${client.id}`"
-          class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.projects') }}</h3>
+        <UiButton v-if="auth.canWrite" :to="`/projects/new?client_id=${client.id}`" size="sm">
           {{ t('client.new_project') }}
-        </RouterLink>
+        </UiButton>
       </div>
       <div v-if="!client.projects?.length" class="p-8 text-center text-neutral-500 text-sm">
         {{ t('client.no_projects') }}
       </div>
       <!-- Desktop: tabulka -->
       <div v-else class="hidden md:block overflow-x-auto"><table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+        <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
           <tr>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('project.name') }}</th>
             <th class="text-left px-4 py-2.5 font-medium">Status</th>
@@ -686,9 +688,9 @@ const clientActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Vystavené faktury — visible pokud is_customer NEBO existují vystavené faktury -->
-    <div v-if="client.is_customer !== false || invoices.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <div v-if="client.is_customer !== false || invoices.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-xs">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold">{{ t('client.issued_invoices') }} <span v-if="invoicesTotal" class="text-neutral-400 font-normal">({{ invoicesTotal }})</span></h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.issued_invoices') }} <span v-if="invoicesTotal" class="text-neutral-400 font-normal">({{ invoicesTotal }})</span></h3>
         <RouterLink v-if="auth.canWrite" :to="`/invoices/new?client_id=${client.id}`"
           class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
           {{ t('invoice.new') }}
@@ -700,7 +702,7 @@ const clientActions = computed<ActionItem[]>(() => {
       </div>
       <!-- Desktop: tabulka -->
       <div v-else class="hidden md:block overflow-x-auto"><table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+        <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
           <tr>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.varsymbol') }}</th>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.type') }}</th>
@@ -781,9 +783,9 @@ const clientActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Přijaté faktury — visible pokud is_vendor NEBO existují přijaté faktury -->
-    <div v-if="client.is_vendor === true || purchaseInvoices.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <div v-if="client.is_vendor === true || purchaseInvoices.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-xs">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold">{{ t('client.received_invoices') }} <span v-if="purchaseInvoices.length" class="text-neutral-400 font-normal">({{ purchaseInvoices.length }})</span></h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.received_invoices') }} <span v-if="purchaseInvoices.length" class="text-neutral-400 font-normal">({{ purchaseInvoices.length }})</span></h3>
         <RouterLink v-if="auth.canWrite" :to="`/purchase-invoices/new?vendor_id=${client.id}`"
           class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
           {{ t('purchase_invoice.actions.new') }}
@@ -794,7 +796,7 @@ const clientActions = computed<ActionItem[]>(() => {
         {{ t('common.no_data') }}
       </div>
       <div v-else class="overflow-x-auto"><table class="w-full text-sm">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+        <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
           <tr>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('purchase_invoice.fields.vendor_invoice_number') }}</th>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('purchase_invoice.fields.issue_date') }}</th>
@@ -825,16 +827,15 @@ const clientActions = computed<ActionItem[]>(() => {
 
     <!-- Pravidelné fakturace — visible pokud is_customer NEBO existují recurring -->
     <div v-if="client.is_customer !== false || recurringTemplates.length > 0"
-         class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+         class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">
           {{ t('recurring.title') }}
           <span v-if="recurringTemplates.length" class="text-neutral-400 font-normal">({{ recurringTemplates.length }})</span>
         </h3>
-        <RouterLink v-if="auth.canWrite" :to="`/recurring/new?client_id=${client.id}`"
-          class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
+        <UiButton v-if="auth.canWrite" :to="`/recurring/new?client_id=${client.id}`" size="sm">
           {{ t('recurring.new') }}
-        </RouterLink>
+        </UiButton>
       </div>
 
       <div v-if="recurringTemplates.length === 0" class="px-5 py-6 text-sm text-neutral-500 text-center">
@@ -844,7 +845,7 @@ const clientActions = computed<ActionItem[]>(() => {
       <!-- Desktop -->
       <div v-else class="hidden md:block overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+          <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
             <tr>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('recurring.name') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('recurring.frequency') }}</th>

@@ -9,6 +9,10 @@ import { formatMoney, formatDate } from '@/composables/useFormat'
 import { useRowLink } from '@/composables/useRowLink'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 import { clientIsIncomplete } from '@/utils/clientCompleteness'
 
 type RoleFilter = 'all' | 'customers' | 'vendors'
@@ -45,6 +49,10 @@ let searchTimeout: ReturnType<typeof setTimeout> | null = null
 // Server-side role filter — backend respektuje cfg.php pagination.clients_per_page
 // a vrací meta.role_counts pro tab badge. Frontend žádný client-side filter neaplikuje.
 const filteredItems = computed(() => items.value)
+
+const pageTitle = computed(() =>
+  roleFilter.value === 'vendors' ? t('client.title_vendors') : t('client.title'),
+)
 
 const roleCounts = ref<{ all: number; customers: number; vendors: number }>({
   all: 0, customers: 0, vendors: 0,
@@ -105,18 +113,19 @@ function openClient(c: Client, e?: MouseEvent) {
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4">
-      <h1 class="text-2xl font-semibold">{{ roleFilter === 'vendors' ? t('client.title_vendors') : t('client.title') }}</h1>
-      <RouterLink
-        v-if="auth.canWrite"
-        :to="roleFilter === 'vendors' ? '/clients/new?role=vendor' : '/clients/new'"
-        class="inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md"
-      >
-        {{ roleFilter === 'vendors' ? '+ ' + t('purchase_invoice.new_vendor') : t('client.new') }}
-      </RouterLink>
-    </div>
+    <UiPageHeader :title="pageTitle">
+      <template #actions>
+        <UiButton
+          v-if="auth.canWrite"
+          :to="roleFilter === 'vendors' ? '/clients/new?role=vendor' : '/clients/new'"
+          size="sm"
+        >
+          {{ roleFilter === 'vendors' ? '+ ' + t('purchase_invoice.new_vendor') : t('client.new') }}
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
-    <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <UiCard>
       <!-- Tabs: Klienti / Dodavatelé / Vše -->
       <div class="px-4 pt-2 border-b border-neutral-100 flex items-center gap-1">
         <button
@@ -139,23 +148,24 @@ function openClient(c: Client, e?: MouseEvent) {
       </div>
 
       <div class="px-4 py-3 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center gap-3">
-        <input
+        <UiInput
           v-model="search"
           type="search"
+          size="sm"
+          class="flex-1"
           :placeholder="t('common.search')"
-          class="flex-1 h-9 px-3 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
         />
         <label class="flex items-center gap-2 text-sm text-neutral-700">
           <input v-model="showArchived" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
           {{ t('client.show_archived') }}
         </label>
         <select v-if="roleFilter === 'vendors'" v-model.number="categoryFilter"
-          class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface"
+          class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs outline-none focus-ring"
           :title="t('client.default_expense_category')">
           <option :value="null">{{ t('client.filter_category_all') }}</option>
           <option v-for="c in expenseCategories" :key="c.id" :value="c.id">{{ c.label }} ({{ c.code }})</option>
         </select>
-        <select v-model="sort" class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface"
+        <select v-model="sort" class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs outline-none focus-ring"
           :title="t('common.sort_by')">
           <option value="name">{{ t('common.sort_name') }}</option>
           <option value="revenue">{{ t('common.sort_revenue') }}</option>
@@ -172,7 +182,7 @@ function openClient(c: Client, e?: MouseEvent) {
 
       <!-- Desktop: tabulka -->
       <div v-else class="hidden md:block overflow-x-auto"><table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+        <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
           <tr>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('client.company') }}</th>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('common.ic') }}</th>
@@ -304,12 +314,10 @@ function openClient(c: Client, e?: MouseEvent) {
 
       <div v-if="items.length" class="px-4 py-3 border-t border-neutral-200 flex items-center justify-between text-sm">
         <span class="text-neutral-500">{{ t('common.loaded_count', { loaded: filteredItems.length, total: total }) }}</span>
-        <button v-if="page < pages" @click="load(false)" :disabled="loadingMore"
-          class="cursor-pointer h-9 px-4 text-sm bg-primary-600 hover:bg-primary-700 text-white font-medium disabled:opacity-50 rounded-md inline-flex items-center gap-1.5">
+        <UiButton v-if="page < pages" size="sm" :loading="loadingMore" :disabled="loadingMore" @click="load(false)">
           {{ loadingMore ? t('common.loading_more') : t('common.load_more') }}
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-        </button>
+        </UiButton>
       </div>
-    </div>
+    </UiCard>
   </div>
 </template>

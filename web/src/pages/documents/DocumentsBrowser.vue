@@ -10,6 +10,10 @@ import {
 } from '@/api/documents'
 import { docTypeBadge, formatBytes } from '@/components/documents/docFormat'
 import TagInput from '@/components/documents/TagInput.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -496,58 +500,56 @@ onUnmounted(() => { if (jobTimer) clearInterval(jobTimer) })
     @drop.prevent="onDrop"
   >
     <!-- Header -->
-    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-      <h1 class="text-xl font-semibold text-neutral-800">{{ t('documents.title') }}</h1>
-      <div class="flex items-center gap-2 flex-wrap">
-        <button
+    <UiPageHeader :title="t('documents.title')">
+      <template #actions>
+        <UiButton
           type="button"
-          :class="['cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium rounded-md border', trashMode ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-neutral-300 text-neutral-600 hover:bg-neutral-50']"
+          :variant="trashMode ? 'secondary' : 'outline'"
+          size="sm"
           @click="toggleTrash"
         >
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" /></svg>
           {{ t('documents.trash') }}
-        </button>
+        </UiButton>
         <template v-if="auth.canWrite && !trashMode">
-          <button type="button" class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50" @click="newFolder">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM12 11v4m-2-2h4" /></svg>
+          <UiButton type="button" variant="outline" size="sm" @click="newFolder">
             {{ t('documents.new_folder') }}
-          </button>
-          <button type="button" class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50" :title="t('documents.upload_folder_hint')" @click="folderInput?.click()">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM12 16V8m-3 3l3-3 3 3" /></svg>
+          </UiButton>
+          <UiButton type="button" variant="outline" size="sm" :title="t('documents.upload_folder_hint')" @click="folderInput?.click()">
             {{ t('documents.upload_folder') }}
-          </button>
-          <button type="button" class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 text-sm font-medium rounded-md bg-primary-600 hover:bg-primary-700 text-white" @click="fileInput?.click()">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 4v12m-4-8l4-4 4 4" /></svg>
+          </UiButton>
+          <UiButton type="button" size="sm" @click="fileInput?.click()">
             {{ t('documents.upload') }}
-          </button>
+          </UiButton>
         </template>
-      </div>
+      </template>
+    </UiPageHeader>
       <input ref="fileInput" type="file" multiple class="hidden" @change="onFilePick" />
       <input ref="folderInput" type="file" webkitdirectory multiple class="hidden" @change="onFolderPick" />
-    </div>
 
     <!-- Toolbar: search + view -->
-    <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm mb-4 p-3">
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="relative flex-1 min-w-48">
-          <input
-            v-model="query"
-            type="text"
-            class="w-full h-9 pl-9 pr-3 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
-            :placeholder="t('documents.search_placeholder')"
-          />
-          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14z" /></svg>
-        </div>
+    <UiCard class="mb-4">
+      <div class="p-3 flex flex-wrap items-center gap-2">
+        <UiInput
+          v-model="query"
+          type="text"
+          size="sm"
+          class="flex-1 min-w-48"
+          :placeholder="t('documents.search_placeholder')"
+        >
+          <template #prefix>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14z" /></svg>
+          </template>
+        </UiInput>
         <select
           v-if="availableTags.length"
           :value="tagFilter"
-          class="cursor-pointer h-9 px-2 border border-neutral-300 rounded-md bg-surface text-sm max-w-44"
+          class="cursor-pointer h-9 px-2 border border-neutral-300 rounded-md bg-surface text-sm max-w-44 shadow-xs outline-none focus-ring"
           @change="setTagFilter(($event.target as HTMLSelectElement).value)"
         >
           <option value="">{{ t('documents.all_tags') }}</option>
           <option v-for="tg in availableTags" :key="tg.id" :value="tg.name">#{{ tg.name }} ({{ tg.usage_count }})</option>
         </select>
-        <div class="flex rounded-md border border-neutral-300 overflow-hidden h-9">
+        <div class="flex rounded-md border border-neutral-300 overflow-hidden h-9 shadow-xs">
           <button type="button" :class="['cursor-pointer px-2.5', view === 'grid' ? 'bg-neutral-100 text-neutral-800' : 'text-neutral-400 hover:bg-neutral-50']" @click="view = 'grid'" :title="t('documents.view_grid')">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v6H4zM14 15h6v6h-6z" /></svg>
           </button>
@@ -556,7 +558,7 @@ onUnmounted(() => { if (jobTimer) clearInterval(jobTimer) })
           </button>
         </div>
       </div>
-    </div>
+    </UiCard>
 
     <!-- ZIP mode -->
     <div v-if="auth.canWrite && !trashMode" class="flex items-center gap-3 mb-3 text-xs text-neutral-500">
