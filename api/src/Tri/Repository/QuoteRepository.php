@@ -104,6 +104,7 @@ final class QuoteRepository
         $sectionsInput = (array) ($payload['sections'] ?? []);
         $linesInput = (array) ($payload['line_items'] ?? []);
         $this->assertImagesBelongToSupplier($linesInput, $supplierId);
+        $this->assertCatalogItemsBelongToSupplier($linesInput, $supplierId);
 
         $calcResult = $this->calculator->calculateVariant($sectionsInput, $linesInput, [
             'quote_discount_type'    => $payload['quote_discount_type'] ?? null,
@@ -189,11 +190,12 @@ final class QuoteRepository
 
             $lIns = $pdo->prepare(
                 'INSERT INTO tri_quote_line_items (
-                    quote_variant_id, quote_section_id, image_id, sort_order, designation, title, description,
+                    quote_variant_id, quote_section_id, catalog_item_id, image_id, is_manufactured,
+                    sort_order, designation, title, description,
                     quantity, unit, base_unit_price, vat_rate,
                     markup_type, markup_value, markup_amount,
                     line_discount_type, line_discount_value, line_total
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $lineCalcIndex = 0;
             foreach ($linesInput as $i => $line) {
@@ -213,7 +215,9 @@ final class QuoteRepository
                 $lIns->execute([
                     $variantId,
                     $sectionId,
+                    !empty($line['catalog_item_id']) ? (int) $line['catalog_item_id'] : null,
                     !empty($line['image_id']) ? (int) $line['image_id'] : null,
+                    $this->lineIsManufactured($line),
                     isset($line['sort_order']) ? (int) $line['sort_order'] : $i,
                     (string) ($line['designation'] ?? ''),
                     (string) ($line['title'] ?? ''),
@@ -291,6 +295,8 @@ final class QuoteRepository
                     'line_discount_type'   => $l['line_discount_type'],
                     'line_discount_value'  => $l['line_discount_value'],
                     'image_id'             => $l['image_id'],
+                    'catalog_item_id'      => $l['catalog_item_id'],
+                    'is_manufactured'      => $l['is_manufactured'],
                 ];
             }, $source['line_items']),
         ];
@@ -405,6 +411,8 @@ final class QuoteRepository
         return array_map(fn (array $r) => [
             'id'                  => (int) $r['id'],
             'image_id'            => $r['image_id'] !== null ? (int) $r['image_id'] : null,
+            'catalog_item_id'     => $r['catalog_item_id'] !== null ? (int) $r['catalog_item_id'] : null,
+            'is_manufactured'     => (int) ($r['is_manufactured'] ?? 1) === 1,
             'quote_section_id'    => $r['quote_section_id'] !== null ? (int) $r['quote_section_id'] : null,
             'sort_order'          => (int) $r['sort_order'],
             'designation'         => (string) $r['designation'],
@@ -454,6 +462,49 @@ final class QuoteRepository
         if ($ids !== $found) {
             throw new \RuntimeException('INVALID_QUOTE_IMAGE');
         }
+    }
+
+    /** @param list<mixed> $lines */
+    private function assertCatalogItemsBelongToSupplier(array $lines, int $supplierId): void
+    {
+        $ids = [];
+        foreach ($lines as $line) {
+            if (is_array($line) && !empty($line['catalog_item_id'])) {
+                $ids[] = (int) $line['catalog_item_id'];
+            }
+        }
+        $ids = array_values(array_unique(array_filter($ids, static fn (int $id): bool => $id > 0)));
+        if ($ids === []) {
+            return;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT i.id
+               FROM tri_price_list_items i
+               JOIN tri_price_lists pl ON pl.id = i.price_list_id AND pl.supplier_id = ?
+              WHERE i.id IN ($placeholders)"
+        );
+        $stmt->execute([$supplierId, ...$ids]);
+        $found = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        sort($ids);
+        sort($found);
+        if ($ids !== $found) {
+            throw new \RuntimeException('INVALID_CATALOG_ITEM');
+        }
+    }
+
+    /** @param array<string, mixed> $line */
+    private function lineIsManufactured(array $line): int
+    {
+        if (!array_key_exists('is_manufactured', $line)) {
+            return 1;
+        }
+        $value = $line['is_manufactured'];
+        if ($value === false || $value === 0 || $value === '0' || $value === 'false') {
+            return 0;
+        }
+
+        return ((int) $value) ? 1 : 0;
     }
 
     /** @param array<string, mixed> $row */

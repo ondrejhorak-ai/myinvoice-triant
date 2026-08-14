@@ -62,6 +62,8 @@ const blocks = defineModel<Block[]>('blocks', { required: true })
 const emit = defineEmits<{
   addLine: []
   addLineToSection: [section: SectionBlock]
+  insertFromCatalog: []
+  insertFromCatalogSection: [section: SectionBlock]
   addSection: []
   deleteStandalone: [bi: number]
   deleteSectionItem: [section: SectionBlock, ii: number]
@@ -82,7 +84,7 @@ const DEFAULT_WIDTHS: Record<ColKey, number> = {
   unitPrice: 88,
   vat: 60,
   total: 100,
-  actions: 52,
+  actions: 76,
 }
 
 const MIN_WIDTHS: Partial<Record<ColKey, number>> = {
@@ -475,17 +477,20 @@ onMounted(() => {
                       class="inline-flex items-center px-1 mt-0.5 rounded text-[10px] font-medium bg-primary-50 text-primary-700"
                     >+{{ formatLineAmount(lineResult(row)?.markupAmount ?? 0) }}</span>
                   </div>
-                  <div class="flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity">
+                  <div class="flex items-center justify-center gap-0.5">
+                    <label class="flex items-center" :title="t('tri.quote.is_manufactured')">
+                      <input v-model="row.is_manufactured" type="checkbox" class="rounded border-neutral-300 text-primary-600" :disabled="!canWrite" />
+                    </label>
                     <button
                       type="button"
-                      class="cursor-pointer text-neutral-400 hover:text-primary-600 text-sm leading-none w-5 h-5 font-semibold"
-                      :class="isPanelOpen(row._uid) && 'text-primary-600'"
+                      class="cursor-pointer text-neutral-400 hover:text-primary-600 text-sm leading-none w-5 h-5 font-semibold opacity-0 group-hover/row:opacity-100 focus-within:opacity-100"
+                      :class="isPanelOpen(row._uid) && 'text-primary-600 opacity-100'"
                       :title="t('tri.quote.adjustments_toggle')"
                       @click="togglePanel(row._uid)"
                     >%</button>
                     <button
                       type="button"
-                      class="cursor-pointer text-danger-500 hover:text-danger-600 text-base leading-none w-5 h-5"
+                      class="cursor-pointer text-danger-500 hover:text-danger-600 text-base leading-none w-5 h-5 opacity-0 group-hover/row:opacity-100"
                       :title="t('common.delete')"
                       @click="emit('deleteStandalone', bi)"
                     >×</button>
@@ -607,17 +612,20 @@ onMounted(() => {
                             class="inline-flex items-center px-1 mt-0.5 rounded text-[10px] font-medium bg-primary-50 text-primary-700"
                           >+{{ formatLineAmount(lineResult(row)?.markupAmount ?? 0) }}</span>
                         </div>
-                        <div class="flex items-center justify-center gap-0.5 opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <div class="flex items-center justify-center gap-0.5">
+                          <label class="flex items-center" :title="t('tri.quote.is_manufactured')">
+                            <input v-model="row.is_manufactured" type="checkbox" class="rounded border-neutral-300 text-primary-600" :disabled="!canWrite" />
+                          </label>
                           <button
                             type="button"
-                            class="cursor-pointer text-neutral-400 hover:text-primary-600 text-sm leading-none w-5 h-5 font-semibold"
-                            :class="isPanelOpen(row._uid) && 'text-primary-600'"
+                            class="cursor-pointer text-neutral-400 hover:text-primary-600 text-sm leading-none w-5 h-5 font-semibold opacity-0 group-hover/row:opacity-100"
+                            :class="isPanelOpen(row._uid) && 'text-primary-600 opacity-100'"
                             :title="t('tri.quote.adjustments_toggle')"
                             @click="togglePanel(row._uid)"
                           >%</button>
                           <button
                             type="button"
-                            class="cursor-pointer text-danger-500 hover:text-danger-600 text-base leading-none w-5 h-5"
+                            class="cursor-pointer text-danger-500 hover:text-danger-600 text-base leading-none w-5 h-5 opacity-0 group-hover/row:opacity-100"
                             :title="t('common.delete')"
                             @click="emit('deleteSectionItem', block, ii)"
                           >×</button>
@@ -648,6 +656,14 @@ onMounted(() => {
                     @click="emit('addLineToSection', block)"
                   >
                     + {{ t('tri.quote.add_line_to_section') }}
+                  </button>
+                  <button
+                    v-if="canWrite"
+                    type="button"
+                    class="cursor-pointer text-xs text-primary-700 hover:text-primary-800 shrink-0"
+                    @click="emit('insertFromCatalogSection', block)"
+                  >
+                    + {{ t('tri.quote.insert_from_catalog') }}
                   </button>
                   <div class="ml-auto flex items-center gap-2 min-w-0">
                     <div class="flex flex-col items-end text-sm leading-tight min-w-0">
@@ -700,6 +716,9 @@ onMounted(() => {
       </UiButton>
       <UiButton type="button" variant="outline" size="sm" @click="emit('addLine')">
         {{ t('tri.quote.add_line') }}
+      </UiButton>
+      <UiButton v-if="canWrite" type="button" variant="outline" size="sm" @click="emit('insertFromCatalog')">
+        {{ t('tri.quote.insert_from_catalog') }}
       </UiButton>
     </div>
   </div>

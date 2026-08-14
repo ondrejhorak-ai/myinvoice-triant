@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, RouterLink, onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { triApi, type TriQuoteVariant, type TriQuoteLineItem, type TriQuoteImage, type TriJob, type TriVariantStatus } from '@/api/tri'
+import { triApi, type TriQuoteVariant, type TriQuoteLineItem, type TriQuoteImage, type TriJob, type TriVariantStatus, type TriPriceListItem } from '@/api/tri'
 import { apiErrorMessage } from '@/api/errors'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -17,6 +17,7 @@ import JobHeaderInfo from './JobHeaderInfo.vue'
 import QuoteAdjustmentPanel from './QuoteAdjustmentPanel.vue'
 import VariantItemsNotionTable from './VariantItemsNotionTable.vue'
 import QuoteLineImageControl from './QuoteLineImageControl.vue'
+import CatalogPickerModal from './CatalogPickerModal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 
@@ -79,7 +80,7 @@ const titleAreaClass =
 const noSpinClass =
   '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 const gridCols =
-  'grid grid-cols-[20px_88px_minmax(160px,1fr)_56px_76px_52px_88px_44px] gap-1.5 items-start'
+  'grid grid-cols-[20px_88px_minmax(160px,1fr)_56px_76px_52px_88px_36px_44px] gap-1.5 items-start'
 const rowHoverActionClass = 'opacity-0 group-hover:opacity-100 transition-opacity'
 const arrowCellClass = 'w-5 shrink-0 text-center text-[10px] text-neutral-400 leading-none'
 const arrowBtnClass = 'block w-full h-3.5 hover:text-neutral-700 disabled:opacity-30 cursor-pointer'
@@ -137,6 +138,7 @@ function wrapRow(l: TriQuoteLineItem): Row {
   const row: Row = { ...l, _uid: newUid() }
   row.markup_type ??= 'percent'
   row.line_discount_type ??= 'percent'
+  row.is_manufactured ??= true
   return row
 }
 
@@ -151,6 +153,8 @@ function newRow(): Row {
     section_temp_id: null,
     markup_value: null,
     line_discount_value: null,
+    is_manufactured: true,
+    catalog_item_id: null,
   })
 }
 
@@ -430,6 +434,41 @@ function addLine() {
 
 function addLineToSection(section: SectionBlock) {
   section.items.push(newRow())
+}
+
+const catalogOpen = ref(false)
+const catalogTarget = ref<SectionBlock | null>(null)
+
+function openCatalogPicker(section: SectionBlock | null = null) {
+  catalogTarget.value = section
+  catalogOpen.value = true
+}
+
+function snapshotToRow(item: TriPriceListItem): Row {
+  return wrapRow({
+    catalog_item_id: item.id ?? null,
+    image_id: item.image_id ?? item.image?.id ?? null,
+    image: item.image ?? null,
+    designation: item.designation,
+    title: item.title,
+    description: item.description,
+    quantity: item.default_quantity > 0 ? item.default_quantity : 1,
+    unit: item.unit || 'ks',
+    base_unit_price: item.base_unit_price,
+    vat_rate: item.vat_rate,
+    is_manufactured: true,
+  })
+}
+
+function insertFromCatalog(items: TriPriceListItem[]) {
+  const rows = items.map(snapshotToRow)
+  const section = catalogTarget.value
+  if (section) {
+    section.items.push(...rows)
+  } else {
+    blocks.value.push(...rows.map((row) => ({ kind: 'item' as const, row })))
+  }
+  catalogTarget.value = null
 }
 
 function addSection() {
@@ -829,6 +868,8 @@ onBeforeUnmount(() => {
       :can-write="auth.canWrite"
       @add-line="addLine"
       @add-line-to-section="addLineToSection"
+      @insert-from-catalog="openCatalogPicker()"
+      @insert-from-catalog-section="openCatalogPicker"
       @add-section="addSection"
       @delete-standalone="deleteStandalone"
       @delete-section-item="(section, ii) => deleteSectionItem(section, ii)"
@@ -852,6 +893,7 @@ onBeforeUnmount(() => {
           <span class="px-2 text-right">{{ t('tri.quote.unit_price') }}</span>
           <span class="px-2 text-right">{{ t('tri.quote.vat_rate') }}</span>
           <span class="text-right">{{ t('tri.quote.line_total') }}</span>
+          <span class="text-center" :title="t('tri.quote.is_manufactured')">{{ t('tri.quote.is_manufactured') }}</span>
           <span></span>
         </div>
 
@@ -890,6 +932,9 @@ onBeforeUnmount(() => {
                   <span :class="[lineTotalSubClass, 'text-neutral-700']">{{ formatLineAmount(lineAfter(block.row)) }}</span>
                 </template>
               </div>
+              <label class="flex items-center justify-center" :title="t('tri.quote.is_manufactured')">
+                <input v-model="block.row.is_manufactured" type="checkbox" class="rounded border-neutral-300 text-primary-600" :disabled="!auth.canWrite" />
+              </label>
               <div :class="['flex items-center justify-center gap-0.5', rowHoverActionClass]">
                 <button
                   type="button"
@@ -986,6 +1031,9 @@ onBeforeUnmount(() => {
                   <span :class="[lineTotalSubClass, 'text-neutral-700']">{{ formatLineAmount(lineAfter(row)) }}</span>
                 </template>
               </div>
+              <label class="flex items-center justify-center" :title="t('tri.quote.is_manufactured')">
+                <input v-model="row.is_manufactured" type="checkbox" class="rounded border-neutral-300 text-primary-600" :disabled="!auth.canWrite" />
+              </label>
                 <div :class="['flex items-center justify-center gap-0.5', rowHoverActionClass]">
                   <button
                     type="button"
@@ -1014,9 +1062,14 @@ onBeforeUnmount(() => {
             <!-- Section footer: add line + subtotal -->
             <div :class="[gridCols, 'bg-neutral-50/60 border-b border-neutral-200 border-l-[3px] border-l-primary-400 px-3 py-2']">
               <span></span>
-              <button type="button" class="col-span-5 cursor-pointer text-xs text-primary-600 hover:text-primary-700 text-left" @click="addLineToSection(block)">
-                + {{ t('tri.quote.add_line_to_section') }}
-              </button>
+              <div class="col-span-5 flex gap-3">
+                <button type="button" class="cursor-pointer text-xs text-primary-600 hover:text-primary-700 text-left" @click="addLineToSection(block)">
+                  + {{ t('tri.quote.add_line_to_section') }}
+                </button>
+                <button v-if="auth.canWrite" type="button" class="cursor-pointer text-xs text-primary-600 hover:text-primary-700 text-left" @click="openCatalogPicker(block)">
+                  + {{ t('tri.quote.insert_from_catalog') }}
+                </button>
+              </div>
               <div class="flex flex-col items-end text-sm leading-tight">
                 <div class="flex items-center justify-end gap-1">
                   <span class="text-neutral-600">{{ t('tri.quote.section_total_named', { name: block.title || t('tri.quote.sections') }) }}:</span>
@@ -1041,6 +1094,9 @@ onBeforeUnmount(() => {
         </UiButton>
         <UiButton type="button" variant="outline" size="sm" @click="addLine()">
           {{ t('tri.quote.add_line') }}
+        </UiButton>
+        <UiButton v-if="auth.canWrite" type="button" variant="outline" size="sm" @click="openCatalogPicker()">
+          {{ t('tri.quote.insert_from_catalog') }}
         </UiButton>
       </div>
     </template>
@@ -1117,5 +1173,6 @@ onBeforeUnmount(() => {
         </UiButton>
       </div>
     </UiCard>
+    <CatalogPickerModal v-model:open="catalogOpen" @insert="insertFromCatalog" />
   </div>
 </template>

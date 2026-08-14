@@ -29,6 +29,9 @@ final class SaveVariantAction
             if ($e->getMessage() === 'INVALID_QUOTE_IMAGE') {
                 return Json::error($response, 'invalid_image', 'Vybraný obrázek není dostupný.', 400);
             }
+            if ($e->getMessage() === 'INVALID_CATALOG_ITEM') {
+                return Json::error($response, 'invalid_catalog_item', 'Vybraná položka ceníku není dostupná.', 400);
+            }
             throw $e;
         } catch (\PDOException $e) {
             // SQLSTATE 22001 = string data right truncation (too long for column)

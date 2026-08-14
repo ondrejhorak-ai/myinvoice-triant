@@ -227,6 +227,30 @@ final class PriceListRepository
         return array_map([$this, 'castItem'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
     }
 
+    /** @return list<array<string, mixed>> */
+    public function searchItems(int $supplierId, string $q = '', int $limit = 200): array
+    {
+        $sql = 'SELECT i.id, i.price_list_id, i.sort_order, i.image_id, i.designation, i.title, i.description,
+                       i.default_quantity, i.unit, i.base_unit_price, i.vat_rate, i.price_updated_at,
+                       i.created_at, i.updated_at, pl.name AS price_list_name,
+                       qi.sha256 AS image_sha256, qi.width_px AS image_width_px,
+                       qi.height_px AS image_height_px, qi.size_bytes AS image_size_bytes
+                  FROM tri_price_list_items i
+                  JOIN tri_price_lists pl ON pl.id = i.price_list_id AND pl.supplier_id = ?
+                  LEFT JOIN tri_quote_images qi ON qi.id = i.image_id AND qi.supplier_id = ?';
+        $params = [$supplierId, $supplierId];
+        if ($q !== '') {
+            $like = '%' . addcslashes($q, '%_\\') . '%';
+            $sql .= ' WHERE (i.title LIKE ? OR i.designation LIKE ? OR i.description LIKE ? OR pl.name LIKE ?)';
+            array_push($params, $like, $like, $like, $like);
+        }
+        $sql .= ' ORDER BY pl.name, i.sort_order, i.id LIMIT ' . max(1, min(500, $limit));
+        $stmt = $this->db->pdo()->prepare($sql);
+        $stmt->execute($params);
+
+        return array_map([$this, 'castItem'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+    }
+
     /** @param list<mixed> $items */
     private function assertImagesBelongToSupplier(array $items, int $supplierId): void
     {
@@ -273,6 +297,7 @@ final class PriceListRepository
         return [
             'id'                => (int) $row['id'],
             'price_list_id'     => (int) $row['price_list_id'],
+            'price_list_name'   => isset($row['price_list_name']) ? (string) $row['price_list_name'] : null,
             'sort_order'        => (int) $row['sort_order'],
             'image_id'          => $row['image_id'] !== null ? (int) $row['image_id'] : null,
             'designation'       => (string) $row['designation'],

@@ -108,6 +108,8 @@ export interface TriQuoteLineItem {
   line_discount_type?: 'percent' | 'absolute' | null
   line_discount_value?: number | null
   line_total?: number
+  catalog_item_id?: number | null
+  is_manufactured?: boolean
 }
 
 export interface TriQuoteVariant extends TriQuoteVariantSummary {
@@ -200,6 +202,7 @@ export interface TriPriceListItem {
   base_unit_price: number
   vat_rate: number
   price_updated_at?: string | null
+  price_list_name?: string | null
 }
 
 export interface TriPriceList {
@@ -310,6 +313,8 @@ export const triApi = {
       const qs = params.toString()
       return `/api/tri/price-lists/${id}/pdf${qs ? '?' + qs : ''}`
     },
+    searchItems: (q?: string) =>
+      api.get<{ data: TriPriceListItem[] }>('/tri/catalog-items', { params: q ? { q } : undefined }).then((r) => r.data.data),
   },
   invoices: {
     list: (params?: Record<string, string | number>) =>
