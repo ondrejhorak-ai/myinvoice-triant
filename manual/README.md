@@ -47,7 +47,8 @@ php tools/exportManualToPdf.php
 
 1. Vytvoř `manual/NN_Nazev.md` (NN = pořadové dvojcifré číslo).
 2. Přidej řádek do `manual/INDEX.md` ve správné grupě (### Instalace a start /
-   ### Prodej / ### Nákup / ### Finance / ### Dokumenty / ### Daně / ### Systém).
+   ### Prodej / ### Nákup / ### Finance / ### Dokumenty / ### Daně / ### Systém /
+   ### TRIANT).
 3. `php tools/generateManualHtml.php && php tools/exportManualToPdf.php`.
 
 ### Reorganizace pořadí

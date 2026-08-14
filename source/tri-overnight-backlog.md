@@ -41,7 +41,7 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 
 ### F. Dokumentace
 
-- [ ] **F1 — Manuál.** Nové kapitoly `manual/`: Ceníky, Průvodky, Kalendář, Reklamace (česky, jen aktuální stav) + aktualizace `manual/14_Zakazky.md` (vyrábíme, hodiny, průvodky) a `INDEX.md`. Regenerovat: `php tools/generateManualHtml.php` + `php tools/exportManualToPdf.php`. Zkontrolovat `manual/manual.css` vs. nové tokeny z A1.
+- [x] **F1 — Manuál.** Nové kapitoly `manual/`: Ceníky, Průvodky, Kalendář, Reklamace (česky, jen aktuální stav) + aktualizace `manual/14_Zakazky.md` (vyrábíme, hodiny, průvodky) a `INDEX.md`. Regenerovat: `php tools/generateManualHtml.php` + `php tools/exportManualToPdf.php`. Zkontrolovat `manual/manual.css` vs. nové tokeny z A1.
 
 ### G. Polish (nekonečná sekce — když je vše výše hotové, přidávej a ber odsud)
 
@@ -74,3 +74,4 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - **2026-08-14 11:05 D1** — Kalendář: migrace `9015`, CRUD `/api/tri/calendar`, měsíc+týden grid (Po–Ne), tři kalendáře (směny/expedice/výroba), stanice jen u výroby (jiná sada než průvodka). Sidebar. PHPUnit `CalendarEventRulesTest`.
 - **2026-08-14 11:10 D2** — Stavy kalendáře: expedice planned↔confirmed (čárkovaný vs. plný), výroba planned→in_progress→done, směny jen planned. Mini-sekce nadcházejících termínů na zakázce (`GET /api/tri/jobs/{id}/calendar`). PHPUnit přechody stavů.
 - **2026-08-14 13:50 E1** — Reklamace: migrace `9016`, CRUD + chat `/api/tri/complaints`, eventy do `tri_job_activity` (opened/closed/reopened). FE list+detail s chatem, sekce na zakázce, sidebar. PHPUnit `ComplaintRulesTest`. `CzkRecapTest` (jádro DPH) padá 511.66 vs 511.67 — mimo řez, neopraveno.
+- **2026-08-14 13:52 F1** — Manuál: kapitoly 42–45 (Ceníky, Průvodky, Kalendář, Reklamace), `14_Zakazky.md` § 14.10 (Vyrábíme, hodiny, odkazy), INDEX sekce TRIANT. HTML+PDF regenerováno. `manual/manual.css` už zrcadlí A1 tokeny.

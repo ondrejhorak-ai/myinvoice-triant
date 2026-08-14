@@ -207,3 +207,32 @@ společně s ostatními změnami nabídky.
 Systém obrázek automaticky otočí, zmenší a datově optimalizuje; původní velký
 soubor se neuchovává. V PDF se náhled zobrazí vlevo vedle názvu a popisu,
 zachová si poměr stran a nepřekročí rozměr 36 × 36 mm.
+
+## 14.10 Zakázky TRI (výroba)
+
+Vedle klasických zakázek v menu **Prodej** má TRIANT vlastní agendu
+**Zakázky TRI** (menu TRIANT). Tam se řeší cenová nabídka, výroba a reklamace.
+Níže je jen to, co se děje **na detailu zakázky TRI**. Samostatné kapitoly:
+
+- [42. Ceníky](42_Ceniky.md) — katalog a vložení položek do nabídky / faktury
+- [43. Průvodky](43_Pruvodky.md) — tisk a hodiny po stanovištích
+- [44. Kalendář](44_Kalendar.md) — směny, expedice, výroba
+- [45. Reklamace](45_Reklamace.md) — vlastní agenda s chatem
+
+### 14.10.1 Vyrábíme
+
+Na řádku cenové nabídky je přepínač **Vyrábíme**. Ve výchozím stavu je
+zapnutý (i u položek vložených z ceníku). Vypni ho u řádků, které se
+nevyrábějí (obchodní položka, doprava, sleva).
+
+**Vytvořit průvodky** na potvrzené zakázce se schválenou variantou vyrobí
+jednu průvodku na každý vyráběný řádek. Ceny na průvodku nejdou.
+
+### 14.10.2 Hodiny a průvodky
+
+Na detailu zakázky je sekce **Průvodky** a widget **Odpracované hodiny**
+(součet za zakázku + rozpad po stanovištích). Hodiny se zadávají na
+**detailu průvodky** přepisem z papíru, ne automaticky.
+
+Nadcházející **expedice a výroba** z kalendáře jsou v mini-sekci termínů.
+Reklamace zakázky jsou ve vlastní sekci s odkazem do agendy reklamací.

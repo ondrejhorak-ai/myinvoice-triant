@@ -75,6 +75,13 @@ nasazuje). Zbytek je psaný pro běžného uživatele — bez programátorského
 40. [Aktualizace](40_Aktualizace.md)
 41. [REST API](41_API.md)
 
+### TRIANT
+
+42. [Ceníky](42_Ceniky.md)
+43. [Průvodky](43_Pruvodky.md)
+44. [Kalendář](44_Kalendar.md)
+45. [Reklamace](45_Reklamace.md)
+
 ### Reference
 
 99. [Řešení problémů](99_Reseni_problemu.md)
