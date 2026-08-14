@@ -6,9 +6,10 @@ import { apiErrorMessage } from '@/api/errors'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps<{
-  variantId: number
+  variantId?: number
   image: TriQuoteImage | null
   disabled?: boolean
+  upload?: (file: File) => Promise<TriQuoteImage>
 }>()
 
 const emit = defineEmits<{
@@ -42,7 +43,9 @@ async function selected(event: Event) {
   }
   uploading.value = true
   try {
-    const image = await triApi.variants.uploadImage(props.variantId, file)
+    const image = props.upload
+      ? await props.upload(file)
+      : await triApi.variants.uploadImage(props.variantId as number, file)
     emit('uploaded', image)
     toast.success(t('tri.quote.image_uploaded'))
   } catch (error) {

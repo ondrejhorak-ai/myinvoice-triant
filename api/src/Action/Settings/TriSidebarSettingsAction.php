@@ -58,6 +58,7 @@ final class TriSidebarSettingsAction
         'help',
         'tri-contacts',
         'tri-jobs',
+        'tri-price-lists',
         'tri-invoices',
         'tri-tags',
     ];

@@ -186,6 +186,33 @@ export interface TriJobActivityPage {
   has_more: boolean
 }
 
+export interface TriPriceListItem {
+  id?: number
+  price_list_id?: number
+  sort_order?: number
+  image_id?: number | null
+  image?: TriQuoteImage | null
+  designation: string
+  title: string
+  description?: string | null
+  default_quantity: number
+  unit: string
+  base_unit_price: number
+  vat_rate: number
+  price_updated_at?: string | null
+}
+
+export interface TriPriceList {
+  id: number
+  supplier_id: number
+  name: string
+  note: string | null
+  item_count?: number
+  items?: TriPriceListItem[]
+  created_at?: string
+  updated_at?: string
+}
+
 export const triApi = {
   tags: {
     list: () => api.get<{ data: TriTag[] }>('/tri/tags').then((r) => r.data.data),
@@ -258,6 +285,23 @@ export const triApi = {
       api.post<{ invoice_id: number; edit_url: string }>(`/tri/jobs/${jobId}/invoices/advance`, payload ?? {}).then((r) => r.data),
     createFinal: (jobId: number) =>
       api.post<{ invoice_id: number; edit_url: string }>(`/tri/jobs/${jobId}/invoices/final`).then((r) => r.data),
+  },
+  priceLists: {
+    list: (params?: Record<string, string | number>) =>
+      api.get<{ data: TriPriceList[] }>('/tri/price-lists', { params }).then((r) => r.data),
+    get: (id: number) => api.get<TriPriceList>(`/tri/price-lists/${id}`).then((r) => r.data),
+    create: (payload: Record<string, unknown>) =>
+      api.post<TriPriceList>('/tri/price-lists', payload).then((r) => r.data),
+    update: (id: number, payload: Record<string, unknown>) =>
+      api.put<TriPriceList>(`/tri/price-lists/${id}`, payload).then((r) => r.data),
+    delete: (id: number) => api.delete(`/tri/price-lists/${id}`),
+    uploadImage: (id: number, file: File) => {
+      const data = new FormData()
+      data.append('file', file)
+      return api.post<TriQuoteImage>(`/tri/price-lists/${id}/images`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then((r) => r.data)
+    },
   },
   invoices: {
     list: (params?: Record<string, string | number>) =>
