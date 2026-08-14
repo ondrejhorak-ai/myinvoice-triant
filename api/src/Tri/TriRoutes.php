@@ -43,6 +43,7 @@ use MyInvoice\Tri\Action\PriceList\CreatePriceListAction;
 use MyInvoice\Tri\Action\PriceList\DeletePriceListAction;
 use MyInvoice\Tri\Action\PriceList\GetPriceListAction;
 use MyInvoice\Tri\Action\PriceList\ListPriceListsAction;
+use MyInvoice\Tri\Action\PriceList\PdfAction as PriceListPdfAction;
 use MyInvoice\Tri\Action\PriceList\UpdatePriceListAction;
 use MyInvoice\Tri\Action\PriceList\UploadPriceListImageAction;
 use Slim\App;
@@ -100,6 +101,7 @@ final class TriRoutes
         $app->get('/api/tri/price-lists', ListPriceListsAction::class);
         $app->post('/api/tri/price-lists', CreatePriceListAction::class);
         $app->get('/api/tri/price-lists/{id:[0-9]+}', GetPriceListAction::class);
+        $app->get('/api/tri/price-lists/{id:[0-9]+}/pdf', PriceListPdfAction::class);
         $app->put('/api/tri/price-lists/{id:[0-9]+}', UpdatePriceListAction::class);
         $app->delete('/api/tri/price-lists/{id:[0-9]+}', DeletePriceListAction::class);
         $app->post('/api/tri/price-lists/{id:[0-9]+}/images', UploadPriceListImageAction::class);

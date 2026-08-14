@@ -1,0 +1,135 @@
+{# Ceník TRI — mPDF + Twig, vizuál podle cenové nabídky #}
+<!doctype html>
+<html lang="{{ locale|default('cs') }}">
+<head>
+<meta charset="utf-8">
+<title></title>
+<style>
+.quote-items .item-unit { width: 11%; text-align: right; }
+.quote-items .item-description { width: 43%; }
+</style>
+</head>
+<body>
+
+<table class="quote-header">
+  <tr>
+    <td class="quote-brand">
+      {% if logo_path and logo_path is not empty %}
+        <img src="{{ logo_path }}" alt="{{ supplier.company_name }}" width="190">
+        {% if logo_show_name %}<span class="quote-brand-name">{{ supplier.display_name|default(supplier.company_name) }}</span>{% endif %}
+      {% else %}
+        <div class="triant-wordmark">{{ supplier.display_name|default(supplier.company_name) }}</div>
+      {% endif %}
+    </td>
+    <td class="quote-heading">
+      <div class="quote-title">{{ t('CENÍK', 'PRICE LIST') }}</div>
+    </td>
+  </tr>
+</table>
+
+<table class="quote-overview">
+  <tr>
+    <td class="overview-card customer-card">
+      <table class="overview-card-layout"><tr>
+        <td class="overview-card-content">
+          <div class="overview-kicker">{{ t('DODAVATEL', 'SUPPLIER') }}</div>
+          <div class="overview-title">{{ supplier.company_name|default('—') }}</div>
+          {% if supplier.street %}<div>{{ supplier.street }}</div>{% endif %}
+          {% if supplier.zip or supplier.city %}<div>{{ supplier.zip }} {{ supplier.city }}</div>{% endif %}
+          {% if supplier.phone %}<div>{{ supplier.phone }}</div>{% endif %}
+          {% if supplier.email %}<div>{{ supplier.email }}</div>{% endif %}
+          {% if supplier.ic or supplier.dic %}
+            <div class="overview-ids">
+              {% if supplier.ic %}{{ t('IČO', 'Reg. No.') }}: {{ supplier.ic }}{% endif %}
+              {% if supplier.ic and supplier.dic %}<span class="separator">&nbsp;·&nbsp;</span>{% endif %}
+              {% if supplier.dic %}{{ t('DIČ', 'VAT ID') }}: {{ supplier.dic }}{% endif %}
+            </div>
+          {% endif %}
+        </td>
+      </tr></table>
+    </td>
+    <td class="overview-gap">&nbsp;</td>
+    <td class="overview-meta" colspan="3">
+      <table class="offer-meta">
+        <tr>
+          <td class="meta-icon"><img src="{{ icons.offer }}" alt=""></td>
+          <td class="meta-label">{{ t('CENÍK', 'PRICE LIST') }}</td>
+          <td class="meta-value">{{ list.name }}</td>
+        </tr>
+        <tr>
+          <td class="meta-icon"><img src="{{ icons.calendar }}" alt=""></td>
+          <td class="meta-label">{{ t('AKTUALIZOVÁNO', 'UPDATED') }}</td>
+          <td class="meta-value">{% if list.updated_at %}{{ list.updated_at|date(date_format) }}{% else %}—{% endif %}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+{% if list.note %}
+  <div class="quote-note quote-note-above">{{ list.note|nl2br }}</div>
+{% endif %}
+
+<table class="quote-items">
+  <thead>
+    <tr>
+      <th class="item-ref">{{ t('OZNAČENÍ', 'REF.') }}</th>
+      <th class="item-description">{{ t('NÁZEV A POPIS', 'NAME AND DESCRIPTION') }}</th>
+      <th class="item-qty">{{ t('MNOŽSTVÍ', 'QTY') }}</th>
+      <th class="item-unit">{{ t('CENA/J', 'UNIT PRICE') }}</th>
+      {% if supplier.is_vat_payer %}<th class="item-vat">{{ t('DPH', 'VAT') }}</th>{% endif %}
+      <th class="item-net">{{ supplier.is_vat_payer ? t('CENA BEZ DPH', 'EXCL. VAT') : t('CENA', 'PRICE') }}</th>
+      <th class="item-gross">{{ supplier.is_vat_payer ? t('CELKEM S DPH', 'INCL. VAT') : t('CELKEM', 'TOTAL') }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+      <tr class="quote-item-row">
+        <td class="item-ref"><strong>{{ item.designation }}</strong></td>
+        <td class="item-description">
+          {% if item.image_path|default(null) %}
+            <table class="item-with-image"><tr><td class="item-image" style="width: {{ item.image_width_mm + 3 }}mm"><img src="{{ item.image_path }}" alt="" style="width: {{ item.image_width_mm }}mm; height: {{ item.image_height_mm }}mm"></td><td>
+          {% endif %}
+          {% if item.title %}<div class="item-title">{{ item.title }}</div>{% endif %}
+          {% if item.description %}<div class="item-copy">{{ item.description|nl2br }}</div>{% endif %}
+          {% if item.image_path|default(null) %}</td></tr></table>{% endif %}
+        </td>
+        <td class="item-qty">{{ item.quantity|number_format(item.quantity == item.quantity|round(0) ? 0 : 3, decimal_sep, thousand_sep) }}{% if item.unit %}&nbsp;{{ item.unit }}{% endif %}</td>
+        <td class="money item-unit">{{ item.unit_price|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
+        {% if supplier.is_vat_payer %}<td class="item-vat">{{ item.vat_rate|number_format(0) }}&nbsp;%</td>{% endif %}
+        <td class="money item-net">{{ item.line_total|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
+        <td class="money strong item-gross">{{ (supplier.is_vat_payer ? item.gross_total : item.line_total)|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table class="quote-closing">
+  <tr>
+    <td class="closing-notes">
+      {% if not supplier.is_vat_payer %}
+        <div class="info-line"><span class="info-icon"><img src="{{ icons.info }}" alt=""></span><span>{{ t('Dodavatel není plátce DPH.', 'The supplier is not a VAT payer.') }}</span></div>
+      {% endif %}
+    </td>
+    <td class="closing-gap">&nbsp;</td>
+    <td class="summary-panel">
+      <table class="summary-table">
+        <tr><td class="summary-label">{{ t('MEZISOUČET', 'SUBTOTAL') }}</td><td class="summary-value">{{ totals.subtotal|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>
+        {% if supplier.is_vat_payer %}
+          {% if totals.vat_base_21 > 0 %}<tr><td class="summary-label">{{ t('DPH', 'VAT') }} 21&nbsp;%</td><td class="summary-value">{{ totals.vat_amount_21|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>{% endif %}
+          {% if totals.vat_base_12 > 0 %}<tr><td class="summary-label">{{ t('DPH', 'VAT') }} 12&nbsp;%</td><td class="summary-value">{{ totals.vat_amount_12|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>{% endif %}
+          {% if totals.vat_base_0 > 0 %}<tr><td class="summary-label">{{ t('ZÁKLAD DPH', 'VAT BASE') }} 0&nbsp;%</td><td class="summary-value">{{ totals.vat_base_0|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td></tr>{% endif %}
+        {% endif %}
+        <tr class="summary-grand">
+          <td class="summary-label">{{ supplier.is_vat_payer ? t('CELKEM S DPH', 'TOTAL INCL. VAT') : t('CELKEM', 'TOTAL') }}</td>
+          <td class="summary-value">{{ totals.total_with_vat|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+{% if supplier.commercial_register %}<div class="commercial-register">{{ supplier.commercial_register }}</div>{% endif %}
+
+</body>
+</html>

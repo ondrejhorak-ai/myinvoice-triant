@@ -302,6 +302,14 @@ export const triApi = {
         headers: { 'Content-Type': 'multipart/form-data' },
       }).then((r) => r.data)
     },
+    pdfUrl: (id: number, download: boolean = false) => {
+      const sid = localStorage.getItem('myinvoice.current_supplier_id')
+      const params = new URLSearchParams()
+      if (download) params.set('download', '1')
+      if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+      const qs = params.toString()
+      return `/api/tri/price-lists/${id}/pdf${qs ? '?' + qs : ''}`
+    },
   },
   invoices: {
     list: (params?: Record<string, string | number>) =>

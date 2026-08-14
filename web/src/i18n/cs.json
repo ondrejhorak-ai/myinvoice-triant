@@ -472,7 +472,8 @@
       "delete_confirm": "Opravdu smazat ceník „{name}\"?",
       "saved": "Ceník uložen",
       "deleted": "Ceník smazán",
-      "drag_handle": "Přesunout"
+      "drag_handle": "Přesunout",
+      "pdf_empty": "Ceník nemá položky k tisku"
     },
     "quote": {
       "editor_title": "Cenová nabídka",

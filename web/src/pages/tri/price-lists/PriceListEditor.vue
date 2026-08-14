@@ -183,6 +183,20 @@ async function remove() {
   }
 }
 
+const hasItems = computed(() =>
+  rows.value.some((row) => !!(row.title || row.designation) || (row.base_unit_price ?? 0) > 0)
+)
+
+function openPdf() {
+  const id = listId.value
+  if (!id) return
+  if (!hasItems.value) {
+    toast.error(t('tri.price_lists.pdf_empty'))
+    return
+  }
+  window.open(triApi.priceLists.pdfUrl(id, false), '_blank')
+}
+
 onMounted(() => load())
 watch(listId, (id, prev) => {
   if (id && prev && id !== prev) load()
@@ -200,6 +214,9 @@ watch(listId, (id, prev) => {
 
     <UiPageHeader :title="isNew ? t('tri.price_lists.new') : t('tri.price_lists.edit')">
       <template #actions>
+        <UiButton v-if="listId" variant="outline" size="sm" @click="openPdf">
+          {{ t('invoice.download_pdf') }}
+        </UiButton>
         <UiButton v-if="auth.canWrite && listId" variant="danger" size="sm" :loading="deleting" @click="remove">
           {{ t('common.delete') }}
         </UiButton>

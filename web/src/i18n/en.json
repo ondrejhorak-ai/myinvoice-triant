@@ -472,7 +472,8 @@
       "delete_confirm": "Delete price list \"{name}\"?",
       "saved": "Price list saved",
       "deleted": "Price list deleted",
-      "drag_handle": "Move"
+      "drag_handle": "Move",
+      "pdf_empty": "Price list has no items to print"
     },
     "quote": {
       "editor_title": "Price quote",
