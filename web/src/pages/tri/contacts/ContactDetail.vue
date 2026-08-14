@@ -15,6 +15,11 @@ import { useAuthStore } from '@/stores/auth'
 import ClientTagEditor from '@/components/tri/ClientTagEditor.vue'
 import ClientIncompleteBanner from '@/components/clients/ClientIncompleteBanner.vue'
 import { clientMissingAddress, clientMissingEmail } from '@/utils/clientCompleteness'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiTable from '@/components/ui/UiTable.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -320,46 +325,40 @@ async function deleteClient() {
   <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
 
   <div v-else-if="client" class="space-y-6">
-    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
-      <div class="min-w-0">
-        <RouterLink to="/tri/contacts" class="text-sm text-neutral-600 hover:text-neutral-900">{{ t('tri.contacts.back_to_list') }}</RouterLink>
-        <h1 class="text-2xl font-semibold mt-1">{{ client.company_name }}</h1>
-        <div class="mt-3 max-w-md">
-          <ClientTagEditor :client-id="client.id" :readonly="!auth.canWrite" />
-        </div>
-        <div class="text-sm text-neutral-500 mt-1 flex flex-wrap items-center gap-x-2">
-          <span v-if="client.ic"><span>{{ t('common.ic') }}</span> <span class="font-mono">{{ client.ic }}</span></span>
-          <span v-if="client.dic">· <span>{{ t('common.dic') }}</span> <span class="font-mono">{{ client.dic }}</span></span>
-          <span v-if="client.archived_at" class="px-2 py-0.5 text-xs bg-neutral-100 text-neutral-600 rounded">{{ t('common.archived') }}</span>
-        </div>
-      </div>
-      <div class="flex flex-wrap gap-2 md:justify-end">
-        <RouterLink v-if="auth.canWrite" :to="`/tri/contacts/${client.id}/edit`"
-          class="cursor-pointer px-3 h-9 text-sm border border-success-500 text-success-600 hover:bg-success-50 font-medium rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-          {{ t('common.edit') }}
-        </RouterLink>
-        <button v-if="client.dic" @click="loadVatPayerDetails" :disabled="vatInfoLoading"
-          class="cursor-pointer px-3 h-9 text-sm border border-primary-500/40 rounded-md text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1.5 disabled:opacity-50">
-          <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-          {{ vatInfoLoading ? t('common.loading') : t('client.vat_payer_details') }}
-        </button>
-        <button v-if="!client.archived_at && auth.canWrite" @click="archive"
-          class="cursor-pointer px-3 h-9 text-sm border border-warning-500/50 rounded-md text-warning-600 hover:bg-warning-50 inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 1 1 0-4h14a2 2 0 1 1 0 4M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8m-9 4h4"/></svg>
-          {{ t('common.archive') }}
-        </button>
-        <button v-else-if="auth.canWrite" @click="unarchive"
-          class="cursor-pointer px-3 h-9 text-sm border border-success-500/50 rounded-md text-success-600 hover:bg-success-50 inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6l6-6"/></svg>
-          {{ t('common.restore') }}
-        </button>
-        <button v-if="(canDelete) && auth.canWrite" @click="deleteClient"
-          class="cursor-pointer px-3 h-9 text-sm border border-danger-500/50 rounded-md text-danger-500 hover:bg-danger-50 inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-danger-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
-          {{ t('common.delete') }}
-        </button>
-      </div>
+    <div>
+      <RouterLink to="/tri/contacts" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('tri.contacts.back_to_list') }}</RouterLink>
+      <UiPageHeader :title="client.company_name">
+        <template #below>
+          <div class="mt-3 max-w-md">
+            <ClientTagEditor :client-id="client.id" :readonly="!auth.canWrite" />
+          </div>
+          <div class="text-sm text-neutral-500 mt-1.5 flex flex-wrap items-center gap-x-2">
+            <span v-if="client.ic"><span>{{ t('common.ic') }}</span> <span class="font-mono">{{ client.ic }}</span></span>
+            <span v-if="client.dic">· <span>{{ t('common.dic') }}</span> <span class="font-mono">{{ client.dic }}</span></span>
+            <UiBadge v-if="client.archived_at" variant="draft">{{ t('common.archived') }}</UiBadge>
+          </div>
+        </template>
+        <template #actions>
+          <UiButton v-if="auth.canWrite" :to="`/tri/contacts/${client.id}/edit`" variant="secondary" size="sm">
+            <template #icon>
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </template>
+            {{ t('common.edit') }}
+          </UiButton>
+          <UiButton v-if="client.dic" variant="outline" size="sm" :loading="vatInfoLoading" :disabled="vatInfoLoading" @click="loadVatPayerDetails">
+            {{ vatInfoLoading ? t('common.loading') : t('client.vat_payer_details') }}
+          </UiButton>
+          <UiButton v-if="!client.archived_at && auth.canWrite" variant="outline" size="sm" @click="archive">
+            {{ t('common.archive') }}
+          </UiButton>
+          <UiButton v-else-if="auth.canWrite" variant="outline" size="sm" @click="unarchive">
+            {{ t('common.restore') }}
+          </UiButton>
+          <UiButton v-if="(canDelete) && auth.canWrite" variant="danger" size="sm" @click="deleteClient">
+            {{ t('common.delete') }}
+          </UiButton>
+        </template>
+      </UiPageHeader>
     </div>
 
     <ClientIncompleteBanner
@@ -369,9 +368,9 @@ async function deleteClient() {
     />
 
     <!-- Detaily plátce DPH (na vyžádání z registru plátců DPH / MFČR) -->
-    <div v-if="vatInfoOpen" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+    <UiCard v-if="vatInfoOpen" padding>
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('client.vat_payer_details') }}</h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.vat_payer_details') }}</h3>
         <button @click="vatInfoOpen = false" class="cursor-pointer text-neutral-400 hover:text-neutral-700 text-sm leading-none">✕</button>
       </div>
       <div v-if="vatInfoLoading" class="text-sm text-neutral-500">{{ t('common.loading') }}</div>
@@ -396,12 +395,12 @@ async function deleteClient() {
           <p class="text-xs text-neutral-400">{{ t('client.vat_payer_source') }}</p>
         </div>
       </template>
-    </div>
+    </UiCard>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <!-- Kontakt -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.section_contact') }}</h3>
+      <UiCard padding>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.section_contact') }}</h3>
         <dl class="space-y-2 text-sm">
           <div>
             <dt class="text-neutral-500">{{ t('client.email') }}</dt>
@@ -412,11 +411,11 @@ async function deleteClient() {
             <dd class="text-neutral-900 font-mono">{{ client.phone }}</dd>
           </div>
         </dl>
-      </div>
+      </UiCard>
 
       <!-- Adresa -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.section_address') }}</h3>
+      <UiCard padding>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.section_address') }}</h3>
         <div class="text-sm text-neutral-900 leading-relaxed">
           <template v-if="clientMissingAddress(client)">
             <span class="text-neutral-400">{{ t('client.missing_value') }}</span>
@@ -427,11 +426,11 @@ async function deleteClient() {
             {{ client.country_iso2 }}
           </template>
         </div>
-      </div>
+      </UiCard>
 
       <!-- Nastavení -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('nav.settings') }}</h3>
+      <UiCard padding>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('nav.settings') }}</h3>
         <dl class="space-y-2 text-sm">
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('client.language_label') }}</dt><dd class="font-mono">{{ client.language.toUpperCase() }}</dd></div>
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('common.currency') }}</dt><dd class="font-mono">{{ client.currency_default }}</dd></div>
@@ -439,13 +438,13 @@ async function deleteClient() {
           <div v-if="client.hourly_rate > 0" class="flex justify-between"><dt class="text-neutral-500">{{ t('client.hourly_rate') }}</dt><dd class="font-mono">{{ client.hourly_rate.toLocaleString('cs') }} {{ client.currency_default }}/h</dd></div>
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('client.rc_label') }}</dt><dd>{{ client.reverse_charge ? t('client.yes_short') : t('client.no_short') }}</dd></div>
         </dl>
-      </div>
+      </UiCard>
     </div>
 
     <!-- KPI: nezaplaceno + po splatnosti -->
     <div v-if="(client.unpaid_summary?.length ?? 0) > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.unpaid') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.unpaid') }}</h3>
         <div class="space-y-1">
           <div v-for="u in client.unpaid_summary || []" :key="`u-${u.currency}`" class="flex items-baseline justify-between">
             <span class="text-2xl font-semibold font-mono text-neutral-900">{{ formatMoney(u.unpaid_total, u.currency) }}</span>
@@ -453,7 +452,7 @@ async function deleteClient() {
           </div>
         </div>
       </div>
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm" :class="overdueAny ? 'border-danger-500/40' : ''">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs" :class="overdueAny ? 'border-danger-500/40' : ''">
         <h3 class="text-sm font-semibold uppercase tracking-wide mb-3" :class="overdueAny ? 'text-danger-500' : 'text-neutral-500'">{{ t('client.overdue') }}</h3>
         <div class="space-y-1">
           <div v-for="u in client.unpaid_summary || []" :key="`o-${u.currency}`" class="flex items-baseline justify-between">
@@ -466,15 +465,15 @@ async function deleteClient() {
 
     <!-- Obrat: graf po měsících + sumace po letech -->
     <div v-if="(client.revenue_by_month?.length ?? 0) > 0" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="md:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="md:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <div class="flex items-baseline justify-between mb-3">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('client.revenue_by_month') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.revenue_by_month') }}</h3>
           <span class="text-xs font-mono text-neutral-500">{{ primaryCurrency }}<span v-if="revenueIsMultiCurrency" class="ml-1 text-neutral-400 normal-case">({{ t('client.converted_from', { ccys: revenueCurrencies.join(', ') }) }})</span></span>
         </div>
         <MonthlyRevenueChart :labels="monthlyChart.labels" :values="monthlyChart.values" :currency="primaryCurrency" />
       </div>
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.revenue_by_year') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.revenue_by_year') }}</h3>
         <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <tbody class="divide-y divide-neutral-100">
@@ -491,15 +490,15 @@ async function deleteClient() {
 
     <!-- Náklady (přijaté faktury) — graf po měsících + sumace po letech -->
     <div v-if="purchaseByMonth.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="md:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="md:col-span-2 bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <div class="flex items-baseline justify-between mb-3">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('client.costs_by_month') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.costs_by_month') }}</h3>
           <span class="text-xs font-mono text-neutral-500">{{ purchaseDisplayCurrency }}<span v-if="purchaseIsMultiCurrency" class="ml-1 text-neutral-400 normal-case">({{ t('client.converted_from', { ccys: purchaseCurrencies.join(', ') }) }})</span></span>
         </div>
         <MonthlyRevenueChart :labels="purchaseMonthlyChart.labels" :values="purchaseMonthlyChart.values" :currency="purchaseDisplayCurrency" />
       </div>
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.costs_by_year') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.costs_by_year') }}</h3>
         <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <tbody class="divide-y divide-neutral-100">
@@ -521,15 +520,15 @@ async function deleteClient() {
 
     <!-- Obrat podle zakázek — graf + tabulka -->
     <div v-if="projectsTable.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <div class="flex items-baseline justify-between mb-3">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('client.revenue_by_project') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('client.revenue_by_project') }}</h3>
           <span class="text-xs font-mono text-neutral-500">{{ primaryCurrency }}</span>
         </div>
         <TopProjectsBarChart :labels="projectsChart.labels" :values="projectsChart.values" :currency="primaryCurrency" />
       </div>
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('client.revenue_by_project_table') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('client.revenue_by_project_table') }}</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead class="text-xs text-neutral-500 uppercase tracking-wide">
@@ -557,59 +556,44 @@ async function deleteClient() {
     </div>
 
     <!-- Zakázky — visible pokud is_customer NEBO existují zakázky -->
-    <div v-if="client.is_customer !== false || (client.projects?.length ?? 0) > 0"
-         class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <UiCard v-if="client.is_customer !== false || (client.projects?.length ?? 0) > 0">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold">{{ t('client.projects') }}</h3>
-        <RouterLink v-if="auth.canWrite" :to="`/projects/new?client_id=${client.id}`"
-          class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
+        <h3 class="font-semibold text-neutral-900">{{ t('client.projects') }}</h3>
+        <UiButton v-if="auth.canWrite" :to="`/projects/new?client_id=${client.id}`" size="sm">
           {{ t('client.new_project') }}
-        </RouterLink>
+        </UiButton>
       </div>
       <div v-if="!client.projects?.length" class="p-8 text-center text-neutral-500 text-sm">
         {{ t('client.no_projects') }}
       </div>
       <!-- Desktop: tabulka -->
-      <div v-else class="hidden md:block overflow-x-auto"><table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+      <div v-else class="hidden md:block">
+        <UiTable>
+          <template #head>
           <tr>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('project.name') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">Status</th>
-            <th class="text-right px-4 py-2.5 font-medium">Sazba</th>
-            <th class="text-center px-4 py-2.5 font-medium">Splatnost</th>
+            <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.jobs.status') }}</th>
+            <th class="text-right px-4 py-2.5 font-medium">{{ t('client.hourly_rate') }}</th>
+            <th class="text-center px-4 py-2.5 font-medium">{{ t('client.due_label') }}</th>
             <th class="text-left px-4 py-2.5 font-medium">{{ t('project.number') }}</th>
             <th class="px-4 py-2.5 w-44"></th>
           </tr>
-        </thead>
-        <tbody class="divide-y divide-neutral-100">
-          <tr v-for="p in client.projects" :key="p.id" class="hover:bg-neutral-50">
+          </template>
+          <tr v-for="p in client.projects" :key="p.id">
             <td class="px-4 py-3 font-medium">{{ p.name }}</td>
             <td class="px-4 py-3">
-              <span class="text-xs px-2 py-0.5 rounded"
-                :class="{
-                  'bg-success-50 text-success-600': p.status === 'active',
-                  'bg-warning-50 text-warning-600': p.status === 'paused',
-                  'bg-neutral-100 text-neutral-600': p.status === 'closed',
-                }">{{ p.status }}</span>
+              <UiBadge :variant="p.status === 'active' ? 'success' : p.status === 'paused' ? 'warning' : 'neutral'">{{ p.status }}</UiBadge>
             </td>
             <td class="px-4 py-3 text-right font-mono">{{ p.hourly_rate.toLocaleString('cs') }} {{ p.currency }}/h</td>
             <td class="px-4 py-3 text-center">{{ t('client.due_days_n', { n: p.payment_due_days }) }}</td>
             <td class="px-4 py-3 font-mono text-xs text-neutral-500">{{ p.project_number || '—' }}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
-              <RouterLink :to="`/projects/${p.id}`"
-                class="cursor-pointer inline-flex items-center gap-1 px-2.5 h-7 text-xs border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded mr-1.5">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                Detail
-              </RouterLink>
-              <RouterLink :to="`/projects/${p.id}/edit`"
-                class="cursor-pointer inline-flex items-center gap-1 px-2.5 h-7 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                Upravit
-              </RouterLink>
+              <UiButton :to="`/projects/${p.id}`" variant="outline" size="sm">{{ t('common.detail') }}</UiButton>
+              <UiButton :to="`/projects/${p.id}/edit`" variant="ghost" size="sm" class="ml-1.5">{{ t('common.edit') }}</UiButton>
             </td>
           </tr>
-        </tbody>
-      </table></div>
+        </UiTable>
+      </div>
 
       <!-- Mobile: karty -->
       <div v-if="client.projects?.length" class="md:hidden divide-y divide-neutral-100">
@@ -635,35 +619,34 @@ async function deleteClient() {
           </div>
         </div>
       </div>
-    </div>
+    </UiCard>
 
     <!-- Vystavené faktury — visible pokud is_customer NEBO existují vystavené faktury -->
-    <div v-if="client.is_customer !== false || invoices.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <UiCard v-if="client.is_customer !== false || invoices.length > 0">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold">{{ t('client.issued_invoices') }} <span v-if="invoicesTotal" class="text-neutral-400 font-normal">({{ invoicesTotal }})</span></h3>
-        <RouterLink v-if="auth.canWrite" :to="`/invoices/new?client_id=${client.id}`"
-          class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
+        <h3 class="font-semibold text-neutral-900">{{ t('client.issued_invoices') }} <span v-if="invoicesTotal" class="text-neutral-400 font-normal">({{ invoicesTotal }})</span></h3>
+        <UiButton v-if="auth.canWrite" :to="`/invoices/new?client_id=${client.id}`" size="sm">
           {{ t('invoice.new') }}
-        </RouterLink>
+        </UiButton>
       </div>
       <div v-if="invoicesLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
       <div v-else-if="!invoices.length" class="p-8 text-center text-neutral-500 text-sm">
         {{ t('common.no_data') }}
       </div>
       <!-- Desktop: tabulka -->
-      <div v-else class="hidden md:block overflow-x-auto"><table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
-          <tr>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.varsymbol') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.type') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.issue_date') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.due_date') }}</th>
-            <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.amount_to_pay') }}</th>
-            <th class="text-center px-4 py-2.5 font-medium">{{ t('invoice.status_label') }}</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-neutral-100">
-          <tr v-for="inv in invoices" :key="inv.id" class="cursor-pointer hover:bg-neutral-50"
+      <div v-else class="hidden md:block">
+        <UiTable>
+          <template #head>
+            <tr>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.varsymbol') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.type') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.issue_date') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.due_date') }}</th>
+              <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.amount_to_pay') }}</th>
+              <th class="text-center px-4 py-2.5 font-medium">{{ t('invoice.status_label') }}</th>
+            </tr>
+          </template>
+          <tr v-for="inv in invoices" :key="inv.id" class="cursor-pointer"
               :class="invoiceRowClass(inv.due_date, inv.status)"
               @click="router.push(`/invoices/${inv.id}`)">
             <td class="px-4 py-2.5 font-mono">{{ inv.varsymbol || `#${inv.id}` }}</td>
@@ -683,8 +666,8 @@ async function deleteClient() {
               </span>
             </td>
           </tr>
-        </tbody>
-      </table></div>
+        </UiTable>
+      </div>
 
       <!-- Mobile: karty -->
       <div v-if="invoices.length" class="md:hidden divide-y divide-neutral-100">
@@ -718,22 +701,19 @@ async function deleteClient() {
 
       <div v-if="invoices.length" class="px-5 py-3 border-t border-neutral-200 flex items-center justify-between text-sm">
         <span class="text-neutral-500">{{ t('common.loaded_count', { loaded: invoices.length, total: invoicesTotal }) }}</span>
-        <button v-if="invoicesPage < invoicesPages" @click="loadMoreInvoices" :disabled="invoicesLoadingMore"
-          class="cursor-pointer h-9 px-4 text-sm bg-primary-600 hover:bg-primary-700 text-white font-medium disabled:opacity-50 rounded-md inline-flex items-center gap-1.5">
+        <UiButton v-if="invoicesPage < invoicesPages" size="sm" :loading="invoicesLoadingMore" :disabled="invoicesLoadingMore" @click="loadMoreInvoices">
           {{ invoicesLoadingMore ? t('common.loading_more') : t('common.load_more') }}
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-        </button>
+        </UiButton>
       </div>
-    </div>
+    </UiCard>
 
     <!-- Přijaté faktury — visible pokud is_vendor NEBO existují přijaté faktury -->
-    <div v-if="client.is_vendor === true || purchaseInvoices.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <UiCard v-if="client.is_vendor === true || purchaseInvoices.length > 0">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold">{{ t('client.received_invoices') }} <span v-if="purchaseInvoices.length" class="text-neutral-400 font-normal">({{ purchaseInvoices.length }})</span></h3>
-        <RouterLink v-if="auth.canWrite" :to="`/purchase-invoices/new?vendor_id=${client.id}`"
-          class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
+        <h3 class="font-semibold text-neutral-900">{{ t('client.received_invoices') }} <span v-if="purchaseInvoices.length" class="text-neutral-400 font-normal">({{ purchaseInvoices.length }})</span></h3>
+        <UiButton v-if="auth.canWrite" :to="`/purchase-invoices/new?vendor_id=${client.id}`" size="sm">
           {{ t('purchase_invoice.actions.new') }}
-        </RouterLink>
+        </UiButton>
       </div>
       <div v-if="purchaseInvoicesLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
       <div v-else-if="!purchaseInvoices.length" class="p-8 text-center text-neutral-500 text-sm">
@@ -765,20 +745,18 @@ async function deleteClient() {
           </tr>
         </tbody>
       </table></div>
-    </div>
+    </UiCard>
 
     <!-- Pravidelné fakturace — visible pokud is_customer NEBO existují recurring -->
-    <div v-if="client.is_customer !== false || recurringTemplates.length > 0"
-         class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <UiCard v-if="client.is_customer !== false || recurringTemplates.length > 0">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold">
+        <h3 class="font-semibold text-neutral-900">
           {{ t('recurring.title') }}
           <span v-if="recurringTemplates.length" class="text-neutral-400 font-normal">({{ recurringTemplates.length }})</span>
         </h3>
-        <RouterLink v-if="auth.canWrite" :to="`/recurring/new?client_id=${client.id}`"
-          class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md inline-flex items-center">
+        <UiButton v-if="auth.canWrite" :to="`/recurring/new?client_id=${client.id}`" size="sm">
           {{ t('recurring.new') }}
-        </RouterLink>
+        </UiButton>
       </div>
 
       <div v-if="recurringTemplates.length === 0" class="px-5 py-6 text-sm text-neutral-500 text-center">
@@ -843,7 +821,7 @@ async function deleteClient() {
           </div>
         </div>
       </div>
-    </div>
+    </UiCard>
     <LinkedDocumentsPanel v-if="client" class="mt-4 block" entity-type="client" :entity-id="client.id" />
   </div>
 </template>

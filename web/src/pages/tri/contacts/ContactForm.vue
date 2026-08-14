@@ -10,6 +10,10 @@ import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { useSupplierStore } from '@/stores/supplier'
 import ClientTagEditor from '@/components/tri/ClientTagEditor.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 
 /**
  * V `embedded` módu komponenta nečte route pro edit, neredirektuje a vrací výsledek
@@ -305,14 +309,16 @@ async function submit() {
 
 <template>
   <div :class="embedded ? '' : 'max-w-3xl'">
-    <div v-if="!embedded" class="flex items-center justify-between mb-4">
-      <h1 class="text-2xl font-semibold">
-        {{ isEdit ? t('tri.contacts.edit_title') : t('tri.contacts.new_title') }}
-      </h1>
-      <RouterLink to="/tri/contacts" class="text-sm text-neutral-600 hover:text-neutral-900">{{ t('tri.contacts.back_to_list') }}</RouterLink>
+    <div v-if="!embedded">
+      <UiPageHeader :title="isEdit ? t('tri.contacts.edit_title') : t('tri.contacts.new_title')">
+        <template #actions>
+          <UiButton to="/tri/contacts" variant="ghost" size="sm">{{ t('tri.contacts.back_to_list') }}</UiButton>
+        </template>
+      </UiPageHeader>
     </div>
 
-    <form @submit.prevent="submit" autocomplete="off" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <form @submit.prevent="submit" autocomplete="off">
+      <UiCard>
       <div class="p-5 space-y-4">
         <!-- Lookup helpers -->
         <div class="bg-primary-50 border border-primary-200 rounded-md p-3">
@@ -323,11 +329,10 @@ async function submit() {
               <div class="flex gap-2">
                 <input autocomplete="off" v-model="form.ic" maxlength="8" placeholder="12345678"
                   @blur="checkDuplicateIc"
-                  class="flex-1 h-9 px-3 border border-neutral-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
-                <button type="button" @click="loadFromAres" :disabled="!form.ic || aresLoading"
-                  class="px-3 h-9 text-sm bg-surface border border-primary-300 text-primary-700 rounded-md hover:bg-primary-100 disabled:opacity-50">
-                  {{ aresLoading ? '…' : 'ARES' }}
-                </button>
+                  class="flex-1 h-9 px-3 border border-neutral-300 rounded-md font-mono text-sm shadow-xs outline-none focus-ring" />
+                <UiButton type="button" variant="outline" size="sm" :loading="aresLoading" :disabled="!form.ic || aresLoading" @click="loadFromAres">
+                  ARES
+                </UiButton>
               </div>
               <p v-if="duplicateIc" class="text-xs text-warning-600 mt-1">
                 ⚠ {{ t('client.duplicate_ic') }} <strong>{{ duplicateIc.name }}</strong>
@@ -339,11 +344,10 @@ async function submit() {
               <div class="flex gap-2">
                 <input autocomplete="off" v-model="form.dic" placeholder="CZ12345678"
                   @blur="checkDuplicateDic"
-                  class="flex-1 h-9 px-3 border border-neutral-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
-                <button type="button" @click="checkVies" :disabled="!form.dic || viesLoading"
-                  class="px-3 h-9 text-sm bg-surface border border-primary-300 text-primary-700 rounded-md hover:bg-primary-100 disabled:opacity-50">
-                  {{ viesLoading ? '…' : 'VIES' }}
-                </button>
+                  class="flex-1 h-9 px-3 border border-neutral-300 rounded-md font-mono text-sm shadow-xs outline-none focus-ring" />
+                <UiButton type="button" variant="outline" size="sm" :loading="viesLoading" :disabled="!form.dic || viesLoading" @click="checkVies">
+                  VIES
+                </UiButton>
               </div>
               <p v-if="duplicateDic" class="text-xs text-warning-600 mt-1">
                 ⚠ {{ t('client.duplicate_dic') }} <strong>{{ duplicateDic.name }}</strong>
@@ -361,11 +365,9 @@ async function submit() {
               <input v-model="form.is_vat_payer" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
               <span :class="!form.is_vat_payer ? 'text-warning-700 font-medium' : ''">{{ t('client.vat_payer_label') }}</span>
             </label>
-            <button v-if="form.dic" type="button" @click="loadVatPayerDetails" :disabled="vatInfoLoading"
-              class="cursor-pointer px-3 h-9 text-sm border border-primary-500/40 rounded-md text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1.5 disabled:opacity-50">
-              <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+            <UiButton v-if="form.dic" type="button" variant="outline" size="sm" :loading="vatInfoLoading" :disabled="vatInfoLoading" @click="loadVatPayerDetails">
               {{ vatInfoLoading ? t('common.loading') : t('client.vat_payer_details') }}
-            </button>
+            </UiButton>
           </div>
 
           <div v-if="vatInfoOpen" class="mt-3 bg-neutral-50 border border-neutral-200 rounded-lg p-4">
@@ -398,12 +400,7 @@ async function submit() {
           </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.company_name') }} *</label>
-          <input autocomplete="off" v-model="form.company_name" required
-            class="w-full h-10 px-3 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
-          <p v-if="errors.company_name" class="text-xs text-danger-500 mt-1">{{ errors.company_name[0] }}</p>
-        </div>
+        <UiInput v-model="form.company_name" :label="t('client.company_name') + ' *'" required :error="errors.company_name?.[0]" />
 
         <ClientTagEditor
           ref="tagEditorRef"
@@ -412,43 +409,21 @@ async function submit() {
         />
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.main_email') }}</label>
-            <input autocomplete="off" v-model="form.main_email" type="email"
-              class="w-full h-10 px-3 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
-            <p v-if="errors.main_email" class="text-xs text-danger-500 mt-1">{{ errors.main_email[0] }}</p>
-            <p class="text-xs text-neutral-500 mt-1">{{ t('client.main_email_optional_hint') }}</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.phone') }}</label>
-            <input autocomplete="off" v-model="form.phone"
-              class="w-full h-10 px-3 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
-          </div>
+          <UiInput v-model="form.main_email" type="email" :label="t('client.main_email')" :hint="t('client.main_email_optional_hint')" :error="errors.main_email?.[0]" />
+          <UiInput v-model="form.phone" :label="t('client.phone')" />
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div class="sm:col-span-2">
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.street') }}</label>
-            <input autocomplete="off" v-model="form.street"
-              class="w-full h-10 px-3 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.zip') }}</label>
-            <input autocomplete="off" v-model="form.zip"
-              class="w-full h-10 px-3 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
-          </div>
+          <UiInput class="sm:col-span-2" v-model="form.street" :label="t('client.street')" />
+          <UiInput v-model="form.zip" :label="t('client.zip')" />
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.city') }}</label>
-            <input autocomplete="off" v-model="form.city"
-              class="w-full h-10 px-3 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
-          </div>
+          <UiInput v-model="form.city" :label="t('client.city')" />
           <div>
             <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.country') }}</label>
             <select v-model="form.country_iso2"
-              class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none">
+              class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
               <option v-for="c in countries" :key="c.iso2" :value="c.iso2">{{ locale === 'en' ? c.name_en : c.name_cs }}</option>
             </select>
           </div>
@@ -491,7 +466,7 @@ async function submit() {
         <div>
           <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.note') }}</label>
           <textarea autocomplete="off" v-model="form.note" rows="2"
-            class="w-full px-3 py-2 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"></textarea>
+            class="w-full px-3 py-2 border border-neutral-300 rounded-md shadow-xs outline-none focus-ring"></textarea>
         </div>
 
         <!-- Ostatní informace (sbalené, výchozí stav) -->
@@ -504,7 +479,7 @@ async function submit() {
               <div>
                 <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.language') }}</label>
                 <select v-model="form.language"
-                  class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none">
+                  class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
                   <option value="cs">Čeština</option>
                   <option value="en">English</option>
                 </select>
@@ -513,7 +488,7 @@ async function submit() {
                 <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.payment_due_label') }}</label>
                 <div class="flex gap-2 items-center">
                   <select v-model="clientDuePreset"
-                    class="flex-1 min-w-0 h-10 px-2 border border-neutral-300 rounded-md text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none">
+                    class="flex-1 min-w-0 h-10 px-2 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs outline-none focus-ring">
                     <option value="inherit">{{ t('client.payment_due_inherit', { default: supplierDueLabel }) }}</option>
                     <option value="7">{{ t('client.payment_due_preset_7') }}</option>
                     <option value="14">{{ t('client.payment_due_preset_14') }}</option>
@@ -522,7 +497,7 @@ async function submit() {
                   </select>
                   <div v-if="clientDuePreset === 'custom'" class="flex items-center gap-1.5 shrink-0">
                     <input autocomplete="off" v-model.number="form.payment_due_default" type="number" min="1" max="365"
-                      class="w-20 h-10 px-2 border border-neutral-300 rounded-md text-sm font-mono focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
+                      class="w-20 h-10 px-2 border border-neutral-300 rounded-md text-sm font-mono shadow-xs outline-none focus-ring" />
                     <span class="text-xs text-neutral-500">{{ t('client.payment_due_custom_days_suffix') }}</span>
                   </div>
                 </div>
@@ -534,14 +509,14 @@ async function submit() {
               <div>
                 <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.currency_default') }}</label>
                 <select v-model.number="form.currency_default_id"
-                  class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none">
+                  class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
                   <option v-for="c in currencies" :key="c.id" :value="c.id">{{ c.label }}</option>
                 </select>
               </div>
               <div>
                 <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.hourly_rate') }}</label>
                 <input autocomplete="off" v-model.number="form.hourly_rate" type="number" step="0.01" min="0" placeholder="0"
-                  class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
+                  class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono shadow-xs outline-none focus-ring" />
                 <p class="text-xs text-neutral-500 mt-1">{{ t('client.hourly_rate_hint') }}</p>
                 <p v-if="errors.hourly_rate" class="text-xs text-danger-500 mt-1">{{ errors.hourly_rate[0] }}</p>
               </div>
@@ -564,7 +539,7 @@ async function submit() {
             <div v-if="form.is_customer">
               <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.default_revenue_category') }}</label>
               <select v-model="form.default_revenue_category_id"
-                class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none">
+                class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
                 <option :value="null">— {{ t('client.default_revenue_category_none') }} —</option>
                 <option v-for="c in revenueCategories" :key="c.id" :value="c.id">
                   {{ c.label }} ({{ c.code }})
@@ -581,22 +556,22 @@ async function submit() {
                 <div>
                   <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('client.invoice_number_format') }}</label>
                   <input v-model="form.invoice_number_format" type="text" maxlength="60" placeholder="{YY}{CCCC}"
-                    class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
+                    class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono text-sm shadow-xs outline-none focus-ring" />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('client.proforma_number_format') }}</label>
                   <input v-model="form.proforma_number_format" type="text" maxlength="60" placeholder="9{YY}{CCCC}"
-                    class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
+                    class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono text-sm shadow-xs outline-none focus-ring" />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('client.credit_note_number_format') }}</label>
                   <input v-model="form.credit_note_number_format" type="text" maxlength="60" placeholder=""
-                    class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
+                    class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono text-sm shadow-xs outline-none focus-ring" />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('client.invoice_number_period') }}</label>
                   <select v-model="form.invoice_number_period"
-                    class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none">
+                    class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
                     <option :value="null">{{ t('client.numbering_period_inherit') }}</option>
                     <option value="year">{{ t('client.numbering_period_year') }}</option>
                     <option value="month">{{ t('client.numbering_period_month') }}</option>
@@ -615,14 +590,13 @@ async function submit() {
       </div>
 
       <div class="px-5 py-3 border-t border-neutral-200 bg-neutral-50 flex justify-end gap-3 rounded-b-lg">
-        <button v-if="embedded" type="button" @click="emit('cancel')"
-          class="px-4 h-10 border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface text-sm font-medium">{{ t('common.cancel') }}</button>
-        <RouterLink v-else to="/tri/contacts" class="px-4 h-10 leading-10 border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface text-sm font-medium">{{ t('common.cancel') }}</RouterLink>
-        <button type="submit" :disabled="submitting"
-          class="px-5 h-10 bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white text-sm font-medium rounded-md">
+        <UiButton v-if="embedded" type="button" variant="secondary" @click="emit('cancel')">{{ t('common.cancel') }}</UiButton>
+        <UiButton v-else to="/tri/contacts" variant="secondary">{{ t('common.cancel') }}</UiButton>
+        <UiButton type="submit" :loading="submitting" :disabled="submitting">
           {{ submitting ? t('common.saving') : (isEdit ? t('common.save') : t('common.create')) }}
-        </button>
+        </UiButton>
       </div>
+      </UiCard>
     </form>
   </div>
 </template>
