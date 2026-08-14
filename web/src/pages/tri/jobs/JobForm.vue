@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { triApi } from '@/api/tri'
 import { clientsApi, type Client } from '@/api/clients'
@@ -8,6 +8,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import TriContactFormModal from '@/components/tri/TriContactFormModal.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -287,39 +291,42 @@ onMounted(async () => {
 
 <template>
   <div class="max-w-2xl">
-    <h1 class="text-2xl font-semibold mb-4">
-      {{ isEdit ? t('tri.jobs.edit') : t('tri.jobs.new') }}
-    </h1>
-
-    <form class="bg-surface border border-neutral-200 rounded-lg shadow-sm p-6 space-y-4" @submit.prevent="save">
-      <div class="flex gap-2 items-end">
-        <div class="flex-1">
-          <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.jobs.number') }}</label>
-          <input
-            v-model="form.number"
-            class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm font-mono bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
-            required
-            @blur="checkNumber"
-          />
-          <p v-if="!numberOk" class="text-danger-500 text-xs mt-1">{{ t('tri.jobs.number_taken') }}</p>
-        </div>
-        <button
-          type="button"
-          class="cursor-pointer inline-flex items-center gap-1.5 px-3 h-9 text-sm border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md shrink-0"
-          @click="suggestNumber"
+    <UiPageHeader :title="isEdit ? t('tri.jobs.edit') : t('tri.jobs.new')">
+      <template #actions>
+        <UiButton
+          :to="isEdit && jobId ? { name: 'tri-job-detail', params: { id: jobId } } : '/tri/jobs'"
+          variant="ghost"
+          size="sm"
         >
+          {{ t('tri.jobs.back_to_list') }}
+        </UiButton>
+      </template>
+    </UiPageHeader>
+
+    <form @submit.prevent="save">
+      <UiCard>
+      <div class="p-5 space-y-4">
+      <div class="flex gap-2 items-end">
+        <UiInput
+          v-model="form.number"
+          class="flex-1"
+          size="sm"
+          :label="t('tri.jobs.number')"
+          required
+          :error="numberOk ? undefined : t('tri.jobs.number_taken')"
+          @blur="checkNumber"
+        />
+        <UiButton type="button" variant="outline" size="sm" class="shrink-0" @click="suggestNumber">
           {{ t('tri.jobs.suggest_number') }}
-        </button>
+        </UiButton>
       </div>
 
-      <div>
-        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.jobs.title_field') }}</label>
-        <input
-          v-model="form.title"
-          class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
-          required
-        />
-      </div>
+      <UiInput
+        v-model="form.title"
+        size="sm"
+        :label="t('tri.jobs.title_field')"
+        required
+      />
 
       <div>
         <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.jobs.assignees') }}</label>
@@ -382,17 +389,21 @@ onMounted(async () => {
               @update:model-value="onContactPicked"
             />
           </div>
-          <button
+          <UiButton
             type="button"
-            class="cursor-pointer shrink-0 h-9 px-3 inline-flex items-center gap-1.5 border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded-md text-sm font-medium"
+            variant="outline"
+            size="sm"
+            class="shrink-0"
             :title="t('tri.contacts.new_title')"
             @click="contactModalOpen = true"
           >
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
+            <template #icon>
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </template>
             <span class="hidden sm:inline">{{ t('tri.contacts.new_title') }}</span>
-          </button>
+          </UiButton>
         </div>
       </div>
 
@@ -409,20 +420,21 @@ onMounted(async () => {
             @update:model-value="onSiteAddressPicked"
           />
         </div>
-        <input
+        <UiInput
           v-model="form.site_street"
-          class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none mb-2"
+          size="sm"
+          class="mb-2"
           :placeholder="t('client.street')"
         />
         <div class="grid grid-cols-2 gap-2">
-          <input
+          <UiInput
             v-model="form.site_city"
-            class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+            size="sm"
             :placeholder="t('client.city')"
           />
-          <input
+          <UiInput
             v-model="form.site_zip"
-            class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+            size="sm"
             :placeholder="t('client.zip')"
           />
         </div>
@@ -432,26 +444,24 @@ onMounted(async () => {
         <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.jobs.notes') }}</label>
         <textarea
           v-model="form.notes"
-          class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
+          class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs outline-none focus-ring"
           rows="3"
         />
       </div>
+      </div>
 
-      <div class="flex gap-2">
-        <button
-          type="submit"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white text-sm font-medium rounded-md"
-          :disabled="saving"
-        >
-          {{ t('common.save') }}
-        </button>
-        <RouterLink
+      <div class="px-5 py-3 border-t border-neutral-200 bg-neutral-50 flex justify-end gap-3 rounded-b-lg">
+        <UiButton
           :to="isEdit && jobId ? { name: 'tri-job-detail', params: { id: jobId } } : '/tri/jobs'"
-          class="cursor-pointer inline-flex items-center gap-1.5 px-3 h-9 text-sm border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
+          variant="secondary"
         >
           {{ t('common.cancel') }}
-        </RouterLink>
+        </UiButton>
+        <UiButton type="submit" :loading="saving" :disabled="saving">
+          {{ t('common.save') }}
+        </UiButton>
       </div>
+      </UiCard>
     </form>
 
     <TriContactFormModal

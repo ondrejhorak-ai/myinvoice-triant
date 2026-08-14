@@ -19,5 +19,8 @@ defineProps<{
     <p class="text-base font-semibold text-neutral-900">{{ title }}</p>
     <p v-if="message" class="text-sm text-neutral-500 mt-1.5 max-w-sm mx-auto">{{ message }}</p>
     <UiButton v-if="cta && to" :to="to" size="sm" class="mt-5">{{ cta }}</UiButton>
+    <div v-else-if="$slots.default" class="mt-5">
+      <slot />
+    </div>
   </div>
 </template>

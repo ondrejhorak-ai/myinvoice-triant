@@ -30,7 +30,7 @@ function contactSubtitle(c: TriJobContact): string | null {
 <template>
   <div class="grid md:grid-cols-2 md:divide-x divide-neutral-200">
     <div class="p-5">
-      <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('tri.quote.header_contacts') }}</h2>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('tri.quote.header_contacts') }}</h2>
       <ul v-if="contacts.length" class="space-y-3 text-sm">
         <li v-for="c in contacts" :key="c.client_id" class="flex flex-col gap-0.5">
           <div class="flex flex-wrap items-center gap-1.5">
@@ -51,7 +51,7 @@ function contactSubtitle(c: TriJobContact): string | null {
     </div>
 
     <div class="p-5">
-      <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('tri.quote.header_site_address') }}</h2>
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('tri.quote.header_site_address') }}</h2>
       <p v-if="hasSiteAddress" class="text-sm text-neutral-700 leading-relaxed">
         <template v-if="siteStreet">{{ siteStreet }}<br></template>
         {{ [siteZip, siteCity].filter(Boolean).join(' ') }}

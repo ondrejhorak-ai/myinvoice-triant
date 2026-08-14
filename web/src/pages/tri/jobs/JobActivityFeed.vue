@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { triApi, type TriJobActivityItem } from '@/api/tri'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
 
 const props = defineProps<{ jobId: number }>()
 
@@ -216,18 +218,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
-    <div v-if="loading" class="p-4 text-sm text-neutral-500">{{ t('common.loading') }}</div>
-    <div v-else class="p-4 space-y-3">
+  <UiCard>
+    <div v-if="loading" class="p-5 text-sm text-neutral-500">{{ t('common.loading') }}</div>
+    <div v-else class="p-5 space-y-3">
       <div v-if="hasMore" class="text-center">
-        <button
+        <UiButton
           type="button"
-          class="cursor-pointer text-xs text-neutral-500 hover:text-neutral-800 border border-neutral-200 rounded-md px-3 py-1 hover:bg-neutral-50 disabled:opacity-50"
+          variant="outline"
+          size="sm"
+          :loading="loadingOlder"
           :disabled="loadingOlder"
           @click="loadOlder"
         >
           {{ loadingOlder ? t('common.loading') : t('tri.activity.load_older') }}
-        </button>
+        </UiButton>
       </div>
 
       <p v-if="items.length === 0" class="text-sm text-neutral-500">{{ t('tri.activity.empty') }}</p>
@@ -277,25 +281,22 @@ onUnmounted(() => {
               <textarea
                 v-model="editText"
                 rows="2"
-                class="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none resize-y"
+                class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring resize-y"
                 @keydown.ctrl.enter.prevent="saveEdit"
               ></textarea>
               <div class="flex gap-2">
-                <button
+                <UiButton
                   type="button"
-                  class="cursor-pointer px-3 h-8 text-xs bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50"
+                  size="sm"
+                  :loading="editBusy"
                   :disabled="editBusy || !editText.trim()"
                   @click="saveEdit"
                 >
                   {{ t('common.save') }}
-                </button>
-                <button
-                  type="button"
-                  class="cursor-pointer px-3 h-8 text-xs border border-neutral-300 rounded-md hover:bg-neutral-50"
-                  @click="cancelEdit"
-                >
+                </UiButton>
+                <UiButton type="button" variant="secondary" size="sm" @click="cancelEdit">
                   {{ t('common.cancel') }}
-                </button>
+                </UiButton>
               </div>
             </div>
             <p v-else class="mt-0.5 text-sm text-neutral-700 whitespace-pre-wrap break-words">{{ item.body }}</p>
@@ -313,22 +314,23 @@ onUnmounted(() => {
             v-model="newComment"
             rows="2"
             :placeholder="t('tri.activity.placeholder')"
-            class="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none resize-y"
+            class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring resize-y"
             @keydown.ctrl.enter.prevent="send"
           ></textarea>
           <div class="flex items-center justify-between">
             <span class="text-xs text-neutral-400">{{ t('tri.activity.send_hint') }}</span>
-            <button
+            <UiButton
               type="button"
-              class="cursor-pointer px-4 h-8 text-xs bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md disabled:opacity-50"
+              size="sm"
+              :loading="sending"
               :disabled="sending || !newComment.trim()"
               @click="send"
             >
               {{ t('tri.activity.send') }}
-            </button>
+            </UiButton>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </UiCard>
 </template>
