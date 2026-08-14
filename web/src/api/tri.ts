@@ -260,6 +260,25 @@ export interface TriTravelerHoursSummary {
   by_station: Array<{ station: TriTravelerStation; hours: number }>
 }
 
+export type TriCalendarKind = 'shifts' | 'dispatch' | 'production'
+export type TriCalendarStation = 'konstrukce' | 'vyroba' | 'kompletace' | 'lakovna' | 'expedice' | 'montaz'
+export type TriCalendarStatus = 'planned' | 'confirmed' | 'in_progress' | 'done'
+
+export interface TriCalendarEvent {
+  id: number
+  calendar: TriCalendarKind
+  job_id: number | null
+  job_number: string | null
+  job_title: string | null
+  title: string
+  station: TriCalendarStation | null
+  starts_at: string
+  ends_at: string | null
+  all_day: boolean
+  status: TriCalendarStatus
+  note: string | null
+}
+
 export const triApi = {
   tags: {
     list: () => api.get<{ data: TriTag[] }>('/tri/tags').then((r) => r.data.data),
@@ -393,6 +412,16 @@ export const triApi = {
       const qs = params.toString()
       return `/api/tri/jobs/${jobId}/travelers/pdf${qs ? '?' + qs : ''}`
     },
+  },
+  calendar: {
+    list: (params: { calendar: TriCalendarKind; from: string; to: string }) =>
+      api.get<{ data: TriCalendarEvent[] }>('/tri/calendar', { params }).then((r) => r.data),
+    get: (id: number) => api.get<TriCalendarEvent>(`/tri/calendar/${id}`).then((r) => r.data),
+    create: (payload: Record<string, unknown>) =>
+      api.post<TriCalendarEvent>('/tri/calendar', payload).then((r) => r.data),
+    update: (id: number, payload: Record<string, unknown>) =>
+      api.put<TriCalendarEvent>(`/tri/calendar/${id}`, payload).then((r) => r.data),
+    delete: (id: number) => api.delete(`/tri/calendar/${id}`),
   },
   invoices: {
     list: (params?: Record<string, string | number>) =>

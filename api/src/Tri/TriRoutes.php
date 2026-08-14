@@ -47,6 +47,11 @@ use MyInvoice\Tri\Action\PriceList\PdfAction as PriceListPdfAction;
 use MyInvoice\Tri\Action\PriceList\SearchPriceListItemsAction;
 use MyInvoice\Tri\Action\PriceList\UpdatePriceListAction;
 use MyInvoice\Tri\Action\PriceList\UploadPriceListImageAction;
+use MyInvoice\Tri\Action\Calendar\CreateCalendarEventAction;
+use MyInvoice\Tri\Action\Calendar\DeleteCalendarEventAction;
+use MyInvoice\Tri\Action\Calendar\GetCalendarEventAction;
+use MyInvoice\Tri\Action\Calendar\ListCalendarEventsAction;
+use MyInvoice\Tri\Action\Calendar\UpdateCalendarEventAction;
 use MyInvoice\Tri\Action\Traveler\GenerateTravelersAction;
 use MyInvoice\Tri\Action\Traveler\GetTravelerAction;
 use MyInvoice\Tri\Action\Traveler\JobPdfAction as JobTravelersPdfAction;
@@ -122,5 +127,12 @@ final class TriRoutes
         $app->get('/api/tri/jobs/{id:[0-9]+}/travelers', ListTravelersAction::class);
         $app->get('/api/tri/jobs/{id:[0-9]+}/travelers/pdf', JobTravelersPdfAction::class);
         $app->post('/api/tri/jobs/{id:[0-9]+}/travelers/generate', GenerateTravelersAction::class);
+
+        // Calendar (Kalendář TRI)
+        $app->get('/api/tri/calendar', ListCalendarEventsAction::class);
+        $app->post('/api/tri/calendar', CreateCalendarEventAction::class);
+        $app->get('/api/tri/calendar/{id:[0-9]+}', GetCalendarEventAction::class);
+        $app->put('/api/tri/calendar/{id:[0-9]+}', UpdateCalendarEventAction::class);
+        $app->delete('/api/tri/calendar/{id:[0-9]+}', DeleteCalendarEventAction::class);
     }
 }
