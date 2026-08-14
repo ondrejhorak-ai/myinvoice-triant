@@ -52,6 +52,7 @@ use MyInvoice\Tri\Action\Traveler\GetTravelerAction;
 use MyInvoice\Tri\Action\Traveler\JobPdfAction as JobTravelersPdfAction;
 use MyInvoice\Tri\Action\Traveler\ListTravelersAction;
 use MyInvoice\Tri\Action\Traveler\PdfAction as TravelerPdfAction;
+use MyInvoice\Tri\Action\Traveler\UpdateTravelerOperationsAction;
 use Slim\App;
 
 final class TriRoutes
@@ -116,6 +117,7 @@ final class TriRoutes
         // Travelers (Průvodky TRI)
         $app->get('/api/tri/travelers', ListTravelersAction::class);
         $app->get('/api/tri/travelers/{id:[0-9]+}', GetTravelerAction::class);
+        $app->put('/api/tri/travelers/{id:[0-9]+}/operations', UpdateTravelerOperationsAction::class);
         $app->get('/api/tri/travelers/{id:[0-9]+}/pdf', TravelerPdfAction::class);
         $app->get('/api/tri/jobs/{id:[0-9]+}/travelers', ListTravelersAction::class);
         $app->get('/api/tri/jobs/{id:[0-9]+}/travelers/pdf', JobTravelersPdfAction::class);

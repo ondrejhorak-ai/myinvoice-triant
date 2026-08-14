@@ -249,9 +249,15 @@ export interface TriTraveler {
   quantity: number
   unit: string
   status: TriTravelerStatus
+  hours_total?: number
   operations?: TriTravelerOperation[]
   created_at?: string
   updated_at?: string
+}
+
+export interface TriTravelerHoursSummary {
+  total: number
+  by_station: Array<{ station: TriTravelerStation; hours: number }>
 }
 
 export const triApi = {
@@ -360,6 +366,13 @@ export const triApi = {
     listForJob: (jobId: number) =>
       api.get<{ data: TriTraveler[] }>(`/tri/jobs/${jobId}/travelers`).then((r) => r.data),
     get: (id: number) => api.get<TriTraveler>(`/tri/travelers/${id}`).then((r) => r.data),
+    saveOperations: (
+      id: number,
+      payload: {
+        operations?: Array<{ station: string; hours: string | number | null; note?: string | null }>
+        status?: TriTravelerStatus
+      },
+    ) => api.put<TriTraveler>(`/tri/travelers/${id}/operations`, payload).then((r) => r.data),
     generate: (jobId: number) =>
       api.post<{ created: number; operations_added: number; data: TriTraveler[] }>(
         `/tri/jobs/${jobId}/travelers/generate`,

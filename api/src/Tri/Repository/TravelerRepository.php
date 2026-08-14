@@ -6,6 +6,7 @@ namespace MyInvoice\Tri\Repository;
 
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Tri\Service\TravelerGenerator;
+use MyInvoice\Tri\Service\TravelerHours;
 use PDO;
 
 final class TravelerRepository
@@ -35,8 +36,17 @@ final class TravelerRepository
         $sql .= ' ORDER BY j.number, t.number, t.id';
         $stmt = $this->db->pdo()->prepare($sql);
         $stmt->execute($params);
+        $rows = array_map([$this, 'castList'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+        if ($jobId !== null && $jobId > 0) {
+            $rows = $this->attachOperations($rows);
+        }
 
-        return ['data' => array_map([$this, 'castList'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [])];
+        $out = ['data' => $rows];
+        if ($jobId !== null && $jobId > 0) {
+            $out['hours'] = TravelerHours::summarizeTravelers($rows);
+        }
+
+        return $out;
     }
 
     /** @return array<string, mixed>|null */
@@ -55,9 +65,69 @@ final class TravelerRepository
         }
         $traveler = $this->castList($row);
         $traveler['job_status'] = (string) $row['job_status'];
-        $traveler['operations'] = $this->loadOperations((int) $row['id']);
+        $ops = $this->loadOperations((int) $row['id']);
+        $traveler['operations'] = $ops;
+        $traveler['hours_total'] = TravelerHours::travelerTotal($ops);
 
         return $traveler;
+    }
+
+    /**
+     * @param list<array{station: string, hours: ?float, note: ?string}> $operations
+     * @return array<string, mixed>|null
+     */
+    public function updateOperations(int $id, int $supplierId, array $operations, ?string $status): ?array
+    {
+        $existing = $this->find($id, $supplierId);
+        if ($existing === null) {
+            return null;
+        }
+        $pdo = $this->db->pdo();
+        $have = [];
+        foreach ($existing['operations'] ?? [] as $op) {
+            if (is_array($op) && isset($op['station'])) {
+                $have[(string) $op['station']] = true;
+            }
+        }
+        $updHours = $pdo->prepare(
+            'UPDATE tri_traveler_operations SET hours = ? WHERE traveler_id = ? AND station = ?'
+        );
+        $updAll = $pdo->prepare(
+            'UPDATE tri_traveler_operations SET hours = ?, note = ? WHERE traveler_id = ? AND station = ?'
+        );
+        $ins = $pdo->prepare(
+            'INSERT INTO tri_traveler_operations (traveler_id, station, hours, note) VALUES (?, ?, ?, ?)'
+        );
+
+        $pdo->beginTransaction();
+        try {
+            foreach ($operations as $op) {
+                $hours = $op['hours'];
+                $hasNote = array_key_exists('note', $op);
+                $note = $hasNote ? $op['note'] : null;
+                if (isset($have[$op['station']])) {
+                    if ($hasNote) {
+                        $updAll->execute([$hours, $note, $id, $op['station']]);
+                    } else {
+                        $updHours->execute([$hours, $id, $op['station']]);
+                    }
+                } else {
+                    $ins->execute([$id, $op['station'], $hours, $note]);
+                    $have[$op['station']] = true;
+                }
+            }
+            if ($status !== null) {
+                $pdo->prepare('UPDATE tri_travelers SET status = ? WHERE id = ?')->execute([$status, $id]);
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        return $this->find($id, $supplierId);
     }
 
     /**
@@ -227,6 +297,65 @@ final class TravelerRepository
         }
 
         return $ordered;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @return list<array<string, mixed>>
+     */
+    private function attachOperations(array $rows): array
+    {
+        $ids = array_map(static fn (array $row) => (int) $row['id'], $rows);
+        $byId = $this->loadOperationsForIds($ids);
+        foreach ($rows as &$row) {
+            $ops = $byId[(int) $row['id']] ?? [];
+            $row['operations'] = $ops;
+            $row['hours_total'] = TravelerHours::travelerTotal($ops);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function loadOperationsForIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT traveler_id, id, station, hours, note
+               FROM tri_traveler_operations
+              WHERE traveler_id IN ({$placeholders})"
+        );
+        $stmt->execute($ids);
+        $grouped = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $tid = (int) $row['traveler_id'];
+            $grouped[$tid][(string) $row['station']] = [
+                'id'      => (int) $row['id'],
+                'station' => (string) $row['station'],
+                'hours'   => $row['hours'] !== null ? (float) $row['hours'] : null,
+                'note'    => $row['note'] !== null ? (string) $row['note'] : null,
+            ];
+        }
+        $out = [];
+        foreach ($ids as $id) {
+            $byStation = $grouped[$id] ?? [];
+            $ordered = [];
+            foreach (TravelerGenerator::STATIONS as $station) {
+                if (isset($byStation[$station])) {
+                    $ordered[] = $byStation[$station];
+                }
+            }
+            $out[$id] = $ordered;
+        }
+
+        return $out;
     }
 
     /** @param array<string, mixed> $row */

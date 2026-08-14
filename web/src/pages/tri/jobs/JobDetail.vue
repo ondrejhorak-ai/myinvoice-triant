@@ -49,6 +49,33 @@ const canGenerateTravelers = computed(() =>
   && (job.value?.status === 'confirmed' || job.value?.status === 'completed'),
 )
 
+const hoursSummary = computed(() => {
+  const cents: Record<string, number> = {}
+  let total = 0
+  for (const row of travelers.value) {
+    for (const op of row.operations ?? []) {
+      if (op.hours == null) continue
+      const value = Math.round(op.hours * 100)
+      cents[op.station] = (cents[op.station] ?? 0) + value
+      total += value
+    }
+  }
+  const order = [
+    'konstrukce', 'narezove_centrum', 'cnc', 'olepovacka', 'dyhovani_brouseni',
+    'montaz', 'lakovna', 'brouseni', 'baleni',
+  ]
+  return {
+    total: total / 100,
+    by_station: order
+      .filter((station) => (cents[station] ?? 0) > 0)
+      .map((station) => ({ station, hours: (cents[station] ?? 0) / 100 })),
+  }
+})
+
+function formatHours(n: number) {
+  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
 const statusOptions = ['active', 'confirmed', 'rejected', 'completed'] as const
 
 const jobCreationDate = computed(() => {
@@ -350,12 +377,28 @@ onMounted(() => load())
       <div v-if="travelersLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
       <div v-else-if="travelers.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.travelers.no_data') }}</div>
       <div v-else>
+        <div class="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
+          <div class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.travelers.hours_widget') }}</div>
+          <div class="mt-1 text-2xl font-semibold tabular-nums text-neutral-900">{{ formatHours(hoursSummary.total) }} h</div>
+          <p v-if="hoursSummary.by_station.length === 0" class="mt-1 text-sm text-neutral-500">{{ t('tri.travelers.hours_empty') }}</p>
+          <div v-else class="mt-2 flex flex-wrap gap-2">
+            <span
+              v-for="row in hoursSummary.by_station"
+              :key="row.station"
+              class="inline-flex items-center gap-1.5 rounded-full bg-white border border-neutral-200 px-2.5 py-1 text-xs text-neutral-700"
+            >
+              {{ t(`tri.travelers.station_${row.station}`) }}
+              <span class="tabular-nums font-mono font-medium">{{ formatHours(row.hours) }}</span>
+            </span>
+          </div>
+        </div>
         <UiTable>
           <template #head>
             <tr>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.number') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.item') }}</th>
               <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.quantity') }}</th>
+              <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.hours') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.status') }}</th>
             </tr>
           </template>
@@ -371,6 +414,7 @@ onMounted(() => load())
               {{ row.title }}
             </td>
             <td class="px-4 py-3 text-right tabular-nums">{{ row.quantity }} {{ row.unit }}</td>
+            <td class="px-4 py-3 text-right tabular-nums font-mono">{{ formatHours(row.hours_total ?? 0) }}</td>
             <td class="px-4 py-3">
               <UiBadge :variant="row.status === 'done' ? 'success' : 'primary'">
                 {{ t(`tri.travelers.status_${row.status}`) }}
