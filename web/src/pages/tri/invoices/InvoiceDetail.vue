@@ -21,6 +21,9 @@ import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
 import WorkReportModal from '@/components/modals/WorkReportModal.vue'
 import { triApi, type TriJobLink } from '@/api/tri'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -890,114 +893,75 @@ async function requestApprovalTest() {
 <template>
   <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
 
-  <div v-else-if="invoice" class="max-w-5xl space-y-4">
-    <RouterLink to="/tri/invoices" class="text-sm text-neutral-600 hover:text-neutral-900">{{ t('tri.invoices.back_to_list') }}</RouterLink>
-    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
-      <h1 class="text-2xl font-semibold flex items-center gap-3 flex-wrap min-w-0">
-        <span v-if="invoice.varsymbol" class="font-mono">{{ invoice.varsymbol }}</span>
-        <span v-else class="text-neutral-400 font-mono">{{ t('invoice.draft_id', { id: invoice.id }) }}</span>
-        <span class="text-xs px-2 py-0.5 rounded font-normal" :class="statusBadgeClass(invoice.status)">
-          {{ statusLabel(invoice.status) }}
-        </span>
-        <span class="text-xs px-2 py-0.5 rounded font-normal bg-neutral-100 text-neutral-600">
-          {{ typeLabel(invoice.invoice_type) }}
-        </span>
-        <span v-if="invoice.income_tax_exempt"
-          class="text-xs px-2 py-0.5 rounded font-normal bg-amber-100 text-amber-800 border border-amber-200"
-          :title="invoice.income_tax_exempt_reason || ''">
-          {{ t('invoice.income_tax_exempt_badge') }}
-        </span>
-        <RouterLink v-if="invoice.recurring_template_id"
-          :to="{ name: 'recurring-edit', params: { id: invoice.recurring_template_id } }"
-          class="text-xs px-2 py-0.5 rounded font-normal bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100"
-          :title="t('recurring.badge_from_template_title', { id: invoice.recurring_template_id })">
-          ↻ {{ t('recurring.badge_from_template') }}
-        </RouterLink>
-        <span v-if="requiresApproval"
-          class="text-xs px-2 py-0.5 rounded font-normal" :class="approvalBadgeClass">
-          {{ t('invoice.approval.badge') }}:
-          {{ approvalTokenExpired
-              ? t('invoice.approval.status_expired')
-              : t('invoice.approval.status_' + approvalStatus) }}
-        </span>
-      </h1>
-      <div class="flex flex-wrap gap-2 md:justify-end">
-        <!-- Draft akce -->
-        <RouterLink v-if="isDraft && auth.canWrite" :to="`/tri/invoices/${invoice.id}/edit`"
-          class="cursor-pointer px-3 h-9 text-sm border border-success-500 text-success-600 hover:bg-success-50 font-medium rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+  <div v-else-if="invoice" class="max-w-5xl space-y-6">
+    <RouterLink to="/tri/invoices" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('tri.invoices.back_to_list') }}</RouterLink>
+    <UiPageHeader :title="invoice.varsymbol || t('invoice.draft_id', { id: invoice.id })">
+      <template #below>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="statusBadgeClass(invoice.status)">
+            {{ statusLabel(invoice.status) }}
+          </span>
+          <UiBadge variant="neutral">{{ typeLabel(invoice.invoice_type) }}</UiBadge>
+          <span v-if="invoice.income_tax_exempt"
+            class="text-xs px-2 py-0.5 rounded-full font-medium bg-warning-50 text-warning-700"
+            :title="invoice.income_tax_exempt_reason || ''">
+            {{ t('invoice.income_tax_exempt_badge') }}
+          </span>
+          <RouterLink v-if="invoice.recurring_template_id"
+            :to="{ name: 'recurring-edit', params: { id: invoice.recurring_template_id } }"
+            class="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-50 text-primary-700 hover:bg-primary-100"
+            :title="t('recurring.badge_from_template_title', { id: invoice.recurring_template_id })">
+            ↻ {{ t('recurring.badge_from_template') }}
+          </RouterLink>
+          <span v-if="requiresApproval"
+            class="text-xs px-2 py-0.5 rounded-full font-medium" :class="approvalBadgeClass">
+            {{ t('invoice.approval.badge') }}:
+            {{ approvalTokenExpired
+                ? t('invoice.approval.status_expired')
+                : t('invoice.approval.status_' + approvalStatus) }}
+          </span>
+        </div>
+      </template>
+      <template #actions>
+        <UiButton v-if="isDraft && auth.canWrite" :to="`/tri/invoices/${invoice.id}/edit`" variant="secondary" size="sm">
           {{ t('common.edit') }}
-        </RouterLink>
-        <button v-if="canRequestApproval && auth.canWrite" @click="requestApproval" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white font-medium rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
+        </UiButton>
+        <UiButton v-if="canRequestApproval && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'approval-request'" @click="requestApproval">
           {{ busy === 'approval-request' ? '…' : t('invoice.approval.send_request') }}
-        </button>
-        <button v-if="isDraft && canIssueDraft && auth.canWrite" @click="issue"
+        </UiButton>
+        <UiButton v-if="isDraft && canIssueDraft && auth.canWrite" size="sm"
           :disabled="busy !== null || (requiresApproval && approvalStatus !== 'approved')"
           :title="requiresApproval && approvalStatus !== 'approved' ? t('invoice.approval.issue_blocked') : ''"
-          class="cursor-pointer px-3 h-9 text-sm bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 disabled:cursor-not-allowed text-white font-medium rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          :loading="busy === 'issue'"
+          @click="issue">
           {{ busy === 'issue' ? '…' : t('invoice.issue') }}
-        </button>
-        <!-- Výkaz: jen u draftu (kde se reálně edituje) a s právem editace. U vystavených/odeslaných
-             dokladů se výkaz needituje (backend SaveWorkReportAction vrátí 409 pro status != draft),
-             proto se tlačítko vůbec nezobrazuje. Méně významné → až za hlavními akcemi. -->
-        <button v-if="isDraft && auth.canWrite"
-          @click="wrModalOpen = true"
-          class="cursor-pointer px-3 h-9 text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded-md inline-flex items-center gap-1.5"
-          :title="t('invoice.wr_btn')">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6v-4m3 4v-2M5 21h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2z"/></svg>
+        </UiButton>
+        <UiButton v-if="isDraft && auth.canWrite" variant="outline" size="sm" :title="t('invoice.wr_btn')" @click="wrModalOpen = true">
           {{ t('invoice.wr_btn') }}
-        </button>
-        <button v-if="isDraft && auth.canWrite" @click="deleteInvoice" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-danger-500/50 text-danger-500 hover:bg-danger-50 rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
+        </UiButton>
+        <UiButton v-if="isDraft && auth.canWrite" variant="danger" size="sm" :disabled="busy !== null" @click="deleteInvoice">
           {{ t('common.delete') }}
-        </button>
-
-        <!-- Issued+ akce (hlavní) — před utility (Klonovat/PDF) -->
-        <button v-if="canSendEmail && auth.canWrite" @click="openSendModal" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white font-medium rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
+        </UiButton>
+        <UiButton v-if="canSendEmail && auth.canWrite" size="sm" :disabled="busy !== null" @click="openSendModal">
           {{ t('invoice.send_to_client') }}
-        </button>
-        <button v-if="canIssueFinal && auth.canWrite" @click="issueFinalFromProforma" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white font-medium rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+        </UiButton>
+        <UiButton v-if="canIssueFinal && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'issue-final'" @click="issueFinalFromProforma">
           {{ busy === 'issue-final' ? '…' : t('invoice.issue_final') }}
-        </button>
-        <button v-if="isIssued && canMarkPaid && auth.canWrite" @click="openMarkPaid" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-success-500/50 text-success-600 hover:bg-success-50 rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-success-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+        </UiButton>
+        <UiButton v-if="isIssued && canMarkPaid && auth.canWrite" variant="outline" size="sm" :disabled="busy !== null" @click="openMarkPaid">
           {{ t('invoice.mark_paid') }}
-        </button>
-        <button v-if="canSendReminder && auth.canWrite" @click="openReminderModal" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm bg-warning-500 hover:bg-warning-600 disabled:bg-neutral-300 text-white font-medium rounded-md inline-flex items-center gap-1.5"
-          :title="t('invoice.reminder_tooltip', { days: daysOverdue })">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+        </UiButton>
+        <UiButton v-if="canSendReminder && auth.canWrite" size="sm" :disabled="busy !== null" :title="t('invoice.reminder_tooltip', { days: daysOverdue })" @click="openReminderModal">
           {{ t('invoice.send_reminder') }}
-        </button>
-
-        <!-- Utility (méně významné) → za hlavními akcemi -->
-        <button v-if="(!isDraft && !['cancellation','credit_note'].includes(invoice.invoice_type)) && auth.canWrite" @click="cloneInvoice" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2m-6 12h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
+        </UiButton>
+        <UiButton v-if="(!isDraft && !['cancellation','credit_note'].includes(invoice.invoice_type)) && auth.canWrite" variant="outline" size="sm" :disabled="busy !== null" :loading="busy === 'clone'" @click="cloneInvoice">
           {{ busy === 'clone' ? '…' : t('invoice.clone') }}
-        </button>
-        <button v-if="!isDraft || invoice.items.length > 0" @click="downloadPdf"
-          :title="invoiceWillBeSigned ? (t('invoice.download_pdf_tooltip_signed') as string) : undefined"
-          class="cursor-pointer px-3 h-9 text-sm border border-primary-500/40 rounded-md text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/></svg>
+        </UiButton>
+        <UiButton v-if="!isDraft || invoice.items.length > 0" variant="outline" size="sm" :title="invoiceWillBeSigned ? (t('invoice.download_pdf_tooltip_signed') as string) : undefined" @click="downloadPdf">
           {{ t('invoice.download_pdf') }}
-          <span v-if="invoiceWillBeSigned" :title="(t('invoice.download_pdf_tooltip_signed') as string)"
-            class="ml-1 inline-flex items-center gap-0.5 rounded-full bg-success-50 px-1.5 py-0.5 text-[10px] font-medium text-success-700">
-            <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-            {{ t('invoice.signed_badge') }}
-          </span>
-        </button>
-      </div>
-    </div>
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
     <div class="flex items-start justify-between gap-4">
       <div class="flex-1 min-w-0 space-y-1">
@@ -1246,7 +1210,7 @@ async function requestApprovalTest() {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">
           {{ t('invoice.issue_date') }}
           <template v-if="!isProforma"> / {{ t('invoice.tax_date') }}</template>
@@ -1260,7 +1224,7 @@ async function requestApprovalTest() {
         </dl>
       </div>
 
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('common.currency') }} &amp; {{ t('invoice.totals.vat') }}</h3>
         <dl class="space-y-1.5 text-sm">
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('common.currency') }}</dt><dd class="font-mono">{{ invoice.currency }}</dd></div>
@@ -1273,7 +1237,7 @@ async function requestApprovalTest() {
         </dl>
       </div>
 
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('settings.account_cz') }}</h3>
         <dl v-if="(invoice.payment_method ?? 'bank_transfer') === 'bank_transfer'" class="space-y-1 text-sm">
           <div v-if="invoice.bank_account_number" class="font-mono text-xs">
@@ -1292,7 +1256,7 @@ async function requestApprovalTest() {
     </div>
 
     <!-- Položky -->
-    <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <div class="px-5 py-3 border-b border-neutral-200">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.items') }}</h3>
       </div>
@@ -1349,7 +1313,7 @@ async function requestApprovalTest() {
     </div>
 
     <!-- Sumace -->
-    <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+    <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.summary') }}</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <dl class="space-y-1 text-sm">
@@ -1397,7 +1361,7 @@ async function requestApprovalTest() {
     </div>
 
     <!-- CZK přepočet pro faktury v cizí měně -->
-    <div v-if="invoice.czk_recap" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+    <div v-if="invoice.czk_recap" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">
         {{ t('invoice.czk_recap.title') }}
       </h3>
@@ -1439,13 +1403,13 @@ async function requestApprovalTest() {
       </div>
     </div>
 
-    <div v-if="invoice.note_below_items" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+    <div v-if="invoice.note_below_items" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
       <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">{{ t('invoice.note') }}</h3>
       <p class="text-sm text-neutral-700 whitespace-pre-wrap">{{ invoice.note_below_items }}</p>
     </div>
 
     <!-- Elektronický podpis dokumentu -->
-    <div v-if="canManageSignatureSelection" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="canManageSignatureSelection" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <header class="px-5 py-3 border-b border-neutral-200">
         <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.signing.title') }}</h3>
         <p class="text-xs text-neutral-500 mt-0.5">{{ t('invoice.signing.hint') }}</p>
@@ -1519,7 +1483,7 @@ async function requestApprovalTest() {
 
     <!-- Přílohy emailu (PDF/Office/obrázky se přibalí při odeslání faktury) -->
     <div v-if="invoice && attachmentsAvailable(invoice)"
-         class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+         class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
         <div>
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
@@ -1590,7 +1554,7 @@ async function requestApprovalTest() {
     </div>
 
     <!-- Historie PDF -->
-    <div v-if="pdfHistory.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="pdfHistory.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <button type="button" @click="pdfHistoryOpen = !pdfHistoryOpen"
         class="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-neutral-50 cursor-pointer"
         :class="pdfHistoryOpen ? 'border-b border-neutral-200' : ''">
@@ -1638,7 +1602,7 @@ async function requestApprovalTest() {
     </div>
 
     <!-- Aktivita -->
-    <div v-if="activity.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="activity.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <button type="button" @click="activityOpen = !activityOpen"
         class="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-neutral-50 cursor-pointer"
         :class="activityOpen ? 'border-b border-neutral-200' : ''">
@@ -1683,7 +1647,7 @@ async function requestApprovalTest() {
     <!-- Sekundární akce — pod fakturou (Test odeslání + admin/destrukční).
          Pro draft zobrazujeme kvůli „Test odeslání" + odkazu na klienta;
          vnitřní tlačítka mají vlastní v-if podmínky. -->
-    <div v-if="invoice" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+    <div v-if="invoice" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
       <h3 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.more_actions') }}</h3>
       <div class="flex flex-wrap gap-2">
         <RouterLink :to="`/clients/${invoice.client_id}`"

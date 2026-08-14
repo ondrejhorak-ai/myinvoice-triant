@@ -78,12 +78,12 @@ const DOTS = 'M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0zM12.75 12a.75.75 0 
 
 // barevné varianty pro plné / outline / ikonu v menu
 const FILLED: Record<ActionVariant, string> = {
-  primary: 'bg-primary-600 hover:bg-primary-700 text-white',
-  success: 'bg-success-600 hover:bg-success-700 text-white',
-  warning: 'bg-warning-500 hover:bg-warning-600 text-white',
-  danger:  'bg-danger-600 hover:bg-danger-700 text-white',
-  neutral: 'bg-neutral-700 hover:bg-neutral-800 text-white',
-  accent:  'bg-accent-600 hover:bg-accent-700 text-white',
+  primary: 'bg-primary-600 hover:bg-primary-700 text-white shadow-xs',
+  success: 'bg-success-600 hover:bg-success-700 text-white shadow-xs',
+  warning: 'bg-warning-500 hover:bg-warning-600 text-white shadow-xs',
+  danger:  'bg-danger-600 hover:bg-danger-700 text-white shadow-xs',
+  neutral: 'bg-neutral-700 hover:bg-neutral-800 text-white shadow-xs',
+  accent:  'bg-accent-600 hover:bg-accent-700 text-white shadow-xs',
 }
 const OUTLINE: Record<ActionVariant, string> = {
   primary: 'border border-primary-500/40 text-primary-700 hover:bg-primary-50',
@@ -139,7 +139,7 @@ function attrsOf(a: ActionItem): Record<string, unknown> {
   return { type: 'button' }
 }
 
-const inlineBase = 'cursor-pointer px-3 h-9 text-sm font-medium rounded-md inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed'
+const inlineBase = 'cursor-pointer px-3 h-9 text-sm font-semibold rounded-md inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed focus-ring'
 
 // ─── dropdown ───
 const open = ref(false)
@@ -229,9 +229,9 @@ onBeforeUnmount(() => {
     <Teleport to="body">
       <template v-if="open">
         <div class="fixed inset-0 z-[60]" @click="close" @contextmenu.prevent="close" aria-hidden="true"></div>
-        <div ref="menuRef" class="fixed z-[61] w-60 max-w-[calc(100vw-16px)] bg-surface border border-neutral-200 rounded-lg shadow-xl py-1 text-sm"
+        <div ref="menuRef" class="fixed z-[61] w-60 max-w-[calc(100vw-16px)] bg-surface border border-neutral-200 rounded-lg shadow-lg py-1 text-sm"
           :style="{ top: pos.top + 'px', left: pos.left + 'px' }">
-          <div class="px-3 py-2 text-xs font-semibold text-neutral-500 text-center border-b border-neutral-100 truncate">
+          <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 text-center border-b border-neutral-100 truncate">
             {{ t('common.more_actions') }}
           </div>
 

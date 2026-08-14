@@ -17,6 +17,10 @@ import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import WorkReportModal from '@/components/modals/WorkReportModal.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 
 const { t, tm, rt } = useI18n()
 const toast = useToast()
@@ -473,67 +477,39 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-      <div>
-        <h1 class="text-2xl font-semibold">{{ t('tri.invoices.title') }}</h1>
-        <p class="text-sm text-neutral-500 mt-0.5">{{ t('invoice.subtitle_grouping') }}</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <button v-if="(issuableSelected.length > 0) && auth.canWrite"
-          @click="bulkIssue"
-          :disabled="bulkBusy"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-medium rounded-md">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+    <UiPageHeader :title="t('tri.invoices.title')" :subtitle="t('invoice.subtitle_grouping')">
+      <template #actions>
+        <UiButton v-if="(issuableSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkIssue">
           {{ bulkBusy ? '…' : t('invoice.bulk_issue', { n: issuableSelected.length }) }}
-        </button>
-        <button v-if="(selectedIds.length > 0) && auth.canWrite"
-          @click="bulkReissue"
-          :disabled="bulkBusy"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-primary-500 text-primary-700 hover:bg-primary-50 disabled:opacity-50 text-sm font-medium rounded-md">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2m-6 12h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
+        </UiButton>
+        <UiButton v-if="(selectedIds.length > 0) && auth.canWrite" variant="outline" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkReissue">
           {{ bulkBusy ? '…' : t('invoice.bulk_reissue', { n: selectedIds.length }) }}
-        </button>
-        <button v-if="(markPayableSelected.length > 0) && auth.canWrite"
-          @click="bulkMarkPaid"
-          :disabled="bulkBusy"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 border border-success-500 text-success-600 hover:bg-success-50 disabled:opacity-50 text-sm font-medium rounded-md">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+        </UiButton>
+        <UiButton v-if="(markPayableSelected.length > 0) && auth.canWrite" variant="outline" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkMarkPaid">
           {{ bulkBusy ? '…' : t('invoice.bulk_mark_paid', { n: markPayableSelected.length }) }}
-        </button>
-        <button v-if="(sendableSelected.length > 0) && auth.canWrite"
-          @click="bulkSend"
-          :disabled="bulkBusy"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-medium rounded-md">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
+        </UiButton>
+        <UiButton v-if="(sendableSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkSend">
           {{ bulkBusy ? '…' : t('invoice.bulk_send', { n: sendableSelected.length }) }}
-        </button>
-        <button v-if="(reminderSelected.length > 0) && auth.canWrite"
-          @click="bulkSendReminders"
-          :disabled="bulkBusy"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-warning-500 hover:bg-warning-600 disabled:opacity-50 text-white text-sm font-medium rounded-md">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+        </UiButton>
+        <UiButton v-if="(reminderSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkSendReminders">
           {{ bulkBusy ? '…' : t('invoice.bulk_reminder', { n: reminderSelected.length }) }}
-        </button>
-        <RouterLink
-          v-if="auth.canWrite"
-          to="/tri/invoices/new"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md"
-        >
+        </UiButton>
+        <UiButton v-if="auth.canWrite" to="/tri/invoices/new" size="sm">
           {{ t('tri.invoices.new') }}
-        </RouterLink>
-      </div>
-    </div>
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
-    <!-- Filtry -->
-    <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm mb-4 p-3">
-      <div class="flex flex-wrap items-center gap-2">
-        <input
+    <UiCard class="mb-4">
+      <div class="p-3 flex flex-wrap items-center gap-2">
+        <UiInput
           v-model="search"
           type="search"
+          size="sm"
+          class="flex-1 min-w-48"
           :placeholder="t('invoice.search_placeholder')"
-          class="flex-1 min-w-48 h-9 px-3 border border-neutral-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
         />
-        <select v-model="statusFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
+        <select v-model="statusFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
           <option value="">{{ t('invoice.all_statuses') }}</option>
           <option value="draft">{{ t('status.draft') }}</option>
           <option value="issued">{{ t('status.issued') }}</option>
@@ -542,7 +518,7 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
           <option value="paid">{{ t('status.paid') }}</option>
           <option value="cancelled">{{ t('status.cancelled') }}</option>
         </select>
-        <select v-model="typeFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
+        <select v-model="typeFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
           <option value="">{{ t('invoice.all_types') }}</option>
           <option value="invoice">{{ t('type.invoice') }}</option>
           <option value="proforma">{{ t('type.proforma') }}</option>
@@ -564,27 +540,26 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
             :placeholder="t('tri.invoices.job_label')"
           />
         </div>
-        <select v-model="currencyFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
+        <select v-model="currencyFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
           <option value="">{{ t('invoice.all_currencies') }}</option>
           <option v-for="c in currencies" :key="c.id" :value="c.code">{{ c.code }}</option>
         </select>
         <select v-model="yearFilter" :disabled="!!dateFrom || !!dateTo"
-          class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm disabled:opacity-50">
+          class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring disabled:opacity-50">
           <option value="">{{ t('invoice.all_years') }}</option>
           <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
         </select>
         <select v-model="monthFilter" :disabled="!!dateFrom || !!dateTo || yearFilter === ''"
-          class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm disabled:opacity-50"
+          class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring disabled:opacity-50"
           :title="t('invoice.month_filter')">
           <option :value="''">{{ t('invoice.all_months') }}</option>
           <option v-for="(label, i) in monthOptions" :key="i + 1" :value="i + 1">{{ label }}</option>
         </select>
         <input v-model="dateFrom" type="date" placeholder="Od"
-          class="h-9 px-2 border border-neutral-300 rounded-md text-sm" title="Datum od" />
+          class="h-9 px-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring" title="Datum od" />
         <input v-model="dateTo" type="date" placeholder="Do"
-          class="h-9 px-2 border border-neutral-300 rounded-md text-sm" title="Datum do" />
-        <button v-if="dateFrom || dateTo" @click="dateFrom = ''; dateTo = ''"
-          class="cursor-pointer h-9 px-2 text-xs text-neutral-500 hover:text-neutral-700">{{ t('invoice.clear_date_filter') }}</button>
+          class="h-9 px-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring" title="Datum do" />
+        <UiButton v-if="dateFrom || dateTo" variant="ghost" size="sm" @click="dateFrom = ''; dateTo = ''">{{ t('invoice.clear_date_filter') }}</UiButton>
         <label class="flex items-center gap-1.5 text-sm text-neutral-700 px-2">
           <input v-model="overdueOnly" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
           {{ t('invoice.overdue_only') }}
@@ -593,21 +568,19 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
           <input v-model="unpaidOnly" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
           {{ t('invoice.unpaid_only') }}
         </label>
-        <button @click="exportCsv"
-          class="cursor-pointer ml-auto h-9 px-3 border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded-md text-sm inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 0 1 2-2h11l5 5v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <UiButton variant="outline" size="sm" class="ml-auto" @click="exportCsv">
           {{ t('invoice.csv_export') }}
-        </button>
+        </UiButton>
       </div>
-    </div>
+    </UiCard>
 
-    <div v-if="loading" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <UiCard v-if="loading">
       <TableSkeleton :rows="8" :cols="7" />
-    </div>
+    </UiCard>
 
-    <div v-else-if="!groups.length" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <UiCard v-else-if="!groups.length">
       <EmptyState :title="t('tri.invoices.no_data_all')" :cta="t('tri.invoices.new')" to="/tri/invoices/new" />
-    </div>
+    </UiCard>
 
     <div v-else>
       <div class="text-xs text-neutral-500 mb-3 flex items-center justify-between">
@@ -619,7 +592,7 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
       <section v-for="g in groups" :key="g.month" class="mb-5">
         <header class="sticky top-16 z-[5] flex items-center justify-between bg-neutral-50/95 backdrop-blur border border-neutral-200 rounded-t-lg px-4 py-2.5 mb-0">
           <div class="flex items-center gap-3">
-            <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-700">{{ formatMonth(g.month) }}</h2>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ formatMonth(g.month) }}</h2>
             <span class="text-xs text-neutral-500">{{ g.count }} {{ g.count === 1 ? t('invoice.doc_1') : (g.count < 5 ? t('invoice.doc_2_4') : t('invoice.doc_5plus')) }}</span>
           </div>
           <div class="flex items-center gap-3 text-xs">
@@ -634,7 +607,7 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
         <div class="hidden md:block bg-surface border border-t-0 border-neutral-200 rounded-b-lg overflow-hidden">
           <div class="overflow-x-auto">
           <table class="w-full text-sm table-sticky-first">
-            <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+            <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
               <tr>
                 <th class="px-2 py-2 w-10"></th>
                 <th class="text-left px-4 py-2 font-medium w-32">Var. symbol</th>
@@ -796,11 +769,9 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
       </section>
 
       <div v-if="page < pages" class="text-center mt-3">
-        <button @click="load(false)" :disabled="loadingMore"
-          class="cursor-pointer h-10 px-5 text-sm bg-primary-600 hover:bg-primary-700 text-white font-medium disabled:opacity-50 rounded-md inline-flex items-center gap-2 shadow-sm">
+        <UiButton size="sm" :loading="loadingMore" :disabled="loadingMore" @click="load(false)">
           {{ loadingMore ? t('common.loading_more') : t('common.load_more') }}
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-        </button>
+        </UiButton>
       </div>
     </div>
 

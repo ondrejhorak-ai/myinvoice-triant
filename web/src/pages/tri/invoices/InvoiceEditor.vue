@@ -23,6 +23,9 @@ import { useSupplierStore } from '@/stores/supplier'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import ClientFormModal from '@/components/modals/ClientFormModal.vue'
 import TriJobLinkField from '@/components/tri/TriJobLinkField.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
 import { triApi } from '@/api/tri'
 
 const supplierStore = useSupplierStore()
@@ -1001,23 +1004,22 @@ async function deleteDraft() {
   <div v-if="!loaded" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
 
   <div v-else class="max-w-5xl">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <RouterLink to="/tri/invoices" class="text-sm text-neutral-600 hover:text-neutral-900">{{ t('tri.invoices.back_to_list') }}</RouterLink>
-        <h1 class="text-2xl font-semibold mt-1">
-          {{ editorTitle }}
-          <span class="text-sm font-normal text-neutral-500 ml-2">
-            <span v-if="form.invoice_type === 'proforma'" class="px-2 py-0.5 bg-accent-100 text-accent-600 rounded">{{ t('type.proforma') }}</span>
-            <span v-else-if="form.invoice_type === 'credit_note'" class="px-2 py-0.5 bg-danger-50 text-danger-500 rounded">{{ t('type.credit_note') }}</span>
-            <span v-else-if="editedStatus !== 'draft'" class="px-2 py-0.5 bg-warning-50 text-warning-600 rounded">{{ t(`status.${editedStatus}`) }}</span>
-            <span v-else class="px-2 py-0.5 bg-neutral-100 text-neutral-600 rounded">{{ t('status.draft') }}</span>
-          </span>
-        </h1>
-      </div>
-      <button v-if="isEdit && editedStatus === 'draft'" @click="deleteDraft" class="text-sm text-danger-500 hover:text-danger-600 cursor-pointer">
-        {{ t('invoice.delete_draft_btn') }}
-      </button>
-    </div>
+    <RouterLink to="/tri/invoices" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('tri.invoices.back_to_list') }}</RouterLink>
+    <UiPageHeader :title="editorTitle">
+      <template #below>
+        <div class="mt-2">
+          <UiBadge v-if="form.invoice_type === 'proforma'" variant="sent">{{ t('type.proforma') }}</UiBadge>
+          <UiBadge v-else-if="form.invoice_type === 'credit_note'" variant="danger">{{ t('type.credit_note') }}</UiBadge>
+          <UiBadge v-else-if="editedStatus !== 'draft'" variant="warning">{{ t(`status.${editedStatus}`) }}</UiBadge>
+          <UiBadge v-else variant="draft">{{ t('status.draft') }}</UiBadge>
+        </div>
+      </template>
+      <template #actions>
+        <UiButton v-if="isEdit && editedStatus === 'draft'" variant="danger" size="sm" @click="deleteDraft">
+          {{ t('invoice.delete_draft_btn') }}
+        </UiButton>
+      </template>
+    </UiPageHeader>
 
     <!-- Banner pro úpravu vystavené faktury (admin force=1) -->
     <div v-if="isForce && editedStatus !== 'draft'" class="mb-4 rounded-md border border-warning-500/50 bg-warning-50 p-4">
@@ -1033,8 +1035,8 @@ async function deleteDraft() {
     <form @submit.prevent="submit" class="space-y-4">
       <!-- Klient + zakázka + datumy -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.client') }}</h3>
+        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('invoice.client') }}</h3>
           <div class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.doc_type') }} *</label>
@@ -1063,14 +1065,14 @@ async function deleteDraft() {
                     :clearable="false"
                   />
                 </div>
-                <button type="button" @click="clientModalOpen = true"
-                  class="cursor-pointer shrink-0 h-9 px-3 inline-flex items-center gap-1.5 border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded-md text-sm font-medium"
-                  :title="t('client.new_title')">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
+                <UiButton type="button" variant="outline" size="sm" class="shrink-0" :title="t('client.new_title')" @click="clientModalOpen = true">
+                  <template #icon>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </template>
                   <span class="hidden sm:inline">{{ t('client.new_title') }}</span>
-                </button>
+                </UiButton>
               </div>
               <!-- VIES výsledek -->
               <div v-if="viesResult" class="mt-1 text-xs flex items-start gap-1.5">
@@ -1155,7 +1157,7 @@ async function deleteDraft() {
           </div>
         </div>
 
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.dates_section') }}</h3>
           <div class="space-y-3">
             <!-- Ruční override čísla faktury — jen u draftu; prázdné = vygeneruje se při Vystavení.
@@ -1215,12 +1217,12 @@ async function deleteDraft() {
       </div>
 
       <!-- Položky -->
-      <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+      <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs">
         <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.items') }}</h3>
-          <button type="button" @click="addItem" class="px-3 h-8 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.items') }}</h3>
+          <UiButton type="button" size="sm" @click="addItem">
             {{ t('invoice.add_item') }}
-          </button>
+          </UiButton>
         </div>
         <div v-if="requiresPositiveAmountToPay" class="px-5 py-3 border-b border-neutral-100 text-xs text-neutral-500">
           {{ t('invoice.negative_item_hint') }}
@@ -1228,7 +1230,7 @@ async function deleteDraft() {
         <!-- Desktop: tabulka -->
         <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-sm table-sticky-first">
-          <thead class="bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
+          <thead class="bg-neutral-50 text-[12px] text-neutral-500 uppercase tracking-wide">
             <tr>
               <th class="px-3 py-2 text-left font-medium w-8"></th>
               <th class="px-3 py-2 text-left font-medium">{{ t('invoice.items_table.description') }}</th>
@@ -1248,7 +1250,7 @@ async function deleteDraft() {
               </td>
               <td class="px-3 py-2">
                 <textarea v-model="item.description" rows="1" data-row-input="inv-item" :placeholder="t('invoice.items_table.description')"
-                  class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm resize-y min-h-[36px] focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"></textarea>
+                  class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm resize-y min-h-[36px] shadow-xs outline-none focus-ring"></textarea>
               </td>
               <td class="px-3 py-2">
                 <input v-model="item.quantity" v-math type="text" inputmode="decimal"
@@ -1304,7 +1306,7 @@ async function deleteDraft() {
             <div>
               <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.items_table.description') }}</label>
               <textarea v-model="item.description" rows="2" data-row-input="inv-item" :placeholder="t('invoice.items_table.description')"
-                class="w-full px-3 py-2 border border-neutral-300 rounded text-sm resize-y min-h-[44px] focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"></textarea>
+                class="w-full px-3 py-2 border border-neutral-300 rounded text-sm resize-y min-h-[44px] shadow-xs outline-none focus-ring"></textarea>
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div>
@@ -1346,23 +1348,23 @@ async function deleteDraft() {
       <!-- Sumace + poznámky -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="md:col-span-2 space-y-4">
-          <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+          <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
             <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_above') }}</label>
             <textarea v-model="form.note_above_items" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
           </div>
-          <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+          <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
             <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_below') }}</label>
             <textarea v-model="form.note_below_items" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
           </div>
         </div>
 
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.summary') }}</h3>
           <div class="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-neutral-100">
             <label for="discount_percent" class="text-sm text-neutral-700">{{ t('invoice.discount.label') }}</label>
             <div class="relative w-28">
               <input id="discount_percent" v-model.number="form.discount_percent" type="number" min="0" max="100" step="0.01"
-                class="w-full h-9 pl-2 pr-7 border border-neutral-300 rounded text-right font-mono text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none" />
+                class="w-full h-9 pl-2 pr-7 border border-neutral-300 rounded text-right font-mono text-sm shadow-xs outline-none focus-ring" />
               <span class="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 text-sm pointer-events-none">%</span>
             </div>
           </div>
@@ -1418,7 +1420,7 @@ async function deleteDraft() {
       <!-- Přílohy — u nové faktury držené v prohlížeči (nahrají se po vytvoření),
            u existující faktury rovnou nahrávané / mazané -->
       <div v-if="attachmentsAllowed"
-           class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+           class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
         <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
           <div>
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.attachments.title') }}</h3>
@@ -1480,12 +1482,11 @@ async function deleteDraft() {
       </div>
 
       <!-- Action bar -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-4 flex justify-between items-center shadow-sm">
-        <RouterLink to="/tri/invoices" class="px-4 py-2 text-sm text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors">{{ t('common.back') }}</RouterLink>
-        <button type="submit" :disabled="submitting"
-          class="px-5 h-10 bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white text-sm font-medium rounded-md">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-4 flex justify-between items-center shadow-xs">
+        <UiButton to="/tri/invoices" variant="ghost">{{ t('common.back') }}</UiButton>
+        <UiButton type="submit" :loading="submitting" :disabled="submitting">
           {{ submitting ? t('common.saving') : (isEdit ? t('common.save') : t('common.create')) }}
-        </button>
+        </UiButton>
       </div>
     </form>
 
