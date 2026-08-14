@@ -22,6 +22,8 @@ import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
 import WorkReportModal from '@/components/modals/WorkReportModal.vue'
 import ActionBar, { type ActionItem } from '@/components/ui/ActionBar.vue'
+import UiPageHeader from '@/components/ui/UiPageHeader.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -1225,39 +1227,39 @@ const invoiceActions = computed<ActionItem[]>(() => {
 <template>
   <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
 
-  <div v-else-if="invoice" class="max-w-5xl space-y-4">
-    <RouterLink to="/invoices" class="text-sm text-neutral-600 hover:text-neutral-900">{{ t('invoice.back_to_list') }}</RouterLink>
-    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 md:gap-4">
-      <h1 class="text-2xl font-semibold flex items-center gap-3 flex-wrap min-w-0">
-        <span v-if="invoice.varsymbol" class="font-mono">{{ invoice.varsymbol }}</span>
-        <span v-else class="text-neutral-400 font-mono">{{ t('invoice.draft_id', { id: invoice.id }) }}</span>
-        <span class="text-xs px-2 py-0.5 rounded font-normal" :class="statusBadgeClass(displayStatus(invoice.status, invoice.payment_status))">
-          {{ statusLabel(displayStatus(invoice.status, invoice.payment_status)) }}
-        </span>
-        <span class="text-xs px-2 py-0.5 rounded font-normal bg-neutral-100 text-neutral-600">
-          {{ typeLabel(invoice.invoice_type) }}
-        </span>
-        <span v-if="invoice.income_tax_exempt"
-          class="text-xs px-2 py-0.5 rounded font-normal bg-amber-100 text-amber-800 border border-amber-200"
-          :title="invoice.income_tax_exempt_reason || ''">
-          {{ t('invoice.income_tax_exempt_badge') }}
-        </span>
-        <RouterLink v-if="invoice.recurring_template_id"
-          :to="{ name: 'recurring-edit', params: { id: invoice.recurring_template_id } }"
-          class="text-xs px-2 py-0.5 rounded font-normal bg-primary-50 text-primary-700 border border-primary-200 hover:bg-primary-100"
-          :title="t('recurring.badge_from_template_title', { id: invoice.recurring_template_id })">
-          ↻ {{ t('recurring.badge_from_template') }}
-        </RouterLink>
-        <span v-if="requiresApproval"
-          class="text-xs px-2 py-0.5 rounded font-normal" :class="approvalBadgeClass">
-          {{ t('invoice.approval.badge') }}:
-          {{ approvalTokenExpired
-              ? t('invoice.approval.status_expired')
-              : t('invoice.approval.status_' + approvalStatus) }}
-        </span>
-      </h1>
-      <ActionBar :actions="invoiceActions" />
-    </div>
+  <div v-else-if="invoice" class="max-w-5xl space-y-6">
+    <RouterLink to="/invoices" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('invoice.back_to_list') }}</RouterLink>
+    <UiPageHeader :title="invoice.varsymbol || t('invoice.draft_id', { id: invoice.id })">
+      <template #below>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="statusBadgeClass(displayStatus(invoice.status, invoice.payment_status))">
+            {{ statusLabel(displayStatus(invoice.status, invoice.payment_status)) }}
+          </span>
+          <UiBadge variant="neutral">{{ typeLabel(invoice.invoice_type) }}</UiBadge>
+          <span v-if="invoice.income_tax_exempt"
+            class="text-xs px-2 py-0.5 rounded-full font-medium bg-warning-50 text-warning-700"
+            :title="invoice.income_tax_exempt_reason || ''">
+            {{ t('invoice.income_tax_exempt_badge') }}
+          </span>
+          <RouterLink v-if="invoice.recurring_template_id"
+            :to="{ name: 'recurring-edit', params: { id: invoice.recurring_template_id } }"
+            class="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-50 text-primary-700 hover:bg-primary-100"
+            :title="t('recurring.badge_from_template_title', { id: invoice.recurring_template_id })">
+            ↻ {{ t('recurring.badge_from_template') }}
+          </RouterLink>
+          <span v-if="requiresApproval"
+            class="text-xs px-2 py-0.5 rounded-full font-medium" :class="approvalBadgeClass">
+            {{ t('invoice.approval.badge') }}:
+            {{ approvalTokenExpired
+                ? t('invoice.approval.status_expired')
+                : t('invoice.approval.status_' + approvalStatus) }}
+          </span>
+        </div>
+      </template>
+      <template #actions>
+        <ActionBar :actions="invoiceActions" />
+      </template>
+    </UiPageHeader>
 
     <div class="flex items-start justify-between gap-4">
       <div class="flex-1 min-w-0 space-y-1">
@@ -1583,8 +1585,8 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">
           {{ t('invoice.issue_date') }}
           <template v-if="!isProforma"> / {{ t('invoice.tax_date') }}</template>
           / {{ t('invoice.due_date') }}
@@ -1597,8 +1599,8 @@ const invoiceActions = computed<ActionItem[]>(() => {
         </dl>
       </div>
 
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('common.currency') }} &amp; {{ t('invoice.totals.vat') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('common.currency') }} &amp; {{ t('invoice.totals.vat') }}</h3>
         <dl class="space-y-1.5 text-sm">
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('common.currency') }}</dt><dd class="font-mono">{{ invoice.currency }}</dd></div>
           <div class="flex justify-between"><dt class="text-neutral-500">{{ t('invoice.language') }}</dt><dd>{{ invoice.language.toUpperCase() }}</dd></div>
@@ -1610,8 +1612,8 @@ const invoiceActions = computed<ActionItem[]>(() => {
         </dl>
       </div>
 
-      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('settings.account_cz') }}</h3>
+      <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('settings.account_cz') }}</h3>
         <dl v-if="(invoice.payment_method ?? 'bank_transfer') === 'bank_transfer'" class="space-y-1 text-sm">
           <div v-if="invoice.bank_account_number" class="font-mono text-xs">
             {{ invoice.bank_account_number }} / {{ invoice.bank_code }}
@@ -1629,20 +1631,20 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Poznámka nad položkami -->
-    <div v-if="invoice.note_above_items" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">{{ t('invoice.note') }}</h3>
+    <div v-if="invoice.note_above_items" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">{{ t('invoice.note') }}</h3>
       <p class="text-sm text-neutral-700 whitespace-pre-wrap">{{ invoice.note_above_items }}</p>
     </div>
 
     <!-- Položky -->
-    <div class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <div class="px-5 py-3 border-b border-neutral-200">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.items') }}</h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.items') }}</h3>
       </div>
       <!-- Desktop: tabulka -->
       <div class="hidden md:block overflow-x-auto">
       <table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
+        <thead class="bg-neutral-50 text-[12px] text-neutral-500 uppercase tracking-wide">
           <tr>
             <th class="px-4 py-2 text-left font-medium">{{ t('invoice.items_table.description') }}</th>
             <th class="px-4 py-2 text-right font-medium">{{ t('invoice.items_table.qty') }}</th>
@@ -1692,8 +1694,8 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Sumace -->
-    <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.summary') }}</h3>
+    <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('invoice.summary') }}</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <dl class="space-y-1 text-sm">
           <template v-if="supplierIsVatPayer">
@@ -1757,9 +1759,9 @@ const invoiceActions = computed<ActionItem[]>(() => {
 
     <!-- Platby (#89) — evidence úhrad faktury -->
     <div v-if="paymentsRelevant() && (payments.length > 0 || (invoice.paid_total ?? 0) > 0)"
-      class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+      class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.payments.title') }}</h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.payments.title') }}</h3>
         <button v-if="canPartialPayment" @click="openPartialPayment" :disabled="busy !== null"
           class="cursor-pointer text-xs px-2.5 py-1 border border-amber-500/50 text-amber-700 hover:bg-amber-50 rounded-md">
           + {{ t('invoice.payments.add') }}
@@ -1767,7 +1769,7 @@ const invoiceActions = computed<ActionItem[]>(() => {
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
-          <thead class="bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
+          <thead class="bg-neutral-50 text-[12px] text-neutral-500 uppercase tracking-wide">
             <tr>
               <th class="px-4 py-2 text-left font-medium">{{ t('invoice.payments.paid_on') }}</th>
               <th class="px-4 py-2 text-right font-medium">{{ t('invoice.payments.amount') }}</th>
@@ -1833,8 +1835,8 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- CZK přepočet pro faktury v cizí měně -->
-    <div v-if="invoice.czk_recap" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">
+    <div v-if="invoice.czk_recap" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">
         {{ t('invoice.czk_recap.title') }}
       </h3>
       <p class="text-xs text-neutral-500 mb-3">
@@ -1875,12 +1877,12 @@ const invoiceActions = computed<ActionItem[]>(() => {
       </div>
     </div>
 
-    <div v-if="invoice.note_below_items" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
-      <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-2">{{ t('invoice.note') }}</h3>
+    <div v-if="invoice.note_below_items" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">{{ t('invoice.note') }}</h3>
       <p class="text-sm text-neutral-700 whitespace-pre-wrap">{{ invoice.note_below_items }}</p>
     </div>
 
-    <div v-if="invoice.revenue_category_label" class="bg-surface border border-neutral-200 rounded-lg px-5 py-3 shadow-sm flex items-center justify-between text-sm">
+    <div v-if="invoice.revenue_category_label" class="bg-surface border border-neutral-200 rounded-lg px-5 py-3 shadow-xs flex items-center justify-between text-sm">
       <span class="text-neutral-500">{{ t('invoice.classification.revenue_category') }}</span>
       <span class="font-medium text-neutral-900">
         {{ invoice.revenue_category_label }}
@@ -1889,9 +1891,9 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Elektronický podpis dokumentu -->
-    <div v-if="canManageSignatureSelection" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="canManageSignatureSelection" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <header class="px-5 py-3 border-b border-neutral-200">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.signing.title') }}</h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.signing.title') }}</h3>
         <p class="text-xs text-neutral-500 mt-0.5">{{ t('invoice.signing.hint') }}</p>
       </header>
       <div v-if="signatureSelectionLoading && signatureSelectionRows.some(row => !signatureSelection(row.entityType))"
@@ -1900,7 +1902,7 @@ const invoiceActions = computed<ActionItem[]>(() => {
       </div>
       <div v-else class="overflow-x-auto">
         <table class="w-full text-xs">
-          <thead class="bg-neutral-50 text-neutral-500 uppercase tracking-wide">
+          <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
             <tr>
               <th class="px-5 py-2 text-left font-medium">{{ t('invoice.signing.output') }}</th>
               <th class="px-3 py-2 text-left font-medium">{{ t('settings.signing_output_selection_source') }}</th>
@@ -1963,15 +1965,15 @@ const invoiceActions = computed<ActionItem[]>(() => {
 
 
     <!-- Výkaz víceprací -->
-    <div v-if="workReport" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="workReport" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <header class="px-5 py-3 border-b border-neutral-200 flex items-baseline justify-between gap-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.work_report') }}</h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.work_report') }}</h3>
         <span class="text-sm text-neutral-700">{{ workReport.title }}</span>
       </header>
       <!-- Desktop: tabulka -->
       <div class="hidden md:block overflow-x-auto">
       <table class="w-full text-sm table-sticky-first">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+        <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
           <tr>
             <th class="text-left px-5 py-2 font-medium">{{ t('invoice.wr_description') }}</th>
             <th v-if="wrHasDates" class="text-left px-4 py-2 font-medium w-32">{{ t('invoice.wr_date') }}</th>
@@ -2022,15 +2024,15 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Výkaz materiálu -->
-    <div v-if="workReport && workReport.material_total > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="workReport && workReport.material_total > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <header class="px-5 py-3 border-b border-neutral-200 flex items-baseline justify-between gap-3">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.work_report_material') }}</h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.work_report_material') }}</h3>
         <span class="text-sm text-neutral-700">{{ workReport.material_title }}</span>
       </header>
       <!-- Desktop: tabulka -->
       <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-sm table-sticky-first">
-          <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
+          <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
             <tr>
               <th class="text-left px-5 py-2 font-medium">{{ t('invoice.wr_description') }}</th>
               <th class="text-right px-4 py-2 font-medium w-24">{{ t('invoice.wr_material_qty') }}</th>
@@ -2075,9 +2077,9 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Stav schválení výkazu — viditelné jen pokud projekt vyžaduje + výkaz existuje -->
-    <div v-if="requiresApproval" class="bg-surface border border-neutral-200 rounded-lg shadow-sm">
+    <div v-if="requiresApproval" class="bg-surface border border-neutral-200 rounded-lg shadow-xs">
       <header class="px-5 py-3 border-b border-neutral-200">
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.approval.section_title') }}</h3>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.approval.section_title') }}</h3>
       </header>
       <div class="px-5 py-4">
         <div class="flex flex-wrap items-start justify-between gap-4">
@@ -2180,10 +2182,10 @@ const invoiceActions = computed<ActionItem[]>(() => {
 
     <!-- Přílohy emailu (PDF/Office/obrázky se přibalí při odeslání faktury) -->
     <div v-if="invoice && attachmentsAvailable(invoice)"
-         class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+         class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
         <div>
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">
             {{ t('invoice.attachments.title') }}
           </h3>
           <p class="text-xs text-neutral-500 mt-0.5">{{ t('invoice.attachments.hint') }}</p>
@@ -2251,12 +2253,12 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Historie PDF -->
-    <div v-if="pdfHistory.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="pdfHistory.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <button type="button" @click="pdfHistoryOpen = !pdfHistoryOpen"
         class="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-neutral-50 cursor-pointer"
         :class="pdfHistoryOpen ? 'border-b border-neutral-200' : ''">
         <span class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.pdf_history.title') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.pdf_history.title') }}</h3>
           <span class="text-xs text-neutral-400">{{ pdfHistory.length }}</span>
         </span>
         <svg class="w-4 h-4 text-neutral-400 transition-transform" :class="pdfHistoryOpen ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -2299,12 +2301,12 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- Aktivita -->
-    <div v-if="activity.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="activity.length > 0" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <button type="button" @click="activityOpen = !activityOpen"
         class="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-neutral-50 cursor-pointer"
         :class="activityOpen ? 'border-b border-neutral-200' : ''">
         <span class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.activity') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.activity') }}</h3>
           <span class="text-xs text-neutral-400">{{ activity.length }}</span>
         </span>
         <svg class="w-4 h-4 text-neutral-400 transition-transform" :class="activityOpen ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -2342,12 +2344,12 @@ const invoiceActions = computed<ActionItem[]>(() => {
     </div>
 
     <!-- SMTP analýza (admin + zapnutá log analýza; lazy-load na rozbalení) -->
-    <div v-if="invoice && isAdmin && smtpEnabled" class="bg-surface border border-neutral-200 rounded-lg shadow-sm overflow-hidden">
+    <div v-if="invoice && isAdmin && smtpEnabled" class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
       <button type="button" @click="toggleSmtp"
         class="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-neutral-50 cursor-pointer"
         :class="smtpOpen ? 'border-b border-neutral-200' : ''">
         <span class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.smtp_log.title') }}</h3>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.smtp_log.title') }}</h3>
           <span v-if="smtpData?.sent" class="text-xs text-neutral-400">{{ smtpData.events.length }}</span>
         </span>
         <svg class="w-4 h-4 text-neutral-400 transition-transform" :class="smtpOpen ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

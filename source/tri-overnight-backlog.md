@@ -1,6 +1,6 @@
 # Noční backlog — UI + ceníky, průvodky, kalendář, reklamace
 
-Živý backlog pro noční loop. Pravidla a rozhodnutí: [`tri-overnight-loop-prompt.md`](tri-overnight-loop-prompt.md).
+Živý backlog pro noční loop. Pravidla a rozhodnutí: `[tri-overnight-loop-prompt.md](tri-overnight-loop-prompt.md)`.
 
 Stavy: `[ ]` čeká · `[~]` rozpracováno · `[x]` hotovo. Loop bere první nehotový řez **shora**.
 Po dokončení řezu připiš záznam do sekce **Log** dole.
@@ -12,10 +12,10 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - [x] **A1 — Design tokeny.** V `web/src/styles/main.css` přiblížit tokeny Untitled UI: 4px grid spacing, radius 8/12/16 (`--radius-md/lg/xl`), jemné stíny (shadow-xs/sm jako utility či tokeny), neutral škála čistší/chladnější ve stylu Untitled gray (light i `.dark` varianta), focus ring styl (4px světlý ring v primary). Primary indigo škálu zachovat. Ověřit, že se nerozpadly existující stránky (bg-neutral-50/200/900, status badge tokeny).
 - [x] **A2 — Primitiva.** Do `web/src/components/ui/` přidat `UiButton.vue` (primary/secondary/outline/ghost/danger, sm 36px / md 40px, loading, ikona), `UiBadge.vue` (pill, barevné varianty mapované na status tokeny), `UiPageHeader.vue` (title + subtitle + actions slot, spodní divider), `UiCard.vue`, `UiInput.vue` (label, hint, error, prefix ikona), `UiTable.vue` (hlavička uppercase 12px, řádkový hover, sticky first column přes existující `table-sticky-first`). Vizuálně podle Untitled UI. Nikde je zatím plošně nenasazovat — jen vytvořit + použít na jedné stránce jako pilot (TRI kontakty list).
 - [x] **A3 — Shell.** `AppLayout.vue`: sidebar podle Untitled UI (sekce s jemnými popisky, položky 40px, aktivní stav plný pill v primary-50/primary-700, hover neutral-100), topbar vyčistit, page canvas `max-w` + konzistentní padding. `AppShell.vue` (login) sladit. **Zachovat TRI úpravy:** drawer chování na všech šířkách, `TriLogo`, `TriTopbarNav`, skryté přepínače (`SHOW_LOCALE_SWITCHER/SHOW_THEME_TOGGLE`).
-- [x] **A4 — Restyle TRI Kontakty** (`pages/tri/contacts/**`): list, detail, form modal — nasadit primitiva z A2, tabulka + page header + empty state podle Untitled.
+- [x] **A4 — Restyle TRI Kontakty** (`pages/tri/contacts/`**): list, detail, form modal — nasadit primitiva z A2, tabulka + page header + empty state podle Untitled.
 - [x] **A5 — Restyle TRI Zakázky** (`JobList.vue`, `JobForm.vue`, `JobDetail.vue`): karty, status badge, dvousloupcový detail, chat feed vizuálně sladit.
 - [x] **A6 — Restyle editor varianty** (`VariantEditor.vue`, `VariantItemsNotionTable.vue`, `QuoteAdjustmentPanel.vue`): tabulka položek, toolbar, souhrn cen — Untitled table + inputs. Neměnit chování kalkulací.
-- [x] **A7 — Restyle TRI Faktury** (`pages/tri/invoices/**`): list, editor, detail, ActionBar.
+- [x] **A7 — Restyle TRI Faktury** (`pages/tri/invoices/`**): list, editor, detail, ActionBar.
 
 ### B. Ceníky
 
@@ -45,7 +45,7 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 
 ### G. Polish (nekonečná sekce — když je vše výše hotové, přidávej a ber odsud)
 
-- [ ] **G1 — Restyle core Faktury** (`pages/invoices/**`) do Untitled vzhledu.
+- [x] **G1 — Restyle core Faktury** (`pages/invoices/**`) do Untitled vzhledu.
 - [ ] **G2 — Restyle Dashboard, Klienti, Dokumenty.**
 - [ ] **G3 — Restyle zbývajících core stránek** (banka, výkazy, admin, recurring…) — po menších dávkách, jedna oblast na tick.
 - [ ] **G4 — PDF nabídky:** sladit `styles/quote.css` s novým vizuálem (typografie, hlavička).
@@ -53,6 +53,7 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - [ ] **G6 — Mobile pass:** karty/tabulky nových agend na malých šířkách.
 - [ ] **G7 — Empty states + loading skeletony** všech nových agend.
 - [ ] **G8 — Dark mode pass** nových agend a restylovaných stránek.
+
 - Sem zapisuj nově nalezené bugy a follow-upy jako další `G` řádky.
 
 ## Log
@@ -75,3 +76,5 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - **2026-08-14 11:10 D2** — Stavy kalendáře: expedice planned↔confirmed (čárkovaný vs. plný), výroba planned→in_progress→done, směny jen planned. Mini-sekce nadcházejících termínů na zakázce (`GET /api/tri/jobs/{id}/calendar`). PHPUnit přechody stavů.
 - **2026-08-14 13:50 E1** — Reklamace: migrace `9016`, CRUD + chat `/api/tri/complaints`, eventy do `tri_job_activity` (opened/closed/reopened). FE list+detail s chatem, sekce na zakázce, sidebar. PHPUnit `ComplaintRulesTest`. `CzkRecapTest` (jádro DPH) padá 511.66 vs 511.67 — mimo řez, neopraveno.
 - **2026-08-14 13:52 F1** — Manuál: kapitoly 42–45 (Ceníky, Průvodky, Kalendář, Reklamace), `14_Zakazky.md` § 14.10 (Vyrábíme, hodiny, odkazy), INDEX sekce TRIANT. HTML+PDF regenerováno. `manual/manual.css` už zrcadlí A1 tokeny.
+- **2026-08-14 14:05 G1** — Restyle core faktur (`InvoiceList/Detail/Editor`): UiPageHeader, UiButton, UiCard, UiInput, UiBadge, ActionBar v headeru detailu, shadow-xs, Untitled caption/thead. Chování faktur/DPH beze změny.
+
