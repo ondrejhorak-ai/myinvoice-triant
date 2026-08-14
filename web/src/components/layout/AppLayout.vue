@@ -125,6 +125,7 @@ const ICONS = {
   tri_price_lists: 'M4 6h16M4 10h16M4 14h10M4 18h6',
   tri_travelers: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   tri_calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+  tri_complaints: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
 }
 
 const navSections = computed<NavSection[]>(() => {
@@ -180,6 +181,7 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'tri-price-lists', to: '/tri/price-lists', label: t('nav.tri_price_lists'), icon: ICONS.tri_price_lists, newTo: '/tri/price-lists/new' },
         { moduleId: 'tri-travelers', to: '/tri/travelers', label: t('nav.tri_travelers'), icon: ICONS.tri_travelers },
         { moduleId: 'tri-calendar', to: '/tri/calendar', label: t('nav.tri_calendar'), icon: ICONS.tri_calendar },
+        { moduleId: 'tri-complaints', to: '/tri/complaints', label: t('nav.tri_complaints'), icon: ICONS.tri_complaints },
         { moduleId: 'tri-invoices', to: '/tri/invoices', label: t('nav.tri_invoices'), icon: ICONS.invoices, newTo: '/tri/invoices/new' },
       ],
     },

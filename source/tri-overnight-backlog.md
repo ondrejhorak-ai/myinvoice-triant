@@ -37,7 +37,7 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 
 ### E. Reklamace
 
-- [ ] **E1 — Agenda + chat.** Migrace `9016_tri_complaints.sql`: `tri_complaints` (id, job_id FK, title, description TEXT, status ENUM('open','closed') default 'open', created_at, closed_at DATETIME NULL, updated_at) + `tri_complaint_comments` (id, complaint_id FK CASCADE, user_id, body TEXT, created_at, updated_at NULL). BE: repository + CRUD + komentáře (vzor `JobActivityRepository`), routy `/api/tri/complaints...`. Založení/uzavření reklamace zaloguje event do `tri_job_activity`. FE: `/tri/complaints` list (filtr stav/zakázka) + detail s chatem (vzor `JobActivityFeed.vue`); na `JobDetail.vue` výpis reklamací zakázky s odkazem. Sidebar + i18n. `closed_at` při uzavření, při znovuotevření NULL.
+- [x] **E1 — Agenda + chat.** Migrace `9016_tri_complaints.sql`: `tri_complaints` (id, job_id FK, title, description TEXT, status ENUM('open','closed') default 'open', created_at, closed_at DATETIME NULL, updated_at) + `tri_complaint_comments` (id, complaint_id FK CASCADE, user_id, body TEXT, created_at, updated_at NULL). BE: repository + CRUD + komentáře (vzor `JobActivityRepository`), routy `/api/tri/complaints...`. Založení/uzavření reklamace zaloguje event do `tri_job_activity`. FE: `/tri/complaints` list (filtr stav/zakázka) + detail s chatem (vzor `JobActivityFeed.vue`); na `JobDetail.vue` výpis reklamací zakázky s odkazem. Sidebar + i18n. `closed_at` při uzavření, při znovuotevření NULL.
 
 ### F. Dokumentace
 
@@ -73,3 +73,4 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - **2026-08-14 10:55 C3** — Hodiny na průvodce: `PUT /api/tri/travelers/{id}/operations`, přepis z papíru, označení done/open. Widget součtu na zakázce + rozpad po stanovištích. PHPUnit `TravelerHoursTest`.
 - **2026-08-14 11:05 D1** — Kalendář: migrace `9015`, CRUD `/api/tri/calendar`, měsíc+týden grid (Po–Ne), tři kalendáře (směny/expedice/výroba), stanice jen u výroby (jiná sada než průvodka). Sidebar. PHPUnit `CalendarEventRulesTest`.
 - **2026-08-14 11:10 D2** — Stavy kalendáře: expedice planned↔confirmed (čárkovaný vs. plný), výroba planned→in_progress→done, směny jen planned. Mini-sekce nadcházejících termínů na zakázce (`GET /api/tri/jobs/{id}/calendar`). PHPUnit přechody stavů.
+- **2026-08-14 13:50 E1** — Reklamace: migrace `9016`, CRUD + chat `/api/tri/complaints`, eventy do `tri_job_activity` (opened/closed/reopened). FE list+detail s chatem, sekce na zakázce, sidebar. PHPUnit `ComplaintRulesTest`. `CzkRecapTest` (jádro DPH) padá 511.66 vs 511.67 — mimo řez, neopraveno.

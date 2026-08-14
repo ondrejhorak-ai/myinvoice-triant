@@ -107,6 +107,12 @@ function eventText(item: TriJobActivityItem): string {
       return t('tri.activity.event.invoice_linked', { varsymbol: p(item, 'varsymbol') || '—' })
     case 'invoice_unlinked':
       return t('tri.activity.event.invoice_unlinked', { varsymbol: p(item, 'varsymbol') || '—' })
+    case 'complaint_opened':
+      return t('tri.activity.event.complaint_opened', { title: p(item, 'title') })
+    case 'complaint_closed':
+      return t('tri.activity.event.complaint_closed', { title: p(item, 'title') })
+    case 'complaint_reopened':
+      return t('tri.activity.event.complaint_reopened', { title: p(item, 'title') })
     default:
       return t('tri.activity.event.unknown')
   }

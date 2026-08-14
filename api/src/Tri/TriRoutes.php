@@ -53,6 +53,14 @@ use MyInvoice\Tri\Action\Calendar\GetCalendarEventAction;
 use MyInvoice\Tri\Action\Calendar\ListCalendarEventsAction;
 use MyInvoice\Tri\Action\Calendar\ListJobCalendarEventsAction;
 use MyInvoice\Tri\Action\Calendar\UpdateCalendarEventAction;
+use MyInvoice\Tri\Action\Complaint\CreateComplaintAction;
+use MyInvoice\Tri\Action\Complaint\CreateComplaintCommentAction;
+use MyInvoice\Tri\Action\Complaint\DeleteComplaintCommentAction;
+use MyInvoice\Tri\Action\Complaint\GetComplaintAction;
+use MyInvoice\Tri\Action\Complaint\ListComplaintsAction;
+use MyInvoice\Tri\Action\Complaint\UpdateComplaintAction;
+use MyInvoice\Tri\Action\Complaint\UpdateComplaintCommentAction;
+use MyInvoice\Tri\Action\Complaint\UpdateComplaintStatusAction;
 use MyInvoice\Tri\Action\Traveler\GenerateTravelersAction;
 use MyInvoice\Tri\Action\Traveler\GetTravelerAction;
 use MyInvoice\Tri\Action\Traveler\JobPdfAction as JobTravelersPdfAction;
@@ -136,5 +144,16 @@ final class TriRoutes
         $app->put('/api/tri/calendar/{id:[0-9]+}', UpdateCalendarEventAction::class);
         $app->delete('/api/tri/calendar/{id:[0-9]+}', DeleteCalendarEventAction::class);
         $app->get('/api/tri/jobs/{id:[0-9]+}/calendar', ListJobCalendarEventsAction::class);
+
+        // Complaints (Reklamace TRI)
+        $app->get('/api/tri/complaints', ListComplaintsAction::class);
+        $app->post('/api/tri/complaints', CreateComplaintAction::class);
+        $app->get('/api/tri/complaints/{id:[0-9]+}', GetComplaintAction::class);
+        $app->put('/api/tri/complaints/{id:[0-9]+}', UpdateComplaintAction::class);
+        $app->post('/api/tri/complaints/{id:[0-9]+}/status', UpdateComplaintStatusAction::class);
+        $app->post('/api/tri/complaints/{id:[0-9]+}/comments', CreateComplaintCommentAction::class);
+        $app->put('/api/tri/complaint-comments/{id:[0-9]+}', UpdateComplaintCommentAction::class);
+        $app->delete('/api/tri/complaint-comments/{id:[0-9]+}', DeleteComplaintCommentAction::class);
+        $app->get('/api/tri/jobs/{id:[0-9]+}/complaints', ListComplaintsAction::class);
     }
 }

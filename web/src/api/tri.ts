@@ -279,6 +279,32 @@ export interface TriCalendarEvent {
   note: string | null
 }
 
+export type TriComplaintStatus = 'open' | 'closed'
+
+export interface TriComplaintComment {
+  id: number
+  complaint_id: number
+  user_id: number | null
+  user_name: string | null
+  body: string
+  created_at: string
+  updated_at: string | null
+}
+
+export interface TriComplaint {
+  id: number
+  job_id: number
+  job_number: string
+  job_title: string
+  title: string
+  description: string | null
+  status: TriComplaintStatus
+  created_at: string
+  closed_at: string | null
+  updated_at: string
+  comments?: TriComplaintComment[]
+}
+
 export const triApi = {
   tags: {
     list: () => api.get<{ data: TriTag[] }>('/tri/tags').then((r) => r.data.data),
@@ -424,6 +450,24 @@ export const triApi = {
     update: (id: number, payload: Record<string, unknown>) =>
       api.put<TriCalendarEvent>(`/tri/calendar/${id}`, payload).then((r) => r.data),
     delete: (id: number) => api.delete(`/tri/calendar/${id}`),
+  },
+  complaints: {
+    list: (params?: Record<string, string | number>) =>
+      api.get<{ data: TriComplaint[] }>('/tri/complaints', { params }).then((r) => r.data),
+    listForJob: (jobId: number) =>
+      api.get<{ data: TriComplaint[] }>(`/tri/jobs/${jobId}/complaints`).then((r) => r.data),
+    get: (id: number) => api.get<TriComplaint>(`/tri/complaints/${id}`).then((r) => r.data),
+    create: (payload: { job_id: number; title: string; description?: string | null }) =>
+      api.post<TriComplaint>('/tri/complaints', payload).then((r) => r.data),
+    update: (id: number, payload: { title: string; description?: string | null }) =>
+      api.put<TriComplaint>(`/tri/complaints/${id}`, payload).then((r) => r.data),
+    updateStatus: (id: number, status: TriComplaintStatus) =>
+      api.post<TriComplaint>(`/tri/complaints/${id}/status`, { status }).then((r) => r.data),
+    addComment: (id: number, body: string) =>
+      api.post<TriComplaintComment>(`/tri/complaints/${id}/comments`, { body }).then((r) => r.data),
+    updateComment: (id: number, body: string) =>
+      api.put<TriComplaintComment>(`/tri/complaint-comments/${id}`, { body }).then((r) => r.data),
+    removeComment: (id: number) => api.delete(`/tri/complaint-comments/${id}`),
   },
   invoices: {
     list: (params?: Record<string, string | number>) =>

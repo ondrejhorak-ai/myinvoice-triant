@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { triApi, type TriJob, type TriVariantStatus, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler, type TriCalendarEvent } from '@/api/tri'
+import { triApi, type TriJob, type TriVariantStatus, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler, type TriCalendarEvent, type TriComplaint } from '@/api/tri'
 import { invoicesApi, type InvoiceListItem } from '@/api/invoices'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -16,6 +16,7 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiTable from '@/components/ui/UiTable.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import ComplaintFormModal from '../complaints/ComplaintFormModal.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -34,6 +35,9 @@ const travelersLoading = ref(false)
 const travelersBusy = ref(false)
 const calendarEvents = ref<TriCalendarEvent[]>([])
 const calendarLoading = ref(false)
+const complaints = ref<TriComplaint[]>([])
+const complaintsLoading = ref(false)
+const complaintFormOpen = ref(false)
 
 const advanceModalOpen = ref(false)
 const advancePercent = ref(50)
@@ -133,6 +137,16 @@ async function loadCalendar() {
   }
 }
 
+async function loadComplaints() {
+  complaintsLoading.value = true
+  try {
+    const r = await triApi.complaints.listForJob(jobId.value)
+    complaints.value = r.data
+  } finally {
+    complaintsLoading.value = false
+  }
+}
+
 async function generateTravelers() {
   travelersBusy.value = true
   try {
@@ -154,7 +168,7 @@ async function load() {
   loading.value = true
   try {
     job.value = await triApi.jobs.get(jobId.value)
-    await Promise.all([loadInvoices(), loadTravelers(), loadCalendar()])
+    await Promise.all([loadInvoices(), loadTravelers(), loadCalendar(), loadComplaints()])
   } finally {
     loading.value = false
   }
@@ -468,6 +482,38 @@ onMounted(() => load())
 
     <UiCard>
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
+        <h3 class="font-semibold text-neutral-900">{{ t('tri.complaints.section_title') }}</h3>
+        <div class="flex flex-wrap gap-2">
+          <UiButton variant="outline" size="sm" :to="{ name: 'tri-complaints', query: { job_id: String(jobId) } }">
+            {{ t('tri.complaints.open_list') }}
+          </UiButton>
+          <UiButton v-if="auth.canWrite" type="button" size="sm" @click="complaintFormOpen = true">
+            {{ t('tri.complaints.new') }}
+          </UiButton>
+        </div>
+      </div>
+      <div v-if="complaintsLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
+      <div v-else-if="complaints.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.complaints.no_data') }}</div>
+      <ul v-else class="divide-y divide-neutral-100">
+        <li
+          v-for="row in complaints"
+          :key="row.id"
+          class="px-5 py-3 flex items-start justify-between gap-3 cursor-pointer hover:bg-neutral-50"
+          @click="router.push({ name: 'tri-complaint-detail', params: { id: row.id } })"
+        >
+          <div class="min-w-0">
+            <div class="text-sm font-medium text-neutral-900 truncate">{{ row.title }}</div>
+            <div class="mt-0.5 text-xs text-neutral-500">{{ formatDate(row.created_at.slice(0, 10)) }}</div>
+          </div>
+          <UiBadge :variant="row.status === 'closed' ? 'neutral' : 'warning'">
+            {{ t(`tri.complaints.status_${row.status}`) }}
+          </UiBadge>
+        </li>
+      </ul>
+    </UiCard>
+
+    <UiCard>
+      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
         <h3 class="font-semibold text-neutral-900">{{ t('tri.invoices.section_title') }}</h3>
         <div v-if="auth.canWrite" class="flex flex-wrap gap-2">
           <UiButton
@@ -591,5 +637,12 @@ onMounted(() => load())
         </div>
       </div>
     </div>
+
+    <ComplaintFormModal
+      v-if="complaintFormOpen"
+      :job-id="jobId"
+      @close="complaintFormOpen = false"
+      @created="(row) => { complaintFormOpen = false; router.push({ name: 'tri-complaint-detail', params: { id: row.id } }) }"
+    />
   </div>
 </template>

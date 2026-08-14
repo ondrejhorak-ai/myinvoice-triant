@@ -62,6 +62,7 @@ final class TriSidebarSettingsAction
         'tri-invoices',
         'tri-travelers',
         'tri-calendar',
+        'tri-complaints',
         'tri-tags',
     ];
 
