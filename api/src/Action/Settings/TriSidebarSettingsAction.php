@@ -60,6 +60,7 @@ final class TriSidebarSettingsAction
         'tri-jobs',
         'tri-price-lists',
         'tri-invoices',
+        'tri-travelers',
         'tri-tags',
     ];
 

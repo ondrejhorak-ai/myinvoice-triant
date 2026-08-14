@@ -2,10 +2,11 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { triApi, type TriJob, type TriVariantStatus, type TriJobInvoice, type TriJobInvoiceSummary } from '@/api/tri'
+import { triApi, type TriJob, type TriVariantStatus, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler } from '@/api/tri'
 import { invoicesApi, type InvoiceListItem } from '@/api/invoices'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { apiErrorMessage } from '@/api/errors'
 import { formatMoney, formatDate, statusLabel, typeLabel, statusBadgeClass } from '@/composables/useFormat'
 import JobHeaderInfo from './JobHeaderInfo.vue'
 import JobActivityFeed from './JobActivityFeed.vue'
@@ -28,6 +29,9 @@ const loading = ref(true)
 const jobInvoices = ref<TriJobInvoice[]>([])
 const invoiceSummary = ref<TriJobInvoiceSummary | null>(null)
 const invoicesLoading = ref(false)
+const travelers = ref<TriTraveler[]>([])
+const travelersLoading = ref(false)
+const travelersBusy = ref(false)
 
 const advanceModalOpen = ref(false)
 const advancePercent = ref(50)
@@ -40,6 +44,10 @@ const linkCandidates = ref<InvoiceListItem[]>([])
 const linkBusy = ref(false)
 
 const canInvoice = computed(() => !!job.value?.approved_variant_id && !!job.value?.customer_client_id)
+const canGenerateTravelers = computed(() =>
+  !!job.value?.approved_variant_id
+  && (job.value?.status === 'confirmed' || job.value?.status === 'completed'),
+)
 
 const statusOptions = ['active', 'confirmed', 'rejected', 'completed'] as const
 
@@ -76,11 +84,38 @@ async function loadInvoices() {
   }
 }
 
+async function loadTravelers() {
+  travelersLoading.value = true
+  try {
+    const r = await triApi.travelers.listForJob(jobId.value)
+    travelers.value = r.data
+  } finally {
+    travelersLoading.value = false
+  }
+}
+
+async function generateTravelers() {
+  travelersBusy.value = true
+  try {
+    const r = await triApi.travelers.generate(jobId.value)
+    travelers.value = r.data
+    toast.success(t('tri.travelers.generated', { n: r.created }))
+  } catch (e) {
+    toast.error(apiErrorMessage(e, t('common.error')))
+  } finally {
+    travelersBusy.value = false
+  }
+}
+
+function openTravelersPdf() {
+  window.open(triApi.travelers.jobPdfUrl(jobId.value, false), '_blank')
+}
+
 async function load() {
   loading.value = true
   try {
     job.value = await triApi.jobs.get(jobId.value)
-    await loadInvoices()
+    await Promise.all([loadInvoices(), loadTravelers()])
   } finally {
     loading.value = false
   }
@@ -280,6 +315,66 @@ onMounted(() => load())
               <UiButton v-if="auth.canWrite" variant="ghost" size="sm" @click="duplicateVariant(v.id)">
                 {{ t('tri.jobs.duplicate_variant') }}
               </UiButton>
+            </td>
+          </tr>
+        </UiTable>
+      </div>
+    </UiCard>
+
+    <UiCard>
+      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
+        <h3 class="font-semibold text-neutral-900">{{ t('tri.travelers.section_title') }}</h3>
+        <div class="flex flex-wrap gap-2">
+          <UiButton
+            v-if="travelers.length"
+            type="button"
+            variant="outline"
+            size="sm"
+            @click="openTravelersPdf"
+          >
+            {{ t('tri.travelers.print_all') }}
+          </UiButton>
+          <UiButton
+            v-if="auth.canWrite"
+            type="button"
+            size="sm"
+            :disabled="!canGenerateTravelers || travelersBusy"
+            :loading="travelersBusy"
+            :title="!canGenerateTravelers ? t('tri.travelers.need_confirmed') : undefined"
+            @click="generateTravelers"
+          >
+            {{ t('tri.travelers.generate') }}
+          </UiButton>
+        </div>
+      </div>
+      <div v-if="travelersLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
+      <div v-else-if="travelers.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.travelers.no_data') }}</div>
+      <div v-else>
+        <UiTable>
+          <template #head>
+            <tr>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.number') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.item') }}</th>
+              <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.quantity') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.status') }}</th>
+            </tr>
+          </template>
+          <tr
+            v-for="row in travelers"
+            :key="row.id"
+            class="cursor-pointer"
+            @click="router.push({ name: 'tri-traveler-detail', params: { id: row.id } })"
+          >
+            <td class="px-4 py-3 font-mono">{{ row.number }}</td>
+            <td class="px-4 py-3">
+              <span v-if="row.designation" class="font-mono text-neutral-500 mr-1.5">{{ row.designation }}</span>
+              {{ row.title }}
+            </td>
+            <td class="px-4 py-3 text-right tabular-nums">{{ row.quantity }} {{ row.unit }}</td>
+            <td class="px-4 py-3">
+              <UiBadge :variant="row.status === 'done' ? 'success' : 'primary'">
+                {{ t(`tri.travelers.status_${row.status}`) }}
+              </UiBadge>
             </td>
           </tr>
         </UiTable>

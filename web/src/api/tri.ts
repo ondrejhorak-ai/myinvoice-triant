@@ -216,6 +216,44 @@ export interface TriPriceList {
   updated_at?: string
 }
 
+export type TriTravelerStatus = 'open' | 'done'
+export type TriTravelerStation =
+  | 'konstrukce'
+  | 'narezove_centrum'
+  | 'cnc'
+  | 'olepovacka'
+  | 'dyhovani_brouseni'
+  | 'montaz'
+  | 'lakovna'
+  | 'brouseni'
+  | 'baleni'
+
+export interface TriTravelerOperation {
+  id: number
+  station: TriTravelerStation
+  hours: number | null
+  note: string | null
+}
+
+export interface TriTraveler {
+  id: number
+  job_id: number
+  job_number: string
+  job_title: string
+  job_status?: string
+  quote_line_item_id: number | null
+  number: string
+  designation: string
+  title: string
+  description: string | null
+  quantity: number
+  unit: string
+  status: TriTravelerStatus
+  operations?: TriTravelerOperation[]
+  created_at?: string
+  updated_at?: string
+}
+
 export const triApi = {
   tags: {
     list: () => api.get<{ data: TriTag[] }>('/tri/tags').then((r) => r.data.data),
@@ -315,6 +353,33 @@ export const triApi = {
     },
     searchItems: (q?: string) =>
       api.get<{ data: TriPriceListItem[] }>('/tri/catalog-items', { params: q ? { q } : undefined }).then((r) => r.data.data),
+  },
+  travelers: {
+    list: (params?: Record<string, string | number>) =>
+      api.get<{ data: TriTraveler[] }>('/tri/travelers', { params }).then((r) => r.data),
+    listForJob: (jobId: number) =>
+      api.get<{ data: TriTraveler[] }>(`/tri/jobs/${jobId}/travelers`).then((r) => r.data),
+    get: (id: number) => api.get<TriTraveler>(`/tri/travelers/${id}`).then((r) => r.data),
+    generate: (jobId: number) =>
+      api.post<{ created: number; operations_added: number; data: TriTraveler[] }>(
+        `/tri/jobs/${jobId}/travelers/generate`,
+      ).then((r) => r.data),
+    pdfUrl: (id: number, download: boolean = false) => {
+      const sid = localStorage.getItem('myinvoice.current_supplier_id')
+      const params = new URLSearchParams()
+      if (download) params.set('download', '1')
+      if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+      const qs = params.toString()
+      return `/api/tri/travelers/${id}/pdf${qs ? '?' + qs : ''}`
+    },
+    jobPdfUrl: (jobId: number, download: boolean = false) => {
+      const sid = localStorage.getItem('myinvoice.current_supplier_id')
+      const params = new URLSearchParams()
+      if (download) params.set('download', '1')
+      if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+      const qs = params.toString()
+      return `/api/tri/jobs/${jobId}/travelers/pdf${qs ? '?' + qs : ''}`
+    },
   },
   invoices: {
     list: (params?: Record<string, string | number>) =>

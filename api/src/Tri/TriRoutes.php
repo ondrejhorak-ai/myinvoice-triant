@@ -47,6 +47,11 @@ use MyInvoice\Tri\Action\PriceList\PdfAction as PriceListPdfAction;
 use MyInvoice\Tri\Action\PriceList\SearchPriceListItemsAction;
 use MyInvoice\Tri\Action\PriceList\UpdatePriceListAction;
 use MyInvoice\Tri\Action\PriceList\UploadPriceListImageAction;
+use MyInvoice\Tri\Action\Traveler\GenerateTravelersAction;
+use MyInvoice\Tri\Action\Traveler\GetTravelerAction;
+use MyInvoice\Tri\Action\Traveler\JobPdfAction as JobTravelersPdfAction;
+use MyInvoice\Tri\Action\Traveler\ListTravelersAction;
+use MyInvoice\Tri\Action\Traveler\PdfAction as TravelerPdfAction;
 use Slim\App;
 
 final class TriRoutes
@@ -107,5 +112,13 @@ final class TriRoutes
         $app->put('/api/tri/price-lists/{id:[0-9]+}', UpdatePriceListAction::class);
         $app->delete('/api/tri/price-lists/{id:[0-9]+}', DeletePriceListAction::class);
         $app->post('/api/tri/price-lists/{id:[0-9]+}/images', UploadPriceListImageAction::class);
+
+        // Travelers (Průvodky TRI)
+        $app->get('/api/tri/travelers', ListTravelersAction::class);
+        $app->get('/api/tri/travelers/{id:[0-9]+}', GetTravelerAction::class);
+        $app->get('/api/tri/travelers/{id:[0-9]+}/pdf', TravelerPdfAction::class);
+        $app->get('/api/tri/jobs/{id:[0-9]+}/travelers', ListTravelersAction::class);
+        $app->get('/api/tri/jobs/{id:[0-9]+}/travelers/pdf', JobTravelersPdfAction::class);
+        $app->post('/api/tri/jobs/{id:[0-9]+}/travelers/generate', GenerateTravelersAction::class);
     }
 }

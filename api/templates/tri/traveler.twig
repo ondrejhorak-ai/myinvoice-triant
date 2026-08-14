@@ -1,0 +1,165 @@
+{# Výrobní průvodka TRI — A4 na výšku, bez cen. #}
+<!doctype html>
+<html lang="{{ locale|default('cs') }}">
+<head>
+<meta charset="utf-8">
+<title></title>
+<style>
+.traveler-item { width: 100%; margin-bottom: 5mm; table-layout: fixed; }
+.traveler-item td { vertical-align: top; }
+.traveler-item-copy { width: 68%; padding-right: 4mm; }
+.traveler-item-photo { width: 32%; text-align: right; }
+.traveler-item-photo img { display: inline-block; border: 0.4pt solid #d3d3d3; }
+.traveler-kicker {
+    color: #0b4f7c;
+    font-size: 7pt;
+    font-weight: bold;
+    letter-spacing: 0.35pt;
+    margin-bottom: 1mm;
+}
+.traveler-designation {
+    color: #555555;
+    font-size: 9pt;
+    font-family: 'DejaVu Sans Mono', monospace;
+    margin-bottom: 0.8mm;
+}
+.traveler-item-title {
+    font-size: 13pt;
+    font-weight: bold;
+    line-height: 1.15;
+    margin-bottom: 1.5mm;
+}
+.traveler-item-copy .item-copy { font-size: 8.5pt; color: #353535; line-height: 1.35; }
+.traveler-qty {
+    margin-top: 2.5mm;
+    font-size: 10pt;
+    font-weight: bold;
+}
+.traveler-stations { width: 100%; margin-top: 2mm; border-collapse: collapse; }
+.traveler-stations th {
+    padding: 1.6mm 2.4mm;
+    border: 0.5pt solid #c8c8c8;
+    background: #eaf1f5;
+    color: #0b4f7c;
+    font-size: 7.2pt;
+    font-weight: bold;
+    letter-spacing: 0.2pt;
+    text-align: left;
+}
+.traveler-stations td {
+    padding: 3.8mm 2.4mm;
+    border: 0.5pt solid #c8c8c8;
+    font-size: 8.5pt;
+    height: 11mm;
+}
+.traveler-stations .col-station { width: 34%; }
+.traveler-stations .col-date { width: 22%; }
+.traveler-stations .col-hours { width: 18%; }
+.traveler-stations .col-sign { width: 26%; }
+.traveler-hint {
+    margin-top: 3mm;
+    color: #777777;
+    font-size: 7pt;
+}
+</style>
+</head>
+<body>
+
+<table class="quote-header">
+  <tr>
+    <td class="quote-brand">
+      {% if logo_path and logo_path is not empty %}
+        <img src="{{ logo_path }}" alt="{{ supplier.company_name }}" width="190">
+        {% if logo_show_name %}<span class="quote-brand-name">{{ supplier.display_name|default(supplier.company_name) }}</span>{% endif %}
+      {% else %}
+        <div class="triant-wordmark">{{ supplier.display_name|default(supplier.company_name) }}</div>
+      {% endif %}
+    </td>
+    <td class="quote-heading">
+      <div class="quote-title">{{ t('PRŮVODKA', 'TRAVELER') }}</div>
+      <table class="variant-badge" align="right"><tr><td>{{ traveler.number }}</td></tr></table>
+    </td>
+  </tr>
+</table>
+
+<table class="quote-overview">
+  <tr>
+    <td class="overview-card customer-card">
+      <table class="overview-card-layout"><tr>
+        <td class="overview-card-content">
+          <div class="overview-kicker">{{ t('ZÁKAZNÍK', 'CUSTOMER') }}</div>
+          {% if client.company_name %}
+            <div class="overview-title">{{ client.company_name }}</div>
+            {% set full_name = ((client.first_name|default('')) ~ ' ' ~ (client.last_name|default('')))|trim %}
+            {% if full_name and full_name != client.company_name %}<div>{{ full_name }}</div>{% endif %}
+            {% if client.street %}<div>{{ client.street }}</div>{% endif %}
+            {% if client.zip or client.city %}<div>{{ client.zip }} {{ client.city }}</div>{% endif %}
+          {% else %}
+            <div class="overview-title">{{ job.customer_name|default('—') }}</div>
+          {% endif %}
+        </td>
+        <td class="overview-card-icon"><img src="{{ icons.customer }}" alt=""></td>
+      </tr></table>
+    </td>
+    <td class="overview-gap">&nbsp;</td>
+    <td class="overview-meta" colspan="3">
+      <table class="offer-meta">
+        <tr>
+          <td class="meta-icon"><img src="{{ icons.offer }}" alt=""></td>
+          <td class="meta-label">{{ t('ZAKÁZKA', 'JOB') }}</td>
+          <td class="meta-value">{{ job.number }}</td>
+        </tr>
+        <tr>
+          <td class="meta-icon"><img src="{{ icons.info }}" alt=""></td>
+          <td class="meta-label">{{ t('NÁZEV', 'TITLE') }}</td>
+          <td class="meta-value">{{ job.title }}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table class="traveler-item">
+  <tr>
+    <td class="traveler-item-copy">
+      <div class="traveler-kicker">{{ t('POLOŽKA', 'ITEM') }}</div>
+      {% if item.designation %}<div class="traveler-designation">{{ item.designation }}</div>{% endif %}
+      <div class="traveler-item-title">{{ item.title }}</div>
+      {% if item.description %}<div class="item-copy">{{ item.description|nl2br }}</div>{% endif %}
+      <div class="traveler-qty">{{ t('MNOŽSTVÍ', 'QTY') }}:
+        {{ item.quantity|number_format(item.quantity == item.quantity|round(0) ? 0 : 3, decimal_sep, thousand_sep) }}{% if item.unit %}&nbsp;{{ item.unit }}{% endif %}
+      </div>
+    </td>
+    <td class="traveler-item-photo">
+      {% if item.image_path|default(null) %}
+        <img src="{{ item.image_path }}" alt="" style="width: {{ item.image_width_mm }}mm; height: {{ item.image_height_mm }}mm">
+      {% endif %}
+    </td>
+  </tr>
+</table>
+
+<table class="traveler-stations">
+  <thead>
+    <tr>
+      <th class="col-station">{{ t('STANOVIŠTĚ', 'STATION') }}</th>
+      <th class="col-date">{{ t('DATUM', 'DATE') }}</th>
+      <th class="col-hours">{{ t('HODINY', 'HOURS') }}</th>
+      <th class="col-sign">{{ t('PODPIS', 'SIGNATURE') }}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in stations %}
+      <tr>
+        <td class="col-station">{{ t(row.label_cs, row.label_en) }}</td>
+        <td class="col-date">&nbsp;</td>
+        <td class="col-hours">&nbsp;</td>
+        <td class="col-sign">&nbsp;</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="traveler-hint">{{ t('Vyplňte datum, odpracované hodiny a podpis po dokončení stanoviště.', 'Fill in the date, hours worked and signature after completing the station.') }}</div>
+
+</body>
+</html>

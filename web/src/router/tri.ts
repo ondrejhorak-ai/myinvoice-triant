@@ -17,5 +17,7 @@ export const triRoutes: RouteRecordRaw[] = [
   { path: 'tri/invoices/new', name: 'tri-invoice-new', component: () => import('@/pages/tri/invoices/InvoiceEditor.vue'), meta: { requiresWrite: true } },
   { path: 'tri/invoices/:id(\\d+)', name: 'tri-invoice-detail', component: () => import('@/pages/tri/invoices/InvoiceDetail.vue') },
   { path: 'tri/invoices/:id(\\d+)/edit', name: 'tri-invoice-edit', component: () => import('@/pages/tri/invoices/InvoiceEditor.vue'), meta: { requiresWrite: true } },
+  { path: 'tri/travelers', name: 'tri-travelers', component: () => import('@/pages/tri/travelers/TravelerList.vue') },
+  { path: 'tri/travelers/:id(\\d+)', name: 'tri-traveler-detail', component: () => import('@/pages/tri/travelers/TravelerDetail.vue') },
   { path: 'admin/tri-tags', name: 'tri-tags', component: () => import('@/pages/tri/admin/TagAdmin.vue'), meta: { adminOnly: true } },
 ]

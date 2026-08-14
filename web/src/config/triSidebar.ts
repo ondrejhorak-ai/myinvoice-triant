@@ -41,6 +41,7 @@ export const TRI_SIDEBAR_MODULES = [
   { id: 'tri-contacts', labelKey: 'nav.tri_contacts', hideable: true },
   { id: 'tri-jobs', labelKey: 'nav.tri_jobs', hideable: true },
   { id: 'tri-price-lists', labelKey: 'nav.tri_price_lists', hideable: true },
+  { id: 'tri-travelers', labelKey: 'nav.tri_travelers', hideable: true },
   { id: 'tri-tags', labelKey: 'nav.tri_tags', hideable: true },
   { id: 'help', labelKey: 'nav.help', hideable: true },
 ] as const
