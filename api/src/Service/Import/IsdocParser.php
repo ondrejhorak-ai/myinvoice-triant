@@ -15,7 +15,12 @@ namespace MyInvoice\Service\Import;
  */
 final class IsdocParser
 {
-    private const NS = 'http://isdoc.cz/namespace/2013';
+    /** ISDOC 6.x namespace (náš exporter, iDoklad, Fakturoid…). */
+    private const NS_2013 = 'http://isdoc.cz/namespace/2013';
+    /** Starší ISDOC 5.x namespace — struktura čtených elementů je kompatibilní. */
+    private const NS_LEGACY = 'http://isdoc.cz/namespace/invoice';
+    /** Namespace, které parser umí — prefix `i:` se navazuje na ten z kořene dokladu. */
+    private const SUPPORTED_NS = [self::NS_2013, self::NS_LEGACY];
 
     /**
      * @return array{supplier_ic:?string, invoices:list<array<string,mixed>>}
@@ -45,8 +50,22 @@ final class IsdocParser
             throw new \RuntimeException('Není ISDOC — root není Invoice.');
         }
 
+        // Namespace bereme z kořene dokladu, ať funguje ISDOC 6.x (…/2013) i starší
+        // 5.x (…/invoice) — struktura čtených elementů je shodná, liší se jen NS.
+        // Dřív byl NS natvrdo 2013, takže 5.2 doklad nenašel ani <ID> a spadl na
+        // zavádějící „Chybí ISDOC ID" (issue #208).
+        $ns = (string) $root->namespaceURI;
+        if (!in_array($ns, self::SUPPORTED_NS, true)) {
+            throw new \RuntimeException(sprintf(
+                'Nepodporovaný ISDOC namespace „%s". Podporováno je ISDOC 6.x (%s) a 5.x (%s).',
+                $ns !== '' ? $ns : '(žádný)',
+                self::NS_2013,
+                self::NS_LEGACY,
+            ));
+        }
+
         $xpath = new \DOMXPath($dom);
-        $xpath->registerNamespace('i', self::NS);
+        $xpath->registerNamespace('i', $ns);
 
         try {
             $parsed = $this->parseInvoice($root, $xpath);
@@ -167,6 +186,11 @@ final class IsdocParser
             // u přijatých faktur (číslo účtu / IBAN / VS).
             'payment'        => $this->parsePayment($xpath, $root),
             'items'          => $items,
+            // Částka „k úhradě" z <LegalMonetaryTotal>/<PayableAmount> — už zahrnuje
+            // <PayableRoundingAmount> (haléřové zaokrouhlení dodavatele). Mapper z ní
+            // dopočítá rounding offset proti součtu položek (viz IsdocToPurchaseInvoiceMapper).
+            // U cizoměnového dokladu preferuje *Curr (v měně faktury, jako řádkové totály).
+            'payable_amount' => $this->parsePayableAmount($xpath, $root, $hasForeignCurrency),
             // Rekapitulace DPH po sazbách z <TaxTotal>/<TaxSubTotal> — pro seed
             // override (PurchaseVatRecapSeeder), aby naše evidence seděla na doklad.
             // Nedaňový doklad (VATApplicable=false) DPH nepřiznává → prázdná rekapitulace.
@@ -326,6 +350,20 @@ final class IsdocParser
             'unit_price_without_vat' => $unitPrice,
             'vat_rate'               => $vatRate,
         ];
+    }
+
+    /**
+     * Částka „k úhradě" z <LegalMonetaryTotal>/<PayableAmount>. Už zahrnuje
+     * <PayableRoundingAmount> (zaokrouhlení) i <PaidDepositsAmount> (zálohy).
+     * U cizoměnového dokladu preferuje *Curr (v měně faktury, jako řádkové totály).
+     * Vrací null, když doklad částku k úhradě neuvádí.
+     */
+    private function parsePayableAmount(\DOMXPath $xpath, \DOMElement $root, bool $foreignCurrency): ?float
+    {
+        $curr = $this->text($xpath, 'i:LegalMonetaryTotal/i:PayableAmountCurr', $root);
+        $loc  = $this->text($xpath, 'i:LegalMonetaryTotal/i:PayableAmount', $root);
+        $val  = ($foreignCurrency && $curr !== '') ? $curr : $loc;
+        return $val !== '' ? (float) $val : null;
     }
 
     private function text(\DOMXPath $xpath, string $expr, \DOMNode $context): string

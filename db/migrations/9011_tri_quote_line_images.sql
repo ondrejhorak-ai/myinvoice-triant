@@ -4,7 +4,7 @@ SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS tri_quote_images (
   id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  supplier_id TINYINT UNSIGNED NOT NULL,
+  supplier_id INT UNSIGNED NOT NULL,
   stored_name VARCHAR(80) NOT NULL,
   sha256      CHAR(64) NOT NULL,
   width_px    SMALLINT UNSIGNED NOT NULL,

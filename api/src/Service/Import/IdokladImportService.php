@@ -10,6 +10,8 @@ use MyInvoice\Repository\ImportJobRepository;
 use MyInvoice\Infrastructure\Config\Config;
 use MyInvoice\Repository\InvoiceRepository;
 use MyInvoice\Repository\PurchaseInvoiceRepository;
+use MyInvoice\Service\Bank\AccountNumberNormalizer;
+use MyInvoice\Service\Currency\ExchangeRateApplier;
 use MyInvoice\Service\Invoice\InvoiceCalculator;
 use MyInvoice\Service\Invoice\PurchaseInvoiceCalculator;
 use MyInvoice\Service\Invoice\SnapshotBuilder;
@@ -50,7 +52,28 @@ final class IdokladImportService
         private readonly LoggerInterface $logger,
         private readonly PurchaseInvoiceCnbApplier $cnbApplier,
         private readonly SnapshotBuilder $snapshots,
+        private readonly ImageToPdfConverter $imageToPdf,
+        private readonly IdokladBankTransactionImporter $bankTransactions,
+        private readonly ExchangeRateApplier $exchangeRateApplier,
     ) {}
+
+    /**
+     * #238: přenes měnový kurz na čerstvě importovaný VYSTAVENÝ doklad (faktura/dobropis).
+     * iDoklad vrací `ExchangeRate` (+ `ExchangeRateAmount`) — má přednost. Když chybí,
+     * dopočti z ČNB k DUZP (ensureRate plní jen non-CZK doklad s NULL kurzem, nikdy
+     * nepřepíše). Bez toho by VatLedgerService použil náhradní kurz 1.0 (cizí měna jako CZK).
+     */
+    private function applyIssuedExchangeRate(int $invoiceId, array $i, int $supplierId): void
+    {
+        $currencyCode = strtoupper($this->idokladCurrencyCode($i, $supplierId));
+        $rate = self::idokladExchangeRate($i);
+        if ($currencyCode !== 'CZK' && $rate !== null && $rate > 0.0) {
+            $date = (string) ($i['DateOfTaxing'] ?? $i['DateOfIssue'] ?? '');
+            $this->invoices->setExchangeRate($invoiceId, $rate, $date !== '' ? $date : null);
+        } else {
+            $this->exchangeRateApplier->ensureRate($invoiceId);
+        }
+    }
 
     /**
      * Spustí job. Volá worker, ne přímo UI (UI vytvoří job a vrátí, worker pak picknul).
@@ -59,6 +82,9 @@ final class IdokladImportService
      *   - include_clients: bool (default true)
      *   - include_issued: bool (default true)
      *   - include_received: bool (default true)
+     *   - include_bank_accounts: bool (default true)
+     *   - include_bank_transactions: bool (default false)
+     *   - include_receipts: bool (default true) — přijaté účtenky/paragony
      *   - dry_run: bool (default false)
      */
     public function run(int $jobId): void
@@ -84,6 +110,11 @@ final class IdokladImportService
             if ($downloadAttachments) $msg .= ', s přílohami';
             $this->jobs->appendLog($jobId, $msg . '.');
 
+            if (!empty($params['include_bank_accounts']) || ($params['include_bank_accounts'] ?? null) === null) {
+                $this->importBankAccounts($jobId, $supplierId, $dryRun);
+                $this->checkCancel($jobId);
+            }
+
             if (!empty($params['include_clients']) || ($params['include_clients'] ?? null) === null) {
                 $this->importClients($jobId, $supplierId, $userId, $dryRun, $bookmarkSince);
                 $this->checkCancel($jobId);
@@ -96,6 +127,19 @@ final class IdokladImportService
             }
             if (!empty($params['include_received']) || ($params['include_received'] ?? null) === null) {
                 $this->importReceived($jobId, $supplierId, $userId, $dryRun, $bookmarkSince, $downloadAttachments);
+                $this->checkCancel($jobId);
+            }
+            if (!empty($params['include_receipts']) || ($params['include_receipts'] ?? null) === null) {
+                $this->importReceipts($jobId, $supplierId, $userId, $dryRun, $bookmarkSince, $downloadAttachments);
+            }
+            if (!empty($params['include_bank_transactions'])) {
+                $this->checkCancel($jobId);
+                $this->jobs->appendLog($jobId, 'Synchronizuji bankovní pohyby z iDokladu…');
+                $bank = $this->bankTransactions->import($supplierId, $dryRun, $incremental);
+                $this->jobs->appendLog($jobId, sprintf(
+                    'Bankovní pohyby: vytvořeno %d, spárováno %d, vazeb na doklad %d, přeskočeno %d, bez mapování účtu %d.%s',
+                    $bank['created'], $bank['matched'], $bank['document_links'], $bank['skipped'], $bank['unmapped'], $dryRun ? ' (dry-run)' : ''
+                ));
             }
 
             // Mark completed + bookmark
@@ -135,6 +179,85 @@ final class IdokladImportService
         }
     }
 
+    private function importBankAccounts(int $jobId, int $supplierId, bool $dryRun): void
+    {
+        $this->jobs->appendLog($jobId, 'Synchronizuji bankovní účty z iDokladu…');
+        $pdo = $this->db->pdo();
+        $upsert = $pdo->prepare(
+            "INSERT INTO external_bank_account_mappings
+                (supplier_id, provider, external_account_id, currency_id, external_currency_id,
+                 external_bank_id, account_number, iban, name, is_default, sync_status, synced_at)
+             VALUES (?, 'idoklad', ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+             ON DUPLICATE KEY UPDATE
+                currency_id = VALUES(currency_id), external_currency_id = VALUES(external_currency_id),
+                external_bank_id = VALUES(external_bank_id), account_number = VALUES(account_number),
+                iban = VALUES(iban), name = VALUES(name), is_default = VALUES(is_default),
+                sync_status = VALUES(sync_status), synced_at = NOW()"
+        );
+
+        $matched = 0; $unmatched = 0; $ambiguous = 0;
+        foreach ($this->idoklad->getAll($supplierId, 'BankAccounts') as $external) {
+            $externalId = (int) ($external['Id'] ?? 0);
+            if ($externalId <= 0) continue;
+            $code = $this->idokladCurrencyCode($external, $supplierId);
+            $stmt = $pdo->prepare(
+                'SELECT id, account_number, bank_code, iban FROM currencies
+                  WHERE supplier_id = ? AND code = ? AND is_active = 1 ORDER BY id'
+            );
+            $stmt->execute([$supplierId, strtoupper($code)]);
+            $selection = self::matchExternalBankAccount($external, $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: []);
+            if ($selection['status'] === 'matched') $matched++;
+            elseif ($selection['status'] === 'ambiguous') $ambiguous++;
+            else $unmatched++;
+            if ($dryRun) continue;
+            $upsert->execute([
+                $supplierId, (string) $externalId, $selection['currency_id'],
+                (string) ($external['CurrencyId'] ?? ''), (string) ($external['BankId'] ?? ''),
+                self::nullableString($external['AccountNumber'] ?? null),
+                self::nullableString($external['Iban'] ?? null),
+                self::nullableString($external['Name'] ?? null),
+                !empty($external['IsDefault']) ? 1 : 0, $selection['status'],
+            ]);
+        }
+        $this->jobs->appendLog($jobId, "Bankovní účty: spárováno {$matched}, bez shody {$unmatched}, nejednoznačné {$ambiguous}." . ($dryRun ? ' (dry-run)' : ''));
+    }
+
+    /**
+     * @param array<string,mixed> $external
+     * @param list<array<string,mixed>> $candidates
+     * @return array{currency_id:?int,status:'matched'|'unmatched'|'ambiguous'}
+     */
+    public static function matchExternalBankAccount(array $external, array $candidates): array
+    {
+        $number = trim((string) ($external['AccountNumber'] ?? ''));
+        $iban = trim((string) ($external['Iban'] ?? ''));
+        $externalBank = AccountNumberNormalizer::czechIbanBankCode($iban) ?? '';
+        $matches = [];
+        foreach ($candidates as $candidate) {
+            $candidateIban = self::nullableString($candidate['iban'] ?? null);
+            $numberMatches = $number !== ''
+                && AccountNumberNormalizer::matchesAny($number, $candidate['account_number'] ?? null, $candidateIban);
+            $ibanMatches = $iban !== '' && $candidateIban !== null
+                && strtoupper(preg_replace('/\s+/', '', $iban) ?? '') === strtoupper(preg_replace('/\s+/', '', $candidateIban) ?? '');
+            if (!$numberMatches && !$ibanMatches) continue;
+            $candidateBank = trim((string) ($candidate['bank_code'] ?? ''));
+            if ($candidateBank === '' && $candidateIban !== null) {
+                $candidateBank = AccountNumberNormalizer::czechIbanBankCode($candidateIban) ?? '';
+            }
+            if ($externalBank !== '' && $candidateBank !== '' && $externalBank !== $candidateBank) continue;
+            $matches[] = (int) $candidate['id'];
+        }
+        if (count($matches) === 1) return ['currency_id' => $matches[0], 'status' => 'matched'];
+        if (count($matches) > 1) return ['currency_id' => null, 'status' => 'ambiguous'];
+        return ['currency_id' => null, 'status' => 'unmatched'];
+    }
+
+    private static function nullableString(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+        return $value === '' ? null : $value;
+    }
+
     /**
      * Import Contacts → clients. Dedup přes (supplier_id, idoklad_id).
      */
@@ -143,8 +266,8 @@ final class IdokladImportService
         $this->jobs->updateProgress($jobId, ['current_step' => 'Importing contacts…', 'processed' => 0]);
         $this->jobs->appendLog($jobId, 'Stahuji kontakty z iDoklad' . ($bookmarkSince ? " (>{$bookmarkSince})" : '') . '…');
 
-        // iDoklad podporuje filter `DateLastChange>=YYYY-MM-DD` pro incremental sync
-        $query = $bookmarkSince !== null ? ['filter' => "DateLastChange>={$bookmarkSince}"] : [];
+        // Incremental sync: iDoklad v3 filtr ve tvaru `column~operator~value` (#197).
+        $query = self::incrementalFilter($bookmarkSince);
 
         $created = 0; $skipped = 0; $processed = 0;
         foreach ($this->idoklad->getAll($supplierId, 'Contacts', $query) as $contact) {
@@ -203,7 +326,7 @@ final class IdokladImportService
             'city'         => (string) ($c['City'] ?? '—'),
             'zip'          => (string) ($c['PostalCode'] ?? '00000'),
             'country_iso2' => $countryIso2,
-            'main_email'   => (string) ($c['Email'] ?? '') ?: 'unknown@import.local',
+            'main_email'   => (string) ($c['Email'] ?? '') ?: null,
             'phone'        => (string) ($c['Phone'] ?? '') ?: null,
             'language'     => 'cs',
             'is_customer'  => true,
@@ -226,7 +349,7 @@ final class IdokladImportService
         $this->jobs->updateProgress($jobId, ['current_step' => 'Importing issued invoices…', 'processed' => 0]);
         $this->jobs->appendLog($jobId, 'Stahuji vydané faktury z iDoklad…');
 
-        $query = $bookmarkSince !== null ? ['filter' => "DateLastChange>={$bookmarkSince}"] : [];
+        $query = self::incrementalFilter($bookmarkSince);
 
         $created = 0; $skipped = 0; $failed = 0; $processed = 0;
         foreach ($this->idoklad->getAll($supplierId, 'IssuedInvoices', $query) as $idoklad) {
@@ -296,10 +419,11 @@ final class IdokladImportService
             'issue_date'       => (string) ($i['DateOfIssue'] ?? date('Y-m-d')),
             'tax_date'         => $invoiceType === 'proforma' ? null : (string) ($i['DateOfTaxing'] ?? $i['DateOfIssue'] ?? date('Y-m-d')),
             'due_date'         => (string) ($i['DateOfMaturity'] ?? $i['DateOfIssue'] ?? date('Y-m-d')),
-            'currency_id'      => $this->resolveCurrencyId($this->idokladCurrencyCode($i, $supplierId), $supplierId, isActive: true),
+            'currency_id'      => $this->resolveIssuedCurrencyId($i, $supplierId),
             'reverse_charge'   => false,
             'language'         => 'cs',
-            'varsymbol'        => $this->sanitizeVarsymbol((string) ($i['VariableSymbol'] ?? $i['DocumentNumber'] ?? '')),
+            // varsymbol = číslo dokladu (unikátní per dodavatel), NE platební VariableSymbol (#196).
+            'varsymbol'        => $this->sanitizeVarsymbol(self::idokladDocNumber($i)),
             'payment_method'   => 'bank_transfer',
             'discount_percent' => $docDiscountPercent,
         ];
@@ -324,6 +448,9 @@ final class IdokladImportService
         if (!empty($items)) {
             $this->invoices->replaceItems($invoiceId, $items);
         }
+
+        // #238: kurz z iDokladu (ExchangeRate) → jinak ČNB fallback k DUZP.
+        $this->applyIssuedExchangeRate($invoiceId, $i, $supplierId);
 
         // #121: promítni platební stav z iDokladu (PaymentStatus 1=Paid / 3=Overpaid)
         // — zaplacené historické doklady nesmí zůstat viset jako nezaplacené pohledávky.
@@ -391,7 +518,7 @@ final class IdokladImportService
         $this->jobs->updateProgress($jobId, ['current_step' => 'Importing received invoices…', 'processed' => 0]);
         $this->jobs->appendLog($jobId, 'Stahuji přijaté faktury z iDoklad…');
 
-        $query = $bookmarkSince !== null ? ['filter' => "DateLastChange>={$bookmarkSince}"] : [];
+        $query = self::incrementalFilter($bookmarkSince);
 
         $created = 0; $skipped = 0; $failed = 0; $processed = 0;
         foreach ($this->idoklad->getAll($supplierId, 'ReceivedInvoices', $query) as $idoklad) {
@@ -588,6 +715,236 @@ final class IdokladImportService
     }
 
     /**
+     * Import ReceivedReceipts (přijaté účtenky / paragony) → purchase_invoices (document_kind='receipt').
+     *
+     * iDoklad endpoint GET /v3/ReceivedReceipts používá stejný paginated envelope jako
+     * ReceivedInvoices, takže řídicí smyčka je shodná s importReceived(). Liší se mapování:
+     * účtenky nemají splatnost ani DUZP a Partner může být null (hotovostní nákup) — viz
+     * createReceiptFromIdoklad().
+     */
+    private function importReceipts(int $jobId, int $supplierId, int $userId, bool $dryRun, ?string $bookmarkSince = null, bool $downloadAttachments = false): void
+    {
+        $this->jobs->updateProgress($jobId, ['current_step' => 'Importing received receipts…', 'processed' => 0]);
+        $this->jobs->appendLog($jobId, 'Stahuji přijaté účtenky z iDoklad…');
+
+        $query = self::incrementalFilter($bookmarkSince);
+
+        $created = 0; $skipped = 0; $failed = 0; $processed = 0;
+        foreach ($this->idoklad->getAll($supplierId, 'ReceivedReceipts', $query) as $idoklad) {
+            $processed++;
+            if ($processed % self::PROGRESS_FLUSH_EVERY === 0) {
+                $this->jobs->updateProgress($jobId, ['processed' => $processed, 'created_count' => $created, 'skipped_count' => $skipped, 'failed_count' => $failed]);
+                $this->checkCancel($jobId);
+            }
+
+            $idokladId = (int) ($idoklad['Id'] ?? 0);
+            if ($idokladId === 0) continue;
+
+            $stmt = $this->db->pdo()->prepare(
+                'SELECT id FROM purchase_invoices WHERE supplier_id = ? AND idoklad_id = ? LIMIT 1'
+            );
+            $stmt->execute([$supplierId, $idokladId]);
+            if ($stmt->fetchColumn() !== false) { $skipped++; continue; }
+
+            if ($dryRun) { $created++; continue; }
+
+            try {
+                $purchaseId = $this->createReceiptFromIdoklad($idoklad, $supplierId, $userId);
+                if ($purchaseId === null) { $skipped++; continue; } // hotovostní účtenka bez Partnera
+                $this->db->pdo()->prepare(
+                    'UPDATE purchase_invoices SET idoklad_id = ? WHERE id = ?'
+                )->execute([$idokladId, $purchaseId]);
+                $this->purCalc->recompute($purchaseId);
+                if ($downloadAttachments) {
+                    $this->archiveReceivedPdf($supplierId, $purchaseId, $idokladId, 'ReceivedReceipt');
+                }
+                $created++;
+            } catch (\Throwable $e) {
+                $failed++;
+                $this->jobs->appendLog($jobId, "Účtenka #{$idokladId}: " . $e->getMessage());
+            }
+        }
+        $this->jobs->updateProgress($jobId, ['processed' => $processed, 'created_count' => $created, 'skipped_count' => $skipped, 'failed_count' => $failed]);
+        $this->jobs->appendLog($jobId, "Přijaté účtenky: vytvořeno {$created}, přeskočeno {$skipped}, chyby {$failed} (z {$processed}).");
+    }
+
+    /**
+     * Vytvoří jednu přijatou účtenku z iDoklad payloadu jako purchase_invoice s document_kind='receipt'.
+     *
+     * Rozdíly oproti createReceivedFromIdoklad():
+     *   • Partner je vnořený a MŮŽE být null (hotovostní nákup bez kontaktu) → doklad se naváže
+     *     na sběrného systémového dodavatele „Hotovostní nákup (účtenka)" (náklad se neztratí)
+     *     a importuje se bez nároku na odpočet DPH (viz níže).
+     *   • Účtenka nemá splatnost (DateOfMaturity) ani DUZP (DateOfTaxing) → vše z DateOfIssue.
+     *   • Číslo dokladu dodavatele je ExternalDocumentNumber (ne ReceivedDocumentNumber); často chybí.
+     *   • iDoklad u účtenek nevrací hlavičkovou slevu (DiscountType/DiscountPercentage).
+     */
+    private function createReceiptFromIdoklad(array $i, int $supplierId, int $userId): ?int
+    {
+        $hdr = self::idokladReceiptHeader($i, date('Y-m-d'));
+
+        // Hotovostní účtenka bez kontaktu (Partner == null) — dodavatele neznáme. Místo zahození
+        // nákladu ji navážeme na sběrného systémového vendora a odpočet DPH necháme neuplatněný
+        // (nemůžeme ověřit dodavatele ani jeho plátcovství — bezpečný default pro plátce; neplátce
+        // to neřeší). Uživatel může po doplnění dodavatele odpočet povolit.
+        $unknownVendor = ($hdr['partner_id'] === 0);
+        if ($unknownVendor) {
+            $vendorId = $this->clients->findOrCreateCashReceiptVendor($supplierId);
+        } else {
+            $vendorId = $this->resolveClientByIdoklad($hdr['partner_id'], $supplierId);
+            if ($vendorId === null) {
+                throw new \RuntimeException("Dodavatel s iDoklad ID {$hdr['partner_id']} nenalezen — nejdřív naimportuj kontakty.");
+            }
+            $this->clients->markAsVendor($vendorId);
+        }
+
+        // Číslo dokladu — createDraft ho vyžaduje neprázdné; hotovostní účtenka ho nemusí mít.
+        // Fallback na stabilní iDoklad Id, aby dedup (vendor+číslo+datum) i re-import fungovaly.
+        $vendorNumber = $this->sanitizeVendorNumber($hdr['vendor_invoice_number']);
+        if ($vendorNumber === '') {
+            $vendorNumber = 'UCT-' . (int) ($i['Id'] ?? 0);
+        }
+
+        $issueDate = $hdr['issue_date'];
+        $taxDate   = $hdr['tax_date'];
+        $dueDate   = $hdr['due_date'];
+
+        $vatRates = $this->loadVatRateMap();
+        $defaultVatRateId = $this->matchVatRateId($vatRates, 21.0) ?? $this->matchVatRateId($vatRates, 0.0) ?? 0;
+
+        // Položky — stejný tvar jako ReceivedInvoices (Amount/Name/Unit/VatRate + per-řádek Prices).
+        // idokladNetUnitPrice() řeší i PriceType=WithVat (účtenky bývají ceny s DPH).
+        $items = [];
+        foreach (($i['Items'] ?? []) as $idx => $line) {
+            $rate = (float) ($line['VatRate'] ?? 0);
+            $vatRateId = $this->matchVatRateId($vatRates, $rate) ?? $defaultVatRateId;
+            $items[] = [
+                'description'            => (string) ($line['Name'] ?? $line['Description'] ?? ''),
+                'quantity'               => (float) ($line['Amount'] ?? 1),
+                'unit'                   => (string) ($line['Unit'] ?? 'ks'),
+                'unit_price_without_vat' => self::idokladNetUnitPrice($line, $rate),
+                'vat_rate_id'            => $vatRateId,
+                'order_index'            => $idx,
+            ];
+        }
+
+        $reverseCharge = $this->inferReverseChargeFromItems($vendorId, $items);
+        $currencyCode  = $this->idokladCurrencyCode($i, $supplierId);
+
+        $payload = [
+            'vendor_id'             => $vendorId,
+            'vendor_invoice_number' => $vendorNumber,
+            'document_kind'         => 'receipt',
+            'issue_date'            => $issueDate,
+            'tax_date'              => $taxDate,
+            'due_date'              => $dueDate,
+            'received_at'           => date('Y-m-d'),
+            'currency_id'           => $this->resolveCurrencyId($currencyCode, $supplierId, isActive: false),
+            'exchange_rate'         => self::idokladExchangeRate($i),
+            'exchange_rate_source'  => 'manual',
+            'reverse_charge'        => $reverseCharge,
+            // Neznámý dodavatel (hotovostní účtenka) → bez nároku na odpočet DPH. Import jde přes
+            // createDraft(), který NEuplatňuje auto-none z CreatePurchaseInvoiceAction, proto explicitně.
+            'vat_deduction'         => $unknownVendor ? 'none' : 'full',
+            'language'              => 'cs',
+            'items'                 => $items,
+        ];
+
+        // Dedup guard — re-import stejné účtenky (typicky při opakovaném pullu) by jinak hodil
+        // SQL 23000 duplicate key. Vrátíme existující ID.
+        $existingId = $this->purchaseRepo->findIdByVendorInvoice(
+            $supplierId, $vendorId,
+            (string) $payload['vendor_invoice_number'],
+            (string) $payload['issue_date'],
+        );
+        if ($existingId !== null) {
+            return $existingId;
+        }
+
+        $id = $this->purchaseRepo->createDraft($payload, $userId, $supplierId);
+        if (!empty($items)) {
+            $this->purchaseRepo->replaceItems($id, $items);
+        }
+        $this->cnbApplier->applyIfMissing(
+            $id,
+            $supplierId,
+            $currencyCode,
+            (string) ($payload['tax_date'] ?? $payload['issue_date'] ?? ''),
+            $payload['exchange_rate'] ?? null,
+        );
+
+        // Seed override rekapitulace DPH z per-řádek Prices (stejně jako createReceivedFromIdoklad).
+        // Účtenka nemá hlavičkovou slevu, takže recap seedujeme bezpodmínečně, je-li kompletní.
+        $docByRate = self::idokladVatRecap($i['Items'] ?? []);
+        if ($docByRate !== []) {
+            $this->purCalc->recompute($id);
+            $warning = (new PurchaseVatRecapSeeder($this->purchaseRepo, $this->purCalc))->seed(
+                $id,
+                $supplierId,
+                $docByRate,
+                $currencyCode,
+                false,
+            );
+            if ($warning !== null) {
+                try {
+                    $this->purchaseRepo->appendExtractionWarning($id, $supplierId, $warning);
+                } catch (\Throwable) {
+                    // Varování je „nice to have".
+                }
+            }
+        }
+
+        // Hotovostní účtenka bez identifikace dodavatele — upozorni na revizi (odpočet je záměrně
+        // neuplatněný; uživatel po doplnění dodavatele může nárok povolit).
+        if ($unknownVendor) {
+            try {
+                $this->purchaseRepo->appendExtractionWarning(
+                    $id,
+                    $supplierId,
+                    'Účtenka bez identifikace dodavatele (hotovostní nákup) — pro uplatnění odpočtu DPH doplňte dodavatele a povolte odpočet.',
+                );
+            } catch (\Throwable) {
+                // Varování je „nice to have".
+            }
+        }
+
+        // Účtenka/paragon je hrazená na místě → import rovnou jako zaplacená (paid_at = datum
+        // vystavení). ReceivedReceipts payload obvykle PaymentStatus nenese (ověřeno živě: null),
+        // takže fromIdoklad() vrátí null; přesto když by iDoklad stav úhrady vrátil, respektuj ho.
+        $paymentState = ImportedPaymentStateMapper::fromIdoklad($i)
+            ?? ['status' => 'paid', 'paid_at' => $issueDate];
+        $this->applyPurchasePaymentState($id, $supplierId, $paymentState, $issueDate);
+
+        return $id;
+    }
+
+    /**
+     * Receipt-specifické mapování hlavičky (čistá funkce, bez DB — proto unit-testovatelná).
+     *
+     * Účtenky se od přijatých faktur liší: Partner je vnořený a může být null (hotovostní
+     * nákup), chybí splatnost (DateOfMaturity) i DUZP (DateOfTaxing) → issue/tax/due odvodíme
+     * shodně z DateOfIssue; číslo dokladu dodavatele je ExternalDocumentNumber (fallback
+     * DocumentNumber) — účtenka ho nemusí mít vůbec, prázdné je u document_kind='receipt' OK.
+     *
+     * @param array<string,mixed> $i      iDoklad ReceivedReceipt payload
+     * @param string              $today  fallback datum (Y-m-d), když DateOfIssue chybí
+     * @return array{partner_id:int, vendor_invoice_number:string, issue_date:string, tax_date:string, due_date:string}
+     */
+    public static function idokladReceiptHeader(array $i, string $today): array
+    {
+        $partnerId = (int) ($i['Partner']['Id'] ?? $i['PartnerId'] ?? 0);
+        $issueDate = (string) ($i['DateOfIssue'] ?? '') ?: $today;
+
+        return [
+            'partner_id'            => $partnerId,
+            'vendor_invoice_number' => (string) ($i['ExternalDocumentNumber'] ?? $i['DocumentNumber'] ?? ''),
+            'issue_date'            => $issueDate,
+            'tax_date'              => $issueDate,
+            'due_date'              => $issueDate,
+        ];
+    }
+
+    /**
      * Poskládá rekapitulaci DPH po sazbách z iDoklad řádkových Prices (autoritativní
      * hodnoty z iDokladu). Vrací rateKey => kladné `{base, vat}`. Když některý řádek
      * Prices nemá, vrátí prázdné pole (neseedujeme z neúplných dat).
@@ -650,6 +1007,78 @@ final class IdokladImportService
              VALUES (?, ?, ?, ?, ?, ?, 2, ?, 0)'
         )->execute([$supplierId, $code, $code, $code, $code, $code, $isActive ? 1 : 0]);
         return (int) $pdo->lastInsertId();
+    }
+
+    /**
+     * Účet vydané faktury podle historických údajů `MyAddress` z iDokladu.
+     *
+     * Jedna měna může mít v MyInvoice více bankovních účtů. Samotný CurrencyId
+     * proto nestačí: nejprve hledáme přesnou dvojici číslo účtu + kód banky
+     * uloženou na konkrétní faktuře. Výchozí účet měny je pouze fallback pro
+     * doklady bez bankovních údajů nebo bez jednoznačné lokální shody.
+     *
+     * @param array<string,mixed> $doc
+     */
+    private function resolveIssuedCurrencyId(array $doc, int $supplierId): int
+    {
+        $code = $this->idokladCurrencyCode($doc, $supplierId);
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT id, account_number, bank_code, iban FROM currencies
+              WHERE supplier_id = ? AND code = ? AND is_active = 1
+              ORDER BY is_default DESC, id ASC'
+        );
+        $stmt->execute([$supplierId, strtoupper(trim($code)) ?: 'CZK']);
+        $accounts = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        $matchedId = self::matchIssuedBankAccount($doc, $accounts);
+        if ($matchedId !== null) {
+            return $matchedId;
+        }
+
+        $address = is_array($doc['MyAddress'] ?? null) ? $doc['MyAddress'] : [];
+        if (trim((string) ($address['AccountNumber'] ?? '')) !== '') {
+            $this->logger->warning('iDoklad issued invoice bank account was not matched uniquely; using currency default', [
+                'supplier_id' => $supplierId,
+                'idoklad_id'  => (int) ($doc['Id'] ?? 0),
+                'bank_code'   => trim((string) ($address['BankCode'] ?? '')) ?: null,
+                'currency'    => strtoupper(trim($code)) ?: 'CZK',
+            ]);
+        }
+
+        return $this->resolveCurrencyId($code, $supplierId, isActive: true);
+    }
+
+    /**
+     * @param array<string,mixed> $doc
+     * @param list<array{id:mixed,account_number:mixed,bank_code:mixed,iban?:mixed}> $accounts
+     */
+    public static function matchIssuedBankAccount(array $doc, array $accounts): ?int
+    {
+        $address = is_array($doc['MyAddress'] ?? null) ? $doc['MyAddress'] : [];
+        $accountNumber = trim((string) ($address['AccountNumber'] ?? ''));
+        $bankCode = preg_replace('/\D/', '', (string) ($address['BankCode'] ?? '')) ?? '';
+        if ($accountNumber === '') {
+            return null;
+        }
+
+        $matches = [];
+        foreach ($accounts as $account) {
+            $iban = isset($account['iban']) && is_string($account['iban']) ? $account['iban'] : null;
+            if (!AccountNumberNormalizer::matchesAny($accountNumber, $account['account_number'] ?? null, $iban)) {
+                continue;
+            }
+
+            $candidateBank = preg_replace('/\D/', '', (string) ($account['bank_code'] ?? '')) ?? '';
+            if ($candidateBank === '' && $iban !== null) {
+                $candidateBank = AccountNumberNormalizer::czechIbanBankCode($iban) ?? '';
+            }
+            if ($bankCode !== '' && $candidateBank !== $bankCode) {
+                continue;
+            }
+            $matches[] = (int) $account['id'];
+        }
+
+        return count($matches) === 1 ? $matches[0] : null;
     }
 
     /**
@@ -832,7 +1261,7 @@ final class IdokladImportService
         $this->jobs->updateProgress($jobId, ['current_step' => 'Importing credit notes…']);
         $this->jobs->appendLog($jobId, 'Stahuji dobropisy z iDoklad…');
 
-        $query = $bookmarkSince !== null ? ['filter' => "DateLastChange>={$bookmarkSince}"] : [];
+        $query = self::incrementalFilter($bookmarkSince);
         $created = 0; $skipped = 0; $failed = 0;
 
         foreach ($this->idoklad->getAll($supplierId, 'CreditNotes', $query) as $i) {
@@ -878,10 +1307,11 @@ final class IdokladImportService
                     'issue_date'        => (string) ($i['DateOfIssue'] ?? date('Y-m-d')),
                     'tax_date'          => (string) ($i['DateOfTaxing'] ?? $i['DateOfIssue'] ?? date('Y-m-d')),
                     'due_date'          => (string) ($i['DateOfMaturity'] ?? $i['DateOfIssue'] ?? date('Y-m-d')),
-                    'currency_id'       => $this->resolveCurrencyId($this->idokladCurrencyCode($i, $supplierId), $supplierId, isActive: true),
+                    'currency_id'       => $this->resolveIssuedCurrencyId($i, $supplierId),
                     'reverse_charge'    => false,
                     'language'          => 'cs',
-                    'varsymbol'         => $this->sanitizeVarsymbol((string) ($i['VariableSymbol'] ?? $i['DocumentNumber'] ?? '')),
+                    // varsymbol = číslo dokladu (unikátní per dodavatel), NE platební VariableSymbol (#196).
+                    'varsymbol'         => $this->sanitizeVarsymbol(self::idokladDocNumber($i)),
                     'payment_method'    => 'bank_transfer',
                     'discount_percent'  => $docDiscountPercent,
                 ];
@@ -907,6 +1337,8 @@ final class IdokladImportService
                 if (!empty($items)) {
                     $this->invoices->replaceItems($invoiceId, $items);
                 }
+                // #238: kurz z iDokladu (ExchangeRate) → jinak ČNB fallback k DUZP.
+                $this->applyIssuedExchangeRate($invoiceId, $i, $supplierId);
                 // #121: vyrovnaný/uhrazený dobropis nesmí zůstat draft
                 $this->applyIssuedPaymentState(
                     $invoiceId,
@@ -948,17 +1380,14 @@ final class IdokladImportService
             $archiveRoot = $uploads !== '' ? dirname($uploads) . '/invoices-imported'
                 : \MyInvoice\Infrastructure\Config\RuntimePaths::storage('invoices-imported');
         }
-        $tenantDir = $archiveRoot . DIRECTORY_SEPARATOR . 'supplier-' . $supplierId;
-        if (!is_dir($tenantDir)) @mkdir($tenantDir, 0755, true);
-
         $sha = hash('sha256', $pdf);
         $size = strlen($pdf);
-        $disk = substr($sha, 0, 16) . '.pdf';
-        $diskPath = $tenantDir . DIRECTORY_SEPARATOR . $disk;
+        // Hash-shard layout (supplier-{id}/{2}/{16}.pdf) — sdílené s PurchaseInvoicePdfArchiver.
+        $diskPath = \MyInvoice\Service\Import\PurchaseInvoicePdfArchiver::ensureShardPath($archiveRoot, $supplierId, $sha);
         if (!is_file($diskPath)) {
             @file_put_contents($diskPath, $pdf);
         }
-        $relPath = 'supplier-' . $supplierId . '/' . $disk;
+        $relPath = \MyInvoice\Service\Import\PurchaseInvoicePdfArchiver::shardedRelPath($supplierId, $sha);
         $name = ($idoklad['DocumentNumber'] ?? 'invoice') . '.pdf';
         $this->db->pdo()->prepare(
             'UPDATE invoices SET imported_pdf_path = ?, imported_pdf_hash = ?,
@@ -968,28 +1397,35 @@ final class IdokladImportService
     }
 
     /**
-     * Stáhne první PDF přílohu pro přijatou fakturu (typically jedna od dodavatele).
+     * Stáhne první archivovatelnou přílohu dokladu (typically jedna od dodavatele).
+     *
+     * $documentType = iDoklad Attachments scope: 'ReceivedInvoice' pro přijaté faktury,
+     * 'ReceivedReceipt' pro účtenky (SDK enum 5 / 11) — přílohy žijí v odděleném scope
+     * per typ dokladu, dotaz se špatným scope vrací 404/nic.
+     *
+     * Fotka (JPG/PNG… z telefonu — u účtenek běžný případ) se konvertuje na PDF stejnou
+     * cestou jako ruční upload (ImageToPdfConverter, issue #75), vč. přejmenování na .pdf.
      */
-    private function archiveReceivedPdf(int $supplierId, int $purchaseInvoiceId, int $idokladInvoiceId): void
+    private function archiveReceivedPdf(int $supplierId, int $purchaseInvoiceId, int $idokladInvoiceId, string $documentType = 'ReceivedInvoice'): void
     {
-        $attachments = $this->idoklad->listReceivedAttachments($supplierId, $idokladInvoiceId);
-        // iDoklad v3 vrací bajty přílohy inline v `FileBytes` (base64) — žádný extra download
-        // request. Vyber první PDF (může být víc příloh: obrázky atd.).
-        $pdf = null;
-        $name = 'invoice.pdf';
-        foreach ($attachments as $a) {
-            $bytes = $a['FileBytes'] ?? null;
-            if ($bytes === null || $bytes === '') continue;
-            $raw = base64_decode((string) $bytes, true);
-            if ($raw === false || $raw === '') continue;
-            $fileName = (string) ($a['FileName'] ?? '');
-            if (str_ends_with(strtolower($fileName), '.pdf') || str_starts_with($raw, '%PDF')) {
-                $pdf = $raw;
-                $name = $fileName !== '' ? $fileName : 'invoice.pdf';
-                break;
+        $attachments = $this->idoklad->listReceivedAttachments($supplierId, $idokladInvoiceId, $documentType);
+        $picked = self::pickArchivableAttachment($attachments);
+        if ($picked === null) return;
+        [$pdf, $name] = $picked;
+
+        if (!str_starts_with($pdf, '%PDF')) {
+            $mime = $this->imageToPdf->detectImageMime($pdf);
+            if ($mime === null) {
+                return; // ani PDF, ani podporovaný obrázek — nearchivujeme
             }
+            try {
+                $pdf = $this->imageToPdf->convert($pdf, $mime);
+            } catch (\Throwable $e) {
+                $this->logger->info('iDoklad attachment image→PDF conversion failed', ['purchase_invoice_id' => $purchaseInvoiceId, 'error' => $e->getMessage()]);
+                return;
+            }
+            $name = (string) preg_replace('/\.[^.]+$/', '', $name) . '.pdf';
         }
-        if ($pdf === null) return;
 
         $archiveRoot = (string) $this->config->get('purchase_invoice.archive_storage', '');
         if ($archiveRoot === '') {
@@ -997,23 +1433,80 @@ final class IdokladImportService
             $archiveRoot = $uploads !== '' ? dirname($uploads) . '/purchase-invoices'
                 : \MyInvoice\Infrastructure\Config\RuntimePaths::storage('purchase-invoices');
         }
-        $tenantDir = $archiveRoot . DIRECTORY_SEPARATOR . 'supplier-' . $supplierId;
-        if (!is_dir($tenantDir)) @mkdir($tenantDir, 0755, true);
-
         $sha = hash('sha256', $pdf);
         $size = strlen($pdf);
-        $disk = substr($sha, 0, 16) . '.pdf';
-        $diskPath = $tenantDir . DIRECTORY_SEPARATOR . $disk;
+        // Hash-shard layout (supplier-{id}/{2}/{16}.pdf) — sdílené s PurchaseInvoicePdfArchiver.
+        $diskPath = \MyInvoice\Service\Import\PurchaseInvoicePdfArchiver::ensureShardPath($archiveRoot, $supplierId, $sha);
         if (!is_file($diskPath)) {
             @file_put_contents($diskPath, $pdf);
         }
-        $relPath = 'supplier-' . $supplierId . '/' . $disk;
+        $relPath = \MyInvoice\Service\Import\PurchaseInvoicePdfArchiver::shardedRelPath($supplierId, $sha);
         $this->purchaseRepo->setPdfMetadata($purchaseInvoiceId, $supplierId, $relPath, $sha, $size, $name);
     }
 
     /**
+     * Vybere z iDoklad příloh první archivovatelnou: preferuje PDF (podle přípony
+     * `.pdf` NEBO magic `%PDF` — název může chybět), jinak první přílohu
+     * s dekódovatelnými bajty (typicky fotka; o konverzi/odmítnutí rozhodne caller).
+     *
+     * Čistá funkce (bez IO) — viz IdokladAttachmentPickTest.
+     *
+     * @param list<array<string,mixed>> $attachments  [{FileName, FileBytes(base64)}, …]
+     * @return array{0:string,1:string}|null  [raw bajty, jméno souboru] nebo null
+     */
+    public static function pickArchivableAttachment(array $attachments): ?array
+    {
+        $fallback = null;
+        foreach ($attachments as $a) {
+            $bytes = $a['FileBytes'] ?? null;
+            if ($bytes === null || $bytes === '') continue;
+            $raw = base64_decode((string) $bytes, true);
+            if ($raw === false || $raw === '') continue;
+            $name = (string) ($a['FileName'] ?? '');
+            if (str_ends_with(strtolower($name), '.pdf') || str_starts_with($raw, '%PDF')) {
+                return [$raw, $name !== '' ? $name : 'invoice.pdf'];
+            }
+            $fallback ??= [$raw, $name !== '' ? $name : 'attachment'];
+        }
+        return $fallback;
+    }
+
+    /**
+     * Sestaví query pro incremental sync „od posledního importu".
+     *
+     * iDoklad v3 vyžaduje filtr ve tvaru `column~operator~value` (separátor `~`),
+     * takže „změněno od data" je `DateLastChange~gte~YYYY-MM-DD`. Dřívější tvar
+     * `DateLastChange>=…` API odmítalo s HTTP 400 „Incorrect filter format" a celý
+     * incremental import (počínaje kontakty) spadl (#197).
+     *
+     * @return array<string,string>
+     */
+    public static function incrementalFilter(?string $since): array
+    {
+        return $since !== null ? ['filter' => "DateLastChange~gte~{$since}"] : [];
+    }
+
+    /**
+     * Vybere hodnotu pro `varsymbol` importované vydané faktury / dobropisu.
+     *
+     * V našem modelu je `varsymbol` číslo dokladu s UNIQUE (supplier_id, varsymbol),
+     * takže musí odpovídat unikátnímu číslu dokladu z iDokladu (`DocumentNumber`),
+     * NE platebnímu `VariableSymbol` — ten se u paušálů/trvalých plateb opakuje a
+     * kolidoval na `uq_inv_supplier_varsymbol` (#196). VariableSymbol drží jen jako
+     * fallback pro případ, že by DocumentNumber chybělo.
+     *
+     * @param array<string,mixed> $i iDoklad doklad (v3 GET model)
+     */
+    public static function idokladDocNumber(array $i): string
+    {
+        $doc = trim((string) ($i['DocumentNumber'] ?? ''));
+        if ($doc !== '') return $doc;
+        return trim((string) ($i['VariableSymbol'] ?? ''));
+    }
+
+    /**
      * Bookmark — vrátí ISO date posledního úspěšného importu pro tento tenant.
-     * Použito jako filter DateLastChange>=… pro incremental sync.
+     * Použito jako filter DateLastChange~gte~… pro incremental sync.
      */
     private function loadBookmark(int $supplierId): ?string
     {

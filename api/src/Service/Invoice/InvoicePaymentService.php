@@ -83,6 +83,41 @@ final class InvoicePaymentService
         return array_map([self::class, 'castPayment'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
     }
 
+    /**
+     * Bankovní operace přímo spárované s fakturou, nezávisle na účetní evidenci
+     * invoice_payments. Typicky jde o historické faktury importované jako uhrazené
+     * z iDokladu: bankovní matcher zná přesnou vazbu, ale zpětně nevytváří platbu.
+     *
+     * bank_transactions/bank_statements nemají supplier_id (tenancy se odvozuje z účtu
+     * výpisu), takže kotvíme přes fakturu: JOIN na invoices.supplier_id drží dotaz
+     * v tenantu i kdyby budoucí writer matched_invoice_id zapomněl scope ohlídat.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function listRelatedBankTransactions(int $invoiceId, int $supplierId): array
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT bt.id, bt.statement_id, bs.source AS statement_source,
+                    bt.posted_at, bt.amount, bt.currency,
+                    bt.variable_symbol, bt.constant_symbol, bt.specific_symbol,
+                    bt.counterparty_account, bt.counterparty_bank, bt.counterparty_name,
+                    bt.description, bt.bank_ref, bt.match_status
+               FROM bank_transactions bt
+               JOIN bank_statements bs ON bs.id = bt.statement_id
+               JOIN invoices i ON i.id = bt.matched_invoice_id AND i.supplier_id = ?
+              WHERE bt.matched_invoice_id = ?
+              ORDER BY bt.posted_at, bt.id'
+        );
+        $stmt->execute([$supplierId, $invoiceId]);
+
+        return array_map(static function (array $row): array {
+            $row['id'] = (int) $row['id'];
+            $row['statement_id'] = (int) $row['statement_id'];
+            $row['amount'] = (float) $row['amount'];
+            return $row;
+        }, $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
+    }
+
     /** @return array<string,mixed>|null */
     public function findPayment(int $paymentId): ?array
     {
@@ -184,6 +219,60 @@ final class InvoicePaymentService
     }
 
     /**
+     * Rekonciliace: naváže JIŽ EXISTUJÍCÍ platbu zaplacené faktury na bankovní
+     * transakci (sloučená úhrada zaplacených faktur). Použití: faktura už byla
+     * označená jako zaplacená (ručně/legacy/import) bez vazby na konkrétní platbu
+     * z výpisu, a uživatel teď páruje příchozí bankovní transakci k téhle faktuře.
+     *
+     * NEMĚNÍ paid_total ani stav faktury (jen doplní bank_transaction_id k existující
+     * platbě) — proto žádné dvojí zdanění/přeplacení. Vyžaduje PRÁVĚ JEDNU dosud
+     * nenavázanou platbu (bank_transaction_id IS NULL); 0 = faktura už je spárovaná
+     * s jinou transakcí, >1 = nejednoznačné (rekonciliaci proveď ručně). Tím je
+     * zaručeno, že nikdy neporušíme UNIQUE(bank_transaction_id, invoice_id).
+     *
+     * Musí běžet uvnitř transakce volajícího (faktura by měla být zamčená FOR UPDATE).
+     *
+     * @param array{variable_symbol?: ?string, bank_reference?: ?string} $opts
+     * @return array{payment_id: int, amount: float}
+     */
+    public function reconcileToBankTransaction(int $invoiceId, int $txId, array $opts = []): array
+    {
+        $pdo = $this->db->pdo();
+        $sel = $pdo->prepare(
+            'SELECT id, amount FROM invoice_payments
+              WHERE invoice_id = ? AND bank_transaction_id IS NULL
+           ORDER BY id'
+        );
+        $sel->execute([$invoiceId]);
+        $rows = $sel->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if (count($rows) === 0) {
+            throw new \RuntimeException(
+                'Faktura nemá nenavázanou platbu k rekonciliaci (je už spárovaná s jinou transakcí).'
+            );
+        }
+        if (count($rows) > 1) {
+            throw new \RuntimeException(
+                'Faktura má více nenavázaných plateb — rekonciliaci proveď ručně v detailu faktury.'
+            );
+        }
+        $paymentId = (int) $rows[0]['id'];
+        $pdo->prepare(
+            'UPDATE invoice_payments
+                SET bank_transaction_id = ?,
+                    variable_symbol = COALESCE(variable_symbol, ?),
+                    bank_reference  = COALESCE(bank_reference, ?)
+              WHERE id = ? AND bank_transaction_id IS NULL'
+        )->execute([
+            $txId,
+            self::trimOrNull($opts['variable_symbol'] ?? null, 20),
+            self::trimOrNull($opts['bank_reference'] ?? null, 120),
+            $paymentId,
+        ]);
+
+        return ['payment_id' => $paymentId, 'amount' => round((float) $rows[0]['amount'], 2)];
+    }
+
+    /**
      * Smaže platbu a přepočítá paid_total + status (může revertovat 'paid').
      *
      * Guardy (vynechatelné přes $skipBankGuard pro bank-unmatch flow, který maže
@@ -273,22 +362,40 @@ final class InvoicePaymentService
     }
 
     /**
-     * Smaže platbu navázanou na bankovní transakci (unmatch flow). No-op pokud
-     * žádná neexistuje (legacy match z dob před evidencí plateb).
+     * Odpojí/smaže platby navázané na bankovní transakci (unmatch flow). No-op pokud
+     * žádná neexistuje (legacy match z dob před evidencí plateb). U sloučené úhrady
+     * (jedna platba → více faktur, migrace 0119) je plateb víc.
      *
-     * @return bool true pokud platba existovala a byla smazána
+     * Dva režimy podle původu platby:
+     *   - `source = 'bank'` → platbu vytvořilo párování této transakce → SMAZAT
+     *     (přepočte paid_total, může revertovat 'paid');
+     *   - jiný source (legacy/manual/mark_paid) → platba existovala už PŘED párováním
+     *     (rekonciliace zaplacené faktury, viz reconcileToBankTransaction) → jen ODPOJIT
+     *     (vynulovat bank_transaction_id), platbu i paid_total ponechat. Jinak by unmatch
+     *     smazal reálnou předchozí úhradu a fakturu nesprávně vrátil na nezaplacenou.
+     *
+     * @return bool true pokud aspoň jedna platba existovala
      */
     public function deleteForBankTransaction(int $bankTransactionId): bool
     {
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT id FROM invoice_payments WHERE bank_transaction_id = ?'
+        $pdo = $this->db->pdo();
+        $stmt = $pdo->prepare(
+            'SELECT id, source FROM invoice_payments WHERE bank_transaction_id = ? ORDER BY id'
         );
         $stmt->execute([$bankTransactionId]);
-        $paymentId = $stmt->fetchColumn();
-        if ($paymentId === false) {
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if (!$rows) {
             return false;
         }
-        $this->deletePayment((int) $paymentId, skipBankGuard: true);
+        foreach ($rows as $r) {
+            if ((string) $r['source'] === 'bank') {
+                $this->deletePayment((int) $r['id'], skipBankGuard: true);
+            } else {
+                // Rekonciliovaná dříve existující platba → jen odpojit (paid_total beze změny).
+                $pdo->prepare('UPDATE invoice_payments SET bank_transaction_id = NULL WHERE id = ?')
+                    ->execute([(int) $r['id']]);
+            }
+        }
         return true;
     }
 

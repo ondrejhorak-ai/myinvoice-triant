@@ -365,6 +365,9 @@ const clientActions = computed<ActionItem[]>(() => {
     <RouterLink to="/clients" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('client.back_to_list') }}</RouterLink>
     <UiPageHeader :title="client.company_name">
       <template #below>
+        <div v-if="client.first_name || client.last_name" class="mt-0.5 text-sm text-neutral-600">
+          {{ [client.first_name, client.last_name].filter(Boolean).join(' ') }}
+        </div>
         <div class="mt-1 text-sm text-neutral-500 flex flex-wrap items-center gap-x-2">
           <span v-if="client.ic"><span>{{ t('common.ic') }}</span> <span class="font-mono">{{ client.ic }}</span></span>
           <span v-if="client.tax_number">· <span>{{ taxNumberLabel ?? t('common.tax_number') }}</span> <span class="font-mono">{{ client.tax_number }}</span></span>

@@ -75,6 +75,27 @@ Smoke test:
 
 ## Merge history
 
+### 2026-08-17 — upstream v4.54.0 (from v4.37.3)
+
+- **Branch:** `integration/upstream-v4.54.0` → merged to `master`
+- **Rollback branch:** `backup/pre-upstream-update-20260817`
+- **Conflicts resolved (18 files):**
+  - `Routes.php` — both `TriSidebarSettingsAction` and `SupplierInvoiceCounterAction`; `TriRoutes::register()` already at end
+  - `InvoiceRepository.php` — TRI `tri_job_*` hydrate + upstream `branding_profile_id`
+  - `Validation.php` / `openapi.yaml` — upstream: street/city/zip povinné, `main_email` nullable
+  - `router/index.ts` — upstream bank-accounts → `/bank` redirect + `admin-tri-settings` + `...triRoutes`
+  - `settings.ts` — upstream email preview `branding_profile_id` + TRI sidebar API
+  - `package.json` / `pnpm-lock.yaml` — upstream deps (Vue 3.5.40, Pinia 4, PHP image 8.5) + ponecháno `vuedraggable` (TRI tabulky)
+  - `cs.json` / `en.json` — upstream OSS / email_profiles / price_list + `tri_settings`
+  - `AppLayout.vue` — TRI drawer/logo/topbar/moduleId + skrytí locale/theme; upstream price-list, OSS, canWrite importy, session lock, MyÚčto patička; bankovní účty přesunuté pod Finance
+  - Core pages (Untitled restyle zachován, doplněné upstream funkce): InvoiceList (bulk PDF + FilterBar), InvoiceDetail (public viewed badge), InvoiceEditor (ceník položek), ClientForm (jméno + branding), ClientDetail (jméno)
+  - `README.md` — vzato z upstreamu (sekce nativní instalace)
+- **New upstream migrations:** `0115`–`0149` (OSS, branding profiles, passkeys/MFA, user_suppliers, price_list_items, public invoice links, email profiles, …).
+- **TRI adapter migrations:** `0114_tri_drop_supplier_fks.sql` + `0115_tri_widen_supplier_fks.sql` — upstream `0115` mění `supplier.id` TINYINT→INT; TRI FK by jinak ALTER zablokovaly. `9000_*` `supplier_id` sjednoceno na `INT UNSIGNED` pro čisté instalace.
+- **Sidebar `ALLOWED_MODULE_IDS` extended:** `price-list`, `reports-oss`. `bank-accounts` v menu Systém odstraněno (upstream přesunul banku pod Finance).
+- **Runtime:** PHP `^8.5` (Dockerfile `php:8.5-apache`).
+- **Poznámka:** WIP úpravy PDF nabídek byly před merge stashnuté (`WIP quote PDF before upstream 4.54 merge`).
+
 ### 2026-06-22 — upstream v4.37.3 (from v4.13.1)
 
 - **Branch:** `integration/upstream-v4.37.3` → merged to `master`

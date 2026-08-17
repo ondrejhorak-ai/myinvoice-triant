@@ -19,6 +19,17 @@ final class Validation
         if (empty($data['company_name']) || !is_string($data['company_name']) || trim($data['company_name']) === '') {
             $err['company_name'][] = 'Firma / jméno je povinné';
         }
+        if (empty($data['street']) || trim((string) $data['street']) === '') {
+            $err['street'][] = 'Ulice je povinná';
+        }
+        if (empty($data['city']) || trim((string) $data['city']) === '') {
+            $err['city'][] = 'Město je povinné';
+        }
+        if (empty($data['zip']) || trim((string) $data['zip']) === '') {
+            $err['zip'][] = 'PSČ je povinné';
+        }
+        // Hlavní e-mail je nepovinný (#221) — historické doklady ho často nemají.
+        // Když ale vyplněný je, musí být platný.
         $mainEmail = trim((string) ($data['main_email'] ?? ''));
         if ($mainEmail !== '' && !filter_var($mainEmail, FILTER_VALIDATE_EMAIL)) {
             $err['main_email'][] = 'Hlavní email musí být platný';

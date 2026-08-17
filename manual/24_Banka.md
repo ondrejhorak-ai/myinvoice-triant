@@ -13,7 +13,7 @@ spořitelna**, **mBank**, a další.
 > z IMAP schránky — hodí se, když banka posílá oznámení o příchozí platbě rychleji
 > než pravidelný výpis. Konfigurace bankovních účtů, IMAP schránek a parserů má
 > vlastní kapitolu [Bankovní účty a e-mailová avíza (IMAP)](37_Bankovni_ucty.md)
-> v sekci Systém.
+> — najdeš ji na dalších záložkách téže stránky **Finance → Bankovní účty**.
 
 ## 24.1 Stažení GPC výpisu z banky
 
@@ -32,9 +32,18 @@ na měsíc obvykle.
 
 ## 24.2 Upload výpisu do MyInvoice
 
-V hlavním menu **Banka → Nahrát výpis**.
+V hlavním menu **Finance → Bankovní účty**, záložka **Bankovní výpisy** →
+tlačítko **Nahrát GPC/ABO nebo PDF**.
 
 ![Upload výpisu](img/11_banka_upload.webp)
+
+> 💡 **PDF výpis místo GPC.** Některé banky GPC/ABO export nenabízejí (Banka
+> CREDITAS), případně ho konkrétní účet nemá zapnutý. Pro **Creditas, ČSOB, KB a Raiffeisenbank**
+> proto stačí nahrát rovnou **PDF výpis** — systém ho deterministicky rozparsuje
+> na transakce (bez AI) a ověří, že součet sedí na počáteční a konečný zůstatek
+> z hlavičky (na haléř přesně). Dál to funguje úplně stejně jako GPC — párování,
+> stavy účtů i originál ke stažení. Jeden soubor může být GPC/ABO nebo PDF,
+> rozhoduje přípona; naráz jde vybrat i mix obojího.
 
 Vyber soubor (drag & drop nebo klik). Po nahrání:
 
@@ -56,7 +65,7 @@ Importováno: 12 transakcí, spárováno: 8, k manuálnímu párování: 4.
 
 ## 24.3 Seznam výpisů
 
-**Banka → Výpisy** ukáže historii.
+Záložka **Bankovní výpisy** ukáže historii.
 
 | Sloupec | Význam |
 |---|---|
@@ -111,6 +120,34 @@ Pro transakce, které se nespárovaly automaticky (typicky chybí VS, nebo
 Zaeviduje se platba ve výši transakce — plné pokrytí označí fakturu `paid`
 (`paid_at` = datum transakce), nižší částka je částečná úhrada. Activity log:
 `bank.matched_manual`.
+
+#### Sloučená úhrada (jedna platba na více faktur)
+
+Když klient zaplatí **víc vystavených faktur jednou platbou** (součet sedí, ale
+variabilní symbol odpovídá jen jedné faktuře — nebo žádné), nabídne modal pod
+vyhledávačem sekci **Sloučená úhrada**. MyInvoice sám hledá **kombinace faktur
+téhož klienta**, jejichž **součet odpovídá částce platby**, ve výchozím okně
+**±7 dní** kolem data platby. Klient se jménem podobným protistraně se nabízí
+první.
+
+1. Klik **Spárovat** → v sekci **Sloučená úhrada** se zobrazí návrhy kombinací
+   (klient, jednotlivé faktury s částkami a datem, celkový součet).
+2. U správné kombinace klik **Spárovat (N faktur)**.
+3. Každá faktura se uhradí svým **plným zbytkem** a označí jako zaplacená;
+   zálohové faktury dostanou koncept finálního dokladu jako u běžné úhrady.
+
+Pomůcky:
+
+- **Hledat v širším okně** — když faktury vystavené dál od sebe (např. ±14 dní),
+  rozšiř okno tlačítkem nad návrhy.
+- **Vyber fakturu a dohledej zbytek** — pokud víš o jedné faktuře, která do platby
+  patří, vyber ji v našeptávači; návrhy se omezí na kombinace, které ji obsahují.
+
+Omezení (záměrná, kvůli správnosti): kombinace jdou jen v rámci **jednoho klienta**
+a součet musí **odpovídat částce platby** (sloučená úhrada = uhradit všechny vybrané
+faktury celé; není to rozpouštění jedné platby na částečné úhrady). Zrušení
+spárování (§ 24.5) smaže **všechny** platby té transakce a vrátí všechny faktury
+zpět mezi pohledávky. Activity log: `bank.tx_manual_match_split`.
 
 ### 24.4.3 Ignorovat transakci
 

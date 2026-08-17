@@ -84,6 +84,19 @@ export interface LinkSearchResult {
 
 export interface TagInfo { id: number; name: string; usage_count: number }
 
+/** Položka přeskočeného/chybného souboru při uploadu (name = cesta v ZIP/složce, reason = kód). */
+export interface UploadSkip {
+  name: string
+  reason: string
+}
+
+/** Výsledek synchronního uploadu — kolik vzniklo + co se nenahrálo. */
+export interface UploadResult {
+  created: number
+  skipped: UploadSkip[]
+  errors: UploadSkip[]
+}
+
 export interface DocJob {
   id: number
   source: 'document_zip_import' | 'document_zip_export'
@@ -173,7 +186,7 @@ export const documentsApi = {
     if (opts.folderId != null) fd.append('folder_id', String(opts.folderId))
     fd.append('zip_mode', opts.zipMode ?? 'keep')
     if (opts.relpaths) for (const p of opts.relpaths) fd.append('relpaths[]', p)
-    return api.post<{ created: number; skipped: unknown[]; errors: unknown[] }>('/documents', fd, {
+    return api.post<UploadResult>('/documents', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (e) => {
         if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100))
@@ -223,7 +236,8 @@ export const documentsApi = {
   uploadFinish: (jobId: number) =>
     api.post<{ job_id: number }>('/documents/upload/finish', { job_id: jobId }).then(r => r.data),
 
-  jobs: () => api.get<{ jobs: DocJob[] }>('/documents/jobs').then(r => r.data.jobs),
+  jobs: (signal?: AbortSignal) =>
+    api.get<{ jobs: DocJob[] }>('/documents/jobs', { signal }).then(r => r.data.jobs),
   job: (id: number) => api.get<DocJob>(`/documents/jobs/${id}`).then(r => r.data),
   cancelJob: (id: number) => api.post<{ ok: boolean }>(`/documents/jobs/${id}/cancel`).then(r => r.data),
   deleteJob: (id: number) => api.delete<{ ok: boolean }>(`/documents/jobs/${id}`).then(r => r.data),

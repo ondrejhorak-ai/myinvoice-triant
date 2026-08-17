@@ -54,6 +54,7 @@ final class RecurringInvoiceGenerator
         private readonly InvoicePdfRenderer $pdfRenderer,
         private readonly StatsRecomputer $stats,
         private readonly ActivityLogger $logger,
+        private readonly RecurringPriceListService $priceList,
     ) {}
 
     /**
@@ -78,20 +79,6 @@ final class RecurringInvoiceGenerator
         // Validate state — paused/expired by neměl cron volat, ale RunNow může
         if ($template['status'] === 'expired') {
             throw new \DomainException('Šablona vypršela (end_date prošel).');
-        }
-
-        // Pre-flight check částky k úhradě — vyhodnotíme stejnou matematikou jako
-        // recompute, ale BEZ DB zápisu. Tím se vyhneme orphan draftu, kdyby
-        // generator spadl mezi insertem a delete-on-fail.
-        $amountError = InvoiceAmountPolicy::validatePositiveAmountToPay([
-            'invoice_type' => (string) ($template['invoice_type'] ?? 'invoice'),
-            'advance_paid_amount' => 0,
-            'reverse_charge' => !empty($template['reverse_charge']),
-            'discount_percent' => (float) ($template['discount_percent'] ?? 0),
-            'items' => $template['items'],
-        ], $this->invoices->vatRateMap());
-        if ($amountError !== null) {
-            throw new \DomainException($amountError);
         }
 
         $invoiceId = $this->createInvoiceFromTemplate($template, $issueDate, $userId);
@@ -139,7 +126,8 @@ final class RecurringInvoiceGenerator
      * issue_date i tax_date se nastaví na PLÁNOVANÝ konec období (next_run_date),
      * takže koncept od začátku nese správné datum vystavení i DUZP. Uživatel pak
      * celý měsíc edituje výkaz práce na tomto konceptu; cron ho v issuePeriod()
-     * v den next_run_date uzavře.
+     * uzavře až DEN PO next_run_date (aby se stihla zapsat i práce z posledního dne
+     * období) — datum vystavení i DUZP přitom zůstávají na next_run_date (konec období).
      *
      * Idempotentní: pokud už pro období existuje faktura (draft i vystavená),
      * vrátí ji bez vytvoření nové.
@@ -166,17 +154,6 @@ final class RecurringInvoiceGenerator
         $existing = $this->templates->findPeriodInvoice($templateId, $issueDate);
         if ($existing !== null) {
             return ['invoice_id' => (int) $existing['id'], 'created' => false];
-        }
-
-        $amountError = InvoiceAmountPolicy::validatePositiveAmountToPay([
-            'invoice_type' => (string) ($template['invoice_type'] ?? 'invoice'),
-            'advance_paid_amount' => 0,
-            'reverse_charge' => !empty($template['reverse_charge']),
-            'discount_percent' => (float) ($template['discount_percent'] ?? 0),
-            'items' => $template['items'],
-        ], $this->invoices->vatRateMap());
-        if ($amountError !== null) {
-            throw new \DomainException($amountError);
         }
 
         $invoiceId = $this->createInvoiceFromTemplate($template, $issueDate, $userId);
@@ -234,16 +211,6 @@ final class RecurringInvoiceGenerator
                 $invoiceId = (int) $existing['id'];
             } else {
                 // openDraft neproběhl — vytvoř fakturu teď (fallback / draft_open_mode přepnut pozdě).
-                $amountError = InvoiceAmountPolicy::validatePositiveAmountToPay([
-                    'invoice_type' => (string) ($template['invoice_type'] ?? 'invoice'),
-                    'advance_paid_amount' => 0,
-                    'reverse_charge' => !empty($template['reverse_charge']),
-                    'discount_percent' => (float) ($template['discount_percent'] ?? 0),
-                    'items' => $template['items'],
-                ], $this->invoices->vatRateMap());
-                if ($amountError !== null) {
-                    throw new \DomainException($amountError);
-                }
                 $invoiceId = $this->createInvoiceFromTemplate($template, $issueDate, $userId);
             }
             $this->calc->recompute($invoiceId);
@@ -344,6 +311,27 @@ final class RecurringInvoiceGenerator
             ? null
             : self::computeTaxDate($issueDate, (string) ($template['tax_date_mode'] ?? 'same_as_issue'));
 
+        $template['items'] = $this->priceList->resolveForGeneration(
+            $template['items'],
+            (int) $template['supplier_id'],
+            (int) $template['client_id'],
+            (int) $template['currency_id'],
+            !empty($template['prices_include_vat']),
+            new \DateTimeImmutable($taxDate ?? $issueDate),
+        );
+
+        // Pre-flight nad efektivními ceníkovými cenami, ještě před DB zápisem.
+        $amountError = InvoiceAmountPolicy::validatePositiveAmountToPay([
+            'invoice_type' => $type,
+            'advance_paid_amount' => 0,
+            'reverse_charge' => !empty($template['reverse_charge']),
+            'discount_percent' => (float) ($template['discount_percent'] ?? 0),
+            'items' => $template['items'],
+        ], $this->invoices->vatRateMap());
+        if ($amountError !== null) {
+            throw new \DomainException($amountError);
+        }
+
         // Neplátce DPH → položky se přepnou na 0% osvobozenou sazbu (stejně jako u ručně
         // vystavené faktury, viz InvoiceEditor.defaultVatRateId). Autoritativní záchrana i
         // pro šablony uložené dřív s nominální sazbou (21 %) — bez toho by cron tiše vystavil
@@ -390,17 +378,18 @@ final class RecurringInvoiceGenerator
                 );
             $stmt = $pdo->prepare(
                 'INSERT INTO invoices
-                   (invoice_type, client_id, project_id, supplier_id,
+                   (invoice_type, client_id, project_id, supplier_id, branding_profile_id,
                     issue_date, tax_date, due_date, currency_id, reverse_charge, prices_include_vat, language,
                     note_above_items, note_below_items, payment_method, discount_percent,
                     recurring_template_id, revenue_category_id, status, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "draft", ?)'
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "draft", ?)'
             );
             $stmt->execute([
                 $type,
                 (int) $template['client_id'],
                 $projectId,
                 (int) $template['supplier_id'],
+                isset($template['branding_profile_id']) ? (int) $template['branding_profile_id'] : null,
                 $issueDate,
                 $taxDate,
                 $dueDate,
@@ -516,6 +505,7 @@ final class RecurringInvoiceGenerator
             (int) $invoice['client_id'],
             (int) $invoice['currency_id'],
             $supplierId,
+            isset($invoice['branding_profile_id']) ? (int) $invoice['branding_profile_id'] : null,
         );
 
         $this->db->pdo()->prepare(

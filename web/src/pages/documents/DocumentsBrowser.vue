@@ -4,9 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
-import { onUnmounted } from 'vue'
+import { useSessionAwarePolling } from '@/composables/useSessionAwarePolling'
 import {
   documentsApi, type DocItem, type DocFolder, type BreadcrumbItem, type DocJob, type TagInfo,
+  type UploadSkip,
 } from '@/api/documents'
 import { docTypeBadge, formatBytes } from '@/components/documents/docFormat'
 import TagInput from '@/components/documents/TagInput.vue'
@@ -71,7 +72,7 @@ const folderInput = ref<HTMLInputElement | null>(null)
 
 // background jobs (ZIP import/export)
 const jobs = ref<DocJob[]>([])
-let jobTimer: ReturnType<typeof setInterval> | null = null
+const jobsPollingEnabled = ref(true)
 const anyJobActive = computed(() => jobs.value.some(j => j.status === 'queued' || j.status === 'running'))
 
 // move modal
@@ -299,15 +300,22 @@ async function emptyTrash() {
 }
 
 // ───── upload ─────
-async function loadJobs() {
+async function loadJobs(signal?: AbortSignal) {
   try {
     const prev = jobs.value
-    jobs.value = await documentsApi.jobs()
+    jobs.value = await documentsApi.jobs(signal)
     for (const j of jobs.value) {
       const old = prev.find(p => p.id === j.id)
       if (old && (old.status === 'queued' || old.status === 'running') && old.status !== j.status) {
         if (j.status === 'completed') {
-          toast.success(t('documents.job_done'))
+          // Job neeviduje názvy přeskočených souborů, jen počty — ukaž souhrn,
+          // ať uživatel ví, že se ne všechno nahrálo (např. spustitelné/nepodporované).
+          const notUploaded = (j.skipped_count || 0) + (j.failed_count || 0)
+          if (notUploaded > 0 && j.source !== 'document_zip_export') {
+            toast.warning(t('documents.job_done_skipped', { created: j.created_count, skipped: notUploaded }))
+          } else {
+            toast.success(t('documents.job_done'))
+          }
           // Po importu (ZIP/složka/velký soubor) obnov výpis + tagy; export jen ke stažení.
           if (j.source !== 'document_zip_export') { loadListing(); loadTags() }
         } else if (j.status === 'failed') {
@@ -316,12 +324,10 @@ async function loadJobs() {
       }
     }
   } catch { /* keep */ }
-  syncPolling()
+  jobsPollingEnabled.value = anyJobActive.value
 }
-function syncPolling() {
-  if (anyJobActive.value && !jobTimer) jobTimer = setInterval(loadJobs, 2000)
-  else if (!anyJobActive.value && jobTimer) { clearInterval(jobTimer); jobTimer = null }
-}
+
+useSessionAwarePolling(signal => loadJobs(signal), 2000, jobsPollingEnabled)
 async function cancelJob(j: DocJob) {
   await documentsApi.cancelJob(j.id)
   loadJobs()
@@ -378,6 +384,23 @@ async function chunkedFolderImport(files: { file: File; path: string }[]) {
   await documentsApi.uploadFinish(job_id)
 }
 
+// Lokalizovaný důvod přeskočení (fallback na obecné „nenahráno").
+function reasonLabel(code: string): string {
+  const key = `documents.skip_reason.${code}`
+  const label = t(key)
+  return label === key ? t('documents.skip_reason.unknown') : label
+}
+// Upozorni uživatele, které soubory se nenahrály (a proč) — varovný toast se seznamem.
+function reportSkipped(items: UploadSkip[]) {
+  if (!items.length) return
+  const head = items.length === 1
+    ? t('documents.upload_skipped_one')
+    : t('documents.upload_skipped_many', { n: items.length })
+  const shown = items.slice(0, 8).map(s => `• ${s.name} — ${reasonLabel(s.reason)}`)
+  if (items.length > 8) shown.push(t('documents.upload_skipped_more', { n: items.length - 8 }))
+  toast.warning(`${head}\n${shown.join('\n')}`)
+}
+
 async function uploadFiles(files: { file: File; path: string }[]) {
   if (files.length === 0) return
   uploading.value = true
@@ -416,7 +439,8 @@ async function uploadFiles(files: { file: File; path: string }[]) {
         { folderId: folderId.value, zipMode: zipMode.value, relpaths: files.map(f => f.path) },
         pct => { uploadPct.value = pct },
       )
-      toast.success(t('documents.upload_done', { n: r.created }))
+      if (r.created > 0) toast.success(t('documents.upload_done', { n: r.created }))
+      reportSkipped([...r.skipped, ...r.errors])
       await loadListing()
     }
     if (usedJob) { toast.success(t('documents.upload_job_started')); await loadJobs() }
@@ -487,9 +511,8 @@ function walkEntry(entry: any, parentPath: string, out: { file: File; path: stri
 
 onMounted(() => {
   canHover.value = window.matchMedia('(hover: hover)').matches
-  trashMode.value ? loadTrash() : loadListing(); loadJobs(); loadTags()
+  trashMode.value ? loadTrash() : loadListing(); loadTags()
 })
-onUnmounted(() => { if (jobTimer) clearInterval(jobTimer) })
 </script>
 
 <template>

@@ -14,6 +14,8 @@ import ThemeToggle from './ThemeToggle.vue'
 import TriTopbarNav from './tri/TriTopbarNav.vue'
 import TriLogo from './tri/TriLogo.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import { useSessionSecurityStore } from '@/stores/sessionSecurity'
+import { useToast } from '@/composables/useToast'
 
 const { t, locale } = useI18n()
 function setLocale(l: 'cs' | 'en') {
@@ -25,17 +27,34 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const supplierStore = useSupplierStore()
+const sessionSecurity = useSessionSecurityStore()
+const toast = useToast()
 
 const mobileOpen = ref(false)
 const quickOpen = ref(false)
 const supportOpen = ref(false)
-const featureOpen = ref(false)
+const myuctoOpen = ref(false)
 const accountantSigningProfilesEnabled = ref(false)
+const logoutBusy = ref(false)
+const canLockSession = computed(() => sessionSecurity.state?.session_state === 'active'
+  && sessionSecurity.state.unlock_methods.includes('passkey'))
 let signingSettingsRequest = 0
 
 async function logout() {
-  await auth.logout()
-  router.push('/login')
+  if (logoutBusy.value) return
+  logoutBusy.value = true
+  try {
+    await auth.logout()
+    sessionSecurity.clear()
+    mobileOpen.value = false
+    await router.replace('/login')
+  } catch {
+    sessionSecurity.markLocked()
+    sessionSecurity.error = 'logout_failed'
+    toast.error(t('auth.logout_failed'))
+  } finally {
+    logoutBusy.value = false
+  }
 }
 
 async function loadAccountantSigningMenu() {
@@ -87,6 +106,7 @@ const ICONS = {
   invoices:   'M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z',
   proforma:   'M2.25 8.25h19.5M2.25 9v6.75A2.25 2.25 0 0 0 4.5 18h15a2.25 2.25 0 0 0 2.25-2.25V9A2.25 2.25 0 0 0 19.5 6.75h-15A2.25 2.25 0 0 0 2.25 9zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0z',
   recurring:  'M4 4v5h5M4 9a8 8 0 0 1 14.13-4.06M20 20v-5h-5M20 15a8 8 0 0 1-14.13 4.06',
+  price_list: 'M4 6h16M4 12h16M4 18h16M7 4v4M13 10v4M17 16v4',
   purchase:   'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0z',
   bank:       'M3 9l9-7 9 7m-2 0v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9m4 11V13h4v7',
   stats:      'M3 3v18h18M7 14l4-4 4 4 5-5',
@@ -130,8 +150,13 @@ const ICONS = {
 
 const navSections = computed<NavSection[]>(() => {
   const isAdmin = auth.user?.role === 'admin'
+  // Import dokladů smí i účetní (readonly ne) — konfigurace integrací zůstává admin-only.
+  const canWrite = auth.canWrite
   // Daňový optimalizátor (paušál vs standardní režim) je jen pro OSVČ (fyzická osoba).
   const isOsvc = supplierStore.currentSupplier?.taxpayer_type === 'fo'
+  // OSS se nabízí až po registraci do režimu (Nastavení → firma). Default je vypnuto,
+  // takže drtivá většina firem OSS v menu vůbec neuvidí.
+  const ossEnabled = supplierStore.currentSupplier?.oss_enabled === true
   const sections: NavSection[] = [
     { items: [{ moduleId: 'dashboard', to: '/', label: t('nav.dashboard'), icon: ICONS.dashboard }] },
     {
@@ -142,12 +167,13 @@ const navSections = computed<NavSection[]>(() => {
       items: [
         { moduleId: 'invoices', to: '/invoices', label: t('nav.invoices'), icon: ICONS.invoices, newTo: '/invoices/new' },
         { moduleId: 'recurring', to: '/recurring', label: t('nav.recurring'), icon: ICONS.recurring, newTo: '/recurring/new' },
+        ...(isAdmin ? [{ moduleId: 'price-list', to: '/admin/price-list', label: t('nav.price_list'), icon: ICONS.price_list }] : []),
         { moduleId: 'clients', to: '/clients', label: t('nav.clients'), icon: ICONS.clients, newTo: '/clients/new' },
         { moduleId: 'projects', to: '/projects', label: t('nav.projects'), icon: ICONS.projects },
         ...(isAdmin ? [{ moduleId: 'approvals', to: '/admin/approvals', label: t('nav.approvals'), icon: ICONS.approvals }] : []),
         // Export vidí všichni vč. readonly (export dat = čtení), daňové výkazy taktéž (sekce Daně níže).
         { moduleId: 'exports', to: '/admin/export', label: t('nav.exports'), icon: ICONS.exports },
-        ...(isAdmin ? [{ moduleId: 'imports-issued', to: '/admin/import?tab=issued', label: t('nav.imports_issued'), icon: ICONS.imports }] : []),
+        ...(canWrite ? [{ moduleId: 'imports-issued', to: '/admin/import?tab=issued', label: t('nav.imports_issued'), icon: ICONS.imports }] : []),
       ],
     },
     {
@@ -158,7 +184,7 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'vendors', to: '/clients?role=vendors', label: t('nav.vendors'), icon: ICONS.suppliers, newTo: '/clients/new?role=vendor' },
         { moduleId: 'payment-orders', to: '/purchase-invoices/payment-orders', label: t('nav.payment_orders'), icon: ICONS.payment_orders },
         { moduleId: 'purchase-export', to: '/purchase-invoices/export', label: t('nav.purchase_export'), icon: ICONS.exports },
-        ...(isAdmin ? [{ moduleId: 'imports-purchase', to: '/admin/import?tab=purchase', label: t('nav.imports_purchase'), icon: ICONS.imports }] : []),
+        ...(canWrite ? [{ moduleId: 'imports-purchase', to: '/admin/import?tab=purchase', label: t('nav.imports_purchase'), icon: ICONS.imports }] : []),
         ...(isAdmin ? [{ moduleId: 'ai-import', to: '/admin/integrations?tab=ai', label: t('nav.ai_import'), icon: ICONS.ai }] : []),
       ],
     },
@@ -169,7 +195,8 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'crm', to: '/crm', label: t('nav.crm'), icon: ICONS.crm },
         { moduleId: 'stats', to: '/stats', label: t('nav.stats'), icon: ICONS.stats },
         { moduleId: 'purchase-stats', to: '/purchase-stats', label: t('nav.purchase_stats'), icon: ICONS.purchase },
-        { moduleId: 'bank', to: '/bank', label: t('nav.bank'), icon: ICONS.bank },
+        // Sjednocená stránka: výpisy + měny/účty + stavy + avíza (bývalé Systém → Bankovní účty).
+        { moduleId: 'bank', to: '/bank', label: t('nav.bank_accounts'), icon: ICONS.bank },
       ],
     },
     {
@@ -203,6 +230,7 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'reports-shv', to: '/reports/shv', label: t('nav.reports_shv'), icon: ICONS.tax_shv },
         { moduleId: 'reports-income-tax', to: '/reports/income-tax', label: t('nav.reports_income_tax'), icon: ICONS.tax_income },
         ...(isOsvc ? [{ moduleId: 'tax-optimizer', to: '/tax', label: t('nav.tax_optimizer'), icon: ICONS.tax_optimizer }] : []),
+        ...(ossEnabled ? [{ moduleId: 'reports-oss', to: '/reports/oss', label: t('nav.reports_oss'), icon: ICONS.tax_shv }] : []),
         { moduleId: 'reports-submissions', to: '/reports/submissions', label: t('nav.reports_submissions'), icon: ICONS.tax_archive },
         { moduleId: 'reports-monthly-export', to: '/reports/monthly-export', label: t('nav.reports_monthly_export'), icon: ICONS.exports },
       ],
@@ -217,7 +245,6 @@ const navSections = computed<NavSection[]>(() => {
       accent: 'neutral',
       items: [
         { moduleId: 'settings', to: '/admin/settings', label: t('nav.settings'), icon: ICONS.settings },
-        { moduleId: 'bank-accounts', to: '/admin/bank-accounts', label: t('nav.bank_accounts'), icon: ICONS.bank },
         { moduleId: 'codebooks', to: '/admin/codebooks', label: t('nav.codebooks'), icon: ICONS.codebooks },
         { moduleId: 'users', to: '/admin/users', label: t('nav.users'), icon: ICONS.users },
         { moduleId: 'emails', to: '/admin/emails', label: t('nav.emails'), icon: ICONS.email },
@@ -282,43 +309,53 @@ const visibleNavSections = computed<NavSection[]>(() => {
     .filter((section) => section.items.length > 0)
 })
 
-function isActive(to: string): boolean {
+/**
+ * „Pokrývá" URL (path + případná query) současnou route?
+ * Path musí sedět přesně nebo jako rodič skutečného child segmentu — prostý
+ * startsWith by matchoval i sourozence se stejným prefixem (např. /reports/dph
+ * by matchoval /reports/dph-book). Query klíče z URL musí všechny sedět
+ * s route.query; `queried` říká, že shoda vznikla i přes query (= specifičtější).
+ */
+function urlCoversRoute(url: string): { covers: boolean; queried: boolean } {
+  const [path, qs] = url.split('?', 2)
+  if (route.path !== path && !route.path.startsWith(path + '/')) return { covers: false, queried: false }
+  if (!qs) return { covers: true, queried: false }
+  for (const [k, v] of new URLSearchParams(qs)) {
+    if (String(route.query[k] ?? '') !== v) return { covers: false, queried: false }
+  }
+  return { covers: true, queried: true }
+}
+
+/**
+ * Kandidátní URL položky menu: `to` + případné `newTo`. Formulář „nový" patří
+ * vizuálně k témuž itemu — /clients/new?role=vendor jsou „Dodavatelé", ne
+ * „Klienti". Hodnoty query se u seznamu a formuláře liší záměrně (seznam
+ * filtruje přes role=vendors, formulář dostává default přes role=vendor,
+ * viz ClientList vs ClientForm), takže samotné `to` na match nestačí.
+ */
+function itemUrls(item: { to: string; newTo?: string }): string[] {
+  return item.newTo ? [item.to, item.newTo] : [item.to]
+}
+
+function isActive(item: NavItem): boolean {
+  const to = item.to
   if (to === '/') return route.path === '/'
   // /admin/suppliers je nyní dostupné jako první tab v Codebooks → aktivuje Codebooks položku
   if (to === '/admin/codebooks' && route.path.startsWith('/admin/suppliers')) return true
 
-  // Split `to` na path + query (pokud má query — např. /clients?role=vendors)
-  const [toPath, toQs] = to.split('?', 2)
+  const [toPath] = to.split('?', 2)
 
-  // Pokud současná route NEMÁ stejný path nebo child path — určitě není aktivní.
-  // Pozor: prostý startsWith by matchoval i sourozence se stejným prefixem
-  // (např. /reports/dph by matchoval /reports/dph-book), proto vyžadujeme
-  // přesnou shodu NEBO následující `/` (skutečný child segment).
-  if (route.path !== toPath && !route.path.startsWith(toPath + '/')) return false
+  const matches = itemUrls(item).map(urlCoversRoute)
+  if (!matches.some(m => m.covers)) return false
 
-  // Pokud item má query, musí se shodovat key-by-key s current route query.
-  if (toQs) {
-    const params = new URLSearchParams(toQs)
-    for (const [k, v] of params) {
-      if (String(route.query[k] ?? '') !== v) return false
-    }
-    return true
-  }
-
-  // Item NEMÁ query — pokud current route má query a existuje JINÝ item se stejným path
-  // a matchujícím query, ten druhý je aktivní, tento ne (např. /clients vs /clients?role=vendors).
-  if (Object.keys(route.query).length > 0) {
+  // Match bez query shody prohrává s itemem, který route pokrývá včetně query —
+  // ať už přes `to` (/clients vs /clients?role=vendors na seznamu dodavatelů),
+  // nebo přes `newTo` (/clients vs /clients/new?role=vendor na formuláři).
+  if (!matches.some(m => m.queried)) {
     for (const section of navSections.value) {
       for (const it of section.items) {
         if (it.to === to) continue
-        const [iPath, iQs] = it.to.split('?', 2)
-        if (iPath !== toPath || !iQs) continue
-        const iParams = new URLSearchParams(iQs)
-        let match = true
-        for (const [k, v] of iParams) {
-          if (String(route.query[k] ?? '') !== v) { match = false; break }
-        }
-        if (match) return false
+        if (itemUrls(it).some(u => urlCoversRoute(u).queried)) return false
       }
     }
   }
@@ -463,9 +500,17 @@ onMounted(async () => {
 
           <!-- Odhlásit (desktop) -->
           <UiButton
+            v-if="canLockSession"
             variant="ghost"
             size="sm"
             class="hidden sm:inline-flex"
+            @click="sessionSecurity.lock"
+          >{{ t('session_lock.lock_now') }}</UiButton>
+          <UiButton
+            variant="ghost"
+            size="sm"
+            class="hidden sm:inline-flex"
+            :disabled="logoutBusy"
             @click="logout"
           >{{ t('nav.logout') }}</UiButton>
 
@@ -557,7 +602,7 @@ onMounted(async () => {
                   exact-active-class=""
                   class="flex items-center gap-3 h-10 px-3 rounded-lg text-sm transition-colors leading-tight"
                   :class="[
-                    isActive(item.to)
+                    isActive(item)
                       ? 'bg-primary-50 text-primary-700 font-medium'
                       : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100',
                     item.newTo && auth.canWrite ? 'pr-9' : '',
@@ -608,13 +653,20 @@ onMounted(async () => {
           <span v-else class="text-xs text-neutral-400">v{{ versionInfo.current }}</span>
         </div>
 
-        <!-- Mobile only: uživatel + jazyk + odhlásit (na dně sidebaru) -->
+        <!-- Mobile only: profil + ovládání relace (na dně sidebaru) -->
         <div class="lg:hidden border-t border-neutral-200 px-4 py-3 bg-neutral-50 space-y-3">
           <div class="flex items-center justify-between">
-            <div class="text-sm">
-              <div class="font-medium text-neutral-900">{{ auth.user?.name }}</div>
-              <div class="text-xs text-neutral-500">{{ auth.user?.email }} · {{ auth.user?.role }}</div>
-            </div>
+            <RouterLink
+              to="/profile/password"
+              @click="mobileOpen = false"
+              class="group min-w-0 flex-1 rounded-md -ml-2 px-2 py-1.5 text-sm hover:bg-surface"
+              :title="t('auth.profile_title')"
+            >
+              <div class="truncate font-medium text-neutral-900 group-hover:text-primary-700 group-hover:underline">
+                {{ auth.user?.name }}
+              </div>
+              <div class="truncate text-xs text-neutral-500">{{ auth.user?.email }} · {{ auth.user?.role }}</div>
+            </RouterLink>
             <a
               href="/manual" target="_blank" rel="noopener"
               class="inline-flex w-9 h-9 items-center justify-center rounded-md text-neutral-600 hover:bg-surface"
@@ -657,9 +709,17 @@ onMounted(async () => {
                 </svg>
               </button>
             </div>
+          </div>
+          <div class="grid gap-2" :class="canLockSession ? 'grid-cols-2' : 'grid-cols-1'">
+            <button
+              v-if="canLockSession"
+              @click="sessionSecurity.lock"
+              class="cursor-pointer w-full px-2 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface"
+            >{{ t('session_lock.lock_now') }}</button>
             <button
               @click="logout"
-              class="cursor-pointer px-4 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface"
+              :disabled="logoutBusy"
+              class="cursor-pointer w-full px-2 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface disabled:opacity-60"
             >{{ t('nav.logout') }}</button>
           </div>
         </div>
@@ -686,9 +746,13 @@ onMounted(async () => {
           <span aria-hidden="true">·</span>
           <button type="button" @click="supportOpen = true"
                   class="cursor-pointer text-primary-600 hover:text-primary-700 font-medium">{{ t('support.author_link') }}</button>
-          <span aria-hidden="true">·</span>
-          <button type="button" @click="featureOpen = true"
-                  class="cursor-pointer text-primary-600 hover:text-primary-700 font-medium">{{ t('support.feature_link') }}</button>
+          <button type="button" @click="myuctoOpen = true"
+                  class="cursor-pointer ml-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary-600 text-white text-xs font-semibold shadow-sm hover:bg-primary-700 hover:shadow transition-colors">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+            <span>{{ t('support.myucto_link') }}</span>
+          </button>
           </div>
         </footer>
       </div>
@@ -732,25 +796,45 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- ── MODÁL: Chcete jinou funkci? ── -->
-    <div v-if="featureOpen" class="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto"
-         @click.self="featureOpen = false">
-      <div class="bg-surface rounded-xl shadow-lg max-w-md w-full my-8">
+    <!-- ── MODÁL: MyÚčto ── -->
+    <div v-if="myuctoOpen" class="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto"
+         @click.self="myuctoOpen = false">
+      <div class="bg-surface rounded-xl shadow-lg max-w-lg w-full my-8">
         <header class="px-5 py-4 border-b border-neutral-200 flex items-baseline justify-between gap-3">
-          <h3 class="text-lg font-semibold">{{ t('support.feature_title') }}</h3>
-          <button @click="featureOpen = false" class="cursor-pointer text-neutral-400 hover:text-neutral-700 text-2xl leading-none">&times;</button>
+          <h3 class="text-lg font-semibold">{{ t('support.myucto_title') }}</h3>
+          <button @click="myuctoOpen = false" class="cursor-pointer text-neutral-400 hover:text-neutral-700 text-2xl leading-none">&times;</button>
         </header>
         <div class="p-5 space-y-3 text-sm text-neutral-700">
-          <p>{{ t('support.feature_intro') }}</p>
-          <p>{{ t('support.feature_text') }}</p>
-          <p class="rounded-md bg-primary-50 border border-primary-500/30 text-primary-800 font-medium px-3 py-2.5">{{ t('support.feature_text2') }}</p>
-          <p class="text-xs text-neutral-500 border-t border-neutral-200 pt-3">{{ t('support.feature_highlights') }}</p>
+          <p>{{ t('support.myucto_intro') }}</p>
+          <p class="rounded-md bg-primary-50 border border-primary-500/30 text-primary-800 font-medium px-3 py-2.5">{{ t('support.myucto_free') }}</p>
+          <div>
+            <p class="font-medium text-neutral-800 mb-1.5">{{ t('support.myucto_better_title') }}</p>
+            <ul class="space-y-1 list-disc pl-5">
+              <li>{{ t('support.myucto_better_ui') }}</li>
+              <li>{{ t('support.myucto_better_ai') }}</li>
+              <li>{{ t('support.myucto_better_mcp') }}</li>
+              <li>{{ t('support.myucto_better_docs') }}</li>
+              <li>{{ t('support.myucto_better_vat') }}</li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-medium text-neutral-800 mb-1.5">{{ t('support.myucto_paid_title') }}</p>
+            <p>{{ t('support.myucto_paid_text') }}</p>
+          </div>
+          <p class="text-xs text-neutral-500 border-t border-neutral-200 pt-3">{{ t('support.myucto_highlights') }}</p>
         </div>
-        <footer class="px-5 py-4 border-t border-neutral-200 flex justify-end gap-2">
-          <button @click="featureOpen = false"
+        <footer class="px-5 py-4 border-t border-neutral-200 flex flex-wrap justify-end gap-2">
+          <button @click="myuctoOpen = false"
                   class="cursor-pointer px-4 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface">{{ t('support.close') }}</button>
-          <a href="https://mywebdesign.cz/#kontakt" target="_blank" rel="noopener" @click="featureOpen = false"
-             class="cursor-pointer px-4 h-9 inline-flex items-center text-sm rounded-md bg-primary-600 hover:bg-primary-700 text-white font-medium">{{ t('support.feature_cta') }}</a>
+          <a href="https://github.com/radekhulan/myucto" target="_blank" rel="noopener" @click="myuctoOpen = false"
+             class="cursor-pointer px-4 h-9 inline-flex items-center gap-1.5 text-sm rounded-md border border-neutral-300 text-neutral-700 hover:bg-surface font-medium">
+            <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <span>{{ t('support.myucto_github') }}</span>
+          </a>
+          <a href="https://myucto.cz/" target="_blank" rel="noopener" @click="myuctoOpen = false"
+             class="cursor-pointer px-4 h-9 inline-flex items-center text-sm rounded-md bg-primary-600 hover:bg-primary-700 text-white font-medium">{{ t('support.myucto_cta') }}</a>
         </footer>
       </div>
     </div>

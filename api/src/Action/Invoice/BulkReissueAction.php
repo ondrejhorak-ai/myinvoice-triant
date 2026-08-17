@@ -10,6 +10,7 @@ use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Middleware\AuthMiddleware;
 use MyInvoice\Repository\InvoiceRepository;
 use MyInvoice\Service\ActivityLogger;
+use MyInvoice\Service\Invoice\DueDateCalculator;
 use MyInvoice\Service\Invoice\InvoiceCalculator;
 use MyInvoice\Service\IpMatcher;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -103,37 +104,50 @@ final class BulkReissueAction
 
         $type = $source['invoice_type'] === 'proforma' ? 'proforma' : 'invoice';
 
-        // Splatnost: stejná priorita jako u nové faktury (InvoiceDefaults::apply) —
+        // Splatnost: stejná priorita jako u nové faktury (InvoiceDefaults::resolve) —
         // zakázka → klient → dodavatel → 7. Bez tohoto fallbacku dostal klon faktury
         // bez zakázky splatnost = datum vystavení (0 dní). NULL přeskakujeme (jako ??),
         // explicitní 0 ctíme — stejně jako u nové faktury.
-        $days = null;
+        $dueValue = null;
+        $dueUnit = 'days';
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT default_payment_due_days, default_payment_due_unit FROM supplier WHERE id = ?'
+        );
+        $stmt->execute([(int) $source['supplier_id']]);
+        $supplier = $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+
         if (!empty($source['project_id'])) {
-            $stmt = $this->db->pdo()->prepare('SELECT payment_due_days FROM projects WHERE id = ?');
+            $stmt = $this->db->pdo()->prepare(
+                'SELECT payment_due_days, payment_due_unit FROM projects WHERE id = ?'
+            );
             $stmt->execute([(int) $source['project_id']]);
-            $val = $stmt->fetchColumn();
-            if ($val !== false) {
-                $days = (int) $val;
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if ($row !== false) {
+                $dueValue = (int) $row['payment_due_days'];
+                $dueUnit = (string) ($row['payment_due_unit'] ?? 'days');
             }
         }
-        if ($days === null && !empty($source['client_id'])) {
-            $stmt = $this->db->pdo()->prepare('SELECT payment_due_default FROM clients WHERE id = ?');
+        if ($dueValue === null && !empty($source['client_id'])) {
+            $stmt = $this->db->pdo()->prepare(
+                'SELECT payment_due_default, payment_due_unit FROM clients WHERE id = ?'
+            );
             $stmt->execute([(int) $source['client_id']]);
-            $val = $stmt->fetchColumn();
-            if ($val !== false && $val !== null) {
-                $days = (int) $val;
+            $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+            if ($row !== false && $row['payment_due_default'] !== null) {
+                $dueValue = (int) $row['payment_due_default'];
+                $dueUnit = (string) (
+                    $row['payment_due_unit']
+                    ?? $supplier['default_payment_due_unit']
+                    ?? 'days'
+                );
             }
         }
-        if ($days === null) {
-            $stmt = $this->db->pdo()->prepare('SELECT default_payment_due_days FROM supplier WHERE id = ?');
-            $stmt->execute([(int) $source['supplier_id']]);
-            $val = $stmt->fetchColumn();
-            if ($val !== false && $val !== null) {
-                $days = (int) $val;
-            }
+        if ($dueValue === null && $supplier !== null && $supplier['default_payment_due_days'] !== null) {
+            $dueValue = (int) $supplier['default_payment_due_days'];
+            $dueUnit = (string) ($supplier['default_payment_due_unit'] ?? 'days');
         }
-        $days ??= 7;
-        $dueDate = date('Y-m-d', strtotime($issueDate . " +{$days} days"));
+        $dueValue ??= 7;
+        $dueDate = DueDateCalculator::calculate($issueDate, $dueValue, $dueUnit);
 
         $taxDate = $type === 'proforma' ? null : $issueDate;
 
@@ -150,19 +164,20 @@ final class BulkReissueAction
         // Per-faktura přepínač upomínek (migrace 0088) musí klon zdědit — jinak by se
         // vědomě opt-outovaná faktura po klonu tiše vrátila na DB default 1 (upomínky
         // zapnuté). Guard na existenci sloupce kvůli instalacím pozadu s migrací.
-        $hasReminders = $pdo->query("SHOW COLUMNS FROM invoices LIKE 'auto_send_reminders'")->fetch() !== false;
+        $hasReminders = $this->db->hasColumn('invoices', 'auto_send_reminders');
+        $supportsOss = $this->db->hasColumn('invoice_items', 'oss_applicable');
 
         $pdo->beginTransaction();
         try {
             $stmt = $pdo->prepare(
                 'INSERT INTO invoices
-                   (invoice_type, client_id, project_id, supplier_id,
+                   (invoice_type, client_id, project_id, supplier_id, branding_profile_id,
                     issue_date, tax_date, due_date, currency_id, reverse_charge, prices_include_vat, language,
                     note_above_items, note_below_items, discount_percent, payment_method,
                     revenue_category_id,'
                 . ($hasReminders ? ' auto_send_reminders,' : '')
                 . ' status, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,'
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,'
                 . ($hasReminders ? ' ?,' : '')
                 . ' "draft", ?)'
             );
@@ -171,6 +186,7 @@ final class BulkReissueAction
                 $source['client_id'],
                 $source['project_id'],
                 (int) $source['supplier_id'],
+                $source['branding_profile_id'] ?? null,
                 $issueDate,
                 $taxDate,
                 $dueDate,
@@ -197,13 +213,22 @@ final class BulkReissueAction
             // Zkopíruj položky s případným inkrementem měsíce
             // Zachovává vat_classification_code ze source položky pokud existuje,
             // jinak auto-derive (typicky pro legacy faktury vystavené před fixem).
-            $itemStmt = $pdo->prepare(
-                'INSERT INTO invoice_items
-                   (invoice_id, description, quantity, unit, unit_price_without_vat,
-                    vat_rate_id, vat_rate_snapshot,
-                    total_without_vat, total_vat, total_with_vat, order_index, item_kind, vat_classification_code)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?)'
-            );
+            $itemStmt = $supportsOss
+                ? $pdo->prepare(
+                    'INSERT INTO invoice_items
+                       (invoice_id, description, quantity, unit, unit_price_without_vat,
+                        vat_rate_id, vat_rate_snapshot,
+                        total_without_vat, total_vat, total_with_vat, order_index, item_kind, vat_classification_code,
+                        oss_applicable, oss_consumer_country, oss_rate_type, oss_supply_type)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?)'
+                )
+                : $pdo->prepare(
+                    'INSERT INTO invoice_items
+                       (invoice_id, description, quantity, unit, unit_price_without_vat,
+                        vat_rate_id, vat_rate_snapshot,
+                        total_without_vat, total_vat, total_with_vat, order_index, item_kind, vat_classification_code)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?)'
+                );
             foreach ($source['items'] as $item) {
                 $kind = (string) ($item['item_kind'] ?? 'standard');
                 // Slevovou položku needitujeme přes MonthIncrementer (popis "Sleva X %").
@@ -216,7 +241,7 @@ final class BulkReissueAction
                         (float) $item['vat_rate_snapshot'],
                         (bool) ($source['reverse_charge'] ?? false),
                     );
-                $itemStmt->execute([
+                $params = [
                     $newId,
                     $description,
                     $item['quantity'],
@@ -227,7 +252,18 @@ final class BulkReissueAction
                     $item['order_index'],
                     $kind,
                     $code !== null ? (string) $code : null,
-                ]);
+                ];
+                if ($supportsOss) {
+                    $ossApplicable = !empty($item['oss_applicable']);
+                    array_push(
+                        $params,
+                        $ossApplicable ? 1 : 0,
+                        $ossApplicable ? ($item['oss_consumer_country'] ?? null) : null,
+                        $ossApplicable ? ($item['oss_rate_type'] ?? null) : null,
+                        $ossApplicable ? ($item['oss_supply_type'] ?? null) : null,
+                    );
+                }
+                $itemStmt->execute($params);
             }
 
             $pdo->commit();

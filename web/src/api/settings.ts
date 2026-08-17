@@ -5,6 +5,25 @@ export type SelfCopyType = 'documents' | 'reminders' | 'approvals'
 /** off = neposílat, cc/bcc = role kopie dodavatele. */
 export type SelfCopyMode = 'off' | 'cc' | 'bcc'
 
+/** Položka číselníku ČINNOSTI (CZ-NACE / c_okec) — našeptávač v daňovém nastavení. */
+export interface NaceCode {
+  /** Kanonická hodnota do `c_okec` (sekce 01–09 vede číselník bez vodicí nuly: 14800). */
+  code: string
+  /** Čitelný zápis třídy — 731100 → „73.11.00". */
+  display: string
+  name: string
+  valid_from: string
+}
+
+/** Stav uloženého CZ-NACE proti číselníku — `expired` po přechodu na NACE rev. 2.1. */
+export interface NaceResolved {
+  code: string
+  display: string
+  name: string | null
+  status: 'active' | 'expired' | 'unknown'
+  valid_to: string | null
+}
+
 export interface Supplier {
   id: number
   company_name: string
@@ -59,6 +78,7 @@ export interface Supplier {
   email_branding_enabled: boolean
   email_accent_color: string  // #RRGGBB
   pdf_logo_show_name: boolean // vedle loga v PDF zobrazit i název firmy (migrace 0058)
+  branding_profiles_enabled: boolean
   has_email_logo?: boolean    // server flag (existence storage/supplier-logos/sup-{id}.png)
   // Děkovný e-mail za úhradu (issue #57)
   payment_thanks_enabled: boolean
@@ -75,10 +95,18 @@ export interface Supplier {
   taxpayer_type?: 'fo' | 'po' | null
   vat_period?: 'monthly' | 'quarterly' | null
   flat_tax_band?: 'none' | 'band1' | 'band2' | 'band3' | null
+  oss_enabled?: boolean
+  oss_valid_from?: string | null
+  oss_valid_to?: string | null
+  oss_identification_country?: string | null
+  oss_return_currency?: string | null
   financial_office_code?: string | null
   workplace_code?: string | null
   cz_nace_code?: string | null
-  data_box_type?: string | null
+  /** Uložený CZ-NACE přeložený přes číselník ČINNOSTI (read-only, dopočítává backend). */
+  cz_nace_resolved?: NaceResolved | null
+  /** Upozornění k CZ-NACE po uložení (expirovaný/neznámý kód) — jen v odpovědi PUT. */
+  cz_nace_warning?: string
   data_box_id?: string | null
   sest_jmeno?: string | null
   sest_prijmeni?: string | null
@@ -99,6 +127,26 @@ export interface Supplier {
     credit_note: string
     purchase: string
   }
+}
+
+export interface BrandingProfile {
+  id: number
+  supplier_id: number
+  name: string
+  display_name: string | null
+  tagline: string | null
+  email: string | null
+  reply_to: string | null
+  email_profile_id: number | null
+  phone: string | null
+  web: string | null
+  email_footer: string | null
+  logo_path: string | null
+  accent_color: string
+  branding_enabled: boolean
+  pdf_logo_show_name: boolean
+  is_active: boolean
+  is_default: boolean
 }
 
 export interface CurrencyAccount {
@@ -129,6 +177,8 @@ export interface BankEmailImapSettings {
   encryption: 'ssl' | 'tls' | 'none'
   validate_cert: boolean
   require_email_auth: boolean
+  allow_forwarded: boolean
+  forwarded_from: string | null
   email_auth_serv_id: string | null
   username: string
   folder: string
@@ -194,9 +244,16 @@ export interface BankEmailProcessedMessage {
   subject: string | null
   provider_code: string | null
   status: string
+  /** Stav odvozený ze živého párování transakce (řeší zastaralý snapshot `status`). */
+  effective_status?: string
+  /** true = transakce je aktuálně spárovaná (i když `status` říká match_failed). */
+  matched?: boolean
+  /** Živý match_status navázané bank_transaction (auto_exact/auto_partial/manual/unmatched). */
+  tx_match_status?: string | null
   parsed_payload: Record<string, any> | null
   bank_transaction_id: number | null
   matched_invoice_id: number | null
+  matched_purchase_invoice_id?: number | null
   matched_varsymbol?: string | null
   error_message: string | null
   processed_at: string
@@ -312,6 +369,12 @@ export interface SigningProfile {
   pdf_tsa_username: string | null
   has_pdf_tsa_password: boolean
   pdf_reason: string | null
+  has_certificate?: boolean
+  certificate_subject?: string | null
+  certificate_email?: string | null
+  certificate_valid_from?: string | null
+  certificate_valid_to?: string | null
+  certificate_is_active?: boolean
   is_active: boolean
   created_by: number | null
   created_at: string
@@ -331,6 +394,131 @@ export interface SigningProfilePayload {
   pdf_tsa_password?: string | null
   pdf_reason?: string | null
   is_active?: boolean
+}
+
+export interface EmailProfile {
+  id: number
+  supplier_id: number
+  name: string
+  code: string
+  from_email: string
+  from_name: string | null
+  reply_to_email: string | null
+  reply_to_name: string | null
+  reply_to_enabled: boolean
+  signing_profile_id: number | null
+  signing_profile_name: string | null
+  signing_profile_code: string | null
+  dkim_domain: string | null
+  dkim_selector: string | null
+  dkim_enabled: boolean
+  transport_type: 'global' | 'smtp' | 'sendmail'
+  smtp_host: string | null
+  smtp_port: number | null
+  smtp_encryption: 'none' | 'tls' | 'ssl'
+  smtp_auth_enabled: boolean
+  smtp_auth_type: 'LOGIN' | 'PLAIN' | 'CRAM-MD5' | 'XOAUTH2'
+  smtp_username: string | null
+  has_smtp_password: boolean
+  smtp_verify_peer: boolean
+  smtp_verify_peer_name: boolean
+  smtp_allow_self_signed: boolean
+  smtp_timeout: number | null
+  smtp_keepalive: boolean
+  sendmail_command: string | null
+  imap_sent_enabled: boolean
+  imap_host: string | null
+  imap_port: number | null
+  imap_encryption: 'none' | 'tls' | 'ssl'
+  imap_validate_cert: boolean
+  imap_username: string | null
+  has_imap_password: boolean
+  imap_folder: string | null
+  imap_create_folder: boolean
+  imap_mark_seen: boolean
+  imap_timeout: number
+  imap_on_failure: 'log_only' | 'fail_send'
+  is_default: boolean
+  is_active: boolean
+  created_by: number | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export interface EmailProfilePayload {
+  name: string
+  code: string
+  from_email: string
+  from_name?: string | null
+  reply_to_email?: string | null
+  reply_to_name?: string | null
+  reply_to_enabled?: boolean
+  signing_profile_id?: number | null
+  dkim_domain?: string | null
+  dkim_selector?: string | null
+  dkim_enabled?: boolean
+  transport_type?: 'global' | 'smtp' | 'sendmail'
+  smtp_host?: string | null
+  smtp_port?: number | null
+  smtp_encryption?: 'none' | 'tls' | 'ssl'
+  smtp_auth_enabled?: boolean
+  smtp_auth_type?: 'LOGIN' | 'PLAIN' | 'CRAM-MD5' | 'XOAUTH2'
+  smtp_username?: string | null
+  smtp_password?: string | null
+  smtp_verify_peer?: boolean
+  smtp_verify_peer_name?: boolean
+  smtp_allow_self_signed?: boolean
+  smtp_timeout?: number | null
+  smtp_keepalive?: boolean
+  sendmail_command?: string | null
+  imap_sent_enabled?: boolean
+  imap_host?: string | null
+  imap_port?: number | null
+  imap_encryption?: 'none' | 'tls' | 'ssl'
+  imap_validate_cert?: boolean
+  imap_username?: string | null
+  imap_password?: string | null
+  imap_folder?: string | null
+  imap_create_folder?: boolean
+  imap_mark_seen?: boolean
+  imap_timeout?: number | null
+  imap_on_failure?: 'log_only' | 'fail_send'
+  is_default?: boolean
+  is_active?: boolean
+}
+
+export interface EmailProfileImapAppendResult {
+  status: 'skipped' | 'saved' | 'failed'
+  folder: string | null
+  error: string | null
+}
+
+export interface EmailProfileImapFoldersResult {
+  ok: boolean
+  message: string
+  folders?: EmailProfileImapFolder[]
+}
+
+export interface EmailProfileImapFolder {
+  path: string
+  full_name: string
+  name: string
+  delimiter: string
+  writable: boolean
+  system: boolean
+  sent: boolean
+  no_select: boolean
+  has_children: boolean
+}
+
+export interface EmailProfileTestResult {
+  sent_to: string[]
+  sent_at: string
+  smtp_response: string
+  imap_append?: EmailProfileImapAppendResult
+  is_test: boolean
+  is_draft?: boolean
 }
 
 export type SigningCredentialPassphrasePolicy = 'encrypted_store' | 'passphrase_file' | 'prompt_on_use'
@@ -434,6 +622,15 @@ export const settingsApi = {
   getSupplier: () => api.get<Supplier>('/settings/supplier').then(r => r.data),
   updateSupplier: (payload: Partial<Supplier>) => api.put<Supplier>('/settings/supplier', payload).then(r => r.data),
 
+  /**
+   * Našeptávač CZ-NACE — vrací jen kódy platné k dnešku. ARES eviduje ještě
+   * NACE rev. 2, číselník EPO je od 1. 1. 2026 na rev. 2.1, takže prefill
+   * z ARES často přinese expirovaný kód a uživatel si tu najde nástupce.
+   * Prázdný `q` vrátí první stránku; jinak prefix kódu nebo hledání v názvu.
+   */
+  searchNaceCodes: (q: string, limit = 20) =>
+    api.get<{ items: NaceCode[] }>('/settings/nace-codes', { params: { q, limit } }).then(r => r.data.items),
+
   listCurrencies: () => api.get<CurrencyAccount[]>('/settings/currencies').then(r => r.data),
   createCurrency: (payload: Partial<CurrencyAccount>) =>
     api.post<{ id: number; code: string }>('/settings/currencies', payload).then(r => r.data),
@@ -496,6 +693,29 @@ export const settingsApi = {
   deleteUnit: (id: number) => api.delete(`/settings/units/${id}`).then(r => r.data),
 
   // Email branding (M16)
+  listEmailProfiles: () =>
+    api.get<EmailProfile[]>('/settings/email-profiles').then(r => r.data),
+  createEmailProfile: (payload: EmailProfilePayload) =>
+    api.post<EmailProfile>('/settings/email-profiles', payload).then(r => r.data),
+  updateEmailProfile: (id: number, payload: Partial<EmailProfilePayload>) =>
+    api.put<EmailProfile>(`/settings/email-profiles/${id}`, payload).then(r => r.data),
+  testEmailProfile: (id: number) =>
+    api.post<EmailProfileTestResult>(`/settings/email-profiles/${id}/test`, {}).then(r => r.data),
+  testEmailProfileDraft: (payload: EmailProfilePayload, id?: number | null) =>
+    api.post<EmailProfileTestResult>('/settings/email-profiles/test', id ? { ...payload, id } : payload).then(r => r.data),
+  testEmailProfileImapSettings: (payload: Partial<EmailProfilePayload>, id?: number | null) =>
+    api.post<EmailProfileImapFoldersResult>(
+      id ? `/settings/email-profiles/${id}/imap-test` : '/settings/email-profiles/imap-test',
+      payload,
+    ).then(r => r.data),
+  browseEmailProfileImapFolders: (payload: Partial<EmailProfilePayload>, id?: number | null) =>
+    api.post<EmailProfileImapFoldersResult>(
+      id ? `/settings/email-profiles/${id}/folders` : '/settings/email-profiles/folders',
+      payload,
+    ).then(r => r.data),
+  deleteEmailProfile: (id: number) =>
+    api.delete<{ deleted: boolean }>(`/settings/email-profiles/${id}`).then(r => r.data),
+
   uploadEmailLogo: (file: File) => {
     const fd = new FormData()
     fd.append('file', file)
@@ -506,6 +726,26 @@ export const settingsApi = {
     ).then(r => r.data)
   },
   deleteEmailLogo: () => api.delete('/settings/email-branding/logo').then(r => r.data),
+
+  listBrandingProfiles: () =>
+    api.get<BrandingProfile[]>('/settings/branding-profiles').then(r => r.data),
+  createBrandingProfile: (payload: Partial<BrandingProfile>) =>
+    api.post<BrandingProfile>('/settings/branding-profiles', payload).then(r => r.data),
+  updateBrandingProfile: (id: number, payload: Partial<BrandingProfile>) =>
+    api.put<BrandingProfile>(`/settings/branding-profiles/${id}`, payload).then(r => r.data),
+  deleteBrandingProfile: (id: number) =>
+    api.delete<{ deleted: boolean }>(`/settings/branding-profiles/${id}`).then(r => r.data),
+  setDefaultBrandingProfile: (id: number) =>
+    api.post<BrandingProfile>(`/settings/branding-profiles/${id}/default`, {}).then(r => r.data),
+  uploadBrandingProfileLogo: (id: number, file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return api.post<BrandingProfile>(`/settings/branding-profiles/${id}/logo`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data)
+  },
+  deleteBrandingProfileLogo: (id: number) =>
+    api.delete<BrandingProfile>(`/settings/branding-profiles/${id}/logo`).then(r => r.data),
 
   getPdfSigningDiagnostics: () =>
     api.get<PdfSigningDiagnostics>('/settings/pdf-signing/diagnostics').then(r => r.data),
@@ -574,8 +814,12 @@ export const settingsApi = {
   deletePdfSignatureDocumentSelection: (entityType: PdfSignatureDocumentEntityType, id: number) =>
     api.delete<PdfSignatureDocumentSelection>(`/documents/${entityType}/${id}/signature-selection`).then(r => r.data),
   // Vrací HTML string — frontend ho pak nacpe do iframe.srcdoc (obejde X-Frame-Options DENY).
-  emailPreviewHtml: (locale: 'cs' | 'en' = 'cs') =>
-    api.get<string>(`/settings/email-branding/preview?locale=${locale}`, { responseType: 'text', transformResponse: [(d) => d] }).then(r => r.data),
+  emailPreviewHtml: (locale: 'cs' | 'en' = 'cs', brandingProfileId: number | null = null) =>
+    api.get<string>('/settings/email-branding/preview', {
+      params: { locale, ...(brandingProfileId !== null ? { branding_profile_id: brandingProfileId } : {}) },
+      responseType: 'text',
+      transformResponse: [(d) => d],
+    }).then(r => r.data),
 
   getTriSidebarSettings: () => api.get<TriSidebarSettings>('/settings/tri-sidebar').then(r => r.data),
   updateTriSidebarSettings: (payload: TriSidebarSettings) =>
