@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS tri_number_seq (
   id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  supplier_id  TINYINT UNSIGNED NOT NULL,
+  supplier_id  INT UNSIGNED NOT NULL,
   scope_key    VARCHAR(32) NOT NULL,
   last_value   INT UNSIGNED NOT NULL DEFAULT 0,
   updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS tri_number_seq (
 
 CREATE TABLE IF NOT EXISTS tri_jobs (
   id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  supplier_id         TINYINT UNSIGNED NOT NULL,
+  supplier_id         INT UNSIGNED NOT NULL,
   number              VARCHAR(16) NOT NULL,
   title               VARCHAR(190) NOT NULL,
   owner_user_id       BIGINT UNSIGNED NOT NULL,

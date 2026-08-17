@@ -4,7 +4,7 @@ SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS tri_calendar_events (
   id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  supplier_id  TINYINT UNSIGNED NOT NULL,
+  supplier_id  INT UNSIGNED NOT NULL,
   calendar     ENUM('shifts','dispatch','production') NOT NULL,
   job_id       BIGINT UNSIGNED NULL,
   title        VARCHAR(255) NOT NULL,

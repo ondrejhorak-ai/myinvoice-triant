@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS tri_tags (
   id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  supplier_id  TINYINT UNSIGNED NOT NULL,
+  supplier_id  INT UNSIGNED NOT NULL,
   name         VARCHAR(80) NOT NULL,
   slug         VARCHAR(80) NOT NULL,
   color        VARCHAR(7) NOT NULL DEFAULT '#6366f1',
