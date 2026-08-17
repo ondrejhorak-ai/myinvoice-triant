@@ -163,7 +163,7 @@ function gotoClient(clientId: number, e?: MouseEvent) {
           <option value="paused">{{ t('recurring.status.paused') }}</option>
           <option value="expired">{{ t('recurring.status.expired') }}</option>
         </select>
-        <div class="ml-auto flex items-center gap-3">
+        <div class="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2 w-full sm:w-auto">
           <div v-if="grandTotalLabel" class="flex items-baseline gap-2">
             <span class="text-sm text-neutral-500">{{ t('recurring.amount_total') }}</span>
             <span class="font-mono text-base font-semibold text-neutral-900"
@@ -172,7 +172,7 @@ function gotoClient(clientId: number, e?: MouseEvent) {
             </span>
           </div>
           <select v-model="sortBy" :title="t('recurring.sort.label')"
-            class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm">
+            class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm flex-1 sm:flex-none min-w-0 max-w-full">
             <option value="next_run">{{ t('recurring.sort.label') }}: {{ t('recurring.sort.next_run') }}</option>
             <option value="client">{{ t('recurring.sort.label') }}: {{ t('recurring.sort.client') }}</option>
             <option value="amount_czk">{{ t('recurring.sort.label') }}: {{ t('recurring.sort.amount_czk') }}</option>
@@ -220,6 +220,10 @@ function gotoClient(clientId: number, e?: MouseEvent) {
                   class="mt-0.5 inline-block text-xs px-1.5 py-0.5 rounded bg-primary-50 text-primary-700 border border-primary-200 whitespace-nowrap">
                   ↻ {{ t('recurring.draft_open_mode_period_start_badge') }}
                 </span>
+                <span v-if="tpl.catalog_state && tpl.catalog_state !== 'ok'" :title="tpl.catalog_error ?? ''"
+                  class="mt-0.5 ml-1 inline-block text-xs px-1.5 py-0.5 rounded bg-warning-50 text-warning-700 border border-warning-200 whitespace-nowrap">
+                  {{ t('recurring.catalog_state_' + tpl.catalog_state) }}
+                </span>
               </td>
               <td class="px-4 py-3 align-top">
                 <button @click="gotoClient(tpl.client_id, $event)" @auxclick.prevent="gotoClient(tpl.client_id, $event)" class="cursor-pointer block text-left text-neutral-700 hover:underline">
@@ -244,6 +248,9 @@ function gotoClient(clientId: number, e?: MouseEvent) {
               <td class="px-4 py-3 text-right text-neutral-700 align-top">{{ tpl.invoices_generated_count ?? 0 }}</td>
               <td class="px-4 py-3 text-right font-mono text-neutral-800 align-top whitespace-nowrap">
                 {{ tpl.total_with_vat != null ? formatMoney(tpl.total_with_vat, tpl.currency ?? 'CZK') : '—' }}
+                <span v-if="tpl.catalog_total_is_estimate" class="block text-xs font-sans font-normal text-neutral-500">
+                  {{ t('recurring.catalog_estimate', { date: formatDate(tpl.catalog_estimate_rate_date ?? null) }) }}
+                </span>
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap align-top">
                 <button @click="gotoDetail(tpl.id, $event)" @auxclick.prevent="gotoDetail(tpl.id, $event)"
@@ -295,6 +302,9 @@ function gotoClient(clientId: number, e?: MouseEvent) {
           <div v-if="tpl.last_error" class="mt-1 text-xs text-danger-700 truncate" :title="tpl.last_error">
             ⚠ {{ t('recurring.last_error_badge') }}
           </div>
+          <div v-if="tpl.catalog_state && tpl.catalog_state !== 'ok'" class="mt-1 text-xs text-warning-700 truncate" :title="tpl.catalog_error ?? ''">
+            {{ t('recurring.catalog_state_' + tpl.catalog_state) }}
+          </div>
           <div class="flex items-baseline justify-between gap-2 mt-1.5 text-xs">
             <span class="text-neutral-600">
               {{ freqLabel(tpl.frequency) }}<span v-if="tpl.end_of_month" class="text-neutral-400"> · EOM</span>
@@ -318,6 +328,9 @@ function gotoClient(clientId: number, e?: MouseEvent) {
             <span class="font-mono text-neutral-800 font-medium">
               {{ tpl.total_with_vat != null ? formatMoney(tpl.total_with_vat, tpl.currency ?? 'CZK') : '—' }}
             </span>
+          </div>
+          <div v-if="tpl.catalog_total_is_estimate" class="text-right text-xs text-neutral-500">
+            {{ t('recurring.catalog_estimate', { date: formatDate(tpl.catalog_estimate_rate_date ?? null) }) }}
           </div>
           <div class="flex items-center gap-1.5 mt-2.5">
             <button @click.stop="gotoDetail(tpl.id, $event)" @auxclick.stop.prevent="gotoDetail(tpl.id, $event)"

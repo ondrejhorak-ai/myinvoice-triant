@@ -9,6 +9,9 @@ use PDO;
 
 final class ClientRepository
 {
+    /** Název sběrného systémového dodavatele hotovostních účtenek (viz findOrCreateCashReceiptVendor). */
+    private const CASH_RECEIPT_VENDOR_NAME = 'Hotovostní nákup (účtenka)';
+
     public function __construct(private readonly Connection $db) {}
 
     public function find(int $id): ?array
@@ -284,8 +287,9 @@ final class ClientRepository
              is_customer, is_vendor, is_fuel_station,
              auto_send_reminders, payment_due_default, payment_due_unit, hourly_rate, note,
              default_expense_category_id, default_revenue_category_id,
-             invoice_number_format, proforma_number_format, credit_note_number_format, invoice_number_period)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+             invoice_number_format, proforma_number_format, credit_note_number_format, invoice_number_period,
+             default_branding_profile_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
         $stmt = $this->db->pdo()->prepare($sql);
         $stmt->execute([
             $supplierId,
@@ -301,7 +305,7 @@ final class ClientRepository
             (string) $data['city'],
             (string) $data['zip'],
             $countryId,
-            (string) $data['main_email'],
+            $this->nullable($data, 'main_email'),
             $this->nullable($data, 'phone'),
             (string) ($data['language'] ?? 'cs'),
             $currencyId,
@@ -323,6 +327,7 @@ final class ClientRepository
             $this->nullableTemplate($data, 'proforma_number_format'),
             $this->nullableTemplate($data, 'credit_note_number_format'),
             $this->nullablePeriod($data, 'invoice_number_period'),
+            $this->resolveBrandingProfileId($data['default_branding_profile_id'] ?? null, $supplierId),
         ]);
         return (int) $this->db->pdo()->lastInsertId();
     }
@@ -337,6 +342,37 @@ final class ClientRepository
         $this->db->pdo()
             ->prepare('UPDATE clients SET is_vendor = 1 WHERE id = ? AND is_vendor = 0')
             ->execute([$id]);
+    }
+
+    /**
+     * Systémový (sběrný) dodavatel „Hotovostní nákup (účtenka)" — pod něj se navazují
+     * hotovostní účtenky bez identifikace protistrany (iDoklad Partner == null). Jeden na
+     * tenanta; poznává se podle názvu (bez potřeby extra sloupce — iDoklad import je okrajový).
+     * Zakládá se jako neplátce DPH (neznámý/neověřený dodavatel) → bezpečný default pro odpočet.
+     * Idempotentní: při opakovaném importu vrací stejný řádek.
+     */
+    public function findOrCreateCashReceiptVendor(int $supplierId): int
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT id FROM clients WHERE supplier_id = ? AND company_name = ? AND is_vendor = 1 LIMIT 1'
+        );
+        $stmt->execute([$supplierId, self::CASH_RECEIPT_VENDOR_NAME]);
+        $id = $stmt->fetchColumn();
+        if ($id !== false) {
+            return (int) $id;
+        }
+
+        return $this->create([
+            'company_name' => self::CASH_RECEIPT_VENDOR_NAME,
+            'street'       => '',
+            'city'         => '',
+            'zip'          => '',
+            'main_email'   => '',
+            'country_iso2' => 'CZ',
+            'is_customer'  => false,
+            'is_vendor'    => true,
+            'is_vat_payer' => false,
+        ], $supplierId);
     }
 
     /**
@@ -373,7 +409,7 @@ final class ClientRepository
         $pdo = $this->db->pdo();
 
         // Klient nemůže měnit supplier — odvodíme z aktuálního DB záznamu pro currency lookup
-        $stmt = $pdo->prepare('SELECT supplier_id, is_customer, is_vendor, default_expense_category_id, default_revenue_category_id FROM clients WHERE id = ?');
+        $stmt = $pdo->prepare('SELECT supplier_id, is_customer, is_vendor, default_expense_category_id, default_revenue_category_id, default_branding_profile_id FROM clients WHERE id = ?');
         $stmt->execute([$id]);
         $current = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($current === false) {
@@ -431,6 +467,9 @@ final class ClientRepository
         $newDefaultRevenueCategory = array_key_exists('default_revenue_category_id', $data)
             ? $this->resolveRevenueCategoryId($data, $supplierId)
             : $oldDefaultRevenueCategory;
+        $newDefaultBrandingProfileId = array_key_exists('default_branding_profile_id', $data)
+            ? $this->resolveBrandingProfileId($data['default_branding_profile_id'], $supplierId)
+            : ($current['default_branding_profile_id'] !== null ? (int) $current['default_branding_profile_id'] : null);
 
         $sql = 'UPDATE clients SET
                 company_name = ?, first_name = ?, last_name = ?, ic = ?, dic = ?, tax_number = ?,
@@ -441,7 +480,7 @@ final class ClientRepository
                 auto_send_reminders = ?, payment_due_default = ?, payment_due_unit = ?,
                 hourly_rate = ?, note = ?, default_expense_category_id = ?, default_revenue_category_id = ?,
                 invoice_number_format = ?, proforma_number_format = ?,
-                credit_note_number_format = ?, invoice_number_period = ?
+                credit_note_number_format = ?, invoice_number_period = ?, default_branding_profile_id = ?
                 WHERE id = ?';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -455,7 +494,7 @@ final class ClientRepository
             (string) $data['city'],
             (string) $data['zip'],
             $countryId,
-            (string) $data['main_email'],
+            $this->nullable($data, 'main_email'),
             $this->nullable($data, 'phone'),
             (string) ($data['language'] ?? 'cs'),
             $currencyId,
@@ -476,6 +515,7 @@ final class ClientRepository
             $this->nullableTemplate($data, 'proforma_number_format'),
             $this->nullableTemplate($data, 'credit_note_number_format'),
             $this->nullablePeriod($data, 'invoice_number_period'),
+            $newDefaultBrandingProfileId,
             $id,
         ]);
 
@@ -673,6 +713,11 @@ final class ClientRepository
                 ? (int) $row['default_revenue_category_id']
                 : null;
         }
+        if (array_key_exists('default_branding_profile_id', $row)) {
+            $row['default_branding_profile_id'] = $row['default_branding_profile_id'] !== null
+                ? (int) $row['default_branding_profile_id']
+                : null;
+        }
         $row['reverse_charge']        = (bool) ($row['reverse_charge'] ?? 0);
         // EU členství země klienta — editor podle něj u identifikované osoby (#94)
         // auto-zapíná RC jen pro EU klienty (3. země = mimo předmět DPH, bez klauzule).
@@ -703,6 +748,22 @@ final class ClientRepository
         if (array_key_exists('tri_revenue', $row))       $row['tri_revenue'] = (float) $row['tri_revenue'];
         if (array_key_exists('tri_last_job_date', $row)) $row['tri_last_job_date'] = $row['tri_last_job_date'] ?: null;
         return $row;
+    }
+
+    private function resolveBrandingProfileId(mixed $value, int $supplierId): ?int
+    {
+        if ($value === null || $value === '') return null;
+        $id = (int) $value;
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT bp.id FROM branding_profiles bp
+               JOIN supplier s ON s.id = bp.supplier_id AND s.branding_profiles_enabled = 1
+              WHERE bp.id = ? AND bp.supplier_id = ? AND bp.is_active = 1'
+        );
+        $stmt->execute([$id, $supplierId]);
+        if ($stmt->fetchColumn() === false) {
+            throw new \InvalidArgumentException("Brandingový profil #$id nenalezen.");
+        }
+        return $id;
     }
 
     private function nullable(array $data, string $key): ?string

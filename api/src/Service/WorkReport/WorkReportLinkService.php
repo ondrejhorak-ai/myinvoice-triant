@@ -370,11 +370,40 @@ final class WorkReportLinkService
             'project_name'         => $projectName,
             'language'             => $client['language'],
             'supplier_name'        => (string) ($supplier['display_name'] ?: ($supplier['company_name'] ?? '')),
+            'supplier'             => $this->supplierBlock($supplier),
             'accent_color'         => !empty($supplier['email_branding_enabled']) ? ($supplier['email_accent_color'] ?? null) : null,
             'logo_src'             => $this->logoSrc($supplier),
             'reports'              => $reports,
             'total_hours'          => $totalHours,
             'totals_by_currency'   => $totalsByCurrency,
+        ];
+    }
+
+    /**
+     * Veřejně zobrazitelné kontaktní/identifikační údaje dodavatele pro hlavičku
+     * náhledu. Žádná citlivá pole — jen to, co stejně je na fakturách/v patičce.
+     *
+     * @param array<string,mixed>|null $supplier Řádek z loadSupplierVars().
+     * @return array<string,mixed>
+     */
+    private function supplierBlock(?array $supplier): array
+    {
+        $supplier ??= [];
+        $name = (string) (($supplier['display_name'] ?? '') ?: ($supplier['company_name'] ?? ''));
+        return [
+            'name'         => $name,
+            'company_name' => (string) ($supplier['company_name'] ?? ''),
+            'tagline'      => ($supplier['tagline'] ?? '') ?: null,
+            'street'       => ($supplier['street'] ?? '') ?: null,
+            'city'         => ($supplier['city'] ?? '') ?: null,
+            'zip'          => ($supplier['zip'] ?? '') ?: null,
+            'country'      => ($supplier['country'] ?? '') ?: null,
+            'ic'           => ($supplier['ic'] ?? '') ?: null,
+            'dic'          => ($supplier['dic'] ?? '') ?: null,
+            'is_vat_payer' => (bool) ($supplier['is_vat_payer'] ?? false),
+            'email'        => ($supplier['email'] ?? '') ?: null,
+            'phone'        => ($supplier['phone'] ?? '') ?: null,
+            'web'          => ($supplier['web'] ?? '') ?: null,
         ];
     }
 
@@ -405,11 +434,16 @@ final class WorkReportLinkService
             return null;
         }
         $stmt = $this->db->pdo()->prepare(
-            'SELECT s.id, s.company_name, s.display_name, s.tagline, s.street, s.city, s.zip,
-                    s.email, s.phone, s.web,
-                    s.email_branding_enabled, s.email_accent_color, s.logo_path,
+            'SELECT s.id, s.company_name, COALESCE(bp.display_name, s.display_name) AS display_name,
+                    COALESCE(bp.tagline, s.tagline) AS tagline, s.street, s.city, s.zip,
+                    COALESCE(bp.email, s.email) AS email, COALESCE(bp.phone, s.phone) AS phone,
+                    COALESCE(bp.web, s.web) AS web, s.ic, s.dic, s.is_vat_payer,
+                    COALESCE(bp.branding_enabled, s.email_branding_enabled) AS email_branding_enabled,
+                    COALESCE(bp.accent_color, s.email_accent_color) AS email_accent_color,
+                    COALESCE(bp.logo_path, s.logo_path) AS logo_path, bp.id AS branding_profile_id,
                     co.name_cs AS country
                FROM supplier s
+          LEFT JOIN branding_profiles bp ON s.branding_profiles_enabled = 1 AND bp.id = s.default_branding_profile_id AND bp.supplier_id = s.id AND bp.is_active = 1
           LEFT JOIN countries co ON co.id = s.country_id
               WHERE s.id = ?'
         );

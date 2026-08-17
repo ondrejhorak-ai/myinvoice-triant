@@ -22,7 +22,7 @@ faktury — ne pravidelná šablona.
 
 ## 12.2 Vytvoření šablony
 
-V menu **Systém → Pravidelné fakturace** klikni **+ Nová šablona**, nebo
+V menu **Prodej → Pravidelné fakturace** klikni **+ Nová šablona**, nebo
 v detailu existující faktury tlačítko **Vytvořit šablonu z této faktury**
 (předvyplní klienta, položky, měnu, jazyk i payment method).
 
@@ -86,6 +86,24 @@ faktuře propíše jako konkrétní rozsah měsíce.
 
 Položky šablony se 1:1 kopírují na každou vygenerovanou fakturu (popis, mn.,
 cena/j, sazba DPH). Sazba se bere podle vybraného `vat_rate_id` ze šablony.
+
+Řádek může být zadaný ručně nebo napojený na **ceníkovou položku**. U napojené
+položky zvolíš také zdroj popisu a cenovou politiku:
+
+| Politika | Chování |
+|---|---|
+| **Pevná cena ze šablony** | Při výběru se uloží cena, jednotka, DPH a případný kurz. Pozdější změna ceníku ani zákaznické ceny šablonu nepřecení. |
+| **Vždy aktuální cena** | Při každém generování se znovu použije aktuální zákaznická nebo obecná cena. Chybějící měna se při povoleném přepočtu vypočte kurzem k DUZP, u proformy k datu vystavení. |
+| **Při změně vyžadovat kontrolu** | Změna zdrojové ceny, jednotky, DPH nebo zdroje ceny zastaví generování. V editoru použij **Převzít aktuální údaje**. Samotný pohyb kurzu kontrolu nevyžaduje. |
+
+Volba **Popis z ceníku** přebírá aktuální ceníkový popis podle zvolené politiky.
+Volba **Vlastní popis šablony** dovolí text upravit nezávisle. Placeholdery
+období fungují v obou případech až při vytvoření konkrétní faktury.
+
+Archivovaná položka může dál sloužit pevnému snapshotu. Politiky používající
+aktuální údaje skončí s chybou, dokud položku neobnovíš, nenahradíš nebo
+nepřevedeš na ruční položku. Změnu měny nebo režimu s/bez DPH nelze u pevného
+snapshotu uložit bez jeho výslovného obnovení.
 
 > ⚠️ **Změna sazby DPH státem** — sazba je v šabloně přišpendlená na konkrétní
 > řádek číselníku. Když se sazba změní (např. 21 % → 22 %), vznikne v `vat_rates`
@@ -181,13 +199,16 @@ Přepínač **„Kdy vytvořit koncept"** má dvě hodnoty:
 - **Na začátku období** — cron vytvoří **koncept** faktury (s fixními
   položkami ze šablony) **1. den fakturovaného měsíce**. Koncept pak celý
   měsíc zůstává ve stavu *draft* a ty do něj průběžně píšeš **vícepráce přes
-  výkaz práce** (výkaz je editovatelný jen u konceptu). V den `next_run_date`
-  (typicky konec měsíce) cron koncept automaticky **uzavře, přepočítá včetně
-  víceprací, vystaví a odešle**.
+  výkaz práce** (výkaz je editovatelný jen u konceptu). **Den po**
+  `next_run_date` (typicky 1. den dalšího měsíce) cron koncept automaticky
+  **uzavře, přepočítá včetně víceprací, vystaví a odešle**. Uzávěrka se posune
+  o den za konec období schválně — aby se do faktury stihla započítat i práce
+  z **posledního dne** období.
 
-  Datum vystavení i DUZP konceptu jsou od začátku nastavené na **plánovaný
-  konec období** (`next_run_date` + zvolený režim DUZP) a při vystavení se
-  nemění — i kdyby cron běžel o den později.
+  Datum vystavení i DUZP konceptu jsou přitom od začátku nastavené na
+  **plánovaný konec období** (`next_run_date` + zvolený režim DUZP) a při
+  vystavení se nemění — faktura nese datum konce období, i když fyzicky vznikla
+  o den později.
 
 **Podmínky režimu „Na začátku období":**
 
@@ -202,8 +223,12 @@ Přepínač **„Kdy vytvořit koncept"** má dvě hodnoty:
 2. **1.6.** cron otevře koncept s fixním SLA řádkem (datum vystavení i DUZP
    = 30.6.).
 3. **Během června** doplňuješ vícepráce do výkazu práce na tom konceptu.
-4. **29.6.** (1 den předem) ti přijde e-mailová připomínka.
-5. **30.6.** cron koncept uzavře, vystaví (SLA + vícepráce) a odešle klientovi.
+4. **29.6.** (1 den předem) ti přijde e-mailová připomínka; **30.6.** zůstává
+   koncept otevřený, takže do něj stihneš zapsat i práci z posledního dne.
+5. **1.7.** cron v jednom běhu nejdřív **uzavře červnový koncept** — vystaví
+   (SLA + vícepráce) a odešle klientovi, faktura nese datum vystavení i DUZP
+   **30.6.** (konec období) — a hned poté **otevře nový koncept na červenec**
+   (datum vystavení i DUZP 31.7.), takže do něj můžeš zase celý měsíc psát.
 
 > Pokud koncept během měsíce vystavíš ručně, cron to pozná a v den vystavení
 > už nic nevytvoří — jen posune rozvrh na další měsíc.
@@ -254,9 +279,12 @@ Cron v jednom běhu zvládá tři fáze:
 
 1. **Otevření konceptu** — u šablon v režimu *Na začátku období*, kde už začalo
    fakturované období, vytvoří koncept (idempotentně — jednou za období).
-2. **Vystavení** — u šablon, kterým nastal `next_run_date`, vystaví (u režimu
-   *Na začátku období* uzavře otevřený koncept, jinak vygeneruje a vystaví
-   jako dřív).
+2. **Vystavení** — u šablon po `next_run_date` vystaví (režim *Na začátku
+   období* uzavře otevřený koncept **den po** konci období; ostatní režimy
+   vygenerují a vystaví přímo v `next_run_date` jako dřív). U režimu *Na začátku
+   období* cron hned po uzávěrce **rovnou otevře koncept dalšího období**, pokud
+   už začalo — takže 1. den měsíce proběhne „uzavři minulé → otevři nové"
+   v jednom běhu.
 3. **Připomínka** — pošle e-mailové připomínky k otevřeným konceptům, kterým
    se blíží vystavení (viz „Připomenout dní před vystavením").
 

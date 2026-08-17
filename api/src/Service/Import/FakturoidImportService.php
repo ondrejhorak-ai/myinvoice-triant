@@ -10,6 +10,7 @@ use MyInvoice\Repository\ClientRepository;
 use MyInvoice\Repository\ImportJobRepository;
 use MyInvoice\Repository\InvoiceRepository;
 use MyInvoice\Repository\PurchaseInvoiceRepository;
+use MyInvoice\Service\Currency\ExchangeRateApplier;
 use MyInvoice\Service\Invoice\InvoiceCalculator;
 use MyInvoice\Service\Invoice\PurchaseInvoiceCalculator;
 use MyInvoice\Service\Invoice\SnapshotBuilder;
@@ -53,6 +54,7 @@ final class FakturoidImportService
         private readonly LoggerInterface $logger,
         private readonly PurchaseInvoiceCnbApplier $cnbApplier,
         private readonly SnapshotBuilder $snapshots,
+        private readonly ExchangeRateApplier $exchangeRateApplier,
     ) {}
 
     public function run(int $jobId): void
@@ -159,7 +161,7 @@ final class FakturoidImportService
                     'city'         => (string) ($subj['city'] ?? '—'),
                     'zip'          => (string) ($subj['zip'] ?? '00000'),
                     'country_iso2' => strtoupper((string) ($subj['country'] ?? 'CZ')),
-                    'main_email'   => (string) ($subj['email'] ?? '') ?: 'unknown@import.local',
+                    'main_email'   => (string) ($subj['email'] ?? '') ?: null,
                     'phone'        => (string) ($subj['phone'] ?? '') ?: null,
                     'language'     => 'cs',
                     'is_customer'  => $isCustomer,
@@ -266,6 +268,22 @@ final class FakturoidImportService
             ];
         }
         if (!empty($items)) $this->invoices->replaceItems($invoiceId, $items);
+
+        // #238: přenes měnový kurz. Fakturoid vrací pole `exchange_rate` (kurz, jímž
+        // byla faktura vystavena) — má přednost před ČNB. Když chybí, dopočti z ČNB
+        // k DUZP (ensureRate plní jen non-CZK doklad s NULL kurzem, nikdy nepřepíše).
+        // Bez tohoto by VatLedgerService použil náhradní kurz 1.0 → EUR základ by se
+        // do DPH/SH vykázal jako CZK.
+        $srcRate = isset($i['exchange_rate']) ? (float) $i['exchange_rate'] : 0.0;
+        if ($srcRate > 0 && strtoupper((string) ($i['currency'] ?? 'CZK')) !== 'CZK') {
+            $this->invoices->setExchangeRate(
+                $invoiceId,
+                $srcRate,
+                (string) ($payload['tax_date'] ?? '') ?: (string) $payload['issue_date'],
+            );
+        } else {
+            $this->exchangeRateApplier->ensureRate($invoiceId);
+        }
 
         // #121: promítni platební stav z Fakturoidu — zaplacené/stornované doklady
         // nesmí zůstat viset jako nezaplacené pohledávky (a chytat upomínky).
@@ -574,15 +592,12 @@ final class FakturoidImportService
             $archiveRoot = $uploads !== '' ? dirname($uploads) . '/invoices-imported'
                 : \MyInvoice\Infrastructure\Config\RuntimePaths::storage('invoices-imported');
         }
-        $tenantDir = $archiveRoot . DIRECTORY_SEPARATOR . 'supplier-' . $supplierId;
-        if (!is_dir($tenantDir)) @mkdir($tenantDir, 0755, true);
-
         $sha = hash('sha256', $pdf);
-        $disk = substr($sha, 0, 16) . '.pdf';
-        $diskPath = $tenantDir . DIRECTORY_SEPARATOR . $disk;
+        // Hash-shard layout (supplier-{id}/{2}/{16}.pdf) — sdílené s PurchaseInvoicePdfArchiver.
+        $diskPath = \MyInvoice\Service\Import\PurchaseInvoicePdfArchiver::ensureShardPath($archiveRoot, $supplierId, $sha);
         if (!is_file($diskPath)) @file_put_contents($diskPath, $pdf);
 
-        $relPath = 'supplier-' . $supplierId . '/' . $disk;
+        $relPath = \MyInvoice\Service\Import\PurchaseInvoicePdfArchiver::shardedRelPath($supplierId, $sha);
         $name = ((string) ($inv['number'] ?? 'invoice')) . '.pdf';
         $this->db->pdo()->prepare(
             'UPDATE invoices SET imported_pdf_path = ?, imported_pdf_hash = ?,
@@ -592,15 +607,16 @@ final class FakturoidImportService
     }
 
     /**
-     * Stáhne přílohu výdaje (originální doklad od dodavatele) z Fakturoid `attachment`
-     * URL a uloží jako PDF přijaté faktury. Symetrické k iDokladu.
+     * Stáhne přílohu výdaje (originální doklad od dodavatele) z Fakturoid a uloží
+     * jako PDF přijaté faktury. Symetrické k iDokladu. Viz issue #261 —
+     * Fakturoid vrací přílohy v poli `attachments`, ne ve skalárním `attachment`.
      */
     private function archiveExpensePdf(int $supplierId, int $purchaseInvoiceId, array $exp): void
     {
-        $url = (string) ($exp['attachment'] ?? '');
-        if ($url === '') return; // výdaj bez přílohy
+        $attachment = FakturoidExpenseAttachment::resolve($exp);
+        if ($attachment === null) return; // výdaj bez přílohy
 
-        $pdf = $this->fakturoid->downloadAttachment($supplierId, $url);
+        $pdf = $this->fakturoid->downloadAttachment($supplierId, $attachment['download_url']);
         if ($pdf === null) return;
 
         $archiveRoot = (string) $this->config->get('purchase_invoice.archive_storage', '');
@@ -609,17 +625,13 @@ final class FakturoidImportService
             $archiveRoot = $uploads !== '' ? dirname($uploads) . '/purchase-invoices'
                 : \MyInvoice\Infrastructure\Config\RuntimePaths::storage('purchase-invoices');
         }
-        $tenantDir = $archiveRoot . DIRECTORY_SEPARATOR . 'supplier-' . $supplierId;
-        if (!is_dir($tenantDir)) @mkdir($tenantDir, 0755, true);
-
         $sha = hash('sha256', $pdf);
-        $disk = substr($sha, 0, 16) . '.pdf';
-        $diskPath = $tenantDir . DIRECTORY_SEPARATOR . $disk;
+        // Hash-shard layout (supplier-{id}/{2}/{16}.pdf) — sdílené s PurchaseInvoicePdfArchiver.
+        $diskPath = \MyInvoice\Service\Import\PurchaseInvoicePdfArchiver::ensureShardPath($archiveRoot, $supplierId, $sha);
         if (!is_file($diskPath)) @file_put_contents($diskPath, $pdf);
 
-        $relPath = 'supplier-' . $supplierId . '/' . $disk;
-        $name = ((string) ($exp['number'] ?? 'expense')) . '.pdf';
-        $this->purchaseRepo->setPdfMetadata($purchaseInvoiceId, $supplierId, $relPath, $sha, strlen($pdf), $name);
+        $relPath = \MyInvoice\Service\Import\PurchaseInvoicePdfArchiver::shardedRelPath($supplierId, $sha);
+        $this->purchaseRepo->setPdfMetadata($purchaseInvoiceId, $supplierId, $relPath, $sha, strlen($pdf), $attachment['filename']);
     }
 
     private function loadBookmark(int $supplierId): ?string

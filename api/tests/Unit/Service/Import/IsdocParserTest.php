@@ -92,6 +92,60 @@ XML;
         self::assertSame(21.0, $inv['items'][0]['vat_rate']);
     }
 
+    public function testParsesLegacyIsdoc52Namespace(): void
+    {
+        // ISDOC 5.2 nese starší namespace .../invoice místo 6.x .../2013; struktura
+        // čtených elementů je shodná, takže se doklad musí naparsovat identicky.
+        // Dřív byl NS natvrdo 2013 → 5.2 nenašel ani <ID> a spadl na zavádějící
+        // „Chybí ISDOC ID" (issue #208).
+        $xml = str_replace(self::NS, 'http://isdoc.cz/namespace/invoice', $this->minimalIsdoc());
+        $result = $this->parser->parse($xml);
+
+        self::assertSame('21370362', $result['supplier_ic']);
+        $inv = $result['invoices'][0];
+        self::assertArrayNotHasKey('__error', $inv);
+        self::assertSame('2605001', $inv['varsymbol']);
+        self::assertSame('Test Klient s.r.o.', $inv['client']['company_name']);
+        self::assertCount(1, $inv['items']);
+        self::assertSame(21.0, $inv['items'][0]['vat_rate']);
+    }
+
+    public function testUnknownNamespaceThrowsClearMessage(): void
+    {
+        // Neznámý namespace nesmí skončit zavádějící „Chybí ISDOC ID", ale jasnou
+        // hláškou o nepodporovaném ISDOC namespace (issue #208).
+        $xml = str_replace(self::NS, 'http://example.com/not-isdoc', $this->minimalIsdoc());
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Nepodporovaný ISDOC namespace');
+        $this->parser->parse($xml);
+    }
+
+    public function testPayableAmountNullWhenNoMonetaryTotal(): void
+    {
+        $inv = $this->parser->parse($this->minimalIsdoc())['invoices'][0];
+        self::assertNull($inv['payable_amount'], 'bez <LegalMonetaryTotal> je payable_amount null');
+    }
+
+    public function testExtractsPayableAmountWithRounding(): void
+    {
+        // Doklad se zaokrouhlením: základ+DPH 999,99, k úhradě po zaokrouhlení
+        // 1000,00 (PayableRoundingAmount +0,01). Parser musí vrátit 1000,00.
+        $monetary = <<<XML
+  <LegalMonetaryTotal>
+    <TaxExclusiveAmount>826.44</TaxExclusiveAmount>
+    <TaxInclusiveAmount>999.99</TaxInclusiveAmount>
+    <PayableRoundingAmount>0.01</PayableRoundingAmount>
+    <PaidDepositsAmount>0</PaidDepositsAmount>
+    <PayableAmount>1000.00</PayableAmount>
+  </LegalMonetaryTotal>
+
+XML;
+        $xml = str_replace('</Invoice>', $monetary . '</Invoice>', $this->minimalIsdoc());
+        $inv = $this->parser->parse($xml)['invoices'][0];
+        self::assertSame(1000.0, $inv['payable_amount'], 'payable_amount = PayableAmount (k úhradě po zaokrouhlení)');
+    }
+
     public function testPaymentAccountAbsentWhenOnlyDueDate(): void
     {
         $inv = $this->parser->parse($this->minimalIsdoc())['invoices'][0];

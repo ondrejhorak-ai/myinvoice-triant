@@ -28,10 +28,30 @@ export interface InvoicePayment {
 
 export interface InvoicePaymentsResponse {
   payments: InvoicePayment[]
+  bank_transactions: RelatedBankTransaction[]
   paid_total: number
   amount_to_pay: number
   remaining: number
   payment_status: PaymentStatus | null
+}
+
+/** Bankovní operace přímo spárovaná s fakturou, i když nevytvořila účetní platbu. */
+export interface RelatedBankTransaction {
+  id: number
+  statement_id: number
+  statement_source: 'gpc' | 'pdf' | 'email_notice' | 'idoklad'
+  posted_at: string
+  amount: number
+  currency: string | null
+  variable_symbol: string | null
+  constant_symbol: string | null
+  specific_symbol: string | null
+  counterparty_account: string | null
+  counterparty_bank: string | null
+  counterparty_name: string | null
+  description: string | null
+  bank_ref: string | null
+  match_status: 'unmatched' | 'auto_exact' | 'auto_partial' | 'manual' | 'ignored'
 }
 
 /** Nespárovaná zálohová faktura (proforma) nabídnutá k propojení s daňovým dokladem. */
@@ -65,6 +85,15 @@ export interface InvoiceItem {
   vat_code?: string
   vat_label_cs?: string
   vat_label_en?: string
+  oss_applicable?: boolean
+  oss_consumer_country?: string | null
+  oss_rate_type?: 'standard' | 'reduced' | 'second_reduced' | 'parking' | 'zero' | string | null
+  oss_supply_type?: 'goods' | 'services' | null
+  oss_exchange_rate?: number | null
+  oss_exchange_rate_date?: string | null
+  oss_taxable_amount_return?: number | null
+  oss_vat_amount_return?: number | null
+  oss_original_period?: string | null
 }
 
 export interface VatBreakdownRow {
@@ -142,12 +171,20 @@ export interface Invoice {
   approval_reminder_at: string | null
   approval_reminder_count: number
   project_requires_approval?: boolean
+  /** Token trvalého veřejného odkazu „web faktura" (/invoice/{token}); null dokud odkaz nevznikl. */
+  public_token: string | null
+  /** Poslední zobrazení web faktury klientem (anonymní přístup); null = zatím nezobrazeno. */
+  public_viewed_at: string | null
   sent_at: string | null
   last_reminder_at: string | null
   reminder_count: number
   paid_at: string | null
   cancelled_at: string | null
   pdf_path: string | null
+  /** Zdrojové PDF z importu (iDoklad/Fakturoid) — oddělené od našeho rendered `pdf_path`. */
+  imported_pdf_path: string | null
+  imported_pdf_original_name?: string | null
+  imported_pdf_size_bytes?: number | string | null
   created_at: string
   created_by_name?: string | null
   updated_at: string
@@ -294,6 +331,15 @@ export interface InvoicePayload {
     unit_price_without_vat: number
     vat_rate_id: number
     order_index: number
+    oss_applicable?: boolean
+    oss_consumer_country?: string | null
+    oss_rate_type?: string | null
+    oss_supply_type?: 'goods' | 'services' | null
+    oss_exchange_rate?: number | null
+    oss_exchange_rate_date?: string | null
+    oss_taxable_amount_return?: number | null
+    oss_vat_amount_return?: number | null
+    oss_original_period?: string | null
   }>
 }
 
@@ -345,6 +391,33 @@ export const invoicesApi = {
     return api.get<{ data: MonthGroup[]; meta: InvoiceListMeta }>('/invoices', { params }).then(r => r.data)
   },
 
+  /**
+   * Plochý seznam OTEVŘENÝCH (nezaplacených) vystavených faktur a proforem pro picker
+   * (např. kotva sloučené úhrady v bankovním párování). Vrací max `limit` položek
+   * seřazených dle splatnosti. Hledá fulltextem (varsymbol + jméno klienta).
+   */
+  searchOpen: (q: string, limit = 20): Promise<InvoiceListItem[]> =>
+    invoicesApi.listGrouped({
+      q,
+      status: ['issued', 'sent', 'reminded'],
+      type: ['invoice', 'proforma'],
+      unpaid_only: true,
+      per_page: limit,
+    }).then(r => r.data.flatMap(g => g.invoices)),
+
+  /**
+   * Jako searchOpen, ale vč. ZAPLACENÝCH faktur — pro kotvu sloučené úhrady, kde
+   * spárování zaplacené faktury znamená rekonciliaci existující platby (proto musí
+   * jít vybrat i 'paid'). Bez unpaid_only, status zahrnuje 'paid'.
+   */
+  searchMatchable: (q: string, limit = 20): Promise<InvoiceListItem[]> =>
+    invoicesApi.listGrouped({
+      q,
+      status: ['issued', 'sent', 'reminded', 'paid'],
+      type: ['invoice', 'proforma'],
+      per_page: limit,
+    }).then(r => r.data.flatMap(g => g.invoices)),
+
   exportCsv: (filters: ListFilters = {}) => {
     const params = new URLSearchParams()
     if (filters.q) params.set('q', filters.q)
@@ -357,6 +430,15 @@ export const invoicesApi = {
     if (filters.currency)   params.set('filter[currency]',   filters.currency)
     return api.get<Blob>('/invoices/export.csv', { params, responseType: 'blob' })
   },
+
+  exportSelectedPdf: (ids: number[], signPdf = false) =>
+    api.get<Blob>('/invoices/export.pdf', {
+      params: {
+        ids: ids.join(','),
+        ...(signPdf ? { sign_pdf: 1 } : {}),
+      },
+      responseType: 'blob',
+    }),
 
   get:    (id: number) => api.get<Invoice>(`/invoices/${id}`).then(r => r.data),
   /**
@@ -380,6 +462,11 @@ export const invoicesApi = {
 
   // Akce nad fakturou
   issue:    (id: number) => api.post<Invoice>(`/invoices/${id}/issue`).then(r => r.data),
+  /**
+   * „Obnovit údaje klienta" — přepíše JEN snapshoty klienta/dodavatele z live dat
+   * (admin only, funguje i u vystaveného dokladu; částky/stav/číslo se nemění).
+   */
+  rebuildSnapshots: (id: number) => api.post<Invoice>(`/invoices/${id}/rebuild-snapshots`).then(r => r.data),
   markPaid: (id: number, paidAt?: string, opts?: { sendThanks?: boolean; thanksTrigger?: 'manual' | 'bulk' }) =>
     api.post<Invoice>(`/invoices/${id}/mark-paid`, {
       paid_at: paidAt || new Date().toISOString().slice(0, 10),
@@ -452,6 +539,17 @@ export const invoicesApi = {
     if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
     const qs = params.toString()
     return `/api/invoices/${id}/pdf${qs ? '?' + qs : ''}`
+  },
+
+  importedPdfUrl: (id: number, inline: boolean = false) => {
+    // Přímá navigace / iframe / <a href> neposílá X-Supplier-Id header (na rozdíl od
+    // axios) — proto přidáváme supplier_id jako query param (middleware ho čte jako fallback).
+    const sid = localStorage.getItem('myinvoice.current_supplier_id')
+    const params = new URLSearchParams()
+    if (inline) params.set('inline', '1')
+    if (sid && /^\d+$/.test(sid)) params.set('supplier_id', sid)
+    const qs = params.toString()
+    return `/api/invoices/${id}/imported-pdf${qs ? '?' + qs : ''}`
   },
 
   listPdfs: (id: number) =>
@@ -530,6 +628,19 @@ export const invoicesApi = {
   requestApprovalTest: (id: number) =>
     api.post<{ sent_to: string[]; sent_at: string; is_test: true }>(
       `/invoices/${id}/request-approval-test`,
+      {},
+    ).then(r => r.data),
+
+  // Web faktura — trvalý veřejný odkaz (ensure = idempotentní vytvoření + URL)
+  publicLink: (id: number) =>
+    api.post<{ url: string; token: string; public_viewed_at: string | null }>(
+      `/invoices/${id}/public-link`,
+      {},
+    ).then(r => r.data),
+
+  regeneratePublicLink: (id: number) =>
+    api.post<{ url: string; token: string; public_viewed_at: null }>(
+      `/invoices/${id}/public-link/regenerate`,
       {},
     ).then(r => r.data),
 

@@ -58,7 +58,7 @@ final class AiPdfExtractor
      *               error?:string, ai_data?:array<string,mixed>, model?:string,
      *               usage?:array<string,int>}
      */
-    public function extractAndCreate(int $supplierId, int $userId, string $pdfBytes, ?string $modelOverride = null, ?string $originalFilename = null): array
+    public function extractAndCreate(int $supplierId, int $userId, string $pdfBytes, ?string $modelOverride = null, ?string $originalFilename = null, ?string $importBatchId = null): array
     {
         // ISDOCX balíček (ZIP s vnitřním .isdoc + čitelným PDF) nahraný napřímo →
         // deterministický import přes ISDOC parser (0 AI cost), PDF z balíčku archivujeme.
@@ -66,7 +66,8 @@ final class AiPdfExtractor
         if (IsdocxExtractor::isZip($pdfBytes)) {
             $pkg = (new IsdocxExtractor())->unwrap($pdfBytes);
             if ($pkg !== null) {
-                return $this->createFromIsdocx($pkg, $supplierId, $userId, $originalFilename);
+                // $pdfBytes = ORIGINÁLNÍ .isdocx (předáme dál k archivaci as-is).
+                return $this->createFromIsdocx($pkg, $supplierId, $userId, $originalFilename, $pdfBytes, $importBatchId);
             }
         }
 
@@ -110,6 +111,14 @@ final class AiPdfExtractor
                     $r = $this->isdocMapper->map($parsed['invoices'][0], $supplierId, $userId);
                     // Attach PDF k vytvořené přijaté faktuře
                     $this->attachPdf((int) $r['purchase_invoice_id'], $supplierId, $pdfBytes, $originalFilename);
+                    // Zdrojový artefakt = vytažený ISDOC XML (embedded v PDF/A-3) — issue #175.
+                    $srcName = ($originalFilename !== null && $originalFilename !== '')
+                        ? preg_replace('/\.[^.\\/]+$/', '.isdoc', $originalFilename)
+                        : 'source.isdoc';
+                    $this->pdfArchiver->archiveSourceBytes(
+                        (int) $r['purchase_invoice_id'], $supplierId, $isdocXml, $srcName, 'isdoc',
+                    );
+                    $this->tagImportBatch((int) $r['purchase_invoice_id'], $supplierId, $importBatchId);
                     return [
                         'ok'                  => true,
                         'purchase_invoice_id' => $r['purchase_invoice_id'],
@@ -239,10 +248,15 @@ final class AiPdfExtractor
             $invoiceId = $this->createDraft($data, $supplierId, $userId, $resolved['id'], $resolved['is_vat_payer'] ?? null);
             // Attach PDF — uložit do archive a updatnout pdf_path/hash/size na faktuře
             $this->attachPdf($invoiceId, $supplierId, $pdfBytes, $originalFilename);
+            $this->tagImportBatch($invoiceId, $supplierId, $importBatchId);
             return [
                 'ok'                  => true,
                 'purchase_invoice_id' => $invoiceId,
                 'vendor_id'           => $resolved['id'],
+                'vendor_name'         => (string) ($resolved['company_name'] ?? ($data['vendor']['company_name'] ?? '')),
+                'document_kind'       => $this->normalizeDocumentKind((string) ($data['document_kind'] ?? 'invoice')),
+                'total_with_vat'      => isset($data['total_with_vat']) ? (float) $data['total_with_vat'] : null,
+                'currency'            => (string) ($data['currency'] ?? ''),
                 'source'              => 'ai',
                 'model'               => $extracted['model'] ?? null,
                 'usage'               => $extracted['usage'] ?? null,
@@ -267,7 +281,7 @@ final class AiPdfExtractor
      * @param array{isdoc:string, isdoc_name:string, pdf:?string, pdf_name:?string} $pkg
      * @return array{ok:bool, purchase_invoice_id?:int, vendor_id?:int, source:string, error?:string, duplicate?:bool, message?:string}
      */
-    private function createFromIsdocx(array $pkg, int $supplierId, int $userId, ?string $originalFilename): array
+    private function createFromIsdocx(array $pkg, int $supplierId, int $userId, ?string $originalFilename, ?string $isdocxBytes = null, ?string $importBatchId = null): array
     {
         $innerPdf = $pkg['pdf'];
 
@@ -310,12 +324,38 @@ final class AiPdfExtractor
             $this->attachPdf((int) $r['purchase_invoice_id'], $supplierId, $innerPdf, $pdfName);
         }
 
+        // Zdrojový artefakt = ORIGINÁLNÍ .isdocx as-is (NEROZBALENÉ — zachová podpis ZIP
+        // obálky). Write-once přes source_* (issue #175).
+        if ($isdocxBytes !== null && $isdocxBytes !== '') {
+            $this->pdfArchiver->archiveSourceBytes(
+                (int) $r['purchase_invoice_id'], $supplierId, $isdocxBytes,
+                $originalFilename ?: 'source.isdocx', 'isdocx',
+            );
+        }
+
+        $this->tagImportBatch((int) $r['purchase_invoice_id'], $supplierId, $importBatchId);
         return [
             'ok'                  => true,
             'purchase_invoice_id' => (int) $r['purchase_invoice_id'],
             'vendor_id'           => $r['vendor_id'] ?? null,
             'source'              => 'isdocx',
         ];
+    }
+
+    /**
+     * Označí právě vytvořený doklad identifikátorem importní dávky (#232), pokud byl
+     * předán. Selhání je „nice to have" — doklad je už správně vytvořený.
+     */
+    private function tagImportBatch(int $invoiceId, int $supplierId, ?string $importBatchId): void
+    {
+        if ($importBatchId === null || $importBatchId === '') {
+            return;
+        }
+        try {
+            $this->repo->setImportBatchId($invoiceId, $supplierId, $importBatchId);
+        } catch (\Throwable) {
+            // ignore — dávkové označení není kritické
+        }
     }
 
     /**
@@ -690,7 +730,10 @@ final class AiPdfExtractor
         // (např. NC Auto BMW Service → 4977 reálně vs 22442 jako duplicitní subtotaly).
         $this->maybeFlagTotalsMismatch($id, $supplierId, $data, $items, $pricesIncludeVat);
         // Dodavatel neplátce → vysvětlující varování (má přednost před mismatch hláškou).
-        if ($vendorNonPayer) {
+        // U reverse charge se NEuvádí: dodavatel je sice neplátce české DPH, ale příjemce
+        // si daň samovyměří a odpočet ('full') NÁLEŽÍ — hláška „odpočet zakázán" by byla
+        // zavádějící (a věcně nesprávná, viz vat_deduction výše).
+        if ($vendorNonPayer && !$reverseCharge) {
             try {
                 $this->repo->setExtractionWarning(
                     $id,
