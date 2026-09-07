@@ -1,0 +1,16 @@
+---
+description: Rebuild and deploy Triant office after code changes
+alwaysApply: true
+---
+
+# Deploy after implementation
+
+When you finish an implementation task that changes files under `web/` or `api/`, always:
+
+1. Run `/opt/office/scripts/up.sh` (rebuilds the Docker image and restarts the stack).
+2. Confirm the app is healthy: `curl -fsS https://office.triant.cz/api/health`
+3. Confirm deploy succeeded (exit code 0 + health check OK). If the task changed user-visible behavior, note that the live site should now reflect those changes.
+
+Do **not** run `scripts/update.sh` unless the user explicitly asks for a git pull + backup — it may overwrite uncommitted local work.
+
+Skip deploy if the task was read-only (questions, plans, reviews with no file edits).
