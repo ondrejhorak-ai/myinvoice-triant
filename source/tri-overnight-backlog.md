@@ -95,7 +95,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 
 ### S. Scénáře (spec: `tri-office-scenarios.md`; fail → fix → replay celého scénáře)
 
-- [ ] **S1 — Nový zákazník a zakázka.**
+- [x] **S1 — Nový zákazník a zakázka.**
 - [ ] **S2 — Dvě varianty, sleva, schválení B.**
 - [ ] **S3 — Zálohová faktura.**
 - [ ] **S4 — Daňový doklad k záloze.**
@@ -147,4 +147,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 G3** — Primary paleta Triant petrolej `#0B4F7C` (škála 50–900 z loop promptu), warning-500 `#F59B00`. `AccentColor::DEFAULT` + fallbacky, PDF invoice.css, manuál, grafy. Untitled gray beze změny.
 - **2026-09-07 K1+K2** — Branding: title/manifest/login „Triant office", footer bez MyWebdesign/GitHub/donate/CTA modalů, sidebar bez odkazu MyInvoice.cz, e-mail šablony + subjekty + PDF SetCreator rebrand, public stránky (schválení výkazu, web faktura, výkaz tracking). Smazáno 14 mrtvých FE adresářů/stránek (invoices, clients, projects, bank, reports, recurring, purchase-invoices, crm, documents, logbook, tax, Dashboard, Stats, PurchaseStats) + admin Imports/Export/PriceList/Approvals/BankAccounts/MyuctoUpgrade + `api/myuctoUpgrade.ts` + core ClientFormModal/ProjectFormModal (TRI editor nyní `TriContactFormModal` s write-through). `/admin/upgrade` → redirect `/tri/admin/myucto` (konverzní nástroj by zničil office DB). i18n bez sekcí support/myucto_upgrade (soubory reformátované na indent 2). Architektura test `InvoiceAmountSourceGuardsTest` přesměrován na TRI stránky. Technické identifikátory `myinvoice.*` (localStorage, eventy) záměrně zachovány.
 - **2026-09-07 I1–I5** — Blokátory scénářů: (I1) migrace `9019` seed tagů + `TagRepository::slugify` s transliterací + fallback `customer_client_id` na `clients.is_customer` (checkbox stačí, tag má přednost). (I2) TRI kontakty `role: 'all'`. (I3) **zásadní bug**: MyÚčto list faktur vrací měsíční skupiny `{month, invoices:[...]}` — pull sync nikdy nic nenačetl a tombstonoval vše z gateway; `InvoiceSync::flattenGroups` + safety-net GET před tombstonem (404/410 = smazat). Po opravě sync načetl 122 faktur, koncept 133 obnoven. (I4) `InvoiceGateway::present` doplněn vnořený `totals` (render crash detailu „without_vat of undefined"), editor onMounted try/finally. (I5) `issueFinal` klient+gateway+route+FE tlačítko odkryto (MyÚčto `POST /invoices/{id}/issue-final`, vrací nový doklad → redirect na detail). PHPUnit `TagCustomerTest` + rozšířený `MirrorSyncTest` (12 testů OK; známé faily CzkRecap/ClientValidation beze změny).
+- **2026-09-07 S1** — Kontakt `Interiéry Malinová s.r.o.` (id 38, IČO 99918471, Brno) + zakázka **260002** „Kuchyň na míru — Malinová“. Tag Zákazník z checkboxu bez workaroundu. Write-through: klient v MyÚčtu `/clients/38` se stejnou adresou/e-mailem. Projekt až po potvrzení (S2). Žádná oprava kódu.
 
