@@ -7,9 +7,9 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 
 ## Řezy
 
-### A. UI foundation (Untitled UI vzhled, brand indigo zůstává)
+### A. UI foundation (Untitled UI vzhled; primary od G3 = Triant petrolej)
 
-- [x] **A1 — Design tokeny.** V `web/src/styles/main.css` přiblížit tokeny Untitled UI: 4px grid spacing, radius 8/12/16 (`--radius-md/lg/xl`), jemné stíny (shadow-xs/sm jako utility či tokeny), neutral škála čistší/chladnější ve stylu Untitled gray (light i `.dark` varianta), focus ring styl (4px světlý ring v primary). Primary indigo škálu zachovat. Ověřit, že se nerozpadly existující stránky (bg-neutral-50/200/900, status badge tokeny).
+- [x] **A1 — Design tokeny.** V `web/src/styles/main.css` přiblížit tokeny Untitled UI: 4px grid spacing, radius 8/12/16 (`--radius-md/lg/xl`), jemné stíny (shadow-xs/sm jako utility či tokeny), neutral škála čistší/chladnější ve stylu Untitled gray (light i `.dark` varianta), focus ring styl (4px světlý ring v primary). Primary tehdy indigo (nahrazeno v G3). Ověřit, že se nerozpadly existující stránky (bg-neutral-50/200/900, status badge tokeny).
 - [x] **A2 — Primitiva.** Do `web/src/components/ui/` přidat `UiButton.vue` (primary/secondary/outline/ghost/danger, sm 36px / md 40px, loading, ikona), `UiBadge.vue` (pill, barevné varianty mapované na status tokeny), `UiPageHeader.vue` (title + subtitle + actions slot, spodní divider), `UiCard.vue`, `UiInput.vue` (label, hint, error, prefix ikona), `UiTable.vue` (hlavička uppercase 12px, řádkový hover, sticky first column přes existující `table-sticky-first`). Vizuálně podle Untitled UI. Nikde je zatím plošně nenasazovat — jen vytvořit + použít na jedné stránce jako pilot (TRI kontakty list).
 - [x] **A3 — Shell.** `AppLayout.vue`: sidebar podle Untitled UI (sekce s jemnými popisky, položky 40px, aktivní stav plný pill v primary-50/primary-700, hover neutral-100), topbar vyčistit, page canvas `max-w` + konzistentní padding. `AppShell.vue` (login) sladit. **Zachovat TRI úpravy:** drawer chování na všech šířkách, `TriLogo`, `TriTopbarNav`, skryté přepínače (`SHOW_LOCALE_SWITCHER/SHOW_THEME_TOGGLE`).
 - [x] **A4 — Restyle TRI Kontakty** (`pages/tri/contacts/`**): list, detail, form modal — nasadit primitiva z A2, tabulka + page header + empty state podle Untitled.
@@ -43,18 +43,38 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 
 - [x] **F1 — Manuál.** Nové kapitoly `manual/`: Ceníky, Průvodky, Kalendář, Reklamace (česky, jen aktuální stav) + aktualizace `manual/14_Zakazky.md` (vyrábíme, hodiny, průvodky) a `INDEX.md`. Regenerovat: `php tools/generateManualHtml.php` + `php tools/exportManualToPdf.php`. Zkontrolovat `manual/manual.css` vs. nové tokeny z A1.
 
+### H. MyÚčto integrace (přednost před Polish; záměrně před sekcí G)
+
+Spec: [`18-myucto-split-architecture.md`](18-myucto-split-architecture.md) · Briefy s akceptačními kritérii: [`19-myucto-phase-briefs.md`](19-myucto-phase-briefs.md).
+Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbooku ([`20-office-deploy-runbook.md`](20-office-deploy-runbook.md)) — dokud stack `/opt/office` neběží, tuto sekci přeskoč a ber Polish.
+
+- [ ] **H1 — Freeze + scaffold `MyUctoClient`.** Env klíče, Guzzle klient s retry/error mapping, CLI `tri-myucto.php ping`, PHPUnit s MockHandler. Brief: fáze 1.
+- [ ] **H2 — Pull zrcadlo.** Migrace `9017` (`mu_*` + sloupce na `clients`/`tri_jobs`), `ClientSync/ProjectSync/InvoiceSync/CodebookSync`, `SyncRunner` + cron 5 min, admin stránka MyÚčto synchronizace. Brief: fáze 2.
+- [ ] **H3 — Write-through kontakty.** `ContactGateway`, přepojení TRI kontaktů, core client write → 410, ARES přes MyÚčto. Brief: fáze 3.
+- [ ] **H4 — Zakázky ↔ projekty + koncepty faktur.** `ProjectGateway`, `InvoiceGateway` (draft část), nový `JobInvoiceBuilder`, `mu_commands`, `triInvoices.ts`, editor/list nad zrcadlem, migrace `9018` (drop `tri_job_invoices`), úklid core hooků. Brief: fáze 4.
+- [ ] **H5 — Fakturační operace.** `issue`/`send`/`reminder`/`publicLink`/platby/`clone` v gateway + `InvoiceDetail` akce, role guardy, mapování chyb, activity log. Brief: fáze 5.
+- [ ] **H6 — Zúžení aplikace.** Sidebar/router jen TRI + Kontakty + Faktury + Admin, `RoleMiddleware` allowlist `/api/tri/*`, core invoice write → 410, dashboard → zakázky. Brief: fáze 6.
+
 ### G. Polish (nekonečná sekce — když je vše výše hotové, přidávej a ber odsud)
 
 - [x] **G1 — Restyle core Faktury** (`pages/invoices/`**) do Untitled vzhledu.
 
 - [x] **G2 — Restyle Dashboard, Klienti, Dokumenty.**
 
-- [ ] **G3 — Restyle zbývajících core stránek** (banka, výkazy, admin, recurring…) — po menších dávkách, jedna oblast na tick.
-- [ ] **G4 — PDF nabídky:** zachova beze změn.
-- [ ] **G5 — PDF faktury:** opatrně sladit `styles/invoice.css` (nezasahovat do náležitostí dokladu).
-- [ ] **G6 — Mobile pass:** karty/tabulky nových agend na malých šířkách.
-- [ ] **G7 — Empty states + loading skeletony** všech nových agend.
-- [ ] **G8 — Dark mode pass** nových agend a restylovaných stránek.
+- [ ] **G3 — Triant brand primary.** Nahradit MyInvoice indigo `#3B2D83` Triant petrolejem z PDF nabídky. **Škála (povinná, neimprovizovat):** viz produktové rozhodnutí v loop promptu (`50 #EAF1F5` … `700 #0B4F7C` … `900 #062C45`). Warning-500 přiblížit jantaru nabídky `#F59B00` (warning-50 nechat měkký tint). Success/danger beze změny. Untitled gray / radius / stíny / Inter neměnit.
+  - `web/src/styles/main.css`: celá `--color-primary-*` light + `.dark`, `--color-ring` / `--shadow-focus-ring` na nový `primary-100`, `--color-status-issued-*` na primary-50/700 (light i dark).
+  - `manual/manual.css` + `manual/index.php` `theme-color`.
+  - PHP fallback jedním místem: `AccentColor::DEFAULT` → `#0B4F7C` a všechny `: '#3B2D83'` fallbacky (Settings, Mailer, e-mail layout, public work-report, OpenAPI docs CSS, `client.ts` error page). I18n hint v Settings (cs+en) — už ne „fialová MyInvoice“.
+  - Grafy: `useTheme.ts` `CHART_PALETTE_*`, `InvoiceSizeChart.vue`.
+  - PDF faktury **jen výměna hexu** `#3B2D83` → `#0B4F7C` v `styles/invoice.css` + hardcoded v `work_report.twig` / `PurchaseInvoicePdfRenderer` / `PdfBranding` komentáře. `InvoicePdfRenderer` override: default teď znamená nový hex (generovat CSS jen když se supplier accent liší od `#0B4F7C`). **Náležitosti dokladu, layout, DPH — neměnit.**
+  - `source/05-design.md`: primary paleta = Triant škála (odstranit emerald i indigo jako brand).
+  - PHPUnit `AccentColorTest` a cokoli assertuje starý default. `pnpm build`, health, commit `ui(tri): Triant petrolej místo MyInvoice indigo`.
+- [ ] **G4 — Restyle zbývajících core stránek** (banka, výkazy, admin, recurring…) — po menších dávkách, jedna oblast na tick. Už na nové primary.
+- [ ] **G5 — PDF nabídky:** neměnit. Je zdroj brand barev (`#0B4F7C`, `#EAF1F5`, `#F59B00`).
+- [ ] **G6 — PDF faktury polish:** po G3 zkontrolovat vizuál (hlavička, tabulka, k úhradě). Když zbydou indigo ostrůvky nebo rozbitý branding override, opravit. Nesahej na náležitosti dokladu.
+- [ ] **G7 — Mobile pass:** karty/tabulky nových agend na malých šířkách.
+- [ ] **G8 — Empty states + loading skeletony** všech nových agend.
+- [ ] **G9 — Dark mode pass** nových agend a restylovaných stránek (vč. nové primary v `.dark`).
 
 - Sem zapisuj nově nalezené bugy a follow-upy jako další `G` řádky.
 
@@ -80,4 +100,5 @@ Po dokončení řezu připiš záznam do sekce **Log** dole.
 - **2026-08-14 13:52 F1** — Manuál: kapitoly 42–45 (Ceníky, Průvodky, Kalendář, Reklamace), `14_Zakazky.md` § 14.10 (Vyrábíme, hodiny, odkazy), INDEX sekce TRIANT. HTML+PDF regenerováno. `manual/manual.css` už zrcadlí A1 tokeny.
 - **2026-08-14 14:05 G1** — Restyle core faktur (`InvoiceList/Detail/Editor`): UiPageHeader, UiButton, UiCard, UiInput, UiBadge, ActionBar v headeru detailu, shadow-xs, Untitled caption/thead. Chování faktur/DPH beze změny.
 - **2026-08-14 14:15 G2** — Restyle Dashboard, Klienti (list/detail/form) a Dokumenty (browser/detail): primitiva A2, shadow-xs, Untitled caption/thead. KPI čísla a chování beze změny.
+- **2026-08-14 20:55 plán** — Brand decision změněn: MyInvoice indigo `#3B2D83` → Triant `#0B4F7C` (PDF nabídky). Loop prompt odemčen. Nový první řez **G3**; původní G3–G8 posunuté na G4–G9. Implementace až v G3, ne v tomto zápisu.
 

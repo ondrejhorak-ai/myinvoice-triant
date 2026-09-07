@@ -1,7 +1,21 @@
 # TRIANT plugin — upstream merge workflow
 
+> ## UKONČENO (2026-09-07)
+>
+> **Upstream merge skončily.** Poslední integrovaná verze je **v4.56.4**
+> (merge 2026-09-07, viz historie níže). Rozhodnutí: fork se odděluje —
+> účetnictví a fakturaci přebírá čisté **MyÚčto** (`ucto.triant.cz`,
+> auto-update, kód se neupravuje) a tento repozitář se stává samostatnou
+> aplikací **Triant office** (`office.triant.cz`) propojenou s MyÚčtem přes
+> REST API v1. Architektura: [`18-myucto-split-architecture.md`](18-myucto-split-architecture.md).
+>
+> Z toho plyne: `git fetch upstream` ani merge se už neprovádí; „upstream hook
+> lines" níže se postupně ruší v rámci fází integrace (briefy
+> [`19-myucto-phase-briefs.md`](19-myucto-phase-briefs.md)); zbytek dokumentu
+> zůstává jako referenční historie.
+
 Fork: [ondrejhorak-ai/myinvoice-triant](https://github.com/ondrejhorak-ai/myinvoice-triant)  
-Upstream: [radekhulan/myinvoice](https://github.com/radekhulan/myinvoice)
+Upstream: [radekhulan/myinvoice](https://github.com/radekhulan/myinvoice) (již se nemerguje)
 
 ## Isolation rules
 

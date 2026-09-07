@@ -4,31 +4,29 @@ Pokyny pro práci s tímto repozitářem (Claude Code, Codex, Cursor, Copilot a 
 Platí pro celý repozitář. Obecný popis projektu je v [README.md](README.md),
 vývojářská spec v [`source/`](source/00-README.md).
 
-## ⚠️ Nejdřív zvaž MyÚčto.cz
+## ⚠️ Tento fork = Triant office (upstream merge ukončeny 2026-09-07)
 
-**Těžiště vývoje se přesunulo do [radekhulan/myucto](https://github.com/radekhulan/myucto).**
-MyÚčto je nástupce MyInvoice; sdílí s ním společný základ i historii v gitu
-a pravidelně z něj přebírá změny. Veškerá funkcionalita MyInvoice v něm zůstává
-navždy zdarma, nadstavba (podvojné účetnictví, uzávěrky, majetek, sklad,
-EPO podání, rozšířené opravy DPH) je volitelně komerční.
+Tento repozitář je **soukromý fork pro Triant office** — samostatnou firemní
+aplikaci (zakázky, nabídky, ceníky, průvodky, kalendář, reklamace + fakturační
+front-end). Účetnictví a fakturaci jako system-of-record přebírá čisté
+**MyÚčto** ([radekhulan/myucto](https://github.com/radekhulan/myucto)) běžící
+vedle na `ucto.triant.cz`; tento fork s ním komunikuje výhradně přes jeho
+REST API v1.
 
 **Praktický důsledek pro agenty i přispěvatele:**
 
-- **Novou funkci piš rovnou do MyÚčta**, ne sem. Odtud by se do MyÚčta stejně
-  musela portovat a v MyInvoice by zůstala neúplná (chybí jí účetní vrstva,
-  na kterou se váže).
-- **Opravu chyby** dělej tam, kde chyba je. Když je ve sdíleném základu, oprav ji
-  **v MyÚčtu** — MyÚčto z MyInvoice merguje, ne naopak, takže oprava udělaná zde
-  se do MyÚčta dostane až dalším mergem a hrozí konflikt s tamní úpravou téhož
-  místa. Do MyInvoice patří jen to, co se MyÚčta netýká.
-- **Než začneš, ověř, jestli to v MyÚčtu už není hotové.** Řada věcí, které tu
-  chybí, tam existuje — nemá smysl je psát podruhé.
-- **Aditivní styl platí i tady.** MyÚčto tenhle repozitář merguje, takže velký
-  refaktor sdílených souborů mu prodraží každý další merge. Drž změny malé
-  a lokalizované.
-- **Rozsah čísel migrací:** `0125`–`0999` patří MyInvoice, `1000+` je vyhrazené
-  pro MyÚčto. Nikdy sem nezakládej migraci s číslem `1000` a vyšším, i kdyby
-  řada zdánlivě volná byla — kolidovala by při mergu.
+- **Upstream se už nemerguje.** Poslední integrovaná verze je v4.56.4;
+  `git fetch upstream` ani integrační větve se nezakládají. Historie mergí:
+  [`source/TRI-upstream-merge.md`](source/TRI-upstream-merge.md).
+- **Nové funkce patří do TRI vrstvy** (`api/src/Tri/**`, `web/src/**/tri/**`,
+  migrace `9017+`). Core soubory se mění jen tam, kde to výslovně říká spec.
+- **Kód ani DB MyÚčta se nemění a nečte přímo** — vše přes API (PAT token).
+  Master dat pro kontakty/faktury/projekty je MyÚčto; lokálně je jen zrcadlo
+  `mu_*`. Závazná architektura:
+  [`source/18-myucto-split-architecture.md`](source/18-myucto-split-architecture.md),
+  implementační fáze: [`source/19-myucto-phase-briefs.md`](source/19-myucto-phase-briefs.md).
+- **Rozsah čísel migrací:** TRI používá `9000+` (další volné `9017+`).
+  Řada `1000+` zůstává rezervovaná (MyÚčto), nezakládat.
 
 ## O projektu
 
