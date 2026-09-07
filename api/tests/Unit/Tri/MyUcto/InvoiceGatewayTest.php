@@ -43,6 +43,26 @@ final class InvoiceGatewayTest extends TestCase
         $this->assertArrayNotHasKey('id', $input);
     }
 
+    public function testToInvoiceInputPassesManualVarsymbol(): void
+    {
+        $pdo = $this->sqlite();
+        $gw = new InvoiceGateway($this->api([new Response(200, [], '{}')]), $pdo, 1);
+        $input = $gw->toInvoiceInput([
+            'client_id' => 10,
+            'invoice_type' => 'proforma',
+            'varsymbol' => '92609001',
+            'items' => [[
+                'description' => 'TEST položka',
+                'quantity' => 1,
+                'unit_price_without_vat' => 100,
+                'vat_rate_id' => 3,
+                'unit' => 'ks',
+            ]],
+        ]);
+
+        $this->assertSame('92609001', $input['varsymbol']);
+    }
+
     public function testCreateDraftRecordsCommandDone(): void
     {
         $pdo = $this->sqlite();
@@ -193,6 +213,23 @@ final class InvoiceGatewayTest extends TestCase
         $out = $gw->issue(55);
         $this->assertSame('issued', $out['status']);
         $this->assertSame(55, $out['id']);
+    }
+
+    public function testIssuePropagatesMyuctoApplication500(): void
+    {
+        $pdo = $this->sqlite();
+        $gw = new InvoiceGateway($this->api([
+            new Response(500, ['Content-Type' => 'application/json'], '{"error":{"code":"varsymbol_failed","message":"Chybí template pro proforma."}}'),
+        ]), $pdo, 1);
+        try {
+            $gw->issue(55);
+            $this->fail('expected exception');
+        } catch (MyUctoApiException $e) {
+            $this->assertSame('varsymbol_failed', $e->errorCode);
+            $this->assertSame(500, $e->httpStatus);
+            $this->assertStringContainsString('template pro proforma', $e->getMessage());
+            $this->assertFalse($e->isUnavailable());
+        }
     }
 
     private function sqlite(): PDO

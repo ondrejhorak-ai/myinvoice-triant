@@ -313,6 +313,18 @@ final class InvoiceGateway
         }
         $out['invoice_type'] = $type;
 
+        if (array_key_exists('varsymbol', $body)) {
+            $vs = trim((string) $body['varsymbol']);
+            if ($vs !== '') {
+                $out['varsymbol'] = $vs;
+            }
+        } elseif ($current !== null) {
+            $curVs = trim((string) ($current['varsymbol'] ?? ''));
+            if ($curVs !== '') {
+                $out['varsymbol'] = $curVs;
+            }
+        }
+
         foreach (['issue_date', 'due_date', 'tax_date', 'note_above_items', 'note_below_items', 'supplier_order_number'] as $key) {
             if (array_key_exists($key, $body)) {
                 $val = $body[$key];

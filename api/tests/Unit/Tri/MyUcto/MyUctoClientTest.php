@@ -80,6 +80,22 @@ final class MyUctoClientTest extends TestCase
         $client->health();
     }
 
+    public function testApplication500IsNotNetworkUnavailable(): void
+    {
+        $client = $this->client([
+            new Response(500, ['Content-Type' => 'application/json'], '{"error":{"code":"varsymbol_failed","message":"Chybí template pro proforma."}}'),
+        ]);
+        try {
+            $client->issueInvoice(134);
+            $this->fail('expected exception');
+        } catch (MyUctoApiException $e) {
+            $this->assertSame('varsymbol_failed', $e->errorCode);
+            $this->assertSame(500, $e->httpStatus);
+            $this->assertSame('Chybí template pro proforma.', $e->getMessage());
+            $this->assertFalse($e->isUnavailable());
+        }
+    }
+
     public function testDisabledThrowsWithoutHttp(): void
     {
         $client = $this->client([], enabled: false);

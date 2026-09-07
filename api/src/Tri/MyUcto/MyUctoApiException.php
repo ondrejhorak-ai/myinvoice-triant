@@ -23,7 +23,11 @@ final class MyUctoApiException extends \RuntimeException
 
     public function isUnavailable(): bool
     {
-        return in_array($this->errorCode, ['network', 'timeout', 'rate_limited'], true)
-            || $this->httpStatus >= 500;
+        if (in_array($this->errorCode, ['network', 'timeout', 'rate_limited'], true)) {
+            return true;
+        }
+
+        // Proxy / gateway outages only — application 500s (varsymbol, validation) must surface.
+        return in_array($this->httpStatus, [502, 503, 504], true);
     }
 }
