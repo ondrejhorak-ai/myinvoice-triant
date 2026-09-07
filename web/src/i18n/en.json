@@ -479,7 +479,11 @@
       "summary_advances": "Paid advances",
       "summary_invoiced": "Invoiced",
       "summary_remaining": "Remaining",
-      "open_full_detail": "Open full detail"
+      "open_full_detail": "Open full detail",
+      "refresh_from_myucto": "Refresh from MyÚčto",
+      "refreshed": "Invoices refreshed from MyÚčto",
+      "sync_project": "Link MyÚčto project",
+      "project_synced": "Job is linked to a MyÚčto project"
     },
     "price_lists": {
       "title": "Price lists",

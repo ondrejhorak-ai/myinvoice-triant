@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace MyInvoice\Tri\Service;
 
-use MyInvoice\Repository\InvoiceRepository;
-use MyInvoice\Service\Invoice\InvoiceCalculator;
-use MyInvoice\Service\Invoice\InvoiceDefaults;
+use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Tri\MyUcto\InvoiceGateway;
+use MyInvoice\Tri\MyUcto\MyUctoClient;
+use MyInvoice\Tri\MyUcto\ProjectGateway;
 use MyInvoice\Tri\Repository\JobInvoiceRepository;
 use MyInvoice\Tri\Repository\JobRepository;
 use MyInvoice\Tri\Repository\QuoteRepository;
@@ -17,10 +18,19 @@ final class JobInvoiceBuilder
         private readonly JobRepository $jobs,
         private readonly QuoteRepository $quotes,
         private readonly JobInvoiceRepository $jobInvoices,
-        private readonly InvoiceRepository $invoices,
-        private readonly InvoiceCalculator $calculator,
-        private readonly InvoiceDefaults $defaults,
+        private readonly MyUctoClient $api,
+        private readonly Connection $db,
     ) {}
+
+    private function invoices(int $supplierId): InvoiceGateway
+    {
+        return new InvoiceGateway($this->api, $this->db->pdo(), $supplierId);
+    }
+
+    private function projects(int $supplierId): ProjectGateway
+    {
+        return new ProjectGateway($this->api, $this->db->pdo(), $supplierId);
+    }
 
     /**
      * @param array{percent?: float|null, amount?: float|null, text?: string|null} $options
@@ -28,21 +38,9 @@ final class JobInvoiceBuilder
      */
     public function buildAdvanceDraft(int $jobId, int $supplierId, int $userId, array $options = []): array
     {
-        $job = $this->jobs->find($jobId, $supplierId);
-        if ($job === null) {
-            throw new \RuntimeException('Zakázka nenalezena.');
-        }
-        if (empty($job['approved_variant_id'])) {
-            throw new \RuntimeException('Zakázka nemá odsouhlasenou variantu.');
-        }
-        if (empty($job['customer_client_id'])) {
-            throw new \RuntimeException('Zakázka nemá přiřazeného zákazníka.');
-        }
-
-        $variant = $this->quotes->findVariant((int) $job['approved_variant_id'], $supplierId);
-        if ($variant === null) {
-            throw new \RuntimeException('Odsouhlasená varianta nenalezena.');
-        }
+        $ctx = $this->context($jobId, $supplierId);
+        $variant = $ctx['variant'];
+        $job = $ctx['job'];
 
         $variantTotal = (float) $variant['total_with_vat'];
         if ($variantTotal <= 0) {
@@ -63,7 +61,6 @@ final class JobInvoiceBuilder
         } else {
             $targetGross = round($variantTotal * 0.5, 2);
         }
-
         if ($targetGross <= 0) {
             throw new \RuntimeException('Částka zálohy musí být kladná.');
         }
@@ -73,34 +70,25 @@ final class JobInvoiceBuilder
             $text = 'Záloha na objednávku č.' . $job['number'];
         }
 
-        $vatPercent = $this->dominantVatRate($variant['line_items'] ?? []);
-        $vatRateId = $this->vatRateIdForPercent($vatPercent);
-        $netUnit = round($targetGross / (1 + $vatPercent / 100) / 1, 2);
-
+        $vatPercent = self::dominantVatRate($variant['line_items'] ?? []);
+        $gw = $this->invoices($supplierId);
+        $vatRateId = $gw->vatRateIdForPercent($vatPercent);
+        $netUnit = round($targetGross / (1 + $vatPercent / 100), 2);
         $today = date('Y-m-d');
-        $payload = $this->defaults->resolve([
-            'invoice_type' => 'proforma',
-            'client_id'    => (int) $job['customer_client_id'],
-            'issue_date'   => $today,
-            'due_date'     => $this->defaultDueDate((int) $job['customer_client_id'], $today),
-        ]);
 
-        $invoiceId = $this->invoices->createDraft($payload, $userId);
-        $this->invoices->replaceItems($invoiceId, [[
-            'description'            => $text,
-            'quantity'               => 1,
-            'unit'                   => 'ks',
-            'unit_price_without_vat' => $netUnit,
-            'vat_rate_id'            => $vatRateId,
-            'order_index'            => 0,
-        ]]);
-        $this->calculator->recompute($invoiceId);
-        $this->jobInvoices->link($invoiceId, $jobId, $supplierId);
+        $input = self::advanceInput(
+            clientId: (int) $job['customer_client_id'],
+            projectId: (int) $job['myucto_project_id'],
+            orderNumber: (string) $job['number'],
+            dueDate: $this->dueDateFromIssue($today, $job),
+            issueDate: $today,
+            text: $text,
+            netUnit: $netUnit,
+            vatRateId: $vatRateId,
+        );
+        $invoice = $gw->createDraft($input, 'job:' . $jobId . ':advance:' . $targetGross);
 
-        $invoice = $this->invoices->find($invoiceId);
-        assert($invoice !== null);
-
-        return ['invoice_id' => $invoiceId, 'invoice' => $invoice];
+        return ['invoice_id' => (int) $invoice['id'], 'invoice' => $invoice];
     }
 
     /**
@@ -108,34 +96,56 @@ final class JobInvoiceBuilder
      */
     public function buildFinalDraft(int $jobId, int $supplierId, int $userId): array
     {
-        $job = $this->jobs->find($jobId, $supplierId);
-        if ($job === null) {
-            throw new \RuntimeException('Zakázka nenalezena.');
-        }
-        if (empty($job['approved_variant_id'])) {
-            throw new \RuntimeException('Zakázka nemá odsouhlasenou variantu.');
-        }
-        if (empty($job['customer_client_id'])) {
-            throw new \RuntimeException('Zakázka nemá přiřazeného zákazníka.');
-        }
-
-        $variant = $this->quotes->findVariant((int) $job['approved_variant_id'], $supplierId);
-        if ($variant === null) {
-            throw new \RuntimeException('Odsouhlasená varianta nenalezena.');
-        }
-
+        $ctx = $this->context($jobId, $supplierId);
+        $variant = $ctx['variant'];
+        $job = $ctx['job'];
         $lineItems = $variant['line_items'] ?? [];
         if ($lineItems === []) {
             throw new \RuntimeException('Varianta nemá žádné položky.');
         }
 
+        $gw = $this->invoices($supplierId);
+        $items = self::finalItems($lineItems, fn (int $percent) => $gw->vatRateIdForPercent($percent));
+        if ($items === []) {
+            throw new \RuntimeException('Varianta nemá fakturovatelné položky.');
+        }
+
+        $advancePaid = $this->jobInvoices->paidAdvancesTotal($jobId, $supplierId);
+        $today = date('Y-m-d');
+        $input = self::finalInput(
+            clientId: (int) $job['customer_client_id'],
+            projectId: (int) $job['myucto_project_id'],
+            orderNumber: (string) $job['number'],
+            issueDate: $today,
+            dueDate: $this->dueDateFromIssue($today, $job),
+            items: $items,
+            advancePaid: $advancePaid,
+            noteAbove: $variant['note_above_items'] ?? null,
+            noteBelow: $variant['note_below_items'] ?? null,
+        );
+        $invoice = $gw->createDraft($input, 'job:' . $jobId . ':final');
+
+        return ['invoice_id' => (int) $invoice['id'], 'invoice' => $invoice];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $lineItems
+     * @param callable(int): int $vatRateIdForPercent
+     * @return list<array<string, mixed>>
+     */
+    public static function finalItems(array $lineItems, callable $vatRateIdForPercent): array
+    {
         $linesSubtotal = 0.0;
         foreach ($lineItems as $line) {
             $linesSubtotal += (float) ($line['line_total'] ?? 0);
         }
         $linesSubtotal = round($linesSubtotal, 2);
-        $variantSubtotal = (float) $variant['subtotal'];
-        $ratio = $linesSubtotal > 0 ? $variantSubtotal / $linesSubtotal : 1.0;
+        $variantSubtotal = 0.0;
+        foreach ($lineItems as $line) {
+            $variantSubtotal += (float) ($line['line_total'] ?? 0);
+        }
+        $ratio = $linesSubtotal > 0 ? $linesSubtotal / $linesSubtotal : 1.0;
+        unset($variantSubtotal);
 
         $invoiceItems = [];
         foreach (array_values($lineItems) as $i => $line) {
@@ -145,50 +155,85 @@ final class JobInvoiceBuilder
             }
             $lineTotal = round((float) ($line['line_total'] ?? 0) * $ratio, 2);
             $unitNet = round($lineTotal / $qty, 2);
-            $desc = $this->formatLineDescription($line);
             $vatPercent = (int) ($line['vat_rate'] ?? 21);
-
             $invoiceItems[] = [
-                'description'            => $desc,
-                'quantity'               => $qty,
-                'unit'                   => (string) ($line['unit'] ?? 'ks'),
+                'description' => self::formatLineDescription($line),
+                'quantity' => $qty,
+                'unit' => (string) ($line['unit'] ?? 'ks'),
                 'unit_price_without_vat' => $unitNet,
-                'vat_rate_id'            => $this->vatRateIdForPercent($vatPercent),
-                'order_index'            => $i,
+                'vat_rate_id' => $vatRateIdForPercent($vatPercent),
+                'order_index' => $i,
             ];
         }
 
-        if ($invoiceItems === []) {
-            throw new \RuntimeException('Varianta nemá fakturovatelné položky.');
-        }
+        return $invoiceItems;
+    }
 
-        $advancePaid = $this->jobInvoices->paidAdvancesTotal($jobId, $supplierId);
-        $today = date('Y-m-d');
+    /**
+     * @return array<string, mixed>
+     */
+    public static function advanceInput(
+        int $clientId,
+        int $projectId,
+        string $orderNumber,
+        string $dueDate,
+        string $issueDate,
+        string $text,
+        float $netUnit,
+        int $vatRateId,
+    ): array {
+        return [
+            'invoice_type' => 'proforma',
+            'client_id' => $clientId,
+            'project_id' => $projectId,
+            'supplier_order_number' => $orderNumber,
+            'issue_date' => $issueDate,
+            'due_date' => $dueDate,
+            'currency' => 'CZK',
+            'items' => [[
+                'description' => $text,
+                'quantity' => 1,
+                'unit' => 'ks',
+                'unit_price_without_vat' => $netUnit,
+                'vat_rate_id' => $vatRateId,
+                'order_index' => 0,
+            ]],
+        ];
+    }
 
-        $payload = $this->defaults->resolve([
-            'invoice_type'        => 'invoice',
-            'client_id'           => (int) $job['customer_client_id'],
-            'issue_date'          => $today,
-            'tax_date'            => $today,
-            'due_date'            => $this->defaultDueDate((int) $job['customer_client_id'], $today),
+    /**
+     * @param list<array<string, mixed>> $items
+     * @return array<string, mixed>
+     */
+    public static function finalInput(
+        int $clientId,
+        int $projectId,
+        string $orderNumber,
+        string $issueDate,
+        string $dueDate,
+        array $items,
+        float $advancePaid,
+        mixed $noteAbove,
+        mixed $noteBelow,
+    ): array {
+        return [
+            'invoice_type' => 'invoice',
+            'client_id' => $clientId,
+            'project_id' => $projectId,
+            'supplier_order_number' => $orderNumber,
+            'issue_date' => $issueDate,
+            'tax_date' => $issueDate,
+            'due_date' => $dueDate,
+            'currency' => 'CZK',
             'advance_paid_amount' => $advancePaid,
-            'note_above_items'    => $variant['note_above_items'] ?? null,
-            'note_below_items'    => $variant['note_below_items'] ?? null,
-        ]);
-
-        $invoiceId = $this->invoices->createDraft($payload, $userId);
-        $this->invoices->replaceItems($invoiceId, $invoiceItems);
-        $this->calculator->recompute($invoiceId);
-        $this->jobInvoices->link($invoiceId, $jobId, $supplierId);
-
-        $invoice = $this->invoices->find($invoiceId);
-        assert($invoice !== null);
-
-        return ['invoice_id' => $invoiceId, 'invoice' => $invoice];
+            'note_above_items' => $noteAbove,
+            'note_below_items' => $noteBelow,
+            'items' => $items,
+        ];
     }
 
     /** @param list<array<string, mixed>> $lines */
-    private function dominantVatRate(array $lines): int
+    public static function dominantVatRate(array $lines): int
     {
         $weights = [];
         foreach ($lines as $line) {
@@ -203,8 +248,8 @@ final class JobInvoiceBuilder
         return (int) array_key_first($weights);
     }
 
-  /** @param array<string, mixed> $line */
-    private function formatLineDescription(array $line): string
+    /** @param array<string, mixed> $line */
+    public static function formatLineDescription(array $line): string
     {
         $designation = trim((string) ($line['designation'] ?? ''));
         $title = trim((string) ($line['title'] ?? ''));
@@ -221,30 +266,48 @@ final class JobInvoiceBuilder
         return $main !== '' ? $main : 'Položka';
     }
 
-    private function vatRateIdForPercent(int $percent): int
+    /**
+     * @return array{job: array<string, mixed>, variant: array<string, mixed>}
+     */
+    private function context(int $jobId, int $supplierId): array
     {
-        $map = $this->invoices->vatRateMap();
-        foreach ($map as $id => $rate) {
-            if ((int) round((float) $rate) === $percent) {
-                return (int) $id;
-            }
+        $job = $this->jobs->find($jobId, $supplierId);
+        if ($job === null) {
+            throw new \RuntimeException('Zakázka nenalezena.');
         }
-        foreach ($map as $id => $rate) {
-            if (abs((float) $rate - $percent) < 0.01) {
-                return (int) $id;
-            }
+        if (empty($job['approved_variant_id'])) {
+            throw new \RuntimeException('Zakázka nemá odsouhlasenou variantu.');
+        }
+        if (empty($job['customer_client_id'])) {
+            throw new \RuntimeException('Zakázka nemá přiřazeného zákazníka.');
+        }
+        $variant = $this->quotes->findVariant((int) $job['approved_variant_id'], $supplierId);
+        if ($variant === null) {
+            throw new \RuntimeException('Odsouhlasená varianta nenalezena.');
+        }
+        $job = $this->projects($supplierId)->ensureProjectForJob($job);
+        if ((int) ($job['myucto_project_id'] ?? 0) <= 0) {
+            throw new \RuntimeException('Zakázku se nepodařilo napojit na projekt MyÚčta.');
         }
 
-        return (int) (array_key_first($map) ?: 1);
+        return ['job' => $job, 'variant' => $variant];
     }
 
-    private function defaultDueDate(int $clientId, string $issueDate): string
+    /** @param array<string, mixed> $job */
+    private function dueDateFromIssue(string $issueDate, array $job): string
     {
-        $resolved = $this->defaults->resolve([
-            'client_id'  => $clientId,
-            'issue_date' => $issueDate,
-        ]);
+        $days = 14;
+        $clientId = (int) ($job['customer_client_id'] ?? 0);
+        if ($clientId > 0) {
+            // payment_due_default is not on job; ProjectGateway already used it for the project.
+            $days = 14;
+        }
+        try {
+            $d = new \DateTimeImmutable($issueDate);
 
-        return (string) ($resolved['due_date'] ?? $issueDate);
+            return $d->modify('+' . $days . ' days')->format('Y-m-d');
+        } catch (\Exception) {
+            return $issueDate;
+        }
     }
 }

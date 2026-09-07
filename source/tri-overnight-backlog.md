@@ -51,7 +51,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **H1 — Freeze + scaffold `MyUctoClient`.** Env klíče, Guzzle klient s retry/error mapping, CLI `tri-myucto.php ping`, PHPUnit s MockHandler. Brief: fáze 1.
 - [x] **H2 — Pull zrcadlo.** Migrace `9017` (`mu_*` + sloupce na `clients`/`tri_jobs`), `ClientSync/ProjectSync/InvoiceSync/CodebookSync`, `SyncRunner` + cron 5 min, admin stránka MyÚčto synchronizace. Brief: fáze 2.
 - [x] **H3 — Write-through kontakty.** `ContactGateway`, přepojení TRI kontaktů, core client write → 410, ARES přes MyÚčto. Brief: fáze 3.
-- [ ] **H4 — Zakázky ↔ projekty + koncepty faktur.** `ProjectGateway`, `InvoiceGateway` (draft část), nový `JobInvoiceBuilder`, `mu_commands`, `triInvoices.ts`, editor/list nad zrcadlem, migrace `9018` (drop `tri_job_invoices`), úklid core hooků. Brief: fáze 4.
+- [x] **H4 — Zakázky ↔ projekty + koncepty faktur.** `ProjectGateway`, `InvoiceGateway` (draft část), nový `JobInvoiceBuilder`, `mu_commands`, `triInvoices.ts`, editor/list nad zrcadlem, migrace `9018` (drop `tri_job_invoices`), úklid core hooků. Brief: fáze 4.
 - [ ] **H5 — Fakturační operace.** `issue`/`send`/`reminder`/`publicLink`/platby/`clone` v gateway + `InvoiceDetail` akce, role guardy, mapování chyb, activity log. Brief: fáze 5.
 - [ ] **H6 — Zúžení aplikace.** Sidebar/router jen TRI + Kontakty + Faktury + Admin, `RoleMiddleware` allowlist `/api/tri/*`, core invoice write → 410, dashboard → zakázky. Brief: fáze 6.
 
@@ -104,4 +104,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 H1** — `MyUctoClient` (Guzzle, 429 retry, error envelope), env `TRI_MYUCTO_*`, CLI `tri-myucto.php ping|status|sync|contract`. PHPUnit MockHandler. Ping proti běžícímu MyÚčtu po deployi.
 - **2026-09-07 H2** — Migrace `9017` (`mu_*` + `clients.myucto_id` + `tri_jobs.myucto_project_id`), pull sync (hot 120 dní + drafty, cold 1× denně, tombstone), cron `*/5`, admin `/tri/admin/myucto`. PHPUnit upsert/tombstone na SQLite. `CzkRecapTest` a `ClientValidationTest` padají stejně jako dřív (mimo řez).
 - **2026-09-07 H3** — `ContactGateway` write-through (create/update/archive + ARES), TRI formuláře na `/api/tri/contacts`, core client write → 410. `RoleMiddleware` pouští `/api/tri/*` účetní/readonly GET. Sloupec `mu_sync_state.sync_cursor` (MariaDB rezervované `cursor`).
+- **2026-09-07 H4** — `ProjectGateway` (zakázka → projekt MyÚčta při potvrzení), `InvoiceGateway` koncepty + `mu_commands` (timeout → reconciliace), `JobInvoiceBuilder` staví InvoiceInput, list/editor nad zrcadlem `mu_invoices`, migrace `9018` drop `tri_job_invoices`. PHPUnit InvoiceGateway + builder. Vystavení/odeslání/platby až H5.
 

@@ -35,10 +35,19 @@ use MyInvoice\Tri\Action\Tag\SetClientTagsAction;
 use MyInvoice\Tri\Action\Tag\UpdateTagAction;
 use MyInvoice\Tri\Action\Invoice\CreateAdvanceInvoiceAction;
 use MyInvoice\Tri\Action\Invoice\CreateFinalInvoiceAction;
+use MyInvoice\Tri\Action\Invoice\CreateTriInvoiceAction;
+use MyInvoice\Tri\Action\Invoice\DeleteTriInvoiceAction;
 use MyInvoice\Tri\Action\Invoice\GetInvoiceJobAction;
+use MyInvoice\Tri\Action\Invoice\GetInvoiceMetaAction;
+use MyInvoice\Tri\Action\Invoice\GetInvoicePdfAction;
+use MyInvoice\Tri\Action\Invoice\GetTriInvoiceAction;
 use MyInvoice\Tri\Action\Invoice\ListJobInvoicesAction;
 use MyInvoice\Tri\Action\Invoice\ListTriInvoicesAction;
+use MyInvoice\Tri\Action\Invoice\PreviewVarsymbolAction;
+use MyInvoice\Tri\Action\Invoice\RefreshJobInvoicesAction;
 use MyInvoice\Tri\Action\Invoice\SetInvoiceJobAction;
+use MyInvoice\Tri\Action\Invoice\UpdateTriInvoiceAction;
+use MyInvoice\Tri\Action\Job\EnsureJobProjectAction;
 use MyInvoice\Tri\Action\PriceList\CreatePriceListAction;
 use MyInvoice\Tri\Action\PriceList\DeletePriceListAction;
 use MyInvoice\Tri\Action\PriceList\GetPriceListAction;
@@ -103,6 +112,7 @@ final class TriRoutes
         $app->get('/api/tri/jobs/{id:[0-9]+}', GetJobAction::class);
         $app->put('/api/tri/jobs/{id:[0-9]+}', UpdateJobAction::class);
         $app->post('/api/tri/jobs/{id:[0-9]+}/status', UpdateJobStatusAction::class);
+        $app->post('/api/tri/jobs/{id:[0-9]+}/myucto-project', EnsureJobProjectAction::class);
         $app->post('/api/tri/jobs/{id:[0-9]+}/archive', ArchiveJobAction::class);
         $app->delete('/api/tri/jobs/{id:[0-9]+}', DeleteJobAction::class);
 
@@ -123,11 +133,19 @@ final class TriRoutes
         $app->post('/api/tri/variants/{id:[0-9]+}/status', UpdateVariantStatusAction::class);
         $app->post('/api/tri/variants/{id:[0-9]+}/approve', ApproveVariantAction::class);
 
-        // Job invoices (Faktury TRI ↔ Zakázky TRI)
+        // Job invoices (Faktury TRI ↔ Zakázky TRI / MyÚčto)
         $app->get('/api/tri/jobs/{id:[0-9]+}/invoices', ListJobInvoicesAction::class);
         $app->post('/api/tri/jobs/{id:[0-9]+}/invoices/advance', CreateAdvanceInvoiceAction::class);
         $app->post('/api/tri/jobs/{id:[0-9]+}/invoices/final', CreateFinalInvoiceAction::class);
+        $app->post('/api/tri/jobs/{id:[0-9]+}/invoices/refresh', RefreshJobInvoicesAction::class);
+        $app->get('/api/tri/invoices/meta', GetInvoiceMetaAction::class);
+        $app->get('/api/tri/invoices/preview-varsymbol', PreviewVarsymbolAction::class);
         $app->get('/api/tri/invoices', ListTriInvoicesAction::class);
+        $app->post('/api/tri/invoices', CreateTriInvoiceAction::class);
+        $app->get('/api/tri/invoices/{id:[0-9]+}', GetTriInvoiceAction::class);
+        $app->put('/api/tri/invoices/{id:[0-9]+}', UpdateTriInvoiceAction::class);
+        $app->delete('/api/tri/invoices/{id:[0-9]+}', DeleteTriInvoiceAction::class);
+        $app->get('/api/tri/invoices/{id:[0-9]+}/pdf', GetInvoicePdfAction::class);
         $app->get('/api/tri/invoices/{id:[0-9]+}/job', GetInvoiceJobAction::class);
         $app->put('/api/tri/invoices/{id:[0-9]+}/job', SetInvoiceJobAction::class);
 

@@ -479,19 +479,19 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
   <div>
     <UiPageHeader :title="t('tri.invoices.title')" :subtitle="t('invoice.subtitle_grouping')">
       <template #actions>
-        <UiButton v-if="(issuableSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkIssue">
+        <UiButton v-if="false && (issuableSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkIssue">
           {{ bulkBusy ? '…' : t('invoice.bulk_issue', { n: issuableSelected.length }) }}
         </UiButton>
-        <UiButton v-if="(selectedIds.length > 0) && auth.canWrite" variant="outline" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkReissue">
+        <UiButton v-if="false && (selectedIds.length > 0) && auth.canWrite" variant="outline" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkReissue">
           {{ bulkBusy ? '…' : t('invoice.bulk_reissue', { n: selectedIds.length }) }}
         </UiButton>
-        <UiButton v-if="(markPayableSelected.length > 0) && auth.canWrite" variant="outline" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkMarkPaid">
+        <UiButton v-if="false && (markPayableSelected.length > 0) && auth.canWrite" variant="outline" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkMarkPaid">
           {{ bulkBusy ? '…' : t('invoice.bulk_mark_paid', { n: markPayableSelected.length }) }}
         </UiButton>
-        <UiButton v-if="(sendableSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkSend">
+        <UiButton v-if="false && (sendableSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkSend">
           {{ bulkBusy ? '…' : t('invoice.bulk_send', { n: sendableSelected.length }) }}
         </UiButton>
-        <UiButton v-if="(reminderSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkSendReminders">
+        <UiButton v-if="false && (reminderSelected.length > 0) && auth.canWrite" size="sm" :loading="bulkBusy" :disabled="bulkBusy" @click="bulkSendReminders">
           {{ bulkBusy ? '…' : t('invoice.bulk_reminder', { n: reminderSelected.length }) }}
         </UiButton>
         <UiButton v-if="auth.canWrite" to="/tri/invoices/new" size="sm">

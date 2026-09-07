@@ -30,6 +30,8 @@ final class CreateFinalInvoiceAction
 
         try {
             $result = $this->builder->buildFinalDraft($jobId, $supplierId, $userId);
+        } catch (\MyInvoice\Tri\MyUcto\MyUctoApiException $e) {
+            return InvoiceError::fromException($response, $e);
         } catch (\Throwable $e) {
             return Json::error($response, 'create_failed', $e->getMessage(), 409);
         }

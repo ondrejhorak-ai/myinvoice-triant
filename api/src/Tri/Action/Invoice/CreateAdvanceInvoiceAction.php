@@ -35,6 +35,8 @@ final class CreateAdvanceInvoiceAction
                 'amount'  => $body['amount'] ?? null,
                 'text'    => $body['text'] ?? null,
             ]);
+        } catch (\MyInvoice\Tri\MyUcto\MyUctoApiException $e) {
+            return InvoiceError::fromException($response, $e);
         } catch (\Throwable $e) {
             return Json::error($response, 'create_failed', $e->getMessage(), 409);
         }

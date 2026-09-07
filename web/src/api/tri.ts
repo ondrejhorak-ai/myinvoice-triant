@@ -43,6 +43,7 @@ export interface TriJob {
   customer_client_id: number | null
   customer_name: string | null
   customer_email?: string | null
+  myucto_project_id?: number | null
   approved_variant_id: number | null
   site_street: string | null
   site_city: string | null
@@ -370,6 +371,8 @@ export const triApi = {
       api.put<TriJob>(`/tri/jobs/${id}`, payload).then((r) => r.data),
     updateStatus: (id: number, status: string) =>
       api.post(`/tri/jobs/${id}/status`, { status }),
+    ensureProject: (id: number) =>
+      api.post<{ myucto_project_id: number | null }>(`/tri/jobs/${id}/myucto-project`).then((r) => r.data),
     archive: (id: number) => api.post(`/tri/jobs/${id}/archive`),
     delete: (id: number) => api.delete(`/tri/jobs/${id}`),
   },
@@ -414,6 +417,8 @@ export const triApi = {
       api.post<{ invoice_id: number; edit_url: string }>(`/tri/jobs/${jobId}/invoices/advance`, payload ?? {}).then((r) => r.data),
     createFinal: (jobId: number) =>
       api.post<{ invoice_id: number; edit_url: string }>(`/tri/jobs/${jobId}/invoices/final`).then((r) => r.data),
+    refresh: (jobId: number) =>
+      api.post<{ invoices: TriJobInvoice[]; summary: TriJobInvoiceSummary }>(`/tri/jobs/${jobId}/invoices/refresh`).then((r) => r.data),
   },
   priceLists: {
     list: (params?: Record<string, string | number>) =>

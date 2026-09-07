@@ -409,6 +409,8 @@ final class JobRepository
             'owner_name'         => (string) $row['owner_name'],
             'customer_client_id' => $row['customer_client_id'] !== null ? (int) $row['customer_client_id'] : null,
             'customer_name'      => $row['customer_name'] !== null ? (string) $row['customer_name'] : null,
+            'myucto_project_id'  => isset($row['myucto_project_id']) && $row['myucto_project_id'] !== null
+                ? (int) $row['myucto_project_id'] : null,
             'updated_at'         => (string) $row['updated_at'],
         ];
     }
@@ -434,6 +436,8 @@ final class JobRepository
             'site_zip'             => $row['site_zip'] !== null ? (string) $row['site_zip'] : null,
             'site_country'         => (string) $row['site_country'],
             'notes'                => $row['notes'] !== null ? (string) $row['notes'] : null,
+            'myucto_project_id'  => isset($row['myucto_project_id']) && $row['myucto_project_id'] !== null
+                ? (int) $row['myucto_project_id'] : null,
             'archived_at'          => $row['archived_at'],
             'created_at'           => (string) $row['created_at'],
             'updated_at'           => (string) $row['updated_at'],

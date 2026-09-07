@@ -3,7 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { triApi, type TriJob, type TriVariantStatus, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler, type TriCalendarEvent, type TriComplaint } from '@/api/tri'
-import { invoicesApi, type InvoiceListItem } from '@/api/invoices'
+import { triInvoicesApi } from '@/api/triInvoices'
+import type { InvoiceListItem } from '@/api/invoices'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { apiErrorMessage } from '@/api/errors'
@@ -48,6 +49,7 @@ const advanceBusy = ref(false)
 const linkModalOpen = ref(false)
 const linkCandidates = ref<InvoiceListItem[]>([])
 const linkBusy = ref(false)
+const projectBusy = ref(false)
 
 const canInvoice = computed(() => !!job.value?.approved_variant_id && !!job.value?.customer_client_id)
 const canGenerateTravelers = computed(() =>
@@ -114,6 +116,33 @@ async function loadInvoices() {
     invoiceSummary.value = r.summary
   } finally {
     invoicesLoading.value = false
+  }
+}
+
+async function refreshInvoices() {
+  invoicesLoading.value = true
+  try {
+    const r = await triApi.jobInvoices.refresh(jobId.value)
+    jobInvoices.value = r.invoices
+    invoiceSummary.value = r.summary
+    toast.success(t('tri.invoices.refreshed'))
+  } catch (e: unknown) {
+    toast.error(apiErrorMessage(e, t('common.error')))
+  } finally {
+    invoicesLoading.value = false
+  }
+}
+
+async function ensureProject() {
+  projectBusy.value = true
+  try {
+    await triApi.jobs.ensureProject(jobId.value)
+    toast.success(t('tri.invoices.project_synced'))
+    await load()
+  } catch (e: unknown) {
+    toast.error(apiErrorMessage(e, t('common.error')))
+  } finally {
+    projectBusy.value = false
   }
 }
 
@@ -236,7 +265,7 @@ async function openLinkModal() {
   linkModalOpen.value = true
   linkBusy.value = true
   try {
-    const r = await invoicesApi.listGrouped({ client_id: job.value.customer_client_id, per_page: 100 })
+    const r = await triInvoicesApi.list({ 'filter[client_id]': job.value.customer_client_id, per_page: 100 })
     const linkedIds = new Set(jobInvoices.value.map((i) => i.id))
     linkCandidates.value = r.data.flatMap((g) => g.invoices).filter((i) => !linkedIds.has(i.id))
   } finally {
@@ -516,6 +545,25 @@ onMounted(() => load())
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
         <h3 class="font-semibold text-neutral-900">{{ t('tri.invoices.section_title') }}</h3>
         <div v-if="auth.canWrite" class="flex flex-wrap gap-2">
+          <UiButton
+            type="button"
+            variant="outline"
+            size="sm"
+            :disabled="invoicesLoading"
+            @click="refreshInvoices"
+          >
+            {{ t('tri.invoices.refresh_from_myucto') }}
+          </UiButton>
+          <UiButton
+            v-if="auth.canWrite && !job.myucto_project_id"
+            type="button"
+            variant="outline"
+            size="sm"
+            :loading="projectBusy"
+            @click="ensureProject"
+          >
+            {{ t('tri.invoices.sync_project') }}
+          </UiButton>
           <UiButton
             type="button"
             variant="outline"

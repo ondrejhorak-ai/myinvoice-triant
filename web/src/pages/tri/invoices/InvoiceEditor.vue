@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { invoicesApi, type Invoice, type InvoicePayload, type InvoiceItem, type WorkReportItem, type InvoiceAttachment } from '@/api/invoices'
+import { triInvoicesApi } from '@/api/triInvoices'
 import { useHotkey } from '@/composables/useHotkey'
 import { focusLastRow } from '@/composables/useRowFocus'
 import { useToast } from '@/composables/useToast'
@@ -13,9 +14,7 @@ const toast = useToast()
 useHotkey('ctrl+s', (e) => { e.preventDefault(); submit() })
 import { clientsApi, type Client, type ViesLookupResult } from '@/api/clients'
 import { projectsApi, type Project } from '@/api/projects'
-import { codebooksApi, type VatRate, type Currency, type Unit } from '@/api/codebooks'
-import { vatClassificationsApi, type VatClassification } from '@/api/vatClassifications'
-import { revenueCategoriesApi, type RevenueCategory } from '@/api/revenueCategories'
+import { type VatRate, type Currency, type Unit } from '@/api/codebooks'
 import { formatMoney, formatPercent } from '@/composables/useFormat'
 import { evalMath } from '@/directives/vMath'
 import { apiErrorMessage } from '@/api/errors'
@@ -107,8 +106,6 @@ async function ensureClientLoaded(id: number, fallbackName?: string | null, fall
 }
 const projects = ref<Project[]>([])
 const vatRates = ref<VatRate[]>([])
-const vatClassifications = ref<VatClassification[]>([])
-const revenueCategories = ref<RevenueCategory[]>([])
 const currencies = ref<Currency[]>([])
 const units = ref<Unit[]>([])
 
@@ -292,13 +289,13 @@ async function loadVarsymbolPreview() {
     return
   }
   try {
-    const r = await invoicesApi.previewVarsymbol(
+    const r = await triInvoicesApi.previewVarsymbol(
       form.value.invoice_type,
       form.value.issue_date,
       form.value.client_id ?? undefined,
     )
-    varsymbolAutoPreview.value = r.varsymbol
-    varsymbolAutoHasTemplate.value = r.has_template
+    varsymbolAutoPreview.value = r.varsymbol ?? ''
+    varsymbolAutoHasTemplate.value = r.has_template ?? true
   } catch {
     varsymbolAutoPreview.value = ''
     varsymbolAutoHasTemplate.value = false
@@ -356,20 +353,42 @@ watch(() => form.value.invoice_type, (newType, oldType) => {
 })
 
 onMounted(async () => {
-  const [vr, cur, un, vc, rcat] = await Promise.all([
-    codebooksApi.vatRates('CZ'),
-    codebooksApi.currencies(),
-    codebooksApi.units(),
-    vatClassificationsApi.list('sale'),
-    revenueCategoriesApi.list(false),
+  const [meta] = await Promise.all([
+    triInvoicesApi.meta(),
   ])
-  vatRates.value = vr
-  currencies.value = cur
-  units.value = un
-  vatClassifications.value = vc
-  revenueCategories.value = rcat
+  vatRates.value = meta.vat_rates.map((v) => ({
+    id: v.id,
+    code: v.code ?? String(v.rate_percent),
+    rate_percent: v.rate_percent,
+    country: 'CZ',
+    label_cs: v.name ?? `${v.rate_percent} %`,
+    label_en: v.name ?? `${v.rate_percent} %`,
+    is_default: v.is_default,
+    is_reverse_charge: v.is_reverse_charge,
+    valid_from: '2000-01-01',
+    display_order: 0,
+  }))
+  currencies.value = meta.currencies.map((c) => ({
+    id: c.id,
+    code: c.code,
+    label: c.label,
+    symbol: c.symbol,
+    name_cs: c.name ?? c.code,
+    name_en: c.name ?? c.code,
+    decimals: c.decimals,
+    is_active: c.is_active,
+    is_default: c.is_default,
+  }))
+  units.value = meta.units.map((u, i) => ({
+    id: u.id,
+    code: u.code,
+    label_cs: u.label,
+    label_en: u.label,
+    is_default: i === 0,
+    display_order: i,
+  }))
   if (form.value.currency_id === 0) {
-    const def = cur.find(c => c.is_default && c.code === 'CZK') || cur[0]
+    const def = currencies.value.find(c => c.is_default && c.code === 'CZK') || currencies.value[0]
     if (def) {
       form.value.currency_id = def.id
       form.value.currency = def.code
@@ -379,7 +398,11 @@ onMounted(async () => {
   // Klienti se hledají server-side (onClientSearch); cache `clients` se plní výsledky + vybraným.
 
   if (isEdit.value && invoiceId.value) {
-    const inv = await invoicesApi.get(invoiceId.value)
+    const inv = await triInvoicesApi.get(invoiceId.value)
+    if (inv.status && inv.status !== 'draft') {
+      router.replace(`/tri/invoices/${inv.id}`)
+      return
+    }
     editedStatus.value = inv.status
     editedVarsymbol.value = inv.varsymbol
     Object.assign(form.value, {
@@ -954,9 +977,9 @@ async function submit() {
 
     let saved: Invoice
     if (isEdit.value && invoiceId.value) {
-      saved = await invoicesApi.update(invoiceId.value, payload, isForce.value)
+      saved = await triInvoicesApi.update(invoiceId.value, payload)
     } else {
-      saved = await invoicesApi.create(payload)
+      saved = await triInvoicesApi.create(payload)
       if (triJobId.value) {
         try {
           await triApi.invoices.setJob(saved.id, triJobId.value)
@@ -1026,7 +1049,7 @@ async function deleteDraft() {
   if (!invoiceId.value) return
   if (!confirm(t('invoice.delete_draft_confirm'))) return
   try {
-    await invoicesApi.delete(invoiceId.value)
+    await triInvoicesApi.remove(invoiceId.value)
     router.push('/tri/invoices')
   } catch (e: any) {
     error.value = apiErrorMessage(e, t('common.delete_failed'))

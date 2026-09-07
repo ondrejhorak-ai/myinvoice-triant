@@ -479,7 +479,11 @@
       "summary_advances": "Zaplacené zálohy",
       "summary_invoiced": "Vyfakturováno",
       "summary_remaining": "Zbývá",
-      "open_full_detail": "Otevřít plný detail"
+      "open_full_detail": "Otevřít plný detail",
+      "refresh_from_myucto": "Obnovit z MyÚčta",
+      "refreshed": "Faktury obnoveny z MyÚčta",
+      "sync_project": "Propojit projekt MyÚčta",
+      "project_synced": "Zakázka je propojená s projektem MyÚčta"
     },
     "price_lists": {
       "title": "Ceníky",

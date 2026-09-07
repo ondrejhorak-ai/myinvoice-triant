@@ -268,45 +268,7 @@ final class TriDemoEnricher
 
     private function issueInvoice(int $invoiceId, bool $forcePaid): void
     {
-        $invoice = $this->invoices->find($invoiceId);
-        if ($invoice === null || $invoice['status'] !== 'draft') {
-            return;
-        }
-
-        $supplierId = (int) $invoice['supplier_id'];
-        $issueDate = new \DateTimeImmutable((string) $invoice['issue_date']);
-        $varsymbol = $this->varsymbol->next(
-            $supplierId,
-            (string) $invoice['invoice_type'],
-            $issueDate,
-            (int) $invoice['client_id'],
-        );
-        $snapshots = $this->snapshots->build(
-            (int) $invoice['client_id'],
-            (int) $invoice['currency_id'],
-            $supplierId,
-        );
-
-        $autoPaid = $forcePaid || InvoiceAmountPolicy::shouldAutoMarkPaidOnIssue($invoice);
-        $status = $autoPaid ? 'paid' : 'issued';
-        $paidAt = $autoPaid ? $invoice['issue_date'] : null;
-
-        $this->db->pdo()->prepare(
-            'UPDATE invoices SET
-                varsymbol = ?, client_snapshot = ?, supplier_snapshot = ?, bank_snapshot = ?,
-                status = ?, paid_at = ?
-             WHERE id = ? AND status = "draft"'
-        )->execute([
-            $varsymbol,
-            json_encode($snapshots['client'], JSON_UNESCAPED_UNICODE),
-            json_encode($snapshots['supplier'], JSON_UNESCAPED_UNICODE),
-            $snapshots['bank'] !== null ? json_encode($snapshots['bank'], JSON_UNESCAPED_UNICODE) : null,
-            $status,
-            $paidAt,
-            $invoiceId,
-        ]);
-
-        $this->calculator->recompute($invoiceId);
+        // Vystavení je MyÚčto write-through (fáze H5). Demo jen zakládá koncepty.
     }
 
     private function resolveCustomerId(int $jobId): ?int

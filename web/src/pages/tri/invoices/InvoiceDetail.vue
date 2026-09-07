@@ -4,6 +4,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { invoicesApi, type Invoice, type WorkReport, type InvoiceAttachment, type AdvanceCandidate } from '@/api/invoices'
+import { triInvoicesApi } from '@/api/triInvoices'
 import { clientsApi, type Client } from '@/api/clients'
 import { clientMissingAddress } from '@/utils/clientCompleteness'
 import {
@@ -30,6 +31,8 @@ const toast = useToast()
 
 const auth = useAuthStore()
 const isAdmin = computed(() => auth.user?.role === 'admin')
+/** H5 doplní vystavení / odeslání / platby. */
+const h5Ready = false
 
 const supplierStore = useSupplierStore()
 const supplierIsVatPayer = computed(() => supplierStore.currentSupplier?.is_vat_payer ?? true)
@@ -115,7 +118,7 @@ const signatureSelectionRows = computed(() => {
 
 async function load() {
   loading.value = true
-  invoice.value = await invoicesApi.get(Number(route.params.id))
+  invoice.value = await triInvoicesApi.get(Number(route.params.id))
   loading.value = false
   clientForWarnings.value = null
   if (invoice.value?.client_id) {
@@ -376,10 +379,7 @@ async function deleteInvoice() {
   if (!confirm(t(confirmKey, { varsymbol: vs }))) return
   busy.value = 'delete'
   try {
-    const res = await invoicesApi.delete(invoice.value.id)
-    if (res?.cascade_deleted && res.cascade_deleted > 0) {
-      toast.success(t('invoice.deleted_with_cascade', { n: res.cascade_deleted }))
-    }
+    await triInvoicesApi.remove(invoice.value.id)
     router.push('/tri/invoices')
   } catch (e: any) {
     toast.error(e?.response?.data?.error?.message || t('invoice.delete_failed'))
@@ -666,7 +666,7 @@ function editIssued() {
 
 function downloadPdf() {
   if (!invoice.value) return
-  window.open(invoicesApi.pdfUrl(invoice.value.id, false), '_blank')
+  window.open(triInvoicesApi.pdfUrl(invoice.value.id, false), '_blank')
 }
 
 async function sendTest() {
@@ -929,7 +929,7 @@ async function requestApprovalTest() {
         <UiButton v-if="canRequestApproval && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'approval-request'" @click="requestApproval">
           {{ busy === 'approval-request' ? '…' : t('invoice.approval.send_request') }}
         </UiButton>
-        <UiButton v-if="isDraft && canIssueDraft && auth.canWrite" size="sm"
+        <UiButton v-if="h5Ready && isDraft && canIssueDraft && auth.canWrite" size="sm"
           :disabled="busy !== null || (requiresApproval && approvalStatus !== 'approved')"
           :title="requiresApproval && approvalStatus !== 'approved' ? t('invoice.approval.issue_blocked') : ''"
           :loading="busy === 'issue'"
@@ -945,7 +945,7 @@ async function requestApprovalTest() {
         <UiButton v-if="canSendEmail && auth.canWrite" size="sm" :disabled="busy !== null" @click="openSendModal">
           {{ t('invoice.send_to_client') }}
         </UiButton>
-        <UiButton v-if="canIssueFinal && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'issue-final'" @click="issueFinalFromProforma">
+        <UiButton v-if="h5Ready && canIssueFinal && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'issue-final'" @click="issueFinalFromProforma">
           {{ busy === 'issue-final' ? '…' : t('invoice.issue_final') }}
         </UiButton>
         <UiButton v-if="isIssued && canMarkPaid && auth.canWrite" variant="outline" size="sm" :disabled="busy !== null" @click="openMarkPaid">
@@ -954,7 +954,7 @@ async function requestApprovalTest() {
         <UiButton v-if="canSendReminder && auth.canWrite" size="sm" :disabled="busy !== null" :title="t('invoice.reminder_tooltip', { days: daysOverdue })" @click="openReminderModal">
           {{ t('invoice.send_reminder') }}
         </UiButton>
-        <UiButton v-if="(!isDraft && !['cancellation','credit_note'].includes(invoice.invoice_type)) && auth.canWrite" variant="outline" size="sm" :disabled="busy !== null" :loading="busy === 'clone'" @click="cloneInvoice">
+        <UiButton v-if="h5Ready && (!isDraft && !['cancellation','credit_note'].includes(invoice.invoice_type)) && auth.canWrite" variant="outline" size="sm" :disabled="busy !== null" :loading="busy === 'clone'" @click="cloneInvoice">
           {{ busy === 'clone' ? '…' : t('invoice.clone') }}
         </UiButton>
         <UiButton v-if="!isDraft || invoice.items.length > 0" variant="outline" size="sm" :title="invoiceWillBeSigned ? (t('invoice.download_pdf_tooltip_signed') as string) : undefined" @click="downloadPdf">
