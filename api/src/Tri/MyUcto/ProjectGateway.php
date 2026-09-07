@@ -68,6 +68,22 @@ final class ProjectGateway
         return $job;
     }
 
+    /**
+     * Stejné jako {@see ensureProjectForJob}, ale chyba MyÚčta nepropaguje —
+     * lokální stav (schválení varianty) už je uložený.
+     *
+     * @param array<string, mixed> $job
+     * @return array<string, mixed>
+     */
+    public function tryEnsureProjectForJob(array $job): array
+    {
+        try {
+            return $this->ensureProjectForJob($job);
+        } catch (MyUctoApiException) {
+            return $job;
+        }
+    }
+
     /** @param array<string, mixed> $job */
     public function closeProjectForJob(array $job): void
     {

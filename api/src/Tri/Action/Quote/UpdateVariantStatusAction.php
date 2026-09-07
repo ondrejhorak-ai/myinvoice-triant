@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace MyInvoice\Tri\Action\Quote;
 
 use MyInvoice\Http\Json;
+use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Tri\MyUcto\MyUctoClient;
+use MyInvoice\Tri\MyUcto\ProjectGateway;
+use MyInvoice\Tri\Repository\JobRepository;
 use MyInvoice\Tri\Repository\QuoteRepository;
 use MyInvoice\Tri\Service\JobActivityLogger;
 use MyInvoice\Tri\Support\TriRequest;
@@ -17,7 +21,10 @@ final class UpdateVariantStatusAction
 
     public function __construct(
         private readonly QuoteRepository $repo,
+        private readonly JobRepository $jobs,
         private readonly JobActivityLogger $activity,
+        private readonly Connection $db,
+        private readonly MyUctoClient $api,
     ) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
@@ -45,6 +52,14 @@ final class UpdateVariantStatusAction
                 'from'         => (string) $before['status'],
                 'to'           => $status,
             ]);
+        }
+
+        if ($status === 'approved') {
+            $job = $this->jobs->find((int) $variant['job_id'], $supplierId);
+            if ($job !== null && !empty($job['customer_client_id'])) {
+                (new ProjectGateway($this->api, $this->db->pdo(), $supplierId))
+                    ->tryEnsureProjectForJob($job);
+            }
         }
 
         return Json::ok($response, $variant);

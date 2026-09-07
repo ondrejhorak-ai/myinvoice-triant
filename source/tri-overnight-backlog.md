@@ -97,7 +97,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 
 - [x] **S1 — Nový zákazník a zakázka.**
 - [x] **S2 — Dvě varianty, sleva, schválení B.**
-- [ ] **I6 — Schválení varianty musí založit projekt MyÚčta.** `QuoteRepository::updateVariantStatus` při `approved` nastaví job `confirmed` bez `ProjectGateway` — tlačítko Propojit je workaround. Hook `ensureProjectForJob` do `UpdateVariantStatusAction` (chyba API nesmí zahodit schválení; projekt doplní další sync / tlačítko).
+- [x] **I6 — Schválení varianty musí založit projekt MyÚčta.** `QuoteRepository::updateVariantStatus` při `approved` nastaví job `confirmed` bez `ProjectGateway` — tlačítko Propojit je workaround. Hook `ensureProjectForJob` do `UpdateVariantStatusAction` (chyba API nesmí zahodit schválení; projekt doplní další sync / tlačítko).
 - [ ] **S3 — Zálohová faktura.**
 - [ ] **S4 — Daňový doklad k záloze.**
 - [ ] **S5 — Doplatková (konečná) faktura.**
@@ -150,4 +150,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 I1–I5** — Blokátory scénářů: (I1) migrace `9019` seed tagů + `TagRepository::slugify` s transliterací + fallback `customer_client_id` na `clients.is_customer` (checkbox stačí, tag má přednost). (I2) TRI kontakty `role: 'all'`. (I3) **zásadní bug**: MyÚčto list faktur vrací měsíční skupiny `{month, invoices:[...]}` — pull sync nikdy nic nenačetl a tombstonoval vše z gateway; `InvoiceSync::flattenGroups` + safety-net GET před tombstonem (404/410 = smazat). Po opravě sync načetl 122 faktur, koncept 133 obnoven. (I4) `InvoiceGateway::present` doplněn vnořený `totals` (render crash detailu „without_vat of undefined"), editor onMounted try/finally. (I5) `issueFinal` klient+gateway+route+FE tlačítko odkryto (MyÚčto `POST /invoices/{id}/issue-final`, vrací nový doklad → redirect na detail). PHPUnit `TagCustomerTest` + rozšířený `MirrorSyncTest` (12 testů OK; známé faily CzkRecap/ClientValidation beze změny).
 - **2026-09-07 S1** — Kontakt `Interiéry Malinová s.r.o.` (id 38, IČO 99918471, Brno) + zakázka **260002** „Kuchyň na míru — Malinová“. Tag Zákazník z checkboxu bez workaroundu. Write-through: klient v MyÚčtu `/clients/38` se stejnou adresou/e-mailem. Projekt až po potvrzení (S2). Žádná oprava kódu.
 - **2026-09-07 S2** — Varianta A `260002-A` koncept (K01×6 3200 + D01×8 1850 = 34 000 Kč). B `260002-B` schválená: sekce Spodní/Horní skříňky (K02×4 3800, D02×4 2100, K03×5 2800, D03×5 1600), sleva 10 % → základ 41 040 Kč, DPH 8 618 Kč, celkem 49 658 Kč. Schválení B auto-potvrdí zakázku; projekt MyÚčta vznikl až po **Propojit** (jeden projekt `260002 Kuchyň na míru — Malinová` u klienta 38). Follow-up **I6**. Žádná oprava kódu v tomto řezu.
+- **2026-09-07 I6** — `UpdateVariantStatusAction` po `approved` volá `ProjectGateway::tryEnsureProjectForJob` (chyba MyÚčta neshazuje schválení). PHPUnit `ProjectGatewayTest` (create + idempotence + swallow 503).
 
