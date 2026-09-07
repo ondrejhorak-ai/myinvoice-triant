@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import LinkedDocumentsPanel from '@/components/documents/LinkedDocumentsPanel.vue'
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { clientsApi, type Client, type BankLookupResult } from '@/api/clients'
 import { triApi } from '@/api/tri'
-import { invoicesApi, type InvoiceListItem } from '@/api/invoices'
-import { purchaseInvoicesApi, type PurchaseInvoice } from '@/api/purchaseInvoices'
-import { recurringApi, type RecurringTemplate } from '@/api/recurring'
+import { type InvoiceListItem } from '@/api/invoices'
+import { triInvoicesApi } from '@/api/triInvoices'
 import { formatMoney, formatDate, statusLabel, typeLabel, statusBadgeClass, isOverdue, invoiceRowClass } from '@/composables/useFormat'
 import MonthlyRevenueChart from '@/components/charts/MonthlyRevenueChart.vue'
 import TopProjectsBarChart from '@/components/charts/TopProjectsBarChart.vue'
@@ -42,9 +40,6 @@ const invoicesLoadingMore = ref(false)
 const invoicesTotal = ref(0)
 const invoicesPage = ref(1)
 const invoicesPages = ref(1)
-const recurringTemplates = ref<RecurringTemplate[]>([])
-const purchaseInvoices = ref<PurchaseInvoice[]>([])
-const purchaseInvoicesLoading = ref(false)
 
 // Detaily plátce DPH (registr plátců DPH / CRPDPH) — načítají se až na vyžádání.
 const vatInfoOpen = ref(false)
@@ -75,9 +70,8 @@ async function loadVatPayerDetails() {
 // `purchaseIsMultiCurrency` rozhodne, zda graf/totals zobrazit v CZK nebo původní měně.
 const purchaseCurrencies = computed(() => {
   const s = new Set<string>()
-  for (const pi of purchaseInvoices.value) {
-    if (pi.status === 'draft' || pi.status === 'cancelled') continue
-    s.add(pi.currency || 'CZK')
+  for (const r of client.value?.costs_by_month ?? []) {
+    if (r.currency) s.add(r.currency)
   }
   return Array.from(s)
 })
@@ -249,41 +243,20 @@ async function load() {
   const id = Number(route.params.id)
   loading.value = true
   invoicesLoading.value = true
-  purchaseInvoicesLoading.value = true
   invoicesPage.value = 1
   try {
-    const [c, grouped, rec, purchaseGrouped] = await Promise.all([
+    const [c, grouped] = await Promise.all([
       clientsApi.get(id),
-      invoicesApi.listGrouped({ client_id: id, page: 1 }),
-      // per_page=200 — v detailu klienta chceme všechny šablony naráz (vždy malé číslo).
-      recurringApi.list({ client_id: id, per_page: 200 }).catch(() => ({ data: [] as RecurringTemplate[] })),
-      // per_page=200 = backend max, aby v detailu klienta byly všechny přijaté faktury najednou
-      // (rok 2024 + starší by jinak vypadly z první stránky při per_page=20 v cfg.php).
-      purchaseInvoicesApi.listGrouped({ vendor_id: id, per_page: 200 }).catch(() => ({ data: [] as Array<{invoices: PurchaseInvoice[]}> })),
+      triInvoicesApi.list({ 'filter[client_id]': id, page: 1 }),
     ])
     client.value = c
     invoices.value = grouped.data.flatMap(g => g.invoices)
     invoicesTotal.value = grouped.meta.total
     invoicesPages.value = grouped.meta.pages ?? 1
-    recurringTemplates.value = rec.data
-    purchaseInvoices.value = (purchaseGrouped.data ?? []).flatMap((g: any) => g.invoices ?? [])
   } finally {
     loading.value = false
     invoicesLoading.value = false
-    purchaseInvoicesLoading.value = false
   }
-}
-
-function freqLabel(f: string): string {
-  return t(`recurring.frequency_${f}`)
-}
-
-function recurringStatusBadgeClass(s: string): string {
-  return {
-    active:  'bg-success-50 text-success-700 border-success-200',
-    paused:  'bg-warning-50 text-warning-700 border-warning-200',
-    expired: 'bg-neutral-100 text-neutral-500 border-neutral-200',
-  }[s] ?? 'bg-neutral-100 text-neutral-500'
 }
 
 async function loadMoreInvoices() {
@@ -291,7 +264,7 @@ async function loadMoreInvoices() {
   invoicesLoadingMore.value = true
   invoicesPage.value++
   try {
-    const grouped = await invoicesApi.listGrouped({ client_id: client.value.id, page: invoicesPage.value })
+    const grouped = await triInvoicesApi.list({ 'filter[client_id]': client.value.id, page: invoicesPage.value })
     invoices.value.push(...grouped.data.flatMap(g => g.invoices))
     invoicesTotal.value = grouped.meta.total
     invoicesPages.value = grouped.meta.pages ?? 1
@@ -557,9 +530,9 @@ async function deleteClient() {
             <tbody class="divide-y divide-neutral-100">
               <tr v-for="r in projectsTable" :key="`p-${r.project_id ?? 'none'}-${r.currency}`">
                 <td class="py-2 truncate max-w-[220px]">
-                  <RouterLink v-if="r.project_id" :to="`/projects/${r.project_id}`" class="text-primary-700 hover:underline">
+                  <span v-if="r.project_id" class="text-neutral-700">
                     {{ r.project_name }}
-                  </RouterLink>
+                  </span>
                   <span v-else class="text-neutral-400 italic">{{ t('client.no_project') }}</span>
                 </td>
                 <td class="py-2 text-right font-mono">{{ formatMoney(r.total, r.currency) }}</td>
@@ -571,77 +544,11 @@ async function deleteClient() {
       </div>
     </div>
 
-    <!-- Zakázky — visible pokud is_customer NEBO existují zakázky -->
-    <UiCard v-if="client.is_customer !== false || (client.projects?.length ?? 0) > 0">
-      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold text-neutral-900">{{ t('client.projects') }}</h3>
-        <UiButton v-if="auth.canWrite" :to="`/projects/new?client_id=${client.id}`" size="sm">
-          {{ t('client.new_project') }}
-        </UiButton>
-      </div>
-      <div v-if="!client.projects?.length" class="p-8 text-center text-neutral-500 text-sm">
-        {{ t('client.no_projects') }}
-      </div>
-      <!-- Desktop: tabulka -->
-      <div v-else class="hidden md:block">
-        <UiTable>
-          <template #head>
-          <tr>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('project.name') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.jobs.status') }}</th>
-            <th class="text-right px-4 py-2.5 font-medium">{{ t('client.hourly_rate') }}</th>
-            <th class="text-center px-4 py-2.5 font-medium">{{ t('client.due_label') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('project.number') }}</th>
-            <th class="px-4 py-2.5 w-44"></th>
-          </tr>
-          </template>
-          <tr v-for="p in client.projects" :key="p.id">
-            <td class="px-4 py-3 font-medium">{{ p.name }}</td>
-            <td class="px-4 py-3">
-              <UiBadge :variant="p.status === 'active' ? 'success' : p.status === 'paused' ? 'warning' : 'neutral'">{{ p.status }}</UiBadge>
-            </td>
-            <td class="px-4 py-3 text-right font-mono">{{ p.hourly_rate.toLocaleString('cs') }} {{ p.currency }}/h</td>
-            <td class="px-4 py-3 text-center">{{ t('client.due_days_n', { n: p.payment_due_days }) }}</td>
-            <td class="px-4 py-3 font-mono text-xs text-neutral-500">{{ p.project_number || '—' }}</td>
-            <td class="px-4 py-3 text-right whitespace-nowrap">
-              <UiButton :to="`/projects/${p.id}`" variant="outline" size="sm">{{ t('common.detail') }}</UiButton>
-              <UiButton :to="`/projects/${p.id}/edit`" variant="ghost" size="sm" class="ml-1.5">{{ t('common.edit') }}</UiButton>
-            </td>
-          </tr>
-        </UiTable>
-      </div>
-
-      <!-- Mobile: karty -->
-      <div v-if="client.projects?.length" class="md:hidden divide-y divide-neutral-100">
-        <div v-for="p in client.projects" :key="`m-${p.id}`"
-          @click="router.push(`/projects/${p.id}`)"
-          class="cursor-pointer hover:bg-neutral-50 px-4 py-3">
-          <div class="flex items-baseline justify-between gap-2">
-            <div class="font-medium text-neutral-900 truncate">{{ p.name }}</div>
-            <span class="text-xs px-2 py-0.5 rounded whitespace-nowrap"
-              :class="{
-                'bg-success-50 text-success-600': p.status === 'active',
-                'bg-warning-50 text-warning-600': p.status === 'paused',
-                'bg-neutral-100 text-neutral-600': p.status === 'closed',
-              }">{{ p.status }}</span>
-          </div>
-          <div class="flex items-baseline justify-between gap-2 mt-1 text-xs text-neutral-500">
-            <span class="font-mono">{{ p.project_number || '—' }}</span>
-            <span>
-              <span class="font-mono">{{ p.hourly_rate.toLocaleString('cs') }} {{ p.currency }}/h</span>
-              <span class="text-neutral-400 mx-1.5">·</span>
-              <span>{{ t('client.due_days_n', { n: p.payment_due_days }) }}</span>
-            </span>
-          </div>
-        </div>
-      </div>
-    </UiCard>
-
     <!-- Vystavené faktury — visible pokud is_customer NEBO existují vystavené faktury -->
     <UiCard v-if="client.is_customer !== false || invoices.length > 0">
       <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
         <h3 class="font-semibold text-neutral-900">{{ t('client.issued_invoices') }} <span v-if="invoicesTotal" class="text-neutral-400 font-normal">({{ invoicesTotal }})</span></h3>
-        <UiButton v-if="auth.canWrite" :to="`/invoices/new?client_id=${client.id}`" size="sm">
+        <UiButton v-if="auth.canWrite" :to="`/tri/invoices/new?client_id=${client.id}`" size="sm">
           {{ t('invoice.new') }}
         </UiButton>
       </div>
@@ -664,7 +571,7 @@ async function deleteClient() {
           </template>
           <tr v-for="inv in invoices" :key="inv.id" class="cursor-pointer"
               :class="invoiceRowClass(inv.due_date, inv.status)"
-              @click="router.push(`/invoices/${inv.id}`)">
+              @click="router.push(`/tri/invoices/${inv.id}`)">
             <td class="px-4 py-2.5 font-mono">{{ inv.varsymbol || `#${inv.id}` }}</td>
             <td class="px-4 py-2.5 text-neutral-600">{{ typeLabel(inv.invoice_type) }}</td>
             <td class="px-4 py-2.5 text-neutral-600">{{ formatDate(inv.issue_date) }}</td>
@@ -688,7 +595,7 @@ async function deleteClient() {
       <!-- Mobile: karty -->
       <div v-if="invoices.length" class="md:hidden divide-y divide-neutral-100">
         <div v-for="inv in invoices" :key="`m-${inv.id}`"
-          @click="router.push(`/invoices/${inv.id}`)"
+          @click="router.push(`/tri/invoices/${inv.id}`)"
           class="cursor-pointer hover:bg-neutral-50 px-4 py-3"
           :class="invoiceRowClass(inv.due_date, inv.status)">
           <div class="flex items-baseline justify-between gap-2">
@@ -723,121 +630,5 @@ async function deleteClient() {
       </div>
     </UiCard>
 
-    <!-- Přijaté faktury — visible pokud is_vendor NEBO existují přijaté faktury -->
-    <UiCard v-if="client.is_vendor === true || purchaseInvoices.length > 0">
-      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold text-neutral-900">{{ t('client.received_invoices') }} <span v-if="purchaseInvoices.length" class="text-neutral-400 font-normal">({{ purchaseInvoices.length }})</span></h3>
-        <UiButton v-if="auth.canWrite" :to="`/purchase-invoices/new?vendor_id=${client.id}`" size="sm">
-          {{ t('purchase_invoice.actions.new') }}
-        </UiButton>
-      </div>
-      <div v-if="purchaseInvoicesLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
-      <div v-else-if="!purchaseInvoices.length" class="p-8 text-center text-neutral-500 text-sm">
-        {{ t('common.no_data') }}
-      </div>
-      <div v-else class="overflow-x-auto"><table class="w-full text-sm">
-        <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
-          <tr>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('purchase_invoice.fields.vendor_invoice_number') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('purchase_invoice.fields.issue_date') }}</th>
-            <th class="text-left px-4 py-2.5 font-medium">{{ t('purchase_invoice.fields.due_date') }}</th>
-            <th class="text-right px-4 py-2.5 font-medium">{{ t('purchase_invoice.totals.with_vat') }}</th>
-            <th class="text-center px-4 py-2.5 font-medium">{{ t('invoice.status_label') }}</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-neutral-100">
-          <tr v-for="pi in purchaseInvoices" :key="pi.id" class="cursor-pointer hover:bg-neutral-50"
-              @click="router.push(`/purchase-invoices/${pi.id}`)">
-            <td class="px-4 py-2.5 font-mono">{{ pi.vendor_invoice_number || `#${pi.id}` }}</td>
-            <td class="px-4 py-2.5 text-neutral-600">{{ formatDate(pi.issue_date) }}</td>
-            <td class="px-4 py-2.5 text-neutral-600">{{ formatDate(pi.due_date) }}</td>
-            <td class="px-4 py-2.5 text-right font-mono">{{ formatMoney(pi.total_with_vat, pi.currency || 'CZK') }}</td>
-            <td class="px-4 py-2.5 text-center">
-              <span class="inline-block px-2 py-0.5 rounded text-xs font-medium"
-                :class="pi.status === 'paid' ? 'bg-success-50 text-success-600' :
-                        pi.status === 'cancelled' ? 'bg-neutral-100 text-neutral-500' :
-                        'bg-primary-50 text-primary-700'">{{ pi.status }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table></div>
-    </UiCard>
-
-    <!-- Pravidelné fakturace — visible pokud is_customer NEBO existují recurring -->
-    <UiCard v-if="client.is_customer !== false || recurringTemplates.length > 0">
-      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
-        <h3 class="font-semibold text-neutral-900">
-          {{ t('recurring.title') }}
-          <span v-if="recurringTemplates.length" class="text-neutral-400 font-normal">({{ recurringTemplates.length }})</span>
-        </h3>
-        <UiButton v-if="auth.canWrite" :to="`/recurring/new?client_id=${client.id}`" size="sm">
-          {{ t('recurring.new') }}
-        </UiButton>
-      </div>
-
-      <div v-if="recurringTemplates.length === 0" class="px-5 py-6 text-sm text-neutral-500 text-center">
-        {{ t('recurring.empty') }}
-      </div>
-
-      <!-- Desktop -->
-      <div v-else class="hidden md:block overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wide">
-            <tr>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('recurring.name') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('recurring.frequency') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('recurring.next_run_date') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">Status</th>
-              <th class="text-right px-4 py-2.5 font-medium">{{ t('recurring.generated_invoices') }}</th>
-              <th class="px-4 py-2.5"></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-neutral-100">
-            <tr v-for="tpl in recurringTemplates" :key="tpl.id"
-              @click="router.push({ name: 'recurring-detail', params: { id: tpl.id } })"
-              class="cursor-pointer hover:bg-neutral-50">
-              <td class="px-4 py-3 font-medium text-primary-700">{{ tpl.name }}</td>
-              <td class="px-4 py-3">{{ freqLabel(tpl.frequency) }}<span v-if="tpl.end_of_month" class="text-neutral-400"> · EOM</span></td>
-              <td class="px-4 py-3 font-mono text-xs">{{ formatDate(tpl.next_run_date) }}</td>
-              <td class="px-4 py-3">
-                <span class="text-xs px-2 py-0.5 rounded border" :class="recurringStatusBadgeClass(tpl.status)">
-                  {{ t('recurring.status.' + tpl.status) }}
-                </span>
-              </td>
-              <td class="px-4 py-3 text-right text-neutral-700">{{ tpl.invoices_generated_count ?? 0 }}</td>
-              <td class="px-4 py-3 text-right whitespace-nowrap">
-                <RouterLink :to="{ name: 'recurring-detail', params: { id: tpl.id } }" @click.stop
-                  class="cursor-pointer inline-flex items-center gap-1 px-2.5 h-7 text-xs border border-primary-500/40 text-primary-700 hover:bg-primary-50 rounded">
-                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                  {{ t('recurring.actions.detail') }}
-                </RouterLink>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Mobile -->
-      <div v-if="recurringTemplates.length" class="md:hidden divide-y divide-neutral-100">
-        <div v-for="tpl in recurringTemplates" :key="`m-${tpl.id}`"
-          @click="router.push({ name: 'recurring-detail', params: { id: tpl.id } })"
-          class="cursor-pointer hover:bg-neutral-50 px-4 py-3">
-          <div class="flex items-baseline justify-between gap-2">
-            <div class="font-medium text-neutral-900 truncate">{{ tpl.name }}</div>
-            <span class="text-xs px-2 py-0.5 rounded border whitespace-nowrap" :class="recurringStatusBadgeClass(tpl.status)">
-              {{ t('recurring.status.' + tpl.status) }}
-            </span>
-          </div>
-          <div class="flex items-baseline justify-between gap-2 mt-1 text-xs text-neutral-500">
-            <span>{{ freqLabel(tpl.frequency) }}<span v-if="tpl.end_of_month" class="text-neutral-400"> · EOM</span></span>
-            <span class="font-mono">{{ formatDate(tpl.next_run_date) }}</span>
-          </div>
-          <div class="text-xs text-neutral-500 mt-0.5">
-            {{ tpl.invoices_generated_count ?? 0 }} faktur
-          </div>
-        </div>
-      </div>
-    </UiCard>
-    <LinkedDocumentsPanel v-if="client" class="mt-4 block" entity-type="client" :entity-id="client.id" />
   </div>
 </template>

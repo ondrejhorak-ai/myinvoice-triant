@@ -1645,7 +1645,7 @@ async function requestApprovalTest() {
     <div v-if="invoice" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
       <h3 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.more_actions') }}</h3>
       <div class="flex flex-wrap gap-2">
-        <RouterLink :to="`/clients/${invoice.client_id}`"
+        <RouterLink :to="`/tri/contacts/${invoice.client_id}`"
           class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md inline-flex items-center gap-1.5">
           <svg class="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z"/></svg>
           {{ t('invoice.client_detail') }}

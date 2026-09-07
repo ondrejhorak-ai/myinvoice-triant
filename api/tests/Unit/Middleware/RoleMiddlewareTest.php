@@ -199,6 +199,15 @@ final class RoleMiddlewareTest extends TestCase
         self::assertSame(204, $response->getStatusCode());
     }
 
+    public function testAccountantCanMutateTriInvoiceIssue(): void
+    {
+        $response = $this->middleware()->process(
+            $this->request('POST', '/api/tri/invoices/1/issue', 'accountant'),
+            $this->okHandler(),
+        );
+        self::assertSame(204, $response->getStatusCode());
+    }
+
     public function testReadonlyCannotMutateTriRoutes(): void
     {
         $response = $this->middleware()->process(

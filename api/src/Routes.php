@@ -134,6 +134,7 @@ use MyInvoice\Action\Invoice\BulkSendRemindersAction;
 use MyInvoice\Action\Invoice\SendTestEmailAction;
 use MyInvoice\Action\Invoice\SendTestReminderAction;
 use MyInvoice\Action\Invoice\UpdateInvoiceAction;
+use MyInvoice\Tri\Action\Invoice\CoreInvoiceWriteGoneAction;
 use MyInvoice\Action\WorkReport\GetWorkReportAction;
 use MyInvoice\Action\WorkReport\SaveWorkReportAction;
 use MyInvoice\Action\WorkReport\SaveWorkReportMaterialsAction;
@@ -348,45 +349,45 @@ final class Routes
         // ?format=pdf-zip|isdoc|pohoda|stereo & month=YYYY-MM nebo period=quarterly&year&quarter
         $app->get    ('/api/invoices/export',       ExportAction::class);
         $app->get    ('/api/invoices/preview-varsymbol', PreviewVarsymbolAction::class);
-        $app->post   ('/api/invoices',              CreateInvoiceAction::class);
+        $app->post   ('/api/invoices',              CoreInvoiceWriteGoneAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}',  GetInvoiceAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/activity', InvoiceActivityAction::class);
-        $app->put    ('/api/invoices/{id:[0-9]+}',  UpdateInvoiceAction::class);
-        $app->delete ('/api/invoices/{id:[0-9]+}',  DeleteInvoiceAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/issue',     IssueInvoiceAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/mark-paid', MarkPaidAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/unmark-paid', UnmarkPaidAction::class);
+        $app->put    ('/api/invoices/{id:[0-9]+}',  CoreInvoiceWriteGoneAction::class);
+        $app->delete ('/api/invoices/{id:[0-9]+}',  CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/issue',     CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/mark-paid', CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/unmark-paid', CoreInvoiceWriteGoneAction::class);
         // Evidence plateb / částečné úhrady (#89) + daňový doklad k přijaté platbě (zálohy)
         $app->get    ('/api/invoices/{id:[0-9]+}/payments', ListPaymentsAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/payments', CreatePaymentAction::class);
-        $app->delete ('/api/invoices/{id:[0-9]+}/payments/{paymentId:[0-9]+}', DeletePaymentAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/payments/{paymentId:[0-9]+}/tax-document', CreatePaymentTaxDocumentAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/cancel',    CancelInvoiceAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/payments', CoreInvoiceWriteGoneAction::class);
+        $app->delete ('/api/invoices/{id:[0-9]+}/payments/{paymentId:[0-9]+}', CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/payments/{paymentId:[0-9]+}/tax-document', CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/cancel',    CoreInvoiceWriteGoneAction::class);
         // Obnova snapshotů klienta/dodavatele z live dat (admin, i u vystavené) — BUG 5.
-        $app->post   ('/api/invoices/{id:[0-9]+}/rebuild-snapshots', RebuildInvoiceSnapshotsAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/rebuild-snapshots', CoreInvoiceWriteGoneAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/isdoc',     InvoiceIsdocAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/pdf',       PdfAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/pdfs',      ListPdfsAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/pdfs/{archiveId:[0-9]+}', DownloadArchivedPdfAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/imported-pdf', DownloadImportedPdfAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/attachments', ListAttachmentsAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/attachments', UploadAttachmentAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/attachments', CoreInvoiceWriteGoneAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/attachments/{attId:[0-9]+}', DownloadAttachmentAction::class);
-        $app->delete ('/api/invoices/{id:[0-9]+}/attachments/{attId:[0-9]+}', DeleteAttachmentAction::class);
+        $app->delete ('/api/invoices/{id:[0-9]+}/attachments/{attId:[0-9]+}', CoreInvoiceWriteGoneAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/recipients', GetRecipientsAction::class);  // #86 vyřešení příjemců pro modal
-        $app->post   ('/api/invoices/{id:[0-9]+}/send',      SendEmailAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/send-test', SendTestEmailAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/reminder',  SendReminderAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/reminder-test', SendTestReminderAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/issue-final', IssueFinalFromProformaAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/send',      CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/send-test', CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/reminder',  CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/reminder-test', CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/issue-final', CoreInvoiceWriteGoneAction::class);
         // Zpětné propojení daňového dokladu se zálohovou fakturou (proforma)
         $app->get    ('/api/invoices/{id:[0-9]+}/advance-candidates', InvoiceAdvanceCandidatesAction::class);
         $app->get    ('/api/invoices/{id:[0-9]+}/final-candidates',   FinalCandidatesAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/link-advance',       LinkInvoiceAdvanceAction::class);
-        $app->delete ('/api/invoices/{id:[0-9]+}/link-advance',       UnlinkInvoiceAdvanceAction::class);
-        $app->post   ('/api/invoices/bulk-reissue',          BulkReissueAction::class);
-        $app->post   ('/api/invoices/bulk-reminder',         BulkSendRemindersAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/clone',     CloneInvoiceAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/link-advance',       CoreInvoiceWriteGoneAction::class);
+        $app->delete ('/api/invoices/{id:[0-9]+}/link-advance',       CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/bulk-reissue',          CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/bulk-reminder',         CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/clone',     CoreInvoiceWriteGoneAction::class);
         $app->get    ('/api/documents/{entity_type:invoice|work_report}/{id:[0-9]+}/signature-selection', [SignatureDocumentSelectionAction::class, 'get']);
         $app->put    ('/api/documents/{entity_type:invoice|work_report}/{id:[0-9]+}/signature-selection', [SignatureDocumentSelectionAction::class, 'put']);
         $app->delete ('/api/documents/{entity_type:invoice|work_report}/{id:[0-9]+}/signature-selection', [SignatureDocumentSelectionAction::class, 'delete']);
@@ -451,18 +452,18 @@ final class Routes
 
         // Work reports — výkaz víceprací (M5)
         $app->get    ('/api/invoices/{id:[0-9]+}/work-report', GetWorkReportAction::class);
-        $app->put    ('/api/invoices/{id:[0-9]+}/work-report', SaveWorkReportAction::class);
-        $app->put    ('/api/invoices/{id:[0-9]+}/work-report/materials', SaveWorkReportMaterialsAction::class);
-        $app->delete ('/api/invoices/{id:[0-9]+}/work-report', DeleteWorkReportAction::class);
+        $app->put    ('/api/invoices/{id:[0-9]+}/work-report', CoreInvoiceWriteGoneAction::class);
+        $app->put    ('/api/invoices/{id:[0-9]+}/work-report/materials', CoreInvoiceWriteGoneAction::class);
+        $app->delete ('/api/invoices/{id:[0-9]+}/work-report', CoreInvoiceWriteGoneAction::class);
 
         // Schvalování výkazu zákazníkem (M8)
-        $app->post   ('/api/invoices/{id:[0-9]+}/request-approval',      RequestApprovalAction::class);
-        $app->post   ('/api/invoices/{id:[0-9]+}/request-approval-test', RequestApprovalTestAction::class);
-        $app->put    ('/api/invoices/{id:[0-9]+}/approval-status',       UpdateApprovalStatusAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/request-approval',      CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/request-approval-test', CoreInvoiceWriteGoneAction::class);
+        $app->put    ('/api/invoices/{id:[0-9]+}/approval-status',       CoreInvoiceWriteGoneAction::class);
 
         // Web faktura — správa trvalého veřejného odkazu (authenticated)
-        $app->post   ('/api/invoices/{id:[0-9]+}/public-link',            [PublicLinkAction::class, 'ensure']);
-        $app->post   ('/api/invoices/{id:[0-9]+}/public-link/regenerate', [PublicLinkAction::class, 'regenerate']);
+        $app->post   ('/api/invoices/{id:[0-9]+}/public-link',            CoreInvoiceWriteGoneAction::class);
+        $app->post   ('/api/invoices/{id:[0-9]+}/public-link/regenerate', CoreInvoiceWriteGoneAction::class);
 
         // Public schvalovací endpointy (bez auth, jen token)
         $app->get    ('/api/public/approval/{token:[a-f0-9]{32,128}}',          PublicApprovalGetAction::class);

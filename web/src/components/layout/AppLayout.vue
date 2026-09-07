@@ -151,89 +151,18 @@ const ICONS = {
 
 const navSections = computed<NavSection[]>(() => {
   const isAdmin = auth.user?.role === 'admin'
-  // Import dokladů smí i účetní (readonly ne) — konfigurace integrací zůstává admin-only.
-  const canWrite = auth.canWrite
-  // Daňový optimalizátor (paušál vs standardní režim) je jen pro OSVČ (fyzická osoba).
-  const isOsvc = supplierStore.currentSupplier?.taxpayer_type === 'fo'
-  // OSS se nabízí až po registraci do režimu (Nastavení → firma). Default je vypnuto,
-  // takže drtivá většina firem OSS v menu vůbec neuvidí.
-  const ossEnabled = supplierStore.currentSupplier?.oss_enabled === true
   const sections: NavSection[] = [
-    { items: [{ moduleId: 'dashboard', to: '/', label: t('nav.dashboard'), icon: ICONS.dashboard }] },
-    {
-      // Vše co se týká vystavování faktur klientům — klienti/zakázky/schvalování/exporty
-      // patří v životním cyklu jednoho prodeje (klient → zakázka → faktura → schválení → export pro účetní).
-      title: t('nav.section_sales'),
-      accent: 'primary',
-      items: [
-        { moduleId: 'invoices', to: '/invoices', label: t('nav.invoices'), icon: ICONS.invoices, newTo: '/invoices/new' },
-        { moduleId: 'recurring', to: '/recurring', label: t('nav.recurring'), icon: ICONS.recurring, newTo: '/recurring/new' },
-        ...(isAdmin ? [{ moduleId: 'price-list', to: '/admin/price-list', label: t('nav.price_list'), icon: ICONS.price_list }] : []),
-        { moduleId: 'clients', to: '/clients', label: t('nav.clients'), icon: ICONS.clients, newTo: '/clients/new' },
-        { moduleId: 'projects', to: '/projects', label: t('nav.projects'), icon: ICONS.projects },
-        ...(isAdmin ? [{ moduleId: 'approvals', to: '/admin/approvals', label: t('nav.approvals'), icon: ICONS.approvals }] : []),
-        // Export vidí všichni vč. readonly (export dat = čtení), daňové výkazy taktéž (sekce Daně níže).
-        { moduleId: 'exports', to: '/admin/export', label: t('nav.exports'), icon: ICONS.exports },
-        ...(canWrite ? [{ moduleId: 'imports-issued', to: '/admin/import?tab=issued', label: t('nav.imports_issued'), icon: ICONS.imports }] : []),
-      ],
-    },
-    {
-      title: t('nav.section_purchase'),
-      accent: 'warning',
-      items: [
-        { moduleId: 'purchase-invoices', to: '/purchase-invoices', label: t('nav.purchase_invoices'), icon: ICONS.purchase, newTo: '/purchase-invoices/new' },
-        { moduleId: 'vendors', to: '/clients?role=vendors', label: t('nav.vendors'), icon: ICONS.suppliers, newTo: '/clients/new?role=vendor' },
-        { moduleId: 'payment-orders', to: '/purchase-invoices/payment-orders', label: t('nav.payment_orders'), icon: ICONS.payment_orders },
-        { moduleId: 'purchase-export', to: '/purchase-invoices/export', label: t('nav.purchase_export'), icon: ICONS.exports },
-        ...(canWrite ? [{ moduleId: 'imports-purchase', to: '/admin/import?tab=purchase', label: t('nav.imports_purchase'), icon: ICONS.imports }] : []),
-        ...(isAdmin ? [{ moduleId: 'ai-import', to: '/admin/integrations?tab=ai', label: t('nav.ai_import'), icon: ICONS.ai }] : []),
-      ],
-    },
-    {
-      title: t('nav.section_finance'),
-      accent: 'success',
-      items: [
-        { moduleId: 'crm', to: '/crm', label: t('nav.crm'), icon: ICONS.crm },
-        { moduleId: 'stats', to: '/stats', label: t('nav.stats'), icon: ICONS.stats },
-        { moduleId: 'purchase-stats', to: '/purchase-stats', label: t('nav.purchase_stats'), icon: ICONS.purchase },
-        // Sjednocená stránka: výpisy + měny/účty + stavy + avíza (bývalé Systém → Bankovní účty).
-        { moduleId: 'bank', to: '/bank', label: t('nav.bank_accounts'), icon: ICONS.bank },
-      ],
-    },
     {
       title: t('nav.section_triant'),
       accent: 'primary',
       items: [
-        { moduleId: 'tri-contacts', to: '/tri/contacts', label: t('nav.tri_contacts'), icon: ICONS.clients, newTo: '/tri/contacts/new' },
         { moduleId: 'tri-jobs', to: '/tri/jobs', label: t('nav.tri_jobs'), icon: ICONS.tri_jobs, newTo: '/tri/jobs/new' },
+        { moduleId: 'tri-contacts', to: '/tri/contacts', label: t('nav.tri_contacts'), icon: ICONS.clients, newTo: '/tri/contacts/new' },
+        { moduleId: 'tri-invoices', to: '/tri/invoices', label: t('nav.tri_invoices'), icon: ICONS.invoices, newTo: '/tri/invoices/new' },
         { moduleId: 'tri-price-lists', to: '/tri/price-lists', label: t('nav.tri_price_lists'), icon: ICONS.tri_price_lists, newTo: '/tri/price-lists/new' },
         { moduleId: 'tri-travelers', to: '/tri/travelers', label: t('nav.tri_travelers'), icon: ICONS.tri_travelers },
         { moduleId: 'tri-calendar', to: '/tri/calendar', label: t('nav.tri_calendar'), icon: ICONS.tri_calendar },
         { moduleId: 'tri-complaints', to: '/tri/complaints', label: t('nav.tri_complaints'), icon: ICONS.tri_complaints },
-        { moduleId: 'tri-invoices', to: '/tri/invoices', label: t('nav.tri_invoices'), icon: ICONS.invoices, newTo: '/tri/invoices/new' },
-      ],
-    },
-    {
-      title: t('nav.section_documents'),
-      accent: 'neutral',
-      items: [
-        { moduleId: 'documents', to: '/documents', label: t('nav.documents'), icon: ICONS.documents },
-        { moduleId: 'logbook', to: '/logbook', label: t('nav.logbook'), icon: ICONS.logbook, newTo: '/logbook?tab=trips&new=trip' },
-      ],
-    },
-    {
-      title: t('nav.section_taxes'),
-      accent: 'danger',
-      items: [
-        { moduleId: 'reports-dph', to: '/reports/dph', label: t('nav.reports_dph'), icon: ICONS.tax_dph },
-        { moduleId: 'reports-kh', to: '/reports/kh', label: t('nav.reports_kh'), icon: ICONS.tax_kh },
-        { moduleId: 'reports-dph-book', to: '/reports/dph-book', label: t('nav.reports_dph_book'), icon: ICONS.tax_book },
-        { moduleId: 'reports-shv', to: '/reports/shv', label: t('nav.reports_shv'), icon: ICONS.tax_shv },
-        { moduleId: 'reports-income-tax', to: '/reports/income-tax', label: t('nav.reports_income_tax'), icon: ICONS.tax_income },
-        ...(isOsvc ? [{ moduleId: 'tax-optimizer', to: '/tax', label: t('nav.tax_optimizer'), icon: ICONS.tax_optimizer }] : []),
-        ...(ossEnabled ? [{ moduleId: 'reports-oss', to: '/reports/oss', label: t('nav.reports_oss'), icon: ICONS.tax_shv }] : []),
-        { moduleId: 'reports-submissions', to: '/reports/submissions', label: t('nav.reports_submissions'), icon: ICONS.tax_archive },
-        { moduleId: 'reports-monthly-export', to: '/reports/monthly-export', label: t('nav.reports_monthly_export'), icon: ICONS.exports },
       ],
     },
   ]
@@ -284,14 +213,11 @@ const navSections = computed<NavSection[]>(() => {
 
 /** Rychlé zkratky v topbaru (desktop) — ikony navazují na menu (ICONS). */
 const quickActions = computed(() => [
-  { to: '/invoices/new',          label: t('nav.quick_invoice'),   icon: ICONS.invoices },
-  { to: '/invoices/new?type=proforma', label: t('nav.quick_proforma'), icon: ICONS.proforma },
-  { to: '/recurring/new',         label: t('nav.quick_recurring'), icon: ICONS.recurring },
-  { to: '/clients/new',           label: t('nav.quick_client'),    icon: ICONS.clients },
-  { to: '/clients/new?role=vendor', label: t('nav.quick_vendor'), icon: ICONS.suppliers },
-  { to: '/purchase-invoices/new', label: t('nav.quick_purchase'), icon: ICONS.purchase },
-  { to: '/logbook?tab=trips&new=trip', label: t('nav.quick_trip'),    icon: ICONS.logbook },
-  { to: '/logbook?tab=fuel&new=fuel',  label: t('nav.quick_fueling'), icon: ICONS.fuel },
+  { to: '/tri/jobs/new', label: t('nav.tri_jobs'), icon: ICONS.tri_jobs },
+  { to: '/tri/invoices/new', label: t('nav.quick_invoice'), icon: ICONS.invoices },
+  { to: '/tri/invoices/new?type=proforma', label: t('nav.quick_proforma'), icon: ICONS.proforma },
+  { to: '/tri/contacts/new', label: t('nav.quick_client'), icon: ICONS.clients },
+  { to: '/tri/price-lists/new', label: t('nav.tri_price_lists'), icon: ICONS.tri_price_lists },
 ])
 
 /** Ploché položky menu pro globální search (našeptávač skáče přímo na body menu). */

@@ -53,7 +53,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **H3 — Write-through kontakty.** `ContactGateway`, přepojení TRI kontaktů, core client write → 410, ARES přes MyÚčto. Brief: fáze 3.
 - [x] **H4 — Zakázky ↔ projekty + koncepty faktur.** `ProjectGateway`, `InvoiceGateway` (draft část), nový `JobInvoiceBuilder`, `mu_commands`, `triInvoices.ts`, editor/list nad zrcadlem, migrace `9018` (drop `tri_job_invoices`), úklid core hooků. Brief: fáze 4.
 - [x] **H5 — Fakturační operace.** `issue`/`send`/`reminder`/`publicLink`/platby/`clone` v gateway + `InvoiceDetail` akce, role guardy, mapování chyb, activity log. Brief: fáze 5.
-- [~] **H6 — Zúžení aplikace.** Sidebar/router jen TRI + Kontakty + Faktury + Admin, `RoleMiddleware` allowlist `/api/tri/*`, core invoice write → 410, dashboard → zakázky. Brief: fáze 6.
+- [x] **H6 — Zúžení aplikace.** Sidebar/router jen TRI + Kontakty + Faktury + Admin, `RoleMiddleware` allowlist `/api/tri/*`, core invoice write → 410, dashboard → zakázky. Brief: fáze 6.
 
 ### G. Polish (nekonečná sekce — když je vše výše hotové, přidávej a ber odsud)
 
@@ -106,4 +106,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 H3** — `ContactGateway` write-through (create/update/archive + ARES), TRI formuláře na `/api/tri/contacts`, core client write → 410. `RoleMiddleware` pouští `/api/tri/*` účetní/readonly GET. Sloupec `mu_sync_state.sync_cursor` (MariaDB rezervované `cursor`).
 - **2026-09-07 H4** — `ProjectGateway` (zakázka → projekt MyÚčta při potvrzení), `InvoiceGateway` koncepty + `mu_commands` (timeout → reconciliace), `JobInvoiceBuilder` staví InvoiceInput, list/editor nad zrcadlem `mu_invoices`, migrace `9018` drop `tri_job_invoices`. PHPUnit InvoiceGateway + builder. Vystavení/odeslání/platby až H5.
 - **2026-09-07 H5** — `InvoiceGateway` issue/send/reminder/publicLink/clone/platby, `InvoiceCycleAction` (readonly 403, platby jen admin/accountant), 403/409 uzamčené období → „Období je uzavřeno, kontaktujte účetní.“, už vystavená = refresh bez duplicity. `InvoiceDetail` akce přes `/api/tri/invoices`. Storno z office vypnuté. Live e-mail přeskočen (SMTP v MyÚčtu není). Hromadné akce na listu dál skryté.
+- **2026-09-07 H6** — Sidebar jen TRI agendy + Admin. `/` → `/tri/jobs`. Core `/invoices` `/clients` `/bank` `/reports` atd. redirect na TRI. Core invoice write → 410 (`CoreInvoiceWriteGoneAction`). `RoleMiddleware` `/api/tri/*` (už z H3). Globální search bez nákupů. PHPUnit 410 + accountant TRI issue.
 

@@ -21,13 +21,12 @@ const inputEl = ref<HTMLInputElement | null>(null)
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
 let seq = 0
 
-interface Option { kind: 'menu' | 'client' | 'invoice' | 'purchase'; label: string; sub: string; run: () => void }
+interface Option { kind: 'menu' | 'client' | 'invoice'; label: string; sub: string; run: () => void }
 
 const GROUP_LABEL: Record<Option['kind'], string> = {
   menu:     'search.group_menu',
   client:   'search.group_clients',
   invoice:  'search.group_invoices',
-  purchase: 'search.group_purchase',
 }
 
 const menuMatches = computed<MenuItem[]>(() => {
@@ -44,15 +43,11 @@ const options = computed<Option[]>(() => {
   }
   for (const c of results.value.clients) {
     out.push({ kind: 'client', label: c.company_name, sub: c.main_email || '',
-      run: () => router.push(`/clients/${c.id}`) })
+      run: () => router.push(`/tri/contacts/${c.id}`) })
   }
   for (const i of results.value.invoices) {
     out.push({ kind: 'invoice', label: i.varsymbol || `#${i.id}`, sub: i.company_name,
-      run: () => router.push(`/invoices/${i.id}`) })
-  }
-  for (const p of results.value.purchase_invoices) {
-    out.push({ kind: 'purchase', label: p.varsymbol || p.vendor_invoice_number || `#${p.id}`, sub: p.company_name,
-      run: () => router.push(`/purchase-invoices/${p.id}`) })
+      run: () => router.push(`/tri/invoices/${i.id}`) })
   }
   return out
 })
