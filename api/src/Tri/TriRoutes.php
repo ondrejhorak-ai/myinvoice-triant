@@ -67,6 +67,8 @@ use MyInvoice\Tri\Action\Traveler\JobPdfAction as JobTravelersPdfAction;
 use MyInvoice\Tri\Action\Traveler\ListTravelersAction;
 use MyInvoice\Tri\Action\Traveler\PdfAction as TravelerPdfAction;
 use MyInvoice\Tri\Action\Traveler\UpdateTravelerOperationsAction;
+use MyInvoice\Tri\Action\MyUcto\GetSyncStatusAction;
+use MyInvoice\Tri\Action\MyUcto\RunSyncAction;
 use Slim\App;
 
 final class TriRoutes
@@ -155,5 +157,9 @@ final class TriRoutes
         $app->put('/api/tri/complaint-comments/{id:[0-9]+}', UpdateComplaintCommentAction::class);
         $app->delete('/api/tri/complaint-comments/{id:[0-9]+}', DeleteComplaintCommentAction::class);
         $app->get('/api/tri/jobs/{id:[0-9]+}/complaints', ListComplaintsAction::class);
+
+        // MyÚčto sync (admin)
+        $app->get('/api/tri/admin/myucto', GetSyncStatusAction::class);
+        $app->post('/api/tri/admin/myucto/sync', RunSyncAction::class);
     }
 }

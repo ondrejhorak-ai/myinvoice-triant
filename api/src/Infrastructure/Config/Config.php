@@ -231,6 +231,14 @@ final class Config
                 'cache_ttl' => 86400,
                 'timeout'   => 8,
             ],
+            'tri' => [
+                'myucto' => [
+                    'enabled' => false,
+                    'base_url' => '',
+                    'public_url' => '',
+                    'token' => '',
+                ],
+            ],
             'bank_email' => [
                 'notice_parsers' => [
                     'regex' => \MyInvoice\Service\Bank\EmailNotice\Parser\RegexBankEmailNoticeParser::class,
@@ -325,6 +333,12 @@ final class Config
 
             // Logging
             'MYINVOICE_LOG_LEVEL' => ['logging.level', 'string'],
+
+            // Triant → MyÚčto REST API v1
+            'TRI_MYUCTO_ENABLED'    => ['tri.myucto.enabled', 'bool'],
+            'TRI_MYUCTO_BASE_URL'   => ['tri.myucto.base_url', 'string'],
+            'TRI_MYUCTO_PUBLIC_URL' => ['tri.myucto.public_url', 'string'],
+            'TRI_MYUCTO_TOKEN'      => ['tri.myucto.token', 'string'],
         ];
     }
 

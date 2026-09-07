@@ -67,6 +67,7 @@ final class TriSidebarSettingsAction
         'tri-calendar',
         'tri-complaints',
         'tri-tags',
+        'tri-myucto',
     ];
 
     public function __construct(

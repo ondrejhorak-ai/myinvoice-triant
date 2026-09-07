@@ -135,6 +135,15 @@ final class CronCatalog
                 'weekdays_only' => false,
                 'critical' => false,
             ],
+            [
+                'script' => 'cron-tri-myucto-sync',
+                'recommended' => 'every_5_min',
+                'linux_cron' => '*/5 * * * *',
+                'windows_schtasks' => '/sc minute /mo 5',
+                'max_age_hours' => 2,
+                'weekdays_only' => false,
+                'critical' => false,
+            ],
         ];
     }
 

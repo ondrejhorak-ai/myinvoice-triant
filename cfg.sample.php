@@ -365,6 +365,17 @@ return [
         'archive_storage'   => __DIR__ . '/storage/purchase-invoices', // kam přesouvat originální PDF po importu (mimo webroot)
     ],
 
+    // Integrace Triant office → čisté MyÚčto (REST API v1, PAT token).
+    // V Dockeru stačí ENV TRI_MYUCTO_* (viz /opt/office/.env).
+    'tri' => [
+        'myucto' => [
+            'enabled'    => false,
+            'base_url'   => 'http://myucto-app',          // interní URL v docker síti platform
+            'public_url' => 'https://ucto.triant.cz',     // deep linky pro účetní
+            'token'      => '',                           // mi_pat_…  — NIKDY necommitovat
+        ],
+    ],
+
     // Cron retention (api/bin/cron-cleanup.php + cron-backup.php)
     'cron' => [
         'cleanup' => [

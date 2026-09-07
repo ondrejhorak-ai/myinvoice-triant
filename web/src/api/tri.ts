@@ -305,6 +305,43 @@ export interface TriComplaint {
   comments?: TriComplaintComment[]
 }
 
+export interface MyUctoSyncStateRow {
+  key: string
+  last_run_at: string | null
+  last_ok_at: string | null
+  cursor: string | null
+  last_error: string | null
+}
+
+export interface MyUctoSyncLogRow {
+  id: number
+  kind: string
+  direction: string
+  myucto_id: number | null
+  http_status: number | null
+  message: string | null
+  created_at: string
+}
+
+export interface MyUctoSyncStatus {
+  enabled: boolean
+  base_url: string
+  public_url: string
+  health: { status?: string; version?: string; db?: boolean } | null
+  health_error: string | null
+  rate_limit: { limit: string; remaining: string; reset: string; retry_after: string; api_version: string }
+  sync_state: MyUctoSyncStateRow[]
+  recent_log: MyUctoSyncLogRow[]
+  counts: {
+    clients: number
+    projects: number
+    invoices: number
+    vat_rates: number
+    currencies: number
+    units: number
+  }
+}
+
 export const triApi = {
   tags: {
     list: () => api.get<{ data: TriTag[] }>('/tri/tags').then((r) => r.data.data),
@@ -476,5 +513,10 @@ export const triApi = {
       api.get<{ job: TriJobLink | null }>(`/tri/invoices/${invoiceId}/job`).then((r) => r.data.job),
     setJob: (invoiceId: number, jobId: number | null) =>
       api.put<{ job: TriJobLink | null }>(`/tri/invoices/${invoiceId}/job`, { job_id: jobId }).then((r) => r.data.job),
+  },
+  myucto: {
+    status: () => api.get<MyUctoSyncStatus>('/tri/admin/myucto').then((r) => r.data),
+    sync: (full = false) =>
+      api.post<{ ok: boolean; records: number; full: boolean }>('/tri/admin/myucto/sync', { full }).then((r) => r.data),
   },
 }

@@ -257,6 +257,7 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'api-tokens', to: '/profile/api-tokens', label: t('nav.api_tokens'), icon: ICONS.api_tokens },
         { moduleId: TRI_SETTINGS_MODULE_ID, to: '/admin/tri-settings', label: t('nav.tri_settings'), icon: ICONS.settings },
         { moduleId: 'tri-tags', to: '/admin/tri-tags', label: t('nav.tri_tags'), icon: ICONS.clients },
+        { moduleId: 'tri-myucto', to: '/tri/admin/myucto', label: t('nav.tri_myucto'), icon: ICONS.myucto_upgrade },
       ],
     })
   }

@@ -23,4 +23,5 @@ export const triRoutes: RouteRecordRaw[] = [
   { path: 'tri/complaints', name: 'tri-complaints', component: () => import('@/pages/tri/complaints/ComplaintList.vue') },
   { path: 'tri/complaints/:id(\\d+)', name: 'tri-complaint-detail', component: () => import('@/pages/tri/complaints/ComplaintDetail.vue') },
   { path: 'admin/tri-tags', name: 'tri-tags', component: () => import('@/pages/tri/admin/TagAdmin.vue'), meta: { adminOnly: true } },
+  { path: 'tri/admin/myucto', name: 'tri-myucto', component: () => import('@/pages/tri/admin/MyUctoSync.vue'), meta: { adminOnly: true } },
 ]
