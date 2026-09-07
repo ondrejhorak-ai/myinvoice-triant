@@ -109,7 +109,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **S6 — Ceník a výroba (průvodky, hodiny, PDF).**
 - [x] **S7 — Kalendář (výroba + expedice, stavy).**
 - [x] **S8 — Reklamace s chatem.**
-- [ ] **S9 — Změna kontaktu + fyzická osoba + 2 kontakty na zakázce.**
+- [x] **S9 — Změna kontaktu + fyzická osoba + 2 kontakty na zakázce.**
 - [ ] **S10 — Regrese celku (druhá zakázka zkráceně + kontroly brandingu/redirectů).**
 
 ### P. Prune mrtvého PHP (až po zelených S1–S10)
@@ -166,4 +166,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 S6** — Ceník **Dvířka a korpusy 2026** (id 1): K10 Korpus 4200 / D10 Dvířka 2400 / H10 Úchytka 180. Kontakt `Ateliér Švestková s.r.o.` (office/MyÚčto id **39**, IČO **99920518**, Cejl 48 Brno). Zakázka **260003** / job id **3**, varianta A schválená (základ 6 780 Kč). Průvodky jen vyráběné: **260003-01** K10 (CNC 1,5 h + olepovačka 2 h = 3,5 h), **260003-02** D10; H10 bez průvodky. Součet hodin na zakázce 3,5. PDF průvodky 200, bez 4200 v bytestreamu. MyÚčto `/clients/39` + projekt `260003 Skříň na míru — Švestková`. Žádná oprava kódu.
 - **2026-09-08 S7** — Zakázka **260003**: výroba `Výroba skříně Švestková` (stanice Výroba, 8. 9. 2026, `planned` → `in_progress`, chip emerald + ring) a expedice `Expedice skříně Švestková` (10. 9. 2026, `planned` dashed amber → `confirmed` solid amber). Mini-sekce **Nadcházející termíny** na `/tri/jobs/3` obě ukazuje (Probíhá / Potvrzeno). Kalendář jen office, bez write-through. Žádná oprava kódu.
 - **2026-09-08 S8** — Reklamace **#1** `Odchlípená hrana dvířek` na zakázce **260003** (Švestková): chat `TRI-SCEN S8: olepovačka znovu přilepí hranu D10`, stav Uzavřená. Seznam `/tri/complaints` + sekce na zakázce. Activity: otevřel(a) 01:03, uzavřel(a) 01:08. Žádná oprava kódu.
+- **2026-09-08 S9** — Malinová (id **38**) ulice `Křídlovická 22` → **`Křídlovická 28`**, MyÚčto `/clients/38` propsáno. FO **Ing. Klára Jeřábková** (id **40**, bez IČO, tag Architekt), write-through `/clients/40`. Zakázka **260004** / job id **4** se dvěma kontakty (architekt první, zákazník Malinová); `customer_client_id` = **38**. Žádná oprava kódu.
 
