@@ -75,6 +75,19 @@ Smoke test:
 
 ## Merge history
 
+### 2026-09-07 — upstream v4.56.4 (from v4.54.0)
+
+- **Branch:** `integration/upstream-v4.56.4` → merged to `master`
+- **Rollback branch:** `backup/pre-upstream-update-20260907`
+- **Conflicts resolved (3 files):**
+  - `AppLayout.vue` — TRI `moduleId` systémové položky + upstream `/admin/upgrade` (Přechod na MyÚčto) + TRI settings/tags
+  - `cs.json` / `en.json` — `myucto_upgrade` + `tri_settings`
+- **Auto-merged (TRI hooks intact):** `Routes.php` (MyuctoUpgradeAction + `TriRoutes::register()`), `router/index.ts` (`admin/upgrade` + `...triRoutes`), `InvoiceRepository.php`
+- **New upstream migrations:** `0150_purchase_vat_classification_30_cleanup.sql`
+- **Sidebar `ALLOWED_MODULE_IDS` extended:** `myucto-upgrade`
+- **Upstream highlights:** one-click MyÚčto upgrade page, VAT/KH fixes, Fio/RB bank notice parsers, settings Save-per-section
+- **Poznámka:** WIP PDF nabídek stashnuté (`WIP quote PDF before upstream 4.56.4 merge`)
+
 ### 2026-08-17 — upstream v4.54.0 (from v4.37.3)
 
 - **Branch:** `integration/upstream-v4.54.0` → merged to `master`
