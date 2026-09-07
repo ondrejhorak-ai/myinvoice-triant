@@ -207,6 +207,7 @@ final class QuotePdfRenderer
         $qty = (float) ($line['quantity'] ?? 0);
         $lineTotal = (float) round((float) ($line['line_total'] ?? 0), 0);
         $unitPrice = $qty != 0.0 ? (float) round($lineTotal / $qty, 0) : 0.0;
+        $discountAmount = $this->lineOwnDiscountAmount($line);
 
         $imagePath = null;
         $imageWidthMm = null;
@@ -232,11 +233,43 @@ final class QuotePdfRenderer
             'unit_price'  => $unitPrice,
             'vat_rate'    => (int) ($line['vat_rate'] ?? 21),
             'line_total'  => $lineTotal,
+            'discount_amount' => $discountAmount,
             'gross_total' => (float) round($lineTotal * (1 + ((int) ($line['vat_rate'] ?? 21) / 100)), 0),
             'image_path'  => $imagePath,
             'image_width_mm' => $imageWidthMm,
             'image_height_mm' => $imageHeightMm,
         ];
+    }
+
+    /**
+     * Sleva na položku (offer − after line discount), stejně jako v editoru.
+     *
+     * @param array<string, mixed> $line
+     */
+    private function lineOwnDiscountAmount(array $line): float
+    {
+        $type = $line['line_discount_type'] ?? null;
+        $value = isset($line['line_discount_value']) ? (float) $line['line_discount_value'] : null;
+        if ($type === null || $value === null || $value <= 0) {
+            return 0.0;
+        }
+        if ($type !== 'percent' && $type !== 'absolute') {
+            return 0.0;
+        }
+
+        $lineBase = QuoteCalculator::round2(
+            (float) ($line['quantity'] ?? 0) * (float) ($line['base_unit_price'] ?? 0)
+        );
+        $offer = QuoteCalculator::round2($lineBase + (float) ($line['markup_amount'] ?? 0));
+        if ($offer <= 0) {
+            return 0.0;
+        }
+
+        if ($type === 'percent') {
+            return QuoteCalculator::round2($offer * $value / 100);
+        }
+
+        return QuoteCalculator::round2(min($offer, $value));
     }
 
     /** @return array{float,float} */

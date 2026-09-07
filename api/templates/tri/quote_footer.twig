@@ -5,7 +5,7 @@
       {% if supplier.street or supplier.city %}<span class="footer-separator">&nbsp;&nbsp;·&nbsp;&nbsp;</span>{{ supplier.street }}{% if supplier.street and supplier.city %}, {% endif %}{{ supplier.zip }} {{ supplier.city }}{% endif %}
       {% if supplier.email %}<span class="footer-separator">&nbsp;&nbsp;·&nbsp;&nbsp;</span>{{ supplier.email }}{% endif %}
       {% if supplier.phone %}<span class="footer-separator">&nbsp;&nbsp;·&nbsp;&nbsp;</span>{{ supplier.phone }}{% endif %}
-      {% if supplier.ic %}<br><span class="footer-legal">{{ t('IČO', 'Reg. No.') }}: {{ supplier.ic }}{% if supplier.dic %}&nbsp;&nbsp; DIČ: {{ supplier.dic }}{% endif %}{% if supplier.web %}&nbsp;&nbsp; {{ supplier.web|replace({'https://': '', 'http://': ''})|trim('/') }}{% endif %}</span>{% endif %}
+      {% if supplier.ic %}<span class="footer-separator">&nbsp;&nbsp;·&nbsp;&nbsp;</span>{{ t('IČO', 'Reg. No.') }}: {{ supplier.ic }}{% if supplier.dic %}<span class="footer-separator">&nbsp;&nbsp;·&nbsp;&nbsp;</span>DIČ: {{ supplier.dic }}{% endif %}{% if supplier.web %}<span class="footer-separator">&nbsp;&nbsp;·&nbsp;&nbsp;</span>{{ supplier.web|replace({'https://': '', 'http://': ''})|trim('/') }}{% endif %}{% endif %}
     </td>
     <td class="footer-page">{PAGENO} / {nbpg}</td>
   </tr>

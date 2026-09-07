@@ -19,7 +19,7 @@
     </td>
     <td class="quote-heading">
       <div class="quote-title">{{ t('CENOVÁ NABÍDKA', 'PRICE QUOTATION') }}</div>
-      <div class="variant-badge">{{ t('VARIANTA', 'OPTION') }} {{ variant.variant_code }}</div>
+      <table class="variant-badge" align="right"><tr><td>{{ t('VARIANTA', 'OPTION') }} {{ variant.variant_code }}</td></tr></table>
     </td>
   </tr>
 </table>
@@ -57,10 +57,9 @@
       <table class="overview-card-layout"><tr>
         <td class="overview-card-content">
           <div class="overview-kicker">{{ t('MÍSTO REALIZACE', 'PROJECT SITE') }}</div>
-          {% if job.site_street %}<div class="overview-title">{{ job.site_street }}</div>{% endif %}
+          {% if job.site_street %}<div class="site-street">{{ job.site_street }}</div>{% endif %}
           {% if job.site_zip or job.site_city %}<div>{{ job.site_zip }} {{ job.site_city }}</div>{% endif %}
-          {% if not job.site_street and not job.site_city %}<div class="overview-title">—</div>{% endif %}
-          {% if job.title %}<div class="site-type">{{ job.title }}</div>{% endif %}
+          {% if not job.site_street and not job.site_city %}<div class="site-street">—</div>{% endif %}
         </td>
         <td class="overview-card-icon"><img src="{{ icons.site }}" alt=""></td>
       </tr></table>
@@ -144,12 +143,8 @@
   <tr>
     <td class="closing-notes">
       {% if variant.note_below_items %}
-        <div class="info-line"><span class="info-icon"><img src="{{ icons.check }}" alt=""></span><span>{{ variant.note_below_items|nl2br }}</span></div>
+        <div class="quote-note quote-note-below">{{ variant.note_below_items|nl2br }}</div>
       {% endif %}
-      <div class="info-line"><span class="info-icon"><img src="{{ icons.info }}" alt=""></span><span>
-        {{ t('Tento dokument je cenová nabídka, nejedná se o daňový doklad.', 'This document is a price quotation, not a tax document.') }}
-        {% if valid_until %} {{ t('Platnost do', 'Valid until') }} {{ valid_until|date(date_format) }}.{% endif %}
-      </span></div>
       {% if not supplier.is_vat_payer %}
         <div class="info-line"><span class="info-icon"><img src="{{ icons.info }}" alt=""></span><span>{{ t('Dodavatel není plátce DPH.', 'The supplier is not a VAT payer.') }}</span></div>
       {% endif %}

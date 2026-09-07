@@ -9,7 +9,12 @@
     {% if item.image_path|default(null) %}</td></tr></table>{% endif %}
   </td>
   <td class="item-qty">{{ item.quantity|number_format(item.quantity == item.quantity|round(0) ? 0 : 3, decimal_sep, thousand_sep) }}{% if item.unit %}&nbsp;{{ item.unit }}{% endif %}</td>
-  <td class="money item-net">{{ item.line_total|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
+  <td class="money item-net">
+    {{ item.line_total|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč
+    {% if item.discount_amount|default(0) > 0 %}
+      <div class="item-discount">−{{ item.discount_amount|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</div>
+    {% endif %}
+  </td>
   {% if supplier.is_vat_payer %}<td class="item-vat">{{ item.vat_rate|number_format(0) }}&nbsp;%</td>{% endif %}
   <td class="money strong item-gross">{{ (supplier.is_vat_payer ? item.gross_total : item.line_total)|round(0, 'common')|number_format(0, decimal_sep, thousand_sep) }}&nbsp;Kč</td>
 </tr>
