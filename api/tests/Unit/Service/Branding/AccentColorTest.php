@@ -15,6 +15,7 @@ final class AccentColorTest extends TestCase
 {
     public function testNormalizeAcceptsValidHexAndUppercases(): void
     {
+        self::assertSame('#0B4F7C', AccentColor::DEFAULT);
         self::assertSame('#1565C0', AccentColor::normalize(' #1565c0 '));
         self::assertSame('#3B2D83', AccentColor::normalize('#3b2d83'));
     }
@@ -53,7 +54,7 @@ final class AccentColorTest extends TestCase
         self::assertSame('#ECF3FA', AccentColor::emailBackground(true, '#1565C0'));
         // vypnutý branding → null (fallback na fixní #F4F2FB v šabloně)
         self::assertNull(AccentColor::emailBackground(false, '#1565C0'));
-        // defaultní fialová → null (base hodnota stačí)
+        // defaultní petrolej → null (base hodnota stačí)
         self::assertNull(AccentColor::emailBackground(true, AccentColor::DEFAULT));
         // nevalidní barva → null
         self::assertNull(AccentColor::emailBackground(true, 'bogus'));

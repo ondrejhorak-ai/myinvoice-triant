@@ -2,30 +2,29 @@
 
 ## 1. Filozofie
 
-Lehký, přehledný, finančně-důvěryhodný. Inspirace: Stripe Dashboard, Lemon Squeezy, Linear (typografie). Žádné skleněné efekty, žádné gradienty napříč pozadím. Funkční minimalismus s jednou výraznou barvou pro „akční" stavy.
+Lehký, přehledný, finančně-důvěryhodný. Inspirace: Stripe Dashboard, Untitled UI (layout), Linear (typografie). Žádné skleněné efekty, žádné gradienty napříč pozadím. Funkční minimalismus s jednou výraznou barvou pro „akční" stavy.
 
 **Pravidla:**
-- Bílé pozadí, jemné šedé hranice, **emerald** jako jediná akční barva
+- Bílé pozadí, jemné šedé hranice, **Triant petrolej `#0B4F7C`** jako brand / primary
 - Primární akce má vždy plný button, sekundární outline
-- Tabulky jsou hlavní UI primitive (faktury jsou data)
-- Žádné modální okna pro editaci dat — celostránkový editor
+- Tabulky jsou hlavní UI primitive
 - Mobile-friendly, ale nepřioptimalizováno (cílový user je u stolu)
 
 ## 2. Paleta
 
 ```css
 @theme {
-  /* Primary - emerald */
-  --color-primary-50:  #ECFDF5;
-  --color-primary-100: #D1FAE5;
-  --color-primary-200: #A7F3D0;
-  --color-primary-300: #6EE7B7;
-  --color-primary-400: #34D399;
-  --color-primary-500: #10B981;
-  --color-primary-600: #059669;   /* MAIN */
-  --color-primary-700: #047857;
-  --color-primary-800: #065F46;
-  --color-primary-900: #064E3B;
+  /* Primary — Triant petrolej (PDF nabídky) */
+  --color-primary-50:  #EAF1F5;
+  --color-primary-100: #D3E3EC;
+  --color-primary-200: #B6D0DE;
+  --color-primary-300: #86B0C8;
+  --color-primary-400: #4A88A8;
+  --color-primary-500: #2A6A90;
+  --color-primary-600: #155A86;   /* MAIN button */
+  --color-primary-700: #0B4F7C;   /* BRAND */
+  --color-primary-800: #083E61;
+  --color-primary-900: #062C45;
 
   /* Neutral - zinc */
   --color-neutral-50:  #FAFAFA;
@@ -45,8 +44,8 @@ Lehký, přehledný, finančně-důvěryhodný. Inspirace: Stripe Dashboard, Lem
 
   /* Semantic */
   --color-success-500: #10B981;
-  --color-warning-500: #F59E0B;
-  --color-warning-50:  #FFFBEB;
+  --color-warning-500: #F59B00;
+  --color-warning-50:  #FDF6E9;
   --color-danger-500:  #DC2626;
   --color-danger-50:   #FEF2F2;
   /* Surfaces */
@@ -63,8 +62,8 @@ Lehký, přehledný, finančně-důvěryhodný. Inspirace: Stripe Dashboard, Lem
   /* Status badges (faktury) — pastelové */
   --color-status-draft-bg:     #F4F2F8;
   --color-status-draft-fg:     #5A5470;
-  --color-status-issued-bg:    #E5E0F4;
-  --color-status-issued-fg:    #3B2D83;
+  --color-status-issued-bg:    #EAF1F5;
+  --color-status-issued-fg:    #0B4F7C;
   --color-status-sent-bg:      #D7E8F6;
   --color-status-sent-fg:      #1F5E97;
   --color-status-paid-bg:      #ECF6F0;

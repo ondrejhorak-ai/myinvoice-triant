@@ -61,7 +61,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 
 - [x] **G2 — Restyle Dashboard, Klienti, Dokumenty.**
 
-- [ ] **G3 — Triant brand primary.** Nahradit MyInvoice indigo `#3B2D83` Triant petrolejem z PDF nabídky. **Škála (povinná, neimprovizovat):** viz produktové rozhodnutí v loop promptu (`50 #EAF1F5` … `700 #0B4F7C` … `900 #062C45`). Warning-500 přiblížit jantaru nabídky `#F59B00` (warning-50 nechat měkký tint). Success/danger beze změny. Untitled gray / radius / stíny / Inter neměnit.
+- [x] **G3 — Triant brand primary.** Nahradit MyInvoice indigo `#3B2D83` Triant petrolejem z PDF nabídky. **Škála (povinná, neimprovizovat):** viz produktové rozhodnutí v loop promptu (`50 #EAF1F5` … `700 #0B4F7C` … `900 #062C45`). Warning-500 přiblížit jantaru nabídky `#F59B00` (warning-50 nechat měkký tint). Success/danger beze změny. Untitled gray / radius / stíny / Inter neměnit.
   - `web/src/styles/main.css`: celá `--color-primary-*` light + `.dark`, `--color-ring` / `--shadow-focus-ring` na nový `primary-100`, `--color-status-issued-*` na primary-50/700 (light i dark).
   - `manual/manual.css` + `manual/index.php` `theme-color`.
   - PHP fallback jedním místem: `AccentColor::DEFAULT` → `#0B4F7C` a všechny `: '#3B2D83'` fallbacky (Settings, Mailer, e-mail layout, public work-report, OpenAPI docs CSS, `client.ts` error page). I18n hint v Settings (cs+en) — už ne „fialová MyInvoice“.
@@ -107,4 +107,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 H4** — `ProjectGateway` (zakázka → projekt MyÚčta při potvrzení), `InvoiceGateway` koncepty + `mu_commands` (timeout → reconciliace), `JobInvoiceBuilder` staví InvoiceInput, list/editor nad zrcadlem `mu_invoices`, migrace `9018` drop `tri_job_invoices`. PHPUnit InvoiceGateway + builder. Vystavení/odeslání/platby až H5.
 - **2026-09-07 H5** — `InvoiceGateway` issue/send/reminder/publicLink/clone/platby, `InvoiceCycleAction` (readonly 403, platby jen admin/accountant), 403/409 uzamčené období → „Období je uzavřeno, kontaktujte účetní.“, už vystavená = refresh bez duplicity. `InvoiceDetail` akce přes `/api/tri/invoices`. Storno z office vypnuté. Live e-mail přeskočen (SMTP v MyÚčtu není). Hromadné akce na listu dál skryté.
 - **2026-09-07 H6** — Sidebar jen TRI agendy + Admin. `/` → `/tri/jobs`. Core `/invoices` `/clients` `/bank` `/reports` atd. redirect na TRI. Core invoice write → 410 (`CoreInvoiceWriteGoneAction`). `RoleMiddleware` `/api/tri/*` (už z H3). Globální search bez nákupů. PHPUnit 410 + accountant TRI issue.
+- **2026-09-07 G3** — Primary paleta Triant petrolej `#0B4F7C` (škála 50–900 z loop promptu), warning-500 `#F59B00`. `AccentColor::DEFAULT` + fallbacky, PDF invoice.css, manuál, grafy. Untitled gray beze změny.
 

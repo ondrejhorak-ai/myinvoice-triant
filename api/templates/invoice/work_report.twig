@@ -42,7 +42,7 @@
 </table>
 
 <div style="margin-bottom:5mm;">
-  <div style="font-size:11pt;font-weight:bold;color:#3B2D83;margin-bottom:1mm;">{{ work_report.title }}</div>
+  <div style="font-size:11pt;font-weight:bold;color:#0B4F7C;margin-bottom:1mm;">{{ work_report.title }}</div>
   <div style="font-size:9pt;color:#5A5470;">
     {% if invoice.client_company_name %}
       {{ t('Pro', 'For') }}: <strong>{{ invoice.client_company_name }}</strong>
@@ -87,7 +87,7 @@
 {% set mprice_dec = (work_report.materials|filter(m => m.unit_price != m.unit_price|round(0))|length) > 0 ? 2 : 0 %}
 {% set mtotal_dec = (work_report.materials|filter(m => m.total_amount != m.total_amount|round(0))|length) > 0 ? 2 : 0 %}
 
-<div style="margin-top:6mm;margin-bottom:2mm;font-size:10pt;font-weight:bold;color:#3B2D83;">{{ work_report.material_title|default(t('Materiál', 'Material')) }}</div>
+<div style="margin-top:6mm;margin-bottom:2mm;font-size:10pt;font-weight:bold;color:#0B4F7C;">{{ work_report.material_title|default(t('Materiál', 'Material')) }}</div>
 
 <table class="items">
   <thead>

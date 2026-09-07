@@ -11,7 +11,7 @@ use MyInvoice\Service\Mail\SafeLogoPath;
  * Sdílená brandingová logika pro PDF (faktura + výkaz víceprací):
  *   - resolveLogoPath: gate na email_branding_enabled, SafeLogoPath validace,
  *     preference SVG sidecaru (crisp), fallback PNG,
- *   - accentCss: override CSS přebarvující fialové akcenty na zvolenou barvu.
+ *   - accentCss: override CSS přebarvující petrolejové akcenty na zvolenou barvu.
  *
  * Cíl: faktura i výkaz mají identické chování hlavičky (3 varianty: bez loga →
  * textový název, jen logo, logo + název) a stejné barevné branding změny.
@@ -65,7 +65,7 @@ final class PdfBranding
     }
 
     /**
-     * Per-supplier accent override CSS — přebarví fialové akcenty (#3B2D83 + světlé
+     * Per-supplier accent override CSS — přebarví petrolejové akcenty (#0B4F7C + světlé
      * varianty/linky) na zvolenou barvu. Gated na email_branding_enabled + nedefaultní
      * hex. Vrací '' pokud branding vypnutý nebo defaultní barva (ta je už v base CSS).
      *

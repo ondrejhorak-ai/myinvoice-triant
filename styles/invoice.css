@@ -17,7 +17,7 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 7mm;
-    border-bottom: 1.5pt solid #3B2D83;
+    border-bottom: 1.5pt solid #0B4F7C;
 }
 /* Dobropis — červený header pro vizuální odlišení */
 .head.credit-note {
@@ -57,7 +57,7 @@ td.meta { width: 45%; text-align: right; }
 .brand-name {
     font-size: 16pt;
     font-weight: bold;
-    color: #3B2D83;
+    color: #0B4F7C;
     line-height: 1.1;
     white-space: nowrap;
     letter-spacing: -0.2pt;
@@ -65,7 +65,7 @@ td.meta { width: 45%; text-align: right; }
 .doc-type {
     font-size: 11pt;
     font-weight: bold;
-    color: #3B2D83;
+    color: #0B4F7C;
     margin-bottom: 1mm;
     line-height: 1.2;
     white-space: nowrap;
@@ -90,7 +90,7 @@ td.meta { width: 45%; text-align: right; }
     font-size: 7pt;
     font-weight: bold;
     letter-spacing: 0.3pt;
-    color: #3B2D83;
+    color: #0B4F7C;
     background: #EFEAFF;
     border: 0.4pt solid #C6BCE8;
     border-radius: 1.5mm;
@@ -186,7 +186,7 @@ table.items {
     font-size: 9pt;
 }
 table.items th {
-    background: #3B2D83;
+    background: #0B4F7C;
     color: #FFFFFF;
     font-size: 8.5pt;
     text-transform: uppercase;
@@ -241,7 +241,7 @@ table.totals-table tr.subtotal td {
     font-weight: 600;
 }
 table.totals-table tr.grand td {
-    background: #3B2D83;
+    background: #0B4F7C;
     color: #FFFFFF;
     font-size: 13pt;
     font-weight: bold;
@@ -251,11 +251,11 @@ table.totals-table tr.grand td.tot-label { color: #FFFFFF; }
 table.totals-table tr.advance td { color: #5A5470; }
 table.totals-table tr.advance td.tot-label { font-style: italic; }
 table.totals-table tr.to-pay td {
-    border-top: 1pt solid #3B2D83;
+    border-top: 1pt solid #0B4F7C;
     background: #F4F2F8;
     font-weight: bold;
     font-size: 12pt;
-    color: #3B2D83;
+    color: #0B4F7C;
     padding: 2.5mm 3mm;
 }
 table.totals-table tr.rate-note td.rate-note-cell {
@@ -282,7 +282,7 @@ table.czk-recap td {
 table.czk-recap td.czk-recap-title {
     font-size: 9.5pt;
     font-weight: bold;
-    color: #3B2D83;
+    color: #0B4F7C;
     border-bottom: 0.5pt solid #C9C0E9;
     padding-bottom: 1.5mm;
 }
@@ -309,7 +309,7 @@ table.czk-recap tr.subtotal td {
 }
 table.czk-recap tr.grand td {
     background: #DCDCDC;
-    color: #3B2D83;
+    color: #0B4F7C;
     font-size: 10.5pt;
     font-weight: bold;
     padding: 2mm 3mm;
@@ -396,7 +396,7 @@ table.czk-recap tr.grand td {
 }
 .footer-name {
     font-weight: 700;
-    color: #3B2D83;
+    color: #0B4F7C;
 }
 .footer-dot {
     color: #C5BFD3;
@@ -435,11 +435,11 @@ table.czk-recap tr.grand td {
 .wr-title {
     font-size: 11pt;
     font-weight: bold;
-    color: #3B2D83;
+    color: #0B4F7C;
     margin-bottom: 1mm;
 }
 /* Proklikávací popis položky faktury → odkaz na stránku s výkazem (podtržený). */
 .wr-link {
-    color: #3B2D83;
+    color: #0B4F7C;
     text-decoration: underline;
 }

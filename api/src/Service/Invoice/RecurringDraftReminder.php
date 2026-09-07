@@ -132,7 +132,7 @@ final class RecurringDraftReminder
         if ($row === false) return null;
 
         $row['email_branding_enabled'] = (bool) ($row['email_branding_enabled'] ?? false);
-        $row['email_accent_color']     = (string) ($row['email_accent_color'] ?: '#3B2D83');
+        $row['email_accent_color']     = (string) ($row['email_accent_color'] ?: '#0B4F7C');
         $row['logo_path']              = $row['logo_path'] ?: null;
         return $row;
     }

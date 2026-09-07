@@ -37,8 +37,8 @@ final class OpenApiAction
   <link rel="icon" type="image/svg+xml" href="/styles/logo.svg">
   <style>
     :root {
-      --primary: #6753AE;
-      --primary-dark: #3B2D83;
+      --primary: #155A86;
+      --primary-dark: #0B4F7C;
       --primary-soft: #ede9fe;
       --primary-softer: #f5f3ff;
       --accent: #f59e0b;
@@ -217,15 +217,15 @@ final class OpenApiAction
           large: '105rem'
         },
         colors: {
-          primary: { main: '#6753AE' },
+          primary: { main: '#155A86' },
           success: { main: '#21A86A' },
           warning: { main: '#D49C2E' },
           error:   { main: '#D45B5B' },
           text:    { primary: '#15131D', secondary: '#3F3A52' },
-          border:  { dark: '#3B2D83', light: '#ecebe9' },
+          border:  { dark: '#0B4F7C', light: '#ecebe9' },
           http: {
             get:    '#21A86A',
-            post:   '#6753AE',
+            post:   '#155A86',
             put:    '#D49C2E',
             delete: '#D45B5B',
             patch:  '#7E6DD6'
@@ -246,11 +246,11 @@ final class OpenApiAction
             fontFamily: '"JetBrains Mono", "Fira Code", Consolas, monospace',
             fontSize: '14px',
             lineHeight: '1.55em',
-            color:    '#3B2D83',
+            color:    '#0B4F7C',
             backgroundColor: '#f5f3ff',
             wrap: true
           },
-          links: { color: '#6753AE', visited: '#6753AE', hover: '#3B2D83' }
+          links: { color: '#155A86', visited: '#155A86', hover: '#0B4F7C' }
         },
         sidebar: {
           backgroundColor: '#f5f3fb',
@@ -311,8 +311,8 @@ HTML;
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
   <style>
     :root {
-      --primary: #6753AE;
-      --primary-dark: #3B2D83;
+      --primary: #155A86;
+      --primary-dark: #0B4F7C;
       --primary-soft: #ede9fe;
       --primary-softer: #f5f3ff;
       --accent: #f59e0b;
@@ -583,8 +583,8 @@ HTML;
   <link rel="icon" type="image/svg+xml" href="/styles/logo.svg">
   <style>
     :root {
-      --primary: #6753AE;
-      --primary-dark: #3B2D83;
+      --primary: #155A86;
+      --primary-dark: #0B4F7C;
       --primary-soft: #ede9fe;
       --primary-softer: #f5f3ff;
       --accent: #f59e0b;
@@ -712,7 +712,7 @@ HTML;
       metaData: { title: 'MyInvoice.cz API — Scalar' },
       customCss: `
         .scalar-app, :root {
-          --scalar-color-accent: #6753AE;
+          --scalar-color-accent: #155A86;
           --scalar-color-1: #15131D;
           --scalar-color-2: #3F3A52;
           --scalar-color-3: #6b7280;
@@ -725,7 +725,7 @@ HTML;
           --scalar-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
           --scalar-font-code: "JetBrains Mono", "Fira Code", Consolas, monospace;
           --scalar-color-green:  #21A86A;
-          --scalar-color-blue:   #6753AE;
+          --scalar-color-blue:   #155A86;
           --scalar-color-orange: #D49C2E;
           --scalar-color-yellow: #D49C2E;
           --scalar-color-red:    #D45B5B;
@@ -738,7 +738,7 @@ HTML;
           --scalar-sidebar-border-color: #ecebe9;
           --scalar-sidebar-item-hover-background: #ede9fe;
           --scalar-sidebar-item-active-background: #ede9fe;
-          --scalar-sidebar-color-active: #3B2D83;
+          --scalar-sidebar-color-active: #0B4F7C;
           --scalar-sidebar-search-background: #ffffff;
           --scalar-sidebar-search-border-color: #ecebe9;
         }

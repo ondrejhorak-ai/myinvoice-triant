@@ -229,7 +229,7 @@ final class PurchaseInvoicePdfRenderer
     margin: 3mm 0;
     padding: 3mm 4mm;
     background: #F9FAFB;
-    border-left: 2pt solid #3B2D83;
+    border-left: 2pt solid #0B4F7C;
     font-size: 9pt;
 }
 .rc-note {

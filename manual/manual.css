@@ -16,16 +16,16 @@
     --muted:       #475467;
     --faint:       #98A2B3;
 
-    /* Primary — indigo brand */
-    --prim:        #5C45A0;   /* interactive / link */
-    --prim-deep:   #3B2D83;   /* brand deep */
-    --prim-soft:   #F4F2FB;   /* soft pill bg */
-    --prim-100:    #E5E0F4;
-    --btn:         #5C45A0;
-    --btn-h:       #3B2D83;
+    /* Primary — Triant petrolej */
+    --prim:        #155A86;   /* interactive / link */
+    --prim-deep:   #0B4F7C;   /* brand deep */
+    --prim-soft:   #EAF1F5;   /* soft pill bg */
+    --prim-100:    #D3E3EC;
+    --btn:         #155A86;
+    --btn-h:       #0B4F7C;
 
     /* Accent pilulky sekcí (jako barevné menu v apce) */
-    --acc-primary-bg: #F4F2FB;  --acc-primary-fg: #3B2D83;
+    --acc-primary-bg: #EAF1F5;  --acc-primary-fg: #0B4F7C;
     --acc-warning-bg: #FDF6E9;  --acc-warning-fg: #96671C;
     --acc-success-bg: #ECF6F0;  --acc-success-fg: #2E7B53;
     --acc-sky-bg:     #EFF6FC;  --acc-sky-fg:     #2D6E9E;
@@ -60,14 +60,14 @@
     --muted:       #A8ADB8;
     --faint:       #61646C;
 
-    --prim:        #9C8FDA;
-    --prim-deep:   #B7AAE8;
-    --prim-soft:   #221C3A;
-    --prim-100:    #2C2450;
-    --btn:         #7C68C4;
-    --btn-h:       #9C8FDA;
+    --prim:        #86B0C8;
+    --prim-deep:   #B6D0DE;
+    --prim-soft:   #0A2433;
+    --prim-100:    #0D3144;
+    --btn:         #4A88A8;
+    --btn-h:       #86B0C8;
 
-    --acc-primary-bg: #2A2350;  --acc-primary-fg: #B7AAE8;
+    --acc-primary-bg: #0A2433;  --acc-primary-fg: #B6D0DE;
     --acc-warning-bg: #332813;  --acc-warning-fg: #EDB35C;
     --acc-success-bg: #16301F;  --acc-success-fg: #6FC79A;
     --acc-sky-bg:     #13293D;  --acc-sky-fg:     #7CBCE8;

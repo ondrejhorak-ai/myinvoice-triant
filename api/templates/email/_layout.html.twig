@@ -7,13 +7,13 @@
 </head>
 {% set branded = (supplier and supplier.email_branding_enabled) %}
 {# Branding barva se propaguje jen když má dodavatel zapnutý branding (konzistentní
-   s PDF i logem). Bez brandingu = default fialová MyInvoice. Tělové šablony používají
+   s PDF i logem). Bez brandingu = default Triant petrolej. Tělové šablony používají
    {{ accent }} pro částky, tlačítka a odkazy — proto je viditelný i v jejich blocích. #}
-{% set accent = (branded and supplier.email_accent_color) ? supplier.email_accent_color : '#3B2D83' %}
+{% set accent = (branded and supplier.email_accent_color) ? supplier.email_accent_color : '#0B4F7C' %}
 {# accent_soft = světlá varianta akcentu (mix s bílou, počítaná v PHP přes AccentColor).
-   Bez brandingu / s default barvou je null → fallback na fixní MyInvoice #F4F2FB.
+   Bez brandingu / s default barvou je null → fallback na fixní #EAF1F5.
    Tělové šablony ji používají pro pozadí boxu s částkou (stejně jako {{ accent }}). #}
-{% set accent_soft = (branded and supplier.accent_soft) ? supplier.accent_soft : '#F4F2FB' %}
+{% set accent_soft = (branded and supplier.accent_soft) ? supplier.accent_soft : '#EAF1F5' %}
 {% set has_logo = (branded and supplier.logo_path) %}
 <body style="margin:0;padding:0;background:#F4F2F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#15131D;">
 

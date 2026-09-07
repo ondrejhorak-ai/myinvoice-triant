@@ -8,17 +8,17 @@
   /* 4px spacing grid (Tailwind: p-1 = 4px, p-2 = 8px, …) */
   --spacing: 0.25rem;
 
-  /* ─── Primary — indigo (sladěno s MyWebdesign.cz brand #3B2D83) ─── */
-  --color-primary-50:  #F4F2FB;
-  --color-primary-100: #E5E0F4;
-  --color-primary-200: #C9C0E9;
-  --color-primary-300: #A99CD8;
-  --color-primary-400: #8675C5;
-  --color-primary-500: #6753AE;   /* lehce světlejší — main interactive, logo */
-  --color-primary-600: #5C45A0;   /* primary button */
-  --color-primary-700: #3B2D83;   /* BRAND (deep) — accents, faktura hlavička */
-  --color-primary-800: #2E2367;
-  --color-primary-900: #211A4B;
+  /* ─── Primary — Triant petrolej (PDF nabídky #0B4F7C) ─── */
+  --color-primary-50:  #EAF1F5;
+  --color-primary-100: #D3E3EC;
+  --color-primary-200: #B6D0DE;
+  --color-primary-300: #86B0C8;
+  --color-primary-400: #4A88A8;
+  --color-primary-500: #2A6A90;
+  --color-primary-600: #155A86;   /* primary button */
+  --color-primary-700: #0B4F7C;   /* BRAND */
+  --color-primary-800: #083E61;
+  --color-primary-900: #062C45;
 
   /* ─── Neutral — Untitled UI gray (chladnější, bez indigo nádechu) ─── */
   --color-neutral-50:  #F9FAFB;   /* page background */
@@ -52,7 +52,7 @@
   --color-success-600: #3B9665;   /* primary „go/potvrdit" button (Vystavit, Zaplaceno…) */
   --color-success-700: #2E7B53;   /* hover plného success tlačítka */
   --color-warning-50:  #FDF6E9;
-  --color-warning-500: #E8A547;   /* soft amber */
+  --color-warning-500: #F59B00;   /* jantar z PDF nabídky */
   --color-warning-600: #C68A30;
   --color-danger-50:   #FBEDED;
   --color-danger-500:  #D45B5B;   /* soft coral */
@@ -61,8 +61,8 @@
   /* ─── Status badges (faktury) — draft/cancelled mapované na novou neutral škálu ─── */
   --color-status-draft-bg:     #F2F4F7;
   --color-status-draft-fg:     #475467;
-  --color-status-issued-bg:    #E5E0F4;
-  --color-status-issued-fg:    #3B2D83;
+  --color-status-issued-bg:    #EAF1F5;
+  --color-status-issued-fg:    #0B4F7C;
   --color-status-sent-bg:      #D7E8F6;
   --color-status-sent-fg:      #1F5E97;
   --color-status-paid-bg:      #ECF6F0;
@@ -91,8 +91,8 @@
   /* Focus ring — 4px světlý primary (utility `ring` / `focus-ring`) */
   --ring-width: 4px;
   --default-ring-width: 4px;
-  --color-ring: #E5E0F4; /* primary-100 */
-  --default-ring-color: #E5E0F4;
+  --color-ring: #D3E3EC; /* primary-100 */
+  --default-ring-color: #D3E3EC;
 }
 
 /* ═══════════════════════ DARK MODE ═══════════════════════
@@ -100,7 +100,7 @@
  * Neutral škála se obrací (50 = nejtmavší pozadí … 900 = nejsvětlejší text),
  * takže ~3400 výskytů bg-neutral-50 / text-neutral-900 / border-neutral-200
  * se překlopí samo. bg-white se nahrazuje za bg-surface (viz převod komponent).
- * Neutral je chladná Untitled gray; primary indigo #3B2D83 zůstává.
+ * Neutral je chladná Untitled gray; primary Triant petrolej #0B4F7C.
  * How to apply: .dark třídu na <html> řídí composable useTheme. */
 .dark {
   /* Nativní ovládací prvky (kalendář u input[type=date], scrollbary, checkboxy…)
@@ -122,13 +122,13 @@
   /* Plochy nad pozadím */
   --color-surface:   #1F242F;   /* karty / panely / topbar / sidebar */
 
-  /* Primary — zesvětlené pro kontrast a sytost na tmavém podkladu */
-  --color-primary-50:  #221C3A;   /* soft pill bg (bg-primary-50) */
-  --color-primary-100: #2C2450;
-  --color-primary-600: #7C68C4;   /* primary button */
-  --color-primary-700: #9C8FDA;   /* accent text (text-primary-700) — čitelný na tmavém */
-  --color-primary-800: #B7AAE8;   /* silnější accent text (text-primary-800) */
-  --color-primary-900: #D4CCF3;   /* nejsilnější accent text (text-primary-900) */
+  /* Primary — zesvětlené petrolejové tóny pro kontrast na tmavém podkladu */
+  --color-primary-50:  #0A2433;
+  --color-primary-100: #0D3144;
+  --color-primary-600: #4A88A8;   /* primary button */
+  --color-primary-700: #86B0C8;   /* accent text — čitelný na tmavém */
+  --color-primary-800: #B6D0DE;
+  --color-primary-900: #D3E3EC;
 
   /* Semantic soft pozadí (-50) → tmavé tinty */
   --color-success-50: #16261D;
@@ -159,14 +159,14 @@
   --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.40), 0 2px 4px -2px rgb(0 0 0 / 0.32);
   --shadow-lg: 0 12px 16px -4px rgb(0 0 0 / 0.48), 0 4px 6px -2px rgb(0 0 0 / 0.24);
   --shadow-focus-ring: 0 0 0 4px var(--color-primary-50);
-  --color-ring: #2C2450; /* primary-100 dark */
-  --default-ring-color: #2C2450;
+  --color-ring: #0D3144; /* primary-100 dark */
+  --default-ring-color: #0D3144;
 
   /* Status badges — tmavé tinty, aby světlé light hodnoty v dark nezářily */
   --color-status-draft-bg:     #1C2230;
   --color-status-draft-fg:     #A8ADB8;
-  --color-status-issued-bg:    #221C3A;
-  --color-status-issued-fg:    #B7AAE8;
+  --color-status-issued-bg:    #0A2433;
+  --color-status-issued-fg:    #86B0C8;
   --color-status-sent-bg:      #122231;
   --color-status-sent-fg:      #7CBCE8;
   --color-status-paid-bg:      #16261D;

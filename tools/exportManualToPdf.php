@@ -506,7 +506,7 @@ $cover = <<<HTML
 </div>
 HTML;
 
-// ---------- CSS — MyInvoice purple branding ----------
+// ---------- CSS — Triant petroleum branding ----------
 $css = <<<CSS
 body {
   font-family: montserrat, sans-serif;

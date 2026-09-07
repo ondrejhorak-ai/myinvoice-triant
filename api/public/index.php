@@ -58,7 +58,7 @@ declare(strict_types=1);
         . '<meta http-equiv="refresh" content="20">'
         . '<title>Probíhá aktualizace</title>'
         . '<style>body{font:14px/1.6 system-ui,sans-serif;max-width:560px;margin:80px auto;padding:0 20px;color:#15131D}'
-        . 'h1{color:#3B2D83;font-size:22px}</style></head><body>'
+        . 'h1{color:#0B4F7C;font-size:22px}</style></head><body>'
         . '<h1>Probíhá aktualizace</h1><p>' . htmlspecialchars($message, ENT_QUOTES) . '</p>'
         . '<p>Stránka se sama obnoví.</p></body></html>';
     exit;
@@ -123,7 +123,7 @@ try {
       <title>MyInvoice.cz</title>
       <style>
         body { font: 14px/1.5 system-ui, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; color: #15131D; }
-        h1 { color: #3B2D83; }
+        h1 { color: #0B4F7C; }
         code { background: #F4F2F8; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', Consolas, monospace; }
         pre { background: #15131D; color: #fff; padding: 12px 16px; border-radius: 6px; overflow-x: auto; }
         .err { background: #FBEDED; border-left: 3px solid #D45B5B; padding: 12px; margin: 16px 0; }

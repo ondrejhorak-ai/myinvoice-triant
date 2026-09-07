@@ -110,7 +110,7 @@ $ICON_DARK   = 'M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#3B2D83">
+    <meta name="theme-color" content="#0B4F7C">
     <title><?= htmlspecialchars($activeTitle, ENT_QUOTES) ?></title>
     <link rel="icon" type="image/svg+xml" href="/styles/logo.svg">
     <link rel="stylesheet" href="/manual/manual.css?v=<?= htmlspecialchars($cssVer, ENT_QUOTES) ?>">

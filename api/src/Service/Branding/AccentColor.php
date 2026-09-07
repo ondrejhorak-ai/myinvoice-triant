@@ -10,14 +10,14 @@ namespace MyInvoice\Service\Branding;
  * (InvoiceEmailVarsBuilder, Mailer, EmailBrandingAction preview).
  *
  * Branding přebarvuje nejen popředí (texty, hlavičky), ale i světlé plochy a
- * tenké linky, které jsou v base stylu napevno odvozené od defaultní fialové
- * (#3B2D83). `tint()` je smíchá s bílou v daném poměru, aby odpovídaly
+ * tenké linky, které jsou v base stylu napevno odvozené od defaultního petroleje
+ * (#0B4F7C). `tint()` je smíchá s bílou v daném poměru, aby odpovídaly
  * zvolenému akcentu.
  */
 final class AccentColor
 {
-    /** Defaultní MyInvoice fialová — pro ni branding negeneruje override (je už v base). */
-    public const DEFAULT = '#3B2D83';
+    /** Defaultní Triant petrolej — pro ni branding negeneruje override (je už v base). */
+    public const DEFAULT = '#0B4F7C';
 
     /** Normalizuje a zvaliduje hex; vrací uppercase `#RRGGBB` nebo null. */
     public static function normalize(?string $hex): ?string
