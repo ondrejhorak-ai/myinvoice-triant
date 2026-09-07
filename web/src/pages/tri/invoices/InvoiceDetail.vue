@@ -528,12 +528,14 @@ async function issueFinalFromProforma() {
   if (!confirm(t('invoice.issue_final_confirm', { varsymbol: invoice.value.varsymbol || `#${invoice.value.id}` }))) return
   busy.value = 'issue-final'
   try {
-    const r = await invoicesApi.issueFinal(invoice.value.id)
-    if (!r?.final_invoice_id) {
+    // MyÚčto vytvoří NOVÝ finální doklad navázaný na zálohu a vrátí ho celý.
+    const r = await triInvoicesApi.issueFinal(invoice.value.id)
+    if (!r?.id) {
       toast.error(t('invoice.invalid_response'))
       return
     }
-    router.push(r.edit_url || `/tri/invoices/${r.final_invoice_id}/edit`)
+    toast.success(t('invoice.issue_final_ok'))
+    router.push(`/tri/invoices/${r.id}`)
   } catch (e: any) {
     toast.error(e?.response?.data?.error?.message || t('invoice.issue_final_failed'))
   } finally {
@@ -940,7 +942,7 @@ async function requestApprovalTest() {
         <UiButton v-if="canSendEmail && auth.canWrite" size="sm" :disabled="busy !== null" @click="openSendModal">
           {{ t('invoice.send_to_client') }}
         </UiButton>
-        <UiButton v-if="false && canIssueFinal && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'issue-final'" @click="issueFinalFromProforma">
+        <UiButton v-if="canIssueFinal && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'issue-final'" @click="issueFinalFromProforma">
           {{ busy === 'issue-final' ? '…' : t('invoice.issue_final') }}
         </UiButton>
         <UiButton v-if="isIssued && canMarkPaid && auth.canWrite" variant="outline" size="sm" :disabled="busy !== null" @click="openMarkPaid">

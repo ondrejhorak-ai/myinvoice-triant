@@ -122,6 +122,8 @@ final class MirrorSyncTest extends TestCase
         $api = $this->api([
             new Response(200, ['Content-Type' => 'application/json'], $page),
             new Response(200, ['Content-Type' => 'application/json'], '{"data":[],"meta":{"last_page":1}}'),
+            // tombstone safety-net: GET /invoices/2 → 404 (opravdu smazaná)
+            new Response(404, ['Content-Type' => 'application/json'], '{"error":{"code":"not_found","message":"Nenalezeno"}}'),
         ]);
         $n = (new InvoiceSync($api, $pdo, $writer))->run(false);
         $this->assertGreaterThanOrEqual(1, $n);
@@ -132,6 +134,89 @@ final class MirrorSyncTest extends TestCase
         $kept = $pdo->query('SELECT deleted_at FROM mu_invoices WHERE id = 1')->fetchColumn();
         $this->assertNull($kept);
         $this->assertSame($hotFrom, $hotFrom);
+    }
+
+    public function testDraftStillAliveIsNotTombstonedWhenListMissesIt(): void
+    {
+        $pdo = $this->sqlite();
+        $writer = new MirrorWriter($pdo);
+        $now = $writer->now();
+
+        $draft = InvoiceSync::toRow([
+            'id' => 133,
+            'status' => 'draft',
+            'updated_at' => $now,
+            'totals' => ['without_vat' => 1000, 'vat' => 210, 'with_vat' => 1210],
+        ], $now);
+        $this->assertNotNull($draft);
+        $writer->upsert('mu_invoices', $draft, array_values(array_diff(array_keys($draft), ['id'])));
+
+        $api = $this->api([
+            new Response(200, ['Content-Type' => 'application/json'], '{"data":[],"meta":{"last_page":1}}'),
+            new Response(200, ['Content-Type' => 'application/json'], '{"data":[],"meta":{"last_page":1}}'),
+            // safety-net GET: koncept v MyÚčtu pořád žije → nemazat
+            new Response(200, ['Content-Type' => 'application/json'], json_encode([
+                'data' => [
+                    'id' => 133,
+                    'status' => 'draft',
+                    'updated_at' => $now,
+                    'totals' => ['without_vat' => 1000, 'vat' => 210, 'with_vat' => 1210],
+                ],
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+        (new InvoiceSync($api, $pdo, $writer))->run(false);
+
+        $deleted = $pdo->query('SELECT deleted_at FROM mu_invoices WHERE id = 133')->fetchColumn();
+        $this->assertNull($deleted);
+    }
+
+    public function testPullFlattensMonthBucketedInvoiceList(): void
+    {
+        $pdo = $this->sqlite();
+        $writer = new MirrorWriter($pdo);
+        $issue = (new \DateTimeImmutable('today'))->modify('-5 days')->format('Y-m-d');
+
+        // Reálný tvar MyÚčto listu: data = měsíční skupiny s vnořenými invoices
+        $bucketPage = json_encode([
+            'data' => [[
+                'month' => substr($issue, 0, 7),
+                'count' => 2,
+                'invoices' => [
+                    [
+                        'id' => 133,
+                        'status' => 'draft',
+                        'invoice_type' => 'invoice',
+                        'client_id' => 37,
+                        'project_id' => 37,
+                        'total_without_vat' => 1000,
+                        'total_vat' => 210,
+                        'total_with_vat' => 1210,
+                    ],
+                    [
+                        'id' => 134,
+                        'status' => 'issued',
+                        'issue_date' => $issue,
+                        'total_without_vat' => 50,
+                        'total_vat' => 10.5,
+                        'total_with_vat' => 60.5,
+                    ],
+                ],
+            ]],
+            'meta' => ['total' => 2, 'page' => 1, 'per_page' => 200, 'pages' => 1],
+        ], JSON_THROW_ON_ERROR);
+
+        $api = $this->api([
+            new Response(200, ['Content-Type' => 'application/json'], $bucketPage),
+            new Response(200, ['Content-Type' => 'application/json'], '{"data":[],"meta":{"last_page":1}}'),
+        ]);
+        (new InvoiceSync($api, $pdo, $writer))->run(false);
+
+        $count = (int) $pdo->query('SELECT COUNT(*) FROM mu_invoices WHERE deleted_at IS NULL')->fetchColumn();
+        $this->assertSame(2, $count);
+        $status = (string) $pdo->query('SELECT status FROM mu_invoices WHERE id = 133')->fetchColumn();
+        $this->assertSame('draft', $status);
+        $net = (string) $pdo->query('SELECT total_without_vat FROM mu_invoices WHERE id = 133')->fetchColumn();
+        $this->assertSame('1000.00', $net);
     }
 
     public function testProjectLinksJobByNumber(): void

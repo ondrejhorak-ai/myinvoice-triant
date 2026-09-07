@@ -353,6 +353,7 @@ watch(() => form.value.invoice_type, (newType, oldType) => {
 })
 
 onMounted(async () => {
+  try {
   const [meta] = await Promise.all([
     triInvoicesApi.meta(),
   ])
@@ -445,7 +446,8 @@ onMounted(async () => {
       await loadProjects(inv.client_id)
       await verifyClientVies(inv.client_id)
     }
-    // Načti existující work_report (pokud existuje)
+    // TRI doklady žijí v MyÚčtu — core work-report/attachments podle local invoices.id
+    // vrací 404. Nesmí to zablokovat Načítám…
     await loadWorkReport()
     await loadAttachments()
     if (editedStatus.value === 'draft') await loadVarsymbolPreview()
@@ -482,8 +484,13 @@ onMounted(async () => {
     }
     await loadVarsymbolPreview()
   }
-
-  loaded.value = true
+  } catch (e) {
+    // Dílčí selhání (síť, MyÚčto výpadek) nesmí nechat editor viset na „Načítám…"
+    console.error('Invoice editor load failed', e)
+    toast.error(apiErrorMessage(e, t('common.load_failed')))
+  } finally {
+    loaded.value = true
+  }
 })
 
 async function loadProjects(clientId: number) {
@@ -787,11 +794,15 @@ const wrItems = ref<WorkReportItem[]>([])
 
 async function loadWorkReport() {
   if (!invoiceId.value) return
-  const wr = await invoicesApi.getWorkReport(invoiceId.value)
-  if (wr) {
-    wrTitle.value = wr.title
-    wrItems.value = wr.items.map(i => ({ ...i }))
-    wrOpen.value = true
+  try {
+    const wr = await invoicesApi.getWorkReport(invoiceId.value)
+    if (wr) {
+      wrTitle.value = wr.title
+      wrItems.value = wr.items.map(i => ({ ...i }))
+      wrOpen.value = true
+    }
+  } catch {
+    /* TRI / MyÚčto id nemá core výkaz */
   }
 }
 

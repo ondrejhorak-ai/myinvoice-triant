@@ -53,7 +53,7 @@ final class TagRepository
 
     public function create(int $supplierId, string $name, ?string $color = null): int
     {
-        $slug = $this->uniqueSlug($supplierId, $this->slugify($name));
+        $slug = $this->uniqueSlug($supplierId, self::slugify($name));
         $stmt = $this->db->pdo()->prepare(
             'INSERT INTO tri_tags (supplier_id, name, slug, color) VALUES (?, ?, ?, ?)'
         );
@@ -64,7 +64,7 @@ final class TagRepository
 
     public function update(int $id, int $supplierId, string $name, string $color): void
     {
-        $slug = $this->uniqueSlug($supplierId, $this->slugify($name), $id);
+        $slug = $this->uniqueSlug($supplierId, self::slugify($name), $id);
         $stmt = $this->db->pdo()->prepare(
             'UPDATE tri_tags SET name = ?, slug = ?, color = ? WHERE id = ? AND supplier_id = ?'
         );
@@ -122,23 +122,56 @@ final class TagRepository
         }
     }
 
-    /** First client on job contacts with Zákazník tag. */
+    /**
+     * First client on job contacts with Zákazník tag; fallback: klient
+     * s příznakem `is_customer` (checkbox na kontaktu) — tag není nutný.
+     */
     public function findCustomerClientIdAmong(int $supplierId, array $clientIds): ?int
     {
         if ($clientIds === []) {
             return null;
         }
+        $clientIds = array_values(array_map('intval', $clientIds));
+
+        $taggedIds = [];
         $customerTag = $this->findBySlug($supplierId, self::CUSTOMER_SLUG);
-        if ($customerTag === null) {
-            return null;
-        }
-        $tagId = (int) $customerTag['id'];
-        foreach ($clientIds as $clientId) {
+        if ($customerTag !== null) {
+            $tagId = (int) $customerTag['id'];
+            $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
             $stmt = $this->db->pdo()->prepare(
-                'SELECT 1 FROM tri_client_tags WHERE client_id = ? AND tag_id = ? LIMIT 1'
+                "SELECT client_id FROM tri_client_tags WHERE tag_id = ? AND client_id IN ($placeholders)"
             );
-            $stmt->execute([(int) $clientId, $tagId]);
-            if ($stmt->fetchColumn() !== false) {
+            $stmt->execute(array_merge([$tagId], $clientIds));
+            $taggedIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        }
+
+        $placeholders = implode(',', array_fill(0, count($clientIds), '?'));
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT id FROM clients WHERE supplier_id = ? AND is_customer = 1 AND id IN ($placeholders)"
+        );
+        $stmt->execute(array_merge([$supplierId], $clientIds));
+        $flaggedIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
+
+        return self::pickCustomerClientId($clientIds, $taggedIds, $flaggedIds);
+    }
+
+    /**
+     * Čistá volba fakturačního klienta: nejdřív tag Zákazník (v pořadí kontaktů
+     * na zakázce), pak fallback na příznak `is_customer` z formuláře kontaktu.
+     *
+     * @param list<int> $clientIds ordered job contacts
+     * @param list<int> $taggedClientIds clients with the zakaznik tag
+     * @param list<int> $customerFlaggedIds clients with is_customer = 1
+     */
+    public static function pickCustomerClientId(array $clientIds, array $taggedClientIds, array $customerFlaggedIds): ?int
+    {
+        foreach ($clientIds as $clientId) {
+            if (in_array((int) $clientId, $taggedClientIds, true)) {
+                return (int) $clientId;
+            }
+        }
+        foreach ($clientIds as $clientId) {
+            if (in_array((int) $clientId, $customerFlaggedIds, true)) {
                 return (int) $clientId;
             }
         }
@@ -146,9 +179,17 @@ final class TagRepository
         return null;
     }
 
-    private function slugify(string $name): string
+    /** Slug bez diakritiky („Zákazník" → `zakaznik`). */
+    public static function slugify(string $name): string
     {
-        $s = mb_strtolower(trim($name), 'UTF-8');
+        $s = trim($name);
+        if (class_exists(\Transliterator::class)) {
+            $tr = \Transliterator::create('Any-Latin; Latin-ASCII');
+            if ($tr !== null) {
+                $s = $tr->transliterate($s) ?: $s;
+            }
+        }
+        $s = mb_strtolower($s, 'UTF-8');
         $s = preg_replace('/[^a-z0-9]+/u', '-', $s) ?? $s;
         $s = trim($s, '-');
 

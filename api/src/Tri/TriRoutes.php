@@ -149,6 +149,7 @@ final class TriRoutes
         $app->get('/api/tri/invoices/{id:[0-9]+}/job', GetInvoiceJobAction::class);
         $app->put('/api/tri/invoices/{id:[0-9]+}/job', SetInvoiceJobAction::class);
         $app->post('/api/tri/invoices/{id:[0-9]+}/issue', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/issue-final', InvoiceCycleAction::class);
         $app->get('/api/tri/invoices/{id:[0-9]+}/recipients', InvoiceCycleAction::class);
         $app->post('/api/tri/invoices/{id:[0-9]+}/send', InvoiceCycleAction::class);
         $app->post('/api/tri/invoices/{id:[0-9]+}/reminder', InvoiceCycleAction::class);

@@ -56,6 +56,8 @@ export const triInvoicesApi = {
     return `/api/tri/invoices/${id}/pdf${qs ? `?${qs}` : ''}`
   },
   issue: (id: number) => api.post<Invoice>(`/tri/invoices/${id}/issue`).then((r) => r.data),
+  /** Daňový doklad ze zaplacené zálohy — vrací NOVÝ doklad (jiné id). */
+  issueFinal: (id: number) => api.post<Invoice>(`/tri/invoices/${id}/issue-final`).then((r) => r.data),
   recipients: (id: number) =>
     api.get<{ to?: string[]; cc?: string[]; data?: { to?: string[] } }>(`/tri/invoices/${id}/recipients`).then((r) => r.data),
   send: (id: number, payload: { to?: string[]; cc?: string; bcc?: string; note?: string; subject?: string }) =>

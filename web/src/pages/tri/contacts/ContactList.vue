@@ -47,7 +47,7 @@ async function load(reset = true) {
       q: search.value,
       archived: showArchived.value,
       sort: sort.value,
-      role: 'customers',
+      role: 'all',
       tri_tag_id: triTagFilter.value ?? undefined,
       tri_stats: true,
       page: page.value,

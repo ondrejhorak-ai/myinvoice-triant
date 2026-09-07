@@ -73,6 +73,9 @@ final class InvoiceCycleAction
         int $paymentId,
         array $body,
     ): array {
+        if (str_ends_with($path, '/issue-final')) {
+            return $gw->issueFinal($id);
+        }
         if (str_ends_with($path, '/issue')) {
             return $gw->issue($id);
         }

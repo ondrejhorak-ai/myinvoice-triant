@@ -49,6 +49,31 @@ final class InvoiceSync
         return $this->pull(['filter' => ['project_id' => $projectId]], $ids);
     }
 
+    /**
+     * MyÚčto list faktur vrací měsíční skupiny `{month, count, invoices: [...]}`;
+     * rozbal je na jednotlivé faktury. Ploché řádky (s `id`) projdou beze změny.
+     *
+     * @param list<array<string, mixed>> $items
+     * @return list<array<string, mixed>>
+     */
+    public static function flattenGroups(array $items): array
+    {
+        $out = [];
+        foreach ($items as $item) {
+            if (!isset($item['id']) && isset($item['invoices']) && is_array($item['invoices'])) {
+                foreach ($item['invoices'] as $inv) {
+                    if (is_array($inv)) {
+                        $out[] = $inv;
+                    }
+                }
+                continue;
+            }
+            $out[] = $item;
+        }
+
+        return $out;
+    }
+
     /** @param array<int, true> $seenIds */
     private function pull(array $query, array &$seenIds): int
     {
@@ -57,7 +82,7 @@ final class InvoiceSync
         do {
             $q = array_merge(['per_page' => 200, 'page' => $page], $query);
             $payload = $this->api->listInvoices($q);
-            $items = ApiPage::items($payload);
+            $items = self::flattenGroups(ApiPage::items($payload));
             foreach ($items as $remote) {
                 $id = (int) ($remote['id'] ?? 0);
                 if ($id > 0) {
@@ -155,9 +180,24 @@ final class InvoiceSync
         $upd = $this->pdo->prepare('UPDATE mu_invoices SET deleted_at = ?, mu_synced_at = ? WHERE id = ?');
         foreach ($local as $id) {
             $id = (int) $id;
-            if ($id > 0 && !isset($seen[$id])) {
-                $upd->execute([$now, $now, $id]);
+            if ($id <= 0 || isset($seen[$id])) {
+                continue;
             }
+            // Bezpečnostní síť: fakturu, kterou list pull neviděl, tombstonuj
+            // až po ověření GET detailu (jen 404/410 = opravdu smazaná v MyÚčtu).
+            try {
+                $detail = $this->api->getInvoice($id);
+                $inv = is_array($detail['data'] ?? null) ? $detail['data'] : $detail;
+                if (is_array($inv) && (int) ($inv['id'] ?? 0) === $id) {
+                    $this->upsert($inv);
+                    continue;
+                }
+            } catch (MyUctoApiException $e) {
+                if ($e->httpStatus !== 404 && $e->httpStatus !== 410) {
+                    continue; // síť/5xx → nemazat, zkusí se příště
+                }
+            }
+            $upd->execute([$now, $now, $id]);
         }
     }
 

@@ -427,6 +427,15 @@ final class InvoiceGateway
             'total_without_vat' => $without,
             'total_vat' => $vat,
             'total_with_vat' => $with,
+            // FE typ Invoice čte souhrn z vnořeného `totals` (InvoiceDetail render)
+            'totals' => [
+                'without_vat' => $without,
+                'vat' => $vat,
+                'with_vat' => $with,
+                'rounding' => 0,
+                'advance_paid_amount' => (float) ($remote['advance_paid_amount'] ?? 0),
+                'amount_to_pay' => $amountToPay,
+            ],
             'rounding' => 0,
             'status' => $status,
             'approval_status' => 'none',
@@ -695,6 +704,17 @@ final class InvoiceGateway
     public function issue(int $id): array
     {
         return $this->mutate($id, fn () => $this->api->issueInvoice($id), true);
+    }
+
+    /**
+     * Daňový doklad k přijaté záloze: proforma (paid) → nový finální doklad.
+     * Vrací NOVÝ doklad (jiné id), proto ne-idempotentní (žádný retry na „already").
+     *
+     * @return array<string, mixed>
+     */
+    public function issueFinal(int $id): array
+    {
+        return $this->mutate($id, fn () => $this->api->issueFinal($id), false);
     }
 
     /** @return array<string, mixed> */
