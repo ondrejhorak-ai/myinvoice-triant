@@ -369,7 +369,8 @@
       "back_to_list": "← Zpět na seznam",
       "other_info_section": "Ostatní informace",
       "no_data": "Zatím žádné kontakty",
-      "create_first": "Vytvořit první kontakt"
+      "create_first": "Vytvořit první kontakt",
+      "open_in_myucto": "Otevřít v MyÚčtu"
     },
     "tags": {
       "label": "Tagy",

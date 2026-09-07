@@ -41,7 +41,7 @@ final class GetSyncStatusAction
 
         $state = [];
         try {
-            $state = $pdo->query('SELECT `key`, last_run_at, last_ok_at, cursor, last_error FROM mu_sync_state ORDER BY `key`')
+            $state = $pdo->query('SELECT `key`, last_run_at, last_ok_at, sync_cursor, last_error FROM mu_sync_state ORDER BY `key`')
                 ->fetchAll(PDO::FETCH_ASSOC) ?: [];
         } catch (\Throwable) {
             $state = [];

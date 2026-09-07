@@ -747,6 +747,9 @@ final class ClientRepository
         if (array_key_exists('tri_jobs_count', $row))    $row['tri_jobs_count'] = (int) $row['tri_jobs_count'];
         if (array_key_exists('tri_revenue', $row))       $row['tri_revenue'] = (float) $row['tri_revenue'];
         if (array_key_exists('tri_last_job_date', $row)) $row['tri_last_job_date'] = $row['tri_last_job_date'] ?: null;
+        if (array_key_exists('myucto_id', $row)) {
+            $row['myucto_id'] = $row['myucto_id'] !== null ? (int) $row['myucto_id'] : null;
+        }
         return $row;
     }
 

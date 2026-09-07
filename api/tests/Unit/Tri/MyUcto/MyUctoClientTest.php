@@ -30,7 +30,7 @@ final class MyUctoClientTest extends TestCase
     public function testErrorEnvelopeMapsToException(): void
     {
         $client = $this->client([
-            new Response(422, ['Content-Type' => 'application/json'], '{"error":{"code":"validation_failed","message":"Pole zip je povinné."}}'),
+            new Response(422, ['Content-Type' => 'application/json'], '{"error":{"code":"validation_failed","message":"Pole zip je povinné.","fields":{"zip":["Pole zip je povinné."]}}}'),
         ]);
         try {
             $client->createClient(['company_name' => 'X']);
@@ -39,6 +39,7 @@ final class MyUctoClientTest extends TestCase
             $this->assertSame('validation_failed', $e->errorCode);
             $this->assertSame(422, $e->httpStatus);
             $this->assertStringContainsString('zip', $e->getMessage());
+            $this->assertArrayHasKey('zip', $e->details);
         }
     }
 

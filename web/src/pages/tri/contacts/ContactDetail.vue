@@ -4,6 +4,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { clientsApi, type Client, type BankLookupResult } from '@/api/clients'
+import { triApi } from '@/api/tri'
 import { invoicesApi, type InvoiceListItem } from '@/api/invoices'
 import { purchaseInvoicesApi, type PurchaseInvoice } from '@/api/purchaseInvoices'
 import { recurringApi, type RecurringTemplate } from '@/api/recurring'
@@ -29,6 +30,11 @@ const route = useRoute()
 const router = useRouter()
 
 const client = ref<Client | null>(null)
+const myuctoBase = ref('')
+const myuctoHref = computed(() => {
+  if (!auth.isAdmin || !client.value?.myucto_id || !myuctoBase.value) return ''
+  return `${myuctoBase.value.replace(/\/$/, '')}/clients/${client.value.myucto_id}`
+})
 const loading = ref(true)
 const invoices = ref<InvoiceListItem[]>([])
 const invoicesLoading = ref(false)
@@ -294,26 +300,33 @@ async function loadMoreInvoices() {
   }
 }
 
-onMounted(load)
+onMounted(async () => {
+  if (auth.isAdmin) {
+    try {
+      myuctoBase.value = (await triApi.myucto.status()).public_url
+    } catch { /* admin-only endpoint */ }
+  }
+  await load()
+})
 
 async function archive() {
   if (!client.value) return
   if (!confirm(t('client.archive_confirm'))) return
-  await clientsApi.archive(client.value.id)
+  await triApi.contacts.archive(client.value.id)
   router.push('/tri/contacts')
 }
 
 async function unarchive() {
   if (!client.value) return
-  await clientsApi.unarchive(client.value.id)
+  await triApi.contacts.unarchive(client.value.id)
   await load()
 }
 
 async function deleteClient() {
   if (!client.value) return
-  if (!confirm(t('client.delete_warning', { name: client.value.company_name }))) return
+  if (!confirm(t('client.archive_confirm'))) return
   try {
-    await clientsApi.delete(client.value.id)
+    await triApi.contacts.archive(client.value.id)
     router.push('/tri/contacts')
   } catch (e: any) {
     toast.error(e?.response?.data?.error?.message || t('client.delete_failed'))
@@ -344,6 +357,9 @@ async function deleteClient() {
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </template>
             {{ t('common.edit') }}
+          </UiButton>
+          <UiButton v-if="myuctoHref" :href="myuctoHref" variant="outline" size="sm">
+            {{ t('tri.contacts.open_in_myucto') }}
           </UiButton>
           <UiButton v-if="client.dic" variant="outline" size="sm" :loading="vatInfoLoading" :disabled="vatInfoLoading" @click="loadVatPayerDetails">
             {{ vatInfoLoading ? t('common.loading') : t('client.vat_payer_details') }}

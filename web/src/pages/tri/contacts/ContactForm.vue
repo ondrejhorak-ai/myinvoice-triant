@@ -208,7 +208,7 @@ async function loadFromAres() {
   aresLoading.value = true
   error.value = ''
   try {
-    const result = await clientsApi.lookupAres(form.value.ic)
+    const result = await triApi.contacts.lookupAres(form.value.ic)
     if (!result.found || !result.data) {
       error.value = t('supplier.ares_not_found')
       return
@@ -282,7 +282,7 @@ async function submit() {
   errors.value = {}
   try {
     if (isEdit.value && clientId.value) {
-      const updated = await clientsApi.update(clientId.value, form.value)
+      const updated = await triApi.contacts.update(clientId.value, form.value as unknown as Record<string, unknown>)
       await tagEditorRef.value?.save()
       const revBackfilled = updated.revenue_category_backfilled ?? 0
       if (revBackfilled > 0) {
@@ -290,7 +290,7 @@ async function submit() {
       }
       router.push(`/tri/contacts/${clientId.value}`)
     } else {
-      const created = await clientsApi.create(form.value)
+      const created = await triApi.contacts.create(form.value as unknown as Record<string, unknown>)
       if (tagEditorRef.value) {
         await triApi.tags.setClient(created.id, tagEditorRef.value.selected)
       }

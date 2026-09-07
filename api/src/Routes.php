@@ -312,13 +312,13 @@ final class Routes
 
         // Clients
         $app->get   ('/api/clients',                 ListClientsAction::class);
-        $app->post  ('/api/clients',                 CreateClientAction::class);
+        $app->post  ('/api/clients',                 \MyInvoice\Tri\Action\Contact\CoreClientWriteGoneAction::class);
         $app->get   ('/api/clients/{id:[0-9]+}',     GetClientAction::class);
         $app->get   ('/api/clients/{id:[0-9]+}/vat-status', ClientVatStatusAction::class);  // online ARES/VIES plátcovství
-        $app->put   ('/api/clients/{id:[0-9]+}',     UpdateClientAction::class);
-        $app->post  ('/api/clients/{id:[0-9]+}/archive',   ArchiveClientAction::class);
-        $app->post  ('/api/clients/{id:[0-9]+}/unarchive', ArchiveClientAction::class);
-        $app->delete('/api/clients/{id:[0-9]+}',           DeleteClientAction::class);
+        $app->put   ('/api/clients/{id:[0-9]+}',     \MyInvoice\Tri\Action\Contact\CoreClientWriteGoneAction::class);
+        $app->post  ('/api/clients/{id:[0-9]+}/archive',   \MyInvoice\Tri\Action\Contact\CoreClientWriteGoneAction::class);
+        $app->post  ('/api/clients/{id:[0-9]+}/unarchive', \MyInvoice\Tri\Action\Contact\CoreClientWriteGoneAction::class);
+        $app->delete('/api/clients/{id:[0-9]+}',           \MyInvoice\Tri\Action\Contact\CoreClientWriteGoneAction::class);
         // Sledovací odkaz na výkaz práce (klient — všechny otevřené výkazy klienta)
         $app->get   ('/api/clients/{id:[0-9]+}/work-report-link',            [WorkReportLinkAction::class, 'getClient']);
         $app->get   ('/api/clients/{id:[0-9]+}/work-report-link/recipients', [WorkReportLinkAction::class, 'recipientsClient']);

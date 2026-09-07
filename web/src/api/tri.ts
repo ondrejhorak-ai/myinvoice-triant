@@ -309,7 +309,7 @@ export interface MyUctoSyncStateRow {
   key: string
   last_run_at: string | null
   last_ok_at: string | null
-  cursor: string | null
+  sync_cursor: string | null
   last_error: string | null
 }
 
@@ -513,6 +513,16 @@ export const triApi = {
       api.get<{ job: TriJobLink | null }>(`/tri/invoices/${invoiceId}/job`).then((r) => r.data.job),
     setJob: (invoiceId: number, jobId: number | null) =>
       api.put<{ job: TriJobLink | null }>(`/tri/invoices/${invoiceId}/job`, { job_id: jobId }).then((r) => r.data.job),
+  },
+  contacts: {
+    create: (payload: Record<string, unknown>) =>
+      api.post('/tri/contacts', payload).then((r) => r.data),
+    update: (id: number, payload: Record<string, unknown>) =>
+      api.put(`/tri/contacts/${id}`, payload).then((r) => r.data),
+    archive: (id: number) => api.post(`/tri/contacts/${id}/archive`).then((r) => r.data),
+    unarchive: (id: number) => api.post(`/tri/contacts/${id}/unarchive`).then((r) => r.data),
+    lookupAres: (ic: string) =>
+      api.post('/tri/contacts/lookup-ares', { ic }).then((r) => r.data),
   },
   myucto: {
     status: () => api.get<MyUctoSyncStatus>('/tri/admin/myucto').then((r) => r.data),

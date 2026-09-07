@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS mu_sync_state (
   `key`         VARCHAR(64) NOT NULL,
   last_run_at   DATETIME NULL,
   last_ok_at    DATETIME NULL,
-  cursor        VARCHAR(190) NULL,
+  sync_cursor   VARCHAR(190) NULL,
   last_error    TEXT NULL,
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

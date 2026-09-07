@@ -63,6 +63,7 @@ export interface Client {
   invoice_number_period?: 'year' | 'month' | 'none' | null
   default_branding_profile_id?: number | null
   archived_at?: string | null
+  myucto_id?: number | null
   active_projects_count?: number
   invoices_count?: number
   purchase_invoices_count?: number

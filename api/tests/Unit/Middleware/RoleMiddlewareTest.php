@@ -141,6 +141,7 @@ final class RoleMiddlewareTest extends TestCase
     {
         foreach ([
             '/api/clients', '/api/clients/5', '/api/projects', '/api/invoices',
+            '/api/tri/jobs', '/api/tri/contacts',
             '/api/invoices/5/pdf', '/api/purchase-invoices', '/api/purchase-invoices/5/our-pdf',
             '/api/recurring', '/api/bank-statements', '/api/bank-transactions/5/match-candidates',
             '/api/documents', '/api/documents/5/download', '/api/document-folders',
@@ -187,6 +188,24 @@ final class RoleMiddlewareTest extends TestCase
                 self::assertSame(403, $response->getStatusCode(), "$role GET $path");
             }
         }
+    }
+
+    public function testAccountantCanMutateTriRoutes(): void
+    {
+        $response = $this->middleware()->process(
+            $this->request('POST', '/api/tri/contacts', 'accountant'),
+            $this->okHandler(),
+        );
+        self::assertSame(204, $response->getStatusCode());
+    }
+
+    public function testReadonlyCannotMutateTriRoutes(): void
+    {
+        $response = $this->middleware()->process(
+            $this->request('POST', '/api/tri/contacts', 'readonly'),
+            $this->okHandler(),
+        );
+        self::assertSame(403, $response->getStatusCode());
     }
 
     public function testAdminCanReadAdminEndpoints(): void

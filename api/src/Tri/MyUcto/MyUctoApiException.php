@@ -11,6 +11,7 @@ final class MyUctoApiException extends \RuntimeException
         string $message,
         public readonly int $httpStatus = 0,
         ?\Throwable $previous = null,
+        public readonly array $details = [],
     ) {
         parent::__construct($message, $httpStatus, $previous);
     }

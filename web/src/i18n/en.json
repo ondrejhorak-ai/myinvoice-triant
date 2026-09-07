@@ -369,7 +369,8 @@
       "back_to_list": "← Back to list",
       "other_info_section": "Other information",
       "no_data": "No contacts yet",
-      "create_first": "Create first contact"
+      "create_first": "Create first contact",
+      "open_in_myucto": "Open in MyÚčto"
     },
     "tags": {
       "label": "Tags",

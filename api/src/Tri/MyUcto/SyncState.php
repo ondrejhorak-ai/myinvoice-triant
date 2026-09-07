@@ -18,13 +18,13 @@ final class SyncState
         ]);
     }
 
-    public function markOk(string $key, ?string $cursor = null): void
+    public function markOk(string $key, ?string $syncCursor = null): void
     {
         $now = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
         $this->upsert($key, [
             'last_run_at' => $now,
             'last_ok_at' => $now,
-            'cursor' => $cursor,
+            'sync_cursor' => $syncCursor,
             'last_error' => null,
         ]);
     }
@@ -56,7 +56,7 @@ final class SyncState
     }
 
     /**
-     * @param array{last_run_at?:?string, last_ok_at?:?string, cursor?:?string, last_error?:?string} $fields
+     * @param array{last_run_at?:?string, last_ok_at?:?string, sync_cursor?:?string, last_error?:?string} $fields
      */
     private function upsert(string $key, array $fields): void
     {
@@ -67,12 +67,12 @@ final class SyncState
                 ? 'last_error = excluded.last_error'
                 : 'last_error = mu_sync_state.last_error';
             $stmt = $this->pdo->prepare(
-                "INSERT INTO mu_sync_state (`key`, last_run_at, last_ok_at, cursor, last_error)
-                 VALUES (:key, :last_run_at, :last_ok_at, :cursor, :last_error)
+                "INSERT INTO mu_sync_state (`key`, last_run_at, last_ok_at, sync_cursor, last_error)
+                 VALUES (:key, :last_run_at, :last_ok_at, :sync_cursor, :last_error)
                  ON CONFLICT(`key`) DO UPDATE SET
                    last_run_at = COALESCE(excluded.last_run_at, mu_sync_state.last_run_at),
                    last_ok_at = COALESCE(excluded.last_ok_at, mu_sync_state.last_ok_at),
-                   cursor = COALESCE(excluded.cursor, mu_sync_state.cursor),
+                   sync_cursor = COALESCE(excluded.sync_cursor, mu_sync_state.sync_cursor),
                    {$errorSql}"
             );
         } else {
@@ -80,12 +80,12 @@ final class SyncState
                 ? 'last_error = VALUES(last_error)'
                 : 'last_error = last_error';
             $stmt = $this->pdo->prepare(
-                "INSERT INTO mu_sync_state (`key`, last_run_at, last_ok_at, cursor, last_error)
-                 VALUES (:key, :last_run_at, :last_ok_at, :cursor, :last_error)
+                "INSERT INTO mu_sync_state (`key`, last_run_at, last_ok_at, sync_cursor, last_error)
+                 VALUES (:key, :last_run_at, :last_ok_at, :sync_cursor, :last_error)
                  ON DUPLICATE KEY UPDATE
                    last_run_at = COALESCE(VALUES(last_run_at), last_run_at),
                    last_ok_at = COALESCE(VALUES(last_ok_at), last_ok_at),
-                   cursor = COALESCE(VALUES(cursor), cursor),
+                   sync_cursor = COALESCE(VALUES(sync_cursor), sync_cursor),
                    {$errorSql}"
             );
         }
@@ -93,7 +93,7 @@ final class SyncState
             'key' => $key,
             'last_run_at' => $fields['last_run_at'] ?? null,
             'last_ok_at' => $fields['last_ok_at'] ?? null,
-            'cursor' => $fields['cursor'] ?? null,
+            'sync_cursor' => $fields['sync_cursor'] ?? null,
             'last_error' => array_key_exists('last_error', $fields) ? $fields['last_error'] : null,
         ]);
     }

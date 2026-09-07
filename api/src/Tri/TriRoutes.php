@@ -67,6 +67,10 @@ use MyInvoice\Tri\Action\Traveler\JobPdfAction as JobTravelersPdfAction;
 use MyInvoice\Tri\Action\Traveler\ListTravelersAction;
 use MyInvoice\Tri\Action\Traveler\PdfAction as TravelerPdfAction;
 use MyInvoice\Tri\Action\Traveler\UpdateTravelerOperationsAction;
+use MyInvoice\Tri\Action\Contact\ArchiveContactAction;
+use MyInvoice\Tri\Action\Contact\CreateContactAction;
+use MyInvoice\Tri\Action\Contact\LookupAresAction as TriLookupAresAction;
+use MyInvoice\Tri\Action\Contact\UpdateContactAction;
 use MyInvoice\Tri\Action\MyUcto\GetSyncStatusAction;
 use MyInvoice\Tri\Action\MyUcto\RunSyncAction;
 use Slim\App;
@@ -82,6 +86,13 @@ final class TriRoutes
         $app->delete('/api/tri/tags/{id:[0-9]+}', DeleteTagAction::class);
         $app->get('/api/tri/clients/{id:[0-9]+}/tags', GetClientTagsAction::class);
         $app->put('/api/tri/clients/{id:[0-9]+}/tags', SetClientTagsAction::class);
+
+        // Contacts write-through → MyÚčto
+        $app->post('/api/tri/contacts', CreateContactAction::class);
+        $app->put('/api/tri/contacts/{id:[0-9]+}', UpdateContactAction::class);
+        $app->post('/api/tri/contacts/{id:[0-9]+}/archive', ArchiveContactAction::class);
+        $app->post('/api/tri/contacts/{id:[0-9]+}/unarchive', ArchiveContactAction::class);
+        $app->post('/api/tri/contacts/lookup-ares', TriLookupAresAction::class);
 
         // Jobs (Zakázky TRI)
         $app->get('/api/tri/users', ListJobUsersAction::class);

@@ -352,11 +352,17 @@ final class MyUctoClient
         $err = is_array($decoded) ? ($decoded['error'] ?? null) : null;
         $code = 'http_error';
         $message = 'MyÚčto vrátilo HTTP ' . $res->getStatusCode();
+        $details = [];
         if (is_array($err)) {
             $code = (string) ($err['code'] ?? $code);
             $message = (string) ($err['message'] ?? $message);
+            if (isset($err['fields']) && is_array($err['fields'])) {
+                $details = $err['fields'];
+            } elseif (isset($err['details']) && is_array($err['details'])) {
+                $details = $err['details'];
+            }
         }
-        throw new MyUctoApiException($code, $message, $res->getStatusCode());
+        throw new MyUctoApiException($code, $message, $res->getStatusCode(), null, $details);
     }
 
     private function rememberHeaders(ResponseInterface $res): void

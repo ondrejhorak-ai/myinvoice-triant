@@ -260,7 +260,7 @@ final class MirrorSyncTest extends TestCase
             `key` TEXT PRIMARY KEY,
             last_run_at TEXT,
             last_ok_at TEXT,
-            cursor TEXT,
+            sync_cursor TEXT,
             last_error TEXT
         )');
         $pdo->exec("INSERT INTO mu_sync_state (`key`, last_ok_at) VALUES ('invoices_cold', '2099-01-01 00:00:00')");
