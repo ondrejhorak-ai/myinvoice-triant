@@ -1,8 +1,10 @@
-# Noční backlog — UI + ceníky, průvodky, kalendář, reklamace
+# Noční backlog — odlehčení Office + scénářový loop
 
 Živý backlog pro noční loop. Pravidla a rozhodnutí: `[tri-overnight-loop-prompt.md](tri-overnight-loop-prompt.md)`.
+Scénáře: `[tri-office-scenarios.md](tri-office-scenarios.md)`.
 
-Stavy: `[ ]` čeká · `[~]` rozpracováno · `[x]` hotovo. Loop bere první nehotový řez **shora**.
+Stavy: `[ ]` čeká · `[~]` rozpracováno · `[x]` hotovo · `[-]` zrušeno. Loop bere první nehotový řez **shora**
+(sekce A–H jsou hotové, aktuální práce začíná sekcí **I**).
 Po dokončení řezu připiš záznam do sekce **Log** dole.
 
 ## Řezy
@@ -69,14 +71,49 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
   - PDF faktury **jen výměna hexu** `#3B2D83` → `#0B4F7C` v `styles/invoice.css` + hardcoded v `work_report.twig` / `PurchaseInvoicePdfRenderer` / `PdfBranding` komentáře. `InvoicePdfRenderer` override: default teď znamená nový hex (generovat CSS jen když se supplier accent liší od `#0B4F7C`). **Náležitosti dokladu, layout, DPH — neměnit.**
   - `source/05-design.md`: primary paleta = Triant škála (odstranit emerald i indigo jako brand).
   - PHPUnit `AccentColorTest` a cokoli assertuje starý default. `pnpm build`, health, commit `ui(tri): Triant petrolej místo MyInvoice indigo`.
-- [ ] **G4 — Restyle zbývajících core stránek** (banka, výkazy, admin, recurring…) — po menších dávkách, jedna oblast na tick. Už na nové primary.
-- [ ] **G5 — PDF nabídky:** neměnit. Je zdroj brand barev (`#0B4F7C`, `#EAF1F5`, `#F59B00`).
-- [ ] **G6 — PDF faktury polish:** po G3 zkontrolovat vizuál (hlavička, tabulka, k úhradě). Když zbydou indigo ostrůvky nebo rozbitý branding override, opravit. Nesahej na náležitosti dokladu.
-- [ ] **G7 — Mobile pass:** karty/tabulky nových agend na malých šířkách.
-- [ ] **G8 — Empty states + loading skeletony** všech nových agend.
-- [ ] **G9 — Dark mode pass** nových agend a restylovaných stránek (vč. nové primary v `.dark`).
+- [-] **G4 — Restyle zbývajících core stránek** — ZRUŠENO: tyto stránky (banka, výkazy, recurring, nákupy…) se v sekci K mažou.
+- [-] **G5 — PDF nabídky:** neměnit. Je zdroj brand barev (`#0B4F7C`, `#EAF1F5`, `#F59B00`).
+- [-] **G6 — PDF faktury polish** — ZRUŠENO: PDF faktur generuje MyÚčto.
+- [ ] **G7 — Mobile pass:** karty/tabulky TRI agend na malých šířkách. (Polish, až po R1.)
+- [ ] **G8 — Empty states + loading skeletony** TRI agend. (Polish, až po R1.)
+- [ ] **G9 — Dark mode pass** TRI agend. (Polish, až po R1.)
 
 - Sem zapisuj nově nalezené bugy a follow-upy jako další `G` řádky.
+
+### I. Blokátory scénářů (z live smoke testu 2026-09-07)
+
+- [ ] **I1 — Tag Zákazník bez workaroundu.** `JobRepository` bere `customer_client_id` jen ze slugu `zakaznik` (`TagRepository::CUSTOMER_SLUG`). Na produkčním supplieru seed z `9000` chybí a UI tag „Zákazník" se slugizuje s diakritikou špatně. Oprava: (a) idempotentní seed tagů `zakaznik`/`architekt` pro všechny suppliery (migrace 9019 nebo runtime ensure v `TagRepository`), (b) transliterace diakritiky ve slugifikaci tagů, (c) checkbox „Zákazník" na TRI kontaktu (`is_customer`) automaticky přiřadí/odebere tag `zakaznik`. PHPUnit na slugifikaci + auto-tag.
+- [ ] **I2 — Seznam kontaktů.** `pages/tri/contacts/ContactList.vue` filtruje `role: 'customers'` — TRI seznam má ukazovat všechny aktivní kontakty office (tag filtr zůstává). Ověřit i výchozí řazení a hledání.
+- [ ] **I3 — Tombstone draftů v `InvoiceSync`.** Cron smazal živý koncept (id 133): draft pull nenaplnil `$seenIds`. Oprava: před tombstonem draftu ověřit GET detail v MyÚčtu (404 → smazat, jinak upsert a nechat); zjistit proč `filter[status]=draft` nevrací koncepty a opravit query. PHPUnit na tombstone s mock klientem.
+- [ ] **I4 — Editor + detail TRI faktury nesmí padat na core endpointy.** TRI id = MyÚčto id; core `work-report`/attachments/documents na nich 404. Editor už má try/catch (uncommitnutý fix — commitnout). Detail `/tri/invoices/{id}` renderoval prázdný `<main>` — najít a opravit render crash (LinkedDocumentsPanel? vat_breakdown?). TRI stránky core volání buď nevolají, nebo přežijí 404.
+- [ ] **I5 — Daňový doklad k záloze (issue-final) přes MyÚčto.** `MyUctoClient::issueFinal` + `InvoiceGateway::issueFinal` (`POST /invoices/{id}/issue-final` v MyÚčto API), TRI akce `/api/tri/invoices/{id}/issue-final`, odkrýt tlačítko v `pages/tri/invoices/InvoiceDetail.vue` (dnes `v-if="false"` a volá core 410). PHPUnit gateway.
+
+### K. Odlehčení — branding a mrtvé FE
+
+- [ ] **K1 — Pryč s MyInvoice brandingem.** `document.title`/`index.html` → „Triant office"; sidebar odkaz `MyInvoice.cz` v `AppLayout.vue` pryč (nebo → interní verze); footer/CTA „MyÚčto — přejděte zdarma…" + modal `myuctoOpen` pryč; smazat `admin/MyuctoUpgrade.vue` + routu + odkazy; projít `grep -ri myinvoice web/src` a uklidit user-viditelné texty (i18n) — namespace PHP `MyInvoice\` a technické identifikátory NEměnit. Login stránka: název Triant office.
+- [ ] **K2 — Smazat mrtvé Vue stránky.** Smazat `web/src/pages/{invoices,clients,projects,bank,reports,recurring,purchase-invoices,crm,documents,logbook,tax}` + `Dashboard.vue`, `Stats.vue`, `PurchaseStats.vue` + admin `{Imports,Export,PriceList,PriceListForm,Approvals,BankAccounts,MyuctoUpgrade}.vue`. Router: mrtvé routy pryč, core URL redirecty na TRI zachovat. Zkontrolovat importy (`pnpm build` musí projít). Ponechat: auth (Login, TotpSetup, Passkeys, PasswordChange, ForgotPassword, ResetPassword, ForcedMfaSetup, Setup), ApiTokens, NotFound, veřejné stránky (InvoicePublic, ApprovalPublic, WorkReportTrackingPublic — ověřit, zda TRI potřebuje), admin (Users, Settings, TriSettings, Integrations, Emails*, SmtpLog*, CronJobs, ActivityLog, Update, Codebooks, ElectronicSignatures, SentEmails, EmailProfiles, EmailTemplates), TRI vše.
+
+### S. Scénáře (spec: `tri-office-scenarios.md`; fail → fix → replay celého scénáře)
+
+- [ ] **S1 — Nový zákazník a zakázka.**
+- [ ] **S2 — Dvě varianty, sleva, schválení B.**
+- [ ] **S3 — Zálohová faktura.**
+- [ ] **S4 — Daňový doklad k záloze.**
+- [ ] **S5 — Doplatková (konečná) faktura.**
+- [ ] **S6 — Ceník a výroba (průvodky, hodiny, PDF).**
+- [ ] **S7 — Kalendář (výroba + expedice, stavy).**
+- [ ] **S8 — Reklamace s chatem.**
+- [ ] **S9 — Změna kontaktu + fyzická osoba + 2 kontakty na zakázce.**
+- [ ] **S10 — Regrese celku (druhá zakázka zkráceně + kontroly brandingu/redirectů).**
+
+### P. Prune mrtvého PHP (až po zelených S1–S10)
+
+- [ ] **P1 — Audit závislostí.** Grep, co z TRI vrstvy a auth/admin ještě volá core akce/služby. Sepsat mazací dávky do backlogu (P2+): banka, výkazy DPH/KH/EPO, nákupní faktury, recurring, CRM, kniha jízd, dokumenty, dashboard/stats — routy + akce + služby + testy. Jádro, které TRI používá (invoice_items snapshot, settings, users, mail…), zůstává.
+- [ ] **P2+ — Mazací dávky dle P1.** Jedna oblast na tick, po každé `composer dump-autoload` + PHPUnit + build + deploy + health.
+
+### R. Závěrečný průchod
+
+- [ ] **R1 — Kompletní replay S1–S10** s novými fiktivními daty. Bez zásahu do kódu = hotovo; jinak bug → fix → replay dotčeného scénáře a R1 znovu.
 
 ## Log
 

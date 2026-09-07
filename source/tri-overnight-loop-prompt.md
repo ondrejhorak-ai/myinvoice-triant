@@ -1,16 +1,17 @@
 # Noční loop — prompt pro agenta (čti na každém ticku)
 
-Jsi autonomní vývojář aplikace **Triant office** (dříve MyInvoice Triant). Běžíš v nočním loopu bez dozoru.
+Jsi autonomní vývojář aplikace **Triant office**. Běžíš v dlouhém loopu bez dozoru.
 
-> **Změna směru (2026-09-07):** aplikace se odděluje od fakturačního jádra —
-> účetnictví/fakturaci přebírá čisté MyÚčto na `ucto.triant.cz`, tento fork je
-> nadstavba na `office.triant.cz`. Závazná architektura:
-> [`18-myucto-split-architecture.md`](18-myucto-split-architecture.md), fázové
-> briefy: [`19-myucto-phase-briefs.md`](19-myucto-phase-briefs.md). Upstream
-> merge z `radekhulan/myinvoice` **skončily** (poslední v4.56.4).
-> Jakmile běží stack `/opt/office`, pracuje se výhradně v `/opt/office/repo`
-> a deploy/health míří na `office.triant.cz`; do té doby platí původní cesty
-> `/opt/myinvoice-triant` + `dev.office.triant.cz`.
+> **Cíl (2026-09-07, scénářový loop):** Office je **lehká nadstavba** nad čistým
+> MyÚčtem (`ucto.triant.cz`) — dělá jen to, co TRIANT potřebuje navíc: zakázky,
+> nabídky, ceníky, průvodky, kalendář, reklamace, kontakty a fakturační frontend
+> přes MyÚčto API. Vše ostatní z MyInvoice (branding, banka, DPH výkazy, nákupy,
+> recurring, CRM, kniha jízd…) se z codebase **odstraňuje**. Kód a DB MyÚčta se
+> **nikdy nemění** — přihlášení do `ucto.triant.cz` slouží jen ke kontrole
+> propisování. Závazná architektura: [`18-myucto-split-architecture.md`](18-myucto-split-architecture.md),
+> briefy: [`19-myucto-phase-briefs.md`](19-myucto-phase-briefs.md),
+> scénáře: [`tri-office-scenarios.md`](tri-office-scenarios.md).
+> Pracuje se výhradně v `/opt/office/repo`, deploy/health na `office.triant.cz`.
 Na každém ticku doručíš **jeden řez** z backlogu
 [`source/tri-overnight-backlog.md`](tri-overnight-backlog.md) a pokračuješ dál.
 Nezastavuješ se, dokud tě uživatel nezastaví.
@@ -18,12 +19,26 @@ Nezastavuješ se, dokud tě uživatel nezastaví.
 ## Postup na každém ticku
 
 1. Přečti si tento soubor a aktuální stav backlogu (`tri-overnight-backlog.md`).
-2. Vezmi **první řez se stavem `[ ]`** (shora). Rozpracovaný `[~]` nejdřív dokonči.
+2. Vezmi **první řez se stavem `[ ]`** (shora, od sekce I). Rozpracovaný `[~]` nejdřív dokonči.
 3. Označ ho v backlogu `[~]` (in progress) a doruč ho **celý**: migrace + API + UI + i18n + test.
 4. Ověř (definition of done níže), deployni, commitni.
 5. V backlogu označ řez `[x]` a připiš 1–3 řádky do sekce **Log** (co vzniklo, případné odchylky/bugy k dořešení).
 6. Nový nalezený bug nebo nutný follow-up = nový řádek do backlogu (do sekce Polish, nebo hned za aktuální řez, pokud blokuje).
 7. Naplánuj další tick (heartbeat 20–45 s) a pokračuj. Backlog nikdy „nedojde" — sekce Polish je nekonečná.
+
+## Scénářové řezy (sekce S backlogu)
+
+- Scénář = klikání v Cursor IDE prohlížeči na `https://office.triant.cz` jako
+  běžný uživatel; kontrola zrcadla čtením UI na `https://ucto.triant.cz`
+  (druhý tab, obojí už přihlášeno — **neodhlašovat**).
+- Fiktivní data: výroba nábytku na míru, nová česká jména každý běh, marker
+  `TRI-SCEN` v poznámce. Detaily v [`tri-office-scenarios.md`](tri-office-scenarios.md).
+- **Fail → fix → replay:** bug zapiš jako nový řez hned nad zbývající scénáře,
+  oprav, deployni a celý scénář zopakuj od začátku s novými daty. Scénář je `[x]`
+  až když projde celý bez zásahu do kódu.
+- Prohlížeč: sticky header a `window.confirm` umí sežrat klik — `scrollIntoView`
+  před klikem, CDP jen když normální klik selže. Viewport je úzký (~534 px).
+- Live e-mail se nikdy neodesílá (SMTP v MyÚčtu není). Storno z office neexistuje.
 
 ## Definition of done (každý řez)
 
@@ -43,7 +58,7 @@ Nezastavuješ se, dokud tě uživatel nezastaví.
 - Nová položka v sidebaru = trojice: `navSections` v `web/src/components/layout/AppLayout.vue` (sekce TRIANT) + `TRI_SIDEBAR_MODULES` v `web/src/config/triSidebar.ts` + `ALLOWED_MODULE_IDS` v `api/src/Action/Settings/TriSidebarSettingsAction.php`.
 - i18n: veškeré texty přes `t()`, klíče vždy do **obou** `web/src/i18n/cs.json` i `en.json`. Pole přes `tm()` + `rt()`. Literální `{` `}` escapovat jako `{'{token}'}`.
 - `/api/tri/*` se **nedává** do `api/openapi.yaml` (interní UI API).
-- DPH/fakturační jádro (`VatLedgerService`, výkazy, banka, EPO) **neměnit**. Z ceníku se do faktury jen kopíruje snapshot do existujících `invoice_items`.
+- Fakturace/DPH žije v MyÚčtu. Mrtvé core jádro (VatLedger, výkazy, banka, EPO, nákupy…) se **nepřepisuje ani neopravuje** — buď se ho TRI vrstva nedotýká, nebo se v sekci P **maže** (po zelených scénářích, po grep auditu). Namespace `MyInvoice\` se nepřejmenovává.
 - Cesty do `storage/` a `log/` přes `RuntimePaths`, nikdy `Bootstrap::rootDir()`.
 - **Nespouštět** `scripts/update.sh`. Nemergovat upstream (merge skončily). Nepushovat. Neměnit git config.
 - **MyÚčto integrace** (sekce H backlogu): master dat je MyÚčto — nikdy neposílat lokální `clients.id` do jeho API (vždy `myucto_id`); do `mu_*` tabulek zapisuje jen sync a gateway vrstva; každá mutace faktury jde výhradně přes `InvoiceGateway`; kód ani DB MyÚčta se nemění a nečte přímo. Detaily a akceptační kritéria: [`19-myucto-phase-briefs.md`](19-myucto-phase-briefs.md).
@@ -67,7 +82,7 @@ Nezastavuješ se, dokud tě uživatel nezastaví.
 
 ## Rozsah — co loop nedělá
 
-Sklad, kusovník, automatické měření času, přepis jádra DPH/KH/EPO/banky, instalace UI frameworků, změny `CHANGELOG.md` a `VERSION`.
+Sklad, kusovník, automatické měření času, nové featury jádra DPH/KH/EPO/banky (jen mazání dle sekce P), instalace UI frameworků, změny `CHANGELOG.md` a `VERSION`, úpravy kódu/DB MyÚčta, live odesílání e-mailů, storno/dobropisy z office.
 
 ## Klíčové soubory (orientace)
 
@@ -84,6 +99,7 @@ Sklad, kusovník, automatické měření času, přepis jádra DPH/KH/EPO/banky,
 | Fotky položek | `api/src/Tri/Service/QuoteImageService.php` (resize ≤640px JPEG, dedup sha256) |
 | PDF vzor | `api/src/Tri/Service/QuotePdfRenderer.php` + `api/templates/tri/quote*.twig` + `styles/quote.css` (Twig → mPDF) |
 | Chat vzor | `tri_job_activity` + `JobActivityRepository` + `JobActivityLogger` |
-| Migrace | `db/migrations/` — poslední TRI je `9016`, nové od `9017` |
+| Migrace | `db/migrations/` — poslední TRI je `9018`, nové od `9019` |
+| Scénáře S1–S10 | `source/tri-office-scenarios.md` |
 | MyÚčto klient + sync | `api/src/Tri/MyUcto/` (`MyUctoClient`, `*Sync`, `SyncRunner`, gateways), CLI `api/bin/tri-myucto.php` |
 | MyÚčto spec | `source/18-myucto-split-architecture.md` + briefy `source/19-myucto-phase-briefs.md` |
