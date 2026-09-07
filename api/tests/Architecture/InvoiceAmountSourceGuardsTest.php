@@ -30,10 +30,10 @@ final class InvoiceAmountSourceGuardsTest extends TestCase
     {
         // Regrese: amount_to_pay = 0 nesmí padnout na total_with_vat (zmátlo by
         // uživatele u finálního daňového dokladu k záloze). `??` je správně, `||` špatně.
+        // Core stránky (invoices/projects/clients) byly smazané — guard hlídá TRI ekvivalenty.
         $files = [
-            '/web/src/pages/invoices/InvoiceList.vue',
-            '/web/src/pages/projects/ProjectDetail.vue',
-            '/web/src/pages/clients/ClientDetail.vue',
+            '/web/src/pages/tri/invoices/InvoiceList.vue',
+            '/web/src/pages/tri/contacts/ContactDetail.vue',
         ];
         $root = dirname(__DIR__, 3);
 

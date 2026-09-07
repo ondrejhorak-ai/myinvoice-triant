@@ -119,7 +119,7 @@ function showBootstrapErrorOverlay(title: string, detail: string, hint: string):
   div.innerHTML = `
     <div style="background:#fff;max-width:560px;width:90%;padding:32px;border-radius:12px;
                 box-shadow:0 8px 32px rgba(0,0,0,0.3);">
-      <h2 style="margin:0 0 12px;color:#0B4F7C;font-size:24px;">⚠ MyInvoice.cz</h2>
+      <h2 style="margin:0 0 12px;color:#0B4F7C;font-size:24px;">⚠ Triant office</h2>
       <p style="margin:0 0 16px;color:#15131D;font-weight:600;">${escapeHtml(title)}</p>
       ${detail ? `<p style="margin:0 0 12px;color:#5A5470;font-family:monospace;
         background:#F4F2F8;padding:8px 12px;border-radius:6px;font-size:13px;">${escapeHtml(detail)}</p>` : ''}

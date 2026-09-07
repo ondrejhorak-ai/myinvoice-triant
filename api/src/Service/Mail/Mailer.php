@@ -931,30 +931,30 @@ final class Mailer
     {
         $subjects = [
             'cs' => [
-                'password_reset'    => 'Obnova hesla — MyInvoice.cz',
-                'login_otp'         => 'Ověřovací kód pro přihlášení — MyInvoice.cz',
-                'email_profile_test'=> 'Test odesílacího profilu — MyInvoice.cz',
-                'invoice_send'      => 'Faktura — MyInvoice.cz',
-                'invoice_payment_thanks' => 'Poděkování za úhradu — MyInvoice.cz',
-                'invoice_reminder'  => 'Upomínka — MyInvoice.cz',
-                'proforma_reminder' => 'Připomínka zálohy — MyInvoice.cz',
-                'recurring_draft_reminder' => 'Koncept pravidelné faktury se brzy vystaví — MyInvoice.cz',
-                'work_report_link'  => 'Náhled na výkaz práce — MyInvoice.cz',
-                'work_report_access_code' => 'Ověřovací kód pro náhled výkazu práce — MyInvoice.cz',
+                'password_reset'    => 'Obnova hesla — Triant office',
+                'login_otp'         => 'Ověřovací kód pro přihlášení — Triant office',
+                'email_profile_test'=> 'Test odesílacího profilu — Triant office',
+                'invoice_send'      => 'Faktura — Triant office',
+                'invoice_payment_thanks' => 'Poděkování za úhradu — Triant office',
+                'invoice_reminder'  => 'Upomínka — Triant office',
+                'proforma_reminder' => 'Připomínka zálohy — Triant office',
+                'recurring_draft_reminder' => 'Koncept pravidelné faktury se brzy vystaví — Triant office',
+                'work_report_link'  => 'Náhled na výkaz práce — Triant office',
+                'work_report_access_code' => 'Ověřovací kód pro náhled výkazu práce — Triant office',
             ],
             'en' => [
-                'password_reset'    => 'Password reset — MyInvoice.cz',
-                'login_otp'         => 'Sign-in verification code — MyInvoice.cz',
-                'email_profile_test'=> 'Sending profile test — MyInvoice.cz',
-                'invoice_send'      => 'Invoice — MyInvoice.cz',
-                'invoice_payment_thanks' => 'Thank you for your payment — MyInvoice.cz',
-                'invoice_reminder'  => 'Reminder — MyInvoice.cz',
-                'proforma_reminder' => 'Advance payment reminder — MyInvoice.cz',
-                'recurring_draft_reminder' => 'Recurring invoice draft will be issued soon — MyInvoice.cz',
-                'work_report_link'  => 'Work report preview — MyInvoice.cz',
-                'work_report_access_code' => 'Verification code for work report preview — MyInvoice.cz',
+                'password_reset'    => 'Password reset — Triant office',
+                'login_otp'         => 'Sign-in verification code — Triant office',
+                'email_profile_test'=> 'Sending profile test — Triant office',
+                'invoice_send'      => 'Invoice — Triant office',
+                'invoice_payment_thanks' => 'Thank you for your payment — Triant office',
+                'invoice_reminder'  => 'Reminder — Triant office',
+                'proforma_reminder' => 'Advance payment reminder — Triant office',
+                'recurring_draft_reminder' => 'Recurring invoice draft will be issued soon — Triant office',
+                'work_report_link'  => 'Work report preview — Triant office',
+                'work_report_access_code' => 'Verification code for work report preview — Triant office',
             ],
         ];
-        return $subjects[$locale][$code] ?? ($subjects['cs'][$code] ?? 'MyInvoice.cz');
+        return $subjects[$locale][$code] ?? ($subjects['cs'][$code] ?? 'Triant office');
     }
 }

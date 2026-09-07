@@ -129,7 +129,7 @@ function fmtBytes(n: number): string {
 onMounted(async () => {
   try {
     data.value = await publicInvoiceApi.get(token.value)
-    document.title = `${typeLabel.value} ${inv.value?.varsymbol || ''} — MyInvoice.cz`
+    document.title = `${typeLabel.value} ${inv.value?.varsymbol || ''} — Triant office`
   } catch (e: any) {
     loadError.value = e?.response?.data?.error?.message
       || 'Tento odkaz není platný nebo byl zneplatněn. / This link is invalid or has been revoked.'
@@ -414,7 +414,7 @@ onMounted(async () => {
     </main>
 
     <footer class="border-t border-neutral-200 bg-surface px-4 py-3 text-center text-xs text-neutral-500">
-      MyInvoice.cz · {{ tt('Online náhled faktury', 'Online invoice view') }}
+      Triant office · {{ tt('Online náhled faktury', 'Online invoice view') }}
     </footer>
   </div>
 </template>

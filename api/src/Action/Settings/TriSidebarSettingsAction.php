@@ -32,7 +32,6 @@ final class TriSidebarSettingsAction
         'activity-log',
         'cron-jobs',
         'updates',
-        'myucto-upgrade',
         'api-tokens',
         'help',
         'tri-tags',

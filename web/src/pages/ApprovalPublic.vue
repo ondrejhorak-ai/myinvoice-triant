@@ -56,7 +56,7 @@ onMounted(async () => {
     data.value = await approvalApi.get(token.value)
     if (lang.value === 'en') localStorage.setItem('locale', 'en')
     else localStorage.setItem('locale', 'cs')
-    document.title = tt('Schválení výkazu — MyInvoice.cz', 'Approve work report — MyInvoice.cz')
+    document.title = tt('Schválení výkazu — Triant office', 'Approve work report — Triant office')
   } catch (e: any) {
     loadError.value = e?.response?.data?.error?.message
       || tt('Tento odkaz není platný nebo již byl použit.',
@@ -342,7 +342,7 @@ async function submit(decision: 'approve' | 'reject') {
     </main>
 
     <footer class="border-t border-neutral-200 bg-surface px-4 py-3 text-center text-xs text-neutral-500">
-      MyInvoice.cz · {{ tt('Automatizovaný systém schvalování', 'Automated approval system') }}
+      Triant office · {{ tt('Automatizovaný systém schvalování', 'Automated approval system') }}
     </footer>
   </div>
 </template>

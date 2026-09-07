@@ -42,8 +42,8 @@ const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
 
 const lang = computed(() => preview.value?.language || state.value?.language || 'cs')
 
-// Logo dodavatele (data: URI) místo MyInvoice loga — k dispozici v náhledu i na
-// ověřovací obrazovce. Prázdné → fallback na MyInvoice branding v hlavičce.
+// Logo dodavatele (data: URI) místo výchozího loga — k dispozici v náhledu i na
+// ověřovací obrazovce. Prázdné → fallback na Triant branding v hlavičce.
 const logoSrc = computed(() => preview.value?.logo_src || state.value?.logo_src || '')
 const supplierName = computed(() => preview.value?.supplier_name || state.value?.supplier_name || '')
 
@@ -104,7 +104,7 @@ onMounted(async () => {
       preview.value = s.preview
     }
     applyLocale()
-    document.title = t('workReportTracking.public.title') + ' — MyInvoice.cz'
+    document.title = t('workReportTracking.public.title') + ' — Triant office'
   } catch (e: any) {
     loadError.value = e?.response?.data?.error?.message || t('workReportTracking.public.link_invalid_hint')
   } finally {
@@ -179,12 +179,12 @@ async function verify() {
             <div class="text-xs text-neutral-500">{{ t('workReportTracking.public.title') }}</div>
           </div>
         </template>
-        <!-- Fallback: MyInvoice branding -->
+        <!-- Fallback: Triant branding -->
         <template v-else>
           <div class="w-8 h-8 rounded-md flex items-center justify-center text-white font-bold"
-            :style="{ background: preview?.accent_color || '#0B4F7C' }">M</div>
+            :style="{ background: preview?.accent_color || '#0B4F7C' }">T</div>
           <div class="text-sm">
-            <div class="font-semibold">My<span class="text-primary-700">Invoice</span><span class="text-neutral-500">.cz</span></div>
+            <div class="font-semibold">Triant <span class="text-primary-700">office</span></div>
             <div class="text-xs text-neutral-500">{{ t('workReportTracking.public.title') }}</div>
           </div>
         </template>
@@ -383,7 +383,7 @@ async function verify() {
     </main>
 
     <footer class="border-t border-neutral-200 bg-surface px-4 py-3 text-center text-xs text-neutral-500">
-      MyInvoice.cz
+      Triant office
     </footer>
   </div>
 </template>

@@ -84,7 +84,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'recurring/:id(\\d+)', name: 'recurring-detail', redirect: '/tri/invoices' },
       { path: 'recurring/:id(\\d+)/edit', name: 'recurring-edit', redirect: '/tri/invoices' },
       { path: 'admin/update',           name: 'admin-update',    component: () => import('@/pages/admin/Update.vue'),    meta: { adminOnly: true } },
-      { path: 'admin/upgrade',          name: 'admin-myucto-upgrade', component: () => import('@/pages/admin/MyuctoUpgrade.vue'), meta: { adminOnly: true } },
+      // Přechodový nástroj MyInvoice→MyÚčto odstraněn — office je trvalá nadstavba, konverze DB by ji zničila.
+      { path: 'admin/upgrade',          name: 'admin-myucto-upgrade', redirect: '/tri/admin/myucto' },
       // Staré profilové URL zůstávají funkční, ale UI je zobrazuje jako záložky
       // na /profile/password. Redirecty zachovávají ostatní query stringy.
       { path: 'profile/totp',           name: 'profile-totp',          redirect: (to) => ({ path: '/profile/password', query: { ...to.query, tab: 'totp' } }) },

@@ -96,7 +96,7 @@ async function copyCodes() {
 function download() {
   if (!codes.value) return
   const body = [
-    t('recovery_codes.file_header', { app: 'MyInvoice.cz', email: auth.user?.email ?? '' }),
+    t('recovery_codes.file_header', { app: 'Triant office', email: auth.user?.email ?? '' }),
     '',
     ...codes.value,
     '',
@@ -105,7 +105,7 @@ function download() {
   const url = URL.createObjectURL(new Blob([body], { type: 'text/plain;charset=utf-8' }))
   const a = document.createElement('a')
   a.href = url
-  a.download = 'myinvoice-zalozni-kody.txt'
+  a.download = 'triant-office-zalozni-kody.txt'
   document.body.appendChild(a)
   a.click()
   a.remove()

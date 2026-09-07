@@ -20,7 +20,7 @@ import { evalMath } from '@/directives/vMath'
 import { apiErrorMessage } from '@/api/errors'
 import { useSupplierStore } from '@/stores/supplier'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
-import ClientFormModal from '@/components/modals/ClientFormModal.vue'
+import TriContactFormModal from '@/components/tri/TriContactFormModal.vue'
 import TriJobLinkField from '@/components/tri/TriJobLinkField.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
@@ -1564,7 +1564,7 @@ async function deleteDraft() {
     </form>
 
     <!-- Inline create modaly — neopouštějí editor, po save se entita auto-vybere -->
-    <ClientFormModal v-if="clientModalOpen"
+    <TriContactFormModal v-if="clientModalOpen"
       @created="onClientCreatedInModal"
       @close="clientModalOpen = false" />
     <CatalogPickerModal v-model:open="catalogOpen" @insert="insertFromCatalog" />

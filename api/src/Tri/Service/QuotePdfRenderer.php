@@ -129,7 +129,7 @@ final class QuotePdfRenderer
         ]);
         $mpdf->SetTitle('');
         $mpdf->SetAuthor('');
-        $mpdf->SetCreator('MyInvoice.cz');
+        $mpdf->SetCreator('Triant office');
 
         if ($css !== '') {
             $mpdf->WriteHTML($css, \Mpdf\HTMLParserMode::HEADER_CSS);

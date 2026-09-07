@@ -32,8 +32,6 @@ const toast = useToast()
 
 const mobileOpen = ref(false)
 const quickOpen = ref(false)
-const supportOpen = ref(false)
-const myuctoOpen = ref(false)
 const accountantSigningProfilesEnabled = ref(false)
 const logoutBusy = ref(false)
 const canLockSession = computed(() => sessionSecurity.state?.session_state === 'active'
@@ -182,7 +180,6 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'integrations', to: '/admin/integrations', label: t('nav.integrations'), icon: ICONS.api_tokens },
         { moduleId: 'cron-jobs', to: '/admin/cron-jobs', label: t('nav.cron_jobs'), icon: ICONS.cron },
         { moduleId: 'updates', to: '/admin/update', label: t('nav.updates'), icon: ICONS.updates },
-        { moduleId: 'myucto-upgrade', to: '/admin/upgrade', label: t('nav.myucto_upgrade'), icon: ICONS.myucto_upgrade },
         { moduleId: 'api-tokens', to: '/profile/api-tokens', label: t('nav.api_tokens'), icon: ICONS.api_tokens },
         { moduleId: TRI_SETTINGS_MODULE_ID, to: '/admin/tri-settings', label: t('nav.tri_settings'), icon: ICONS.settings },
         { moduleId: 'tri-tags', to: '/admin/tri-tags', label: t('nav.tri_tags'), icon: ICONS.clients },
@@ -559,11 +556,9 @@ onMounted(async () => {
           </template>
         </nav>
 
-        <!-- Verze + odkaz na projekt (dole) -->
+        <!-- Verze (dole) -->
         <div v-if="versionInfo" class="px-4 py-2.5 border-t border-neutral-100 flex items-center gap-2">
-          <a href="https://myinvoice.cz/" target="_blank" rel="noopener"
-             class="text-xs text-neutral-500 hover:text-primary-700 hover:underline transition-colors"
-             title="MyInvoice.cz">MyInvoice.cz</a>
+          <span class="text-xs text-neutral-500">Triant office</span>
           <RouterLink
             v-if="auth.user?.role === 'admin'"
             to="/admin/update"
@@ -662,118 +657,11 @@ onMounted(async () => {
 
         <footer class="border-t border-neutral-200">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 text-xs text-neutral-500 flex flex-wrap items-center gap-x-1.5 gap-y-1 leading-none">
-          <span>Developed by</span>
-          <a href="https://mywebdesign.cz" target="_blank" rel="noopener" class="hover:text-neutral-700">MyWebdesign.cz s.r.o.</a>
-          <span aria-hidden="true">·</span>
-          <a href="https://github.com/radekhulan/myinvoice" target="_blank" rel="noopener"
-             class="inline-flex items-center gap-1 hover:text-neutral-700">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
-            </svg>
-            <span>GitHub</span>
-          </a>
-          <span aria-hidden="true">·</span>
-          <button type="button" @click="supportOpen = true"
-                  class="cursor-pointer text-primary-600 hover:text-primary-700 font-medium">{{ t('support.author_link') }}</button>
-          <RouterLink v-if="auth.user?.role === 'admin'" to="/admin/upgrade"
-                  class="cursor-pointer ml-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary-600 text-white text-xs font-semibold shadow-sm hover:bg-primary-700 hover:shadow transition-colors">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-            <span>{{ t('support.myucto_link') }}</span>
-          </RouterLink>
-          <button v-else type="button" @click="myuctoOpen = true"
-                  class="cursor-pointer ml-1.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary-600 text-white text-xs font-semibold shadow-sm hover:bg-primary-700 hover:shadow transition-colors">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-            <span>{{ t('support.myucto_link') }}</span>
-          </button>
+            <span>Triant office</span>
           </div>
         </footer>
       </div>
     </div>
 
-    <!-- ── MODÁL: Podpora autora ── -->
-    <div v-if="supportOpen" class="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto"
-         @click.self="supportOpen = false">
-      <div class="bg-surface rounded-xl shadow-lg max-w-md w-full my-8">
-        <header class="px-5 py-4 border-b border-neutral-200 flex items-baseline justify-between gap-3">
-          <h3 class="text-lg font-semibold">{{ t('support.author_title') }}</h3>
-          <button @click="supportOpen = false" class="cursor-pointer text-neutral-400 hover:text-neutral-700 text-2xl leading-none">&times;</button>
-        </header>
-        <div class="p-5 space-y-4 text-sm text-neutral-700">
-          <p>{{ t('support.author_intro') }}</p>
-          <dl class="space-y-1.5">
-            <div class="flex flex-wrap gap-x-2">
-              <dt class="text-neutral-500 w-28 shrink-0">{{ t('support.account') }}</dt>
-              <dd class="font-medium">7700000038 / 6363 <span class="text-neutral-400 font-normal">({{ t('support.bank_name') }})</span></dd>
-            </div>
-            <div class="flex flex-wrap gap-x-2">
-              <dt class="text-neutral-500 w-28 shrink-0">{{ t('support.iban') }}</dt>
-              <dd class="font-medium">CZ21 6363 0000 0077 0000 0038</dd>
-            </div>
-            <div class="flex flex-wrap gap-x-2">
-              <dt class="text-neutral-500 w-28 shrink-0">{{ t('support.bic') }}</dt>
-              <dd class="font-medium">PTBNCZPP</dd>
-            </div>
-          </dl>
-          <div>
-            <p class="mb-2">{{ t('support.qr_hint') }}</p>
-            <img src="/manual/donate/qrcode.jpg" :alt="t('support.author_title')"
-                 class="w-full h-auto rounded-md border border-neutral-200"
-                 style="filter: brightness(1.08);" />
-          </div>
-        </div>
-        <footer class="px-5 py-4 border-t border-neutral-200 flex justify-end">
-          <button @click="supportOpen = false"
-                  class="cursor-pointer px-4 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface">{{ t('support.close') }}</button>
-        </footer>
-      </div>
-    </div>
-
-    <!-- ── MODÁL: MyÚčto ── -->
-    <div v-if="myuctoOpen" class="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto"
-         @click.self="myuctoOpen = false">
-      <div class="bg-surface rounded-xl shadow-lg max-w-lg w-full my-8">
-        <header class="px-5 py-4 border-b border-neutral-200 flex items-baseline justify-between gap-3">
-          <h3 class="text-lg font-semibold">{{ t('support.myucto_title') }}</h3>
-          <button @click="myuctoOpen = false" class="cursor-pointer text-neutral-400 hover:text-neutral-700 text-2xl leading-none">&times;</button>
-        </header>
-        <div class="p-5 space-y-3 text-sm text-neutral-700">
-          <p>{{ t('support.myucto_intro') }}</p>
-          <p class="rounded-md bg-primary-50 border border-primary-500/30 text-primary-800 font-medium px-3 py-2.5">{{ t('support.myucto_free') }}</p>
-          <div>
-            <p class="font-medium text-neutral-800 mb-1.5">{{ t('support.myucto_better_title') }}</p>
-            <ul class="space-y-1 list-disc pl-5">
-              <li>{{ t('support.myucto_better_ui') }}</li>
-              <li>{{ t('support.myucto_better_ai') }}</li>
-              <li>{{ t('support.myucto_better_mcp') }}</li>
-              <li>{{ t('support.myucto_better_docs') }}</li>
-              <li>{{ t('support.myucto_better_vat') }}</li>
-            </ul>
-          </div>
-          <div>
-            <p class="font-medium text-neutral-800 mb-1.5">{{ t('support.myucto_paid_title') }}</p>
-            <p>{{ t('support.myucto_paid_text') }}</p>
-          </div>
-          <p class="text-xs text-neutral-500 border-t border-neutral-200 pt-3">{{ t('support.myucto_highlights') }}</p>
-        </div>
-        <footer class="px-5 py-4 border-t border-neutral-200 flex flex-wrap justify-end gap-2">
-          <button @click="myuctoOpen = false"
-                  class="cursor-pointer px-4 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface">{{ t('support.close') }}</button>
-          <a href="https://github.com/radekhulan/myucto" target="_blank" rel="noopener" @click="myuctoOpen = false"
-             class="cursor-pointer px-4 h-9 inline-flex items-center gap-1.5 text-sm rounded-md border border-neutral-300 text-neutral-700 hover:bg-surface font-medium">
-            <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
-            </svg>
-            <span>{{ t('support.myucto_github') }}</span>
-          </a>
-          <a href="https://myucto.cz/" target="_blank" rel="noopener" @click="myuctoOpen = false"
-             class="cursor-pointer px-4 h-9 inline-flex items-center text-sm rounded-md bg-primary-600 hover:bg-primary-700 text-white font-medium">{{ t('support.myucto_cta') }}</a>
-          <p class="w-full text-xs text-neutral-500 text-right">{{ t('support.myucto_ask_admin') }}</p>
-        </footer>
-      </div>
-    </div>
   </div>
 </template>

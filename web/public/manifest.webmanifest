@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "MyInvoice.cz",
-  "short_name": "MyInvoice",
-  "description": "Self-hosted fakturační a účetní systém",
+  "name": "Triant office",
+  "short_name": "Triant",
+  "description": "Zakázky, nabídky a výroba TRIANT nad MyÚčto",
   "lang": "cs",
   "start_url": "/",
   "scope": "/",
