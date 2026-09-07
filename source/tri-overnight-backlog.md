@@ -77,6 +77,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [ ] **G7 — Mobile pass:** karty/tabulky TRI agend na malých šířkách. (Polish, až po R1.)
 - [ ] **G8 — Empty states + loading skeletony** TRI agend. (Polish, až po R1.)
 - [ ] **G9 — Dark mode pass** TRI agend. (Polish, až po R1.)
+- [ ] **G10 — JobDetail tabulka faktur ukazuje holé klíče `INVOICE.COL_*`.** Hlavička neprochází `t()`. Polish po R1.
 
 - Sem zapisuj nově nalezené bugy a follow-upy jako další `G` řádky.
 
@@ -103,7 +104,8 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **S3 — Zálohová faktura.**
 - [x] **I9 — issue-final vrací obálku bez top-level `id`.** MyÚčto `POST /invoices/{id}/issue-final` vrací `{final_invoice_id, invoice:{...}}`. `ContactGateway::unwrap` bere vnořené `invoice`; `present` posílá `parent_invoice` / `parent_invoice_id` a `vat_rate_snapshot`. PHPUnit `testIssueFinalUnwrapsNestedInvoiceEnvelope`.
 - [x] **S4 — Daňový doklad k záloze.**
-- [ ] **S5 — Doplatková (konečná) faktura.**
+- [x] **I10 — Konečná faktura ignoruje slevu varianty.** `finalItems` škáluje `line_total` (před slevou nabídky) na `variant.subtotal` (po 10 %). „Zbývá“ = varianta − vyfakturováno − zaplacené zálohy. Command key `job:{id}:final:{subtotal}`.
+- [x] **S5 — Doplatková (konečná) faktura.**
 - [ ] **S6 — Ceník a výroba (průvodky, hodiny, PDF).**
 - [ ] **S7 — Kalendář (výroba + expedice, stavy).**
 - [ ] **S8 — Reklamace s chatem.**
@@ -159,4 +161,6 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 S3** — Záloha **92609001** (id 134): 50 % varianty B, 20 520 + DPH 4 309,20 = **24 829,20 Kč**, vystaveno + zaplaceno 7. 9. 2026. Office seznam drží řádek (Zaplaceno, zakázka 260002). MyÚčto `/invoices/134`: proforma zaplacená, projekt `260002 Kuchyň na míru — Malinová`, platba 24 829,20 Kč. MyÚčto samo založilo koncept daňového dokladu **#135** (`proforma_payment_document=always_tax_document`) — S4 může jít přes „Vystavit fakturu k záloze“ / issue-final.
 - **2026-09-07 I9** — `unwrap` bere vnořené `invoice` z issue-final obálky; `present` vrací `parent_invoice` (UI odkaz na zálohu) a `vat_rate_snapshot`. Bez toho toast OK, ale redirect zůstal na 134.
 - **2026-09-07 S4** — Issue-final ze 92609001 založil koncept **#136** (faktura, odečet zálohy 24 829,20, k úhradě 0 Kč), parent 134, zakázka 260002. Office seznam + detail s odkazem na 92609001; MyÚčto `/invoices/136` stejně. Vedle toho zůstává auto-koncept **#135** (typ `tax_document` z úhrady zálohy) — nesmazáno.
+- **2026-09-07 I10** — `finalItems` bere `variant.subtotal` (po slevě); `line_total` na řádcích je před slevou nabídky. Remaining na zakázce odečítá zaplacené zálohy. Špatné koncepty 137/138 smazány.
+- **2026-09-07 S5** — Konečná **2609011** (id 139): položky varianty B se slevou 10 % (základ 41 040 + DPH 8 618,40 = 49 658,40), odečet zálohy 24 829,20, **k úhradě 24 829,20 Kč**, vystaveno. Office seznam + MyÚčto `/invoices/139` na projektu 260002 vedle zálohy 92609001. Poznámka `TRI-SCEN S5 doplatek`.
 
