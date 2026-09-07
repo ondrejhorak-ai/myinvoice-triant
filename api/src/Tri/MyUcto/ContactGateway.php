@@ -200,6 +200,10 @@ final class ContactGateway
         if (isset($payload['data']) && is_array($payload['data']) && isset($payload['data']['id'])) {
             return $payload['data'];
         }
+        // issue-final / clone: `{final_invoice_id, invoice: {id, ...}}`
+        if (isset($payload['invoice']) && is_array($payload['invoice']) && isset($payload['invoice']['id'])) {
+            return $payload['invoice'];
+        }
 
         return $payload;
     }

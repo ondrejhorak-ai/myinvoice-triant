@@ -187,7 +187,7 @@ final class InvoiceSync
             // až po ověření GET detailu (jen 404/410 = opravdu smazaná v MyÚčtu).
             try {
                 $detail = $this->api->getInvoice($id);
-                $inv = is_array($detail['data'] ?? null) ? $detail['data'] : $detail;
+                $inv = ContactGateway::unwrap(is_array($detail) ? $detail : []);
                 if (is_array($inv) && (int) ($inv['id'] ?? 0) === $id) {
                     $this->upsert($inv);
                     continue;

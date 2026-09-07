@@ -232,6 +232,47 @@ final class InvoiceGatewayTest extends TestCase
         }
     }
 
+    public function testIssueFinalUnwrapsNestedInvoiceEnvelope(): void
+    {
+        $pdo = $this->sqlite();
+        $created = [
+            'final_invoice_id' => 136,
+            'edit_url' => '/invoices/136/edit',
+            'invoice' => [
+                'id' => 136,
+                'client_id' => 101,
+                'status' => 'draft',
+                'invoice_type' => 'invoice',
+                'parent_invoice_id' => 134,
+                'currency' => 'CZK',
+                'note_above_items' => 'Daňový doklad k zálohové faktuře 92609001',
+                'items' => [[
+                    'description' => 'TRI-SCEN TEST',
+                    'quantity' => 1,
+                    'unit_price_without_vat' => 20520,
+                    'vat_rate_id' => 3,
+                    'vat_rate_snapshot' => 21,
+                ]],
+                'totals' => ['without_vat' => 20520, 'vat' => 4309.2, 'with_vat' => 24829.2],
+                'updated_at' => '2026-09-07 12:00:00',
+            ],
+        ];
+        $gw = new InvoiceGateway($this->api([
+            new Response(201, ['Content-Type' => 'application/json'], json_encode($created)),
+        ]), $pdo, 1);
+
+        $out = $gw->issueFinal(134);
+
+        $this->assertSame(136, $out['id']);
+        $this->assertSame(134, $out['parent_invoice_id']);
+        $this->assertSame(134, (int) ($out['parent_invoice']['id'] ?? 0));
+        $this->assertSame('draft', $out['status']);
+        $this->assertSame('invoice', $out['invoice_type']);
+        $this->assertSame(21.0, $out['items'][0]['vat_rate_snapshot']);
+        $mirrored = (int) $pdo->query('SELECT COUNT(*) FROM mu_invoices WHERE id = 136')->fetchColumn();
+        $this->assertSame(1, $mirrored);
+    }
+
     private function sqlite(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

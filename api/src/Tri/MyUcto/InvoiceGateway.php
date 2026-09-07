@@ -392,7 +392,9 @@ final class InvoiceGateway
                 'unit' => (string) ($item['unit'] ?? 'ks'),
                 'unit_price_without_vat' => (float) ($item['unit_price_without_vat'] ?? 0),
                 'vat_rate_id' => (int) ($item['vat_rate_id'] ?? 0),
-                'vat_rate_snapshot' => isset($item['vat_rate']) ? (float) $item['vat_rate'] : null,
+                'vat_rate_snapshot' => isset($item['vat_rate'])
+                    ? (float) $item['vat_rate']
+                    : (isset($item['vat_rate_snapshot']) ? (float) $item['vat_rate_snapshot'] : null),
                 'total_without_vat' => isset($item['total_without_vat']) ? (float) $item['total_without_vat'] : null,
                 'total_vat' => isset($item['total_vat']) ? (float) $item['total_vat'] : null,
                 'total_with_vat' => isset($item['total_with_vat']) ? (float) $item['total_with_vat'] : null,
@@ -407,11 +409,24 @@ final class InvoiceGateway
         $amountToPay = (float) ($remote['amount_to_pay'] ?? $with);
         $paidTotal = (float) ($remote['paid_total'] ?? 0);
 
+        $parentId = isset($remote['parent_invoice_id']) && $remote['parent_invoice_id'] !== null
+            ? (int) $remote['parent_invoice_id']
+            : null;
+        $parentInvoice = is_array($remote['parent_invoice'] ?? null) ? $remote['parent_invoice'] : null;
+        if ($parentInvoice === null && $parentId !== null) {
+            $parentInvoice = [
+                'id' => $parentId,
+                'invoice_type' => 'proforma',
+            ];
+        }
+
         return [
             'id' => $id,
             'varsymbol' => $remote['varsymbol'] ?? null,
             'invoice_type' => (string) ($remote['invoice_type'] ?? 'invoice'),
-            'parent_invoice_id' => null,
+            'parent_invoice_id' => $parentId,
+            'parent_invoice' => $parentInvoice,
+            'final_invoice' => is_array($remote['final_invoice'] ?? null) ? $remote['final_invoice'] : null,
             'client_id' => $localClientId ?? $myuctoClientId,
             'client_myucto_id' => $myuctoClientId > 0 ? $myuctoClientId : null,
             'project_id' => isset($remote['project_id']) && $remote['project_id'] !== null ? (int) $remote['project_id'] : null,
