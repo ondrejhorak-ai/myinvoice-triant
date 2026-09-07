@@ -99,8 +99,8 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **S2 — Dvě varianty, sleva, schválení B.**
 - [x] **I6 — Schválení varianty musí založit projekt MyÚčta.** `QuoteRepository::updateVariantStatus` při `approved` nastaví job `confirmed` bez `ProjectGateway` — tlačítko Propojit je workaround. Hook `ensureProjectForJob` do `UpdateVariantStatusAction` (chyba API nesmí zahodit schválení; projekt doplní další sync / tlačítko).
 - [x] **I7 — Sync DPH sazeb čte `rate_percent`.** `CodebookSync` ukládal `rate`/`name` (v MyÚčtu je `rate_percent` + `label_cs`) → všechny sazby 0 %, záloha z S3 bez DPH. Opravit mapování + čtení z `raw_json` v `InvoiceGateway::meta`/`vatRateIdForPercent`. Replay S3.
-- [ ] **I8 — Vystavení zálohy vrací 503 a schová chybu MyÚčta.** `POST /api/tri/invoices/134/issue` → 503 „MyÚčto nedostupné“ (`mapUnavailable` bere každé HTTP ≥500 jako network). Zachovat původní message; doklad `134` je koncept 50 % (24 829,20 Kč s DPH). Dokončit S3 (vystavit + zaplaceno).
-- [~] **S3 — Zálohová faktura.**
+- [x] **I8 — Vystavení zálohy vrací 503 a schová chybu MyÚčta.** `MyUctoApiException::isUnavailable()` bralo každé HTTP ≥500 jako network → `mapUnavailable` přepsalo `varsymbol_failed` na „MyÚčto nedostupné“. Teď jen `network`/`timeout`/`rate_limited` + 502/503/504. `toInvoiceInput` posílá ruční `varsymbol`. Číslování v MyÚčtu (API `/settings/supplier`): proforma `9{YY}{MM}{CCC}`, faktura `{YY}{MM}{CCC}`, dobropis `7{YY}{MM}{CCC}`.
+- [x] **S3 — Zálohová faktura.**
 - [ ] **S4 — Daňový doklad k záloze.**
 - [ ] **S5 — Doplatková (konečná) faktura.**
 - [ ] **S6 — Ceník a výroba (průvodky, hodiny, PDF).**
@@ -154,4 +154,6 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 S2** — Varianta A `260002-A` koncept (K01×6 3200 + D01×8 1850 = 34 000 Kč). B `260002-B` schválená: sekce Spodní/Horní skříňky (K02×4 3800, D02×4 2100, K03×5 2800, D03×5 1600), sleva 10 % → základ 41 040 Kč, DPH 8 618 Kč, celkem 49 658 Kč. Schválení B auto-potvrdí zakázku; projekt MyÚčta vznikl až po **Propojit** (jeden projekt `260002 Kuchyň na míru — Malinová` u klienta 38). Follow-up **I6**. Žádná oprava kódu v tomto řezu.
 - **2026-09-07 I6** — `UpdateVariantStatusAction` po `approved` volá `ProjectGateway::tryEnsureProjectForJob` (chyba MyÚčta neshazuje schválení). PHPUnit `ProjectGatewayTest` (create + idempotence + swallow 503).
 - **2026-09-07 I7** — `CodebookSync` čte `rate_percent`/`label_cs` (dřív vše 0 %). `InvoiceGateway::meta` umí fallback z `raw_json`. PHPUnit `CodebookSyncVatTest`. Záloha 134 v editoru: 21 % DPH, 24 829,20 Kč. Vystavení ještě padá (I8).
+- **2026-09-07 I8** — `isUnavailable()` už neschovává aplikační 500. Gateway propouští `varsymbol` z editoru. PHPUnit: issue 500 `varsymbol_failed` + ruční varsymbol. Skutečná příčina issue 134: prázdné `proforma_number_format` v MyÚčtu — nastaveno přes veřejné API (kód MyÚčta beze změny).
+- **2026-09-07 S3** — Záloha **92609001** (id 134): 50 % varianty B, 20 520 + DPH 4 309,20 = **24 829,20 Kč**, vystaveno + zaplaceno 7. 9. 2026. Office seznam drží řádek (Zaplaceno, zakázka 260002). MyÚčto `/invoices/134`: proforma zaplacená, projekt `260002 Kuchyň na míru — Malinová`, platba 24 829,20 Kč. MyÚčto samo založilo koncept daňového dokladu **#135** (`proforma_payment_document=always_tax_document`) — S4 může jít přes „Vystavit fakturu k záloze“ / issue-final.
 
