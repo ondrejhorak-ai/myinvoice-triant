@@ -692,6 +692,173 @@ final class InvoiceGateway
         )->execute([$status, $myuctoId, $error, $now, $id]);
     }
 
+    public function issue(int $id): array
+    {
+        return $this->mutate($id, fn () => $this->api->issueInvoice($id), true);
+    }
+
+    /** @return array<string, mixed> */
+    public function recipients(int $id): array
+    {
+        try {
+            return $this->api->getRecipients($id);
+        } catch (MyUctoApiException $e) {
+            $this->mapUnavailable($e);
+            throw $e;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
+    public function send(int $id, array $body): array
+    {
+        $payload = [];
+        foreach (['to', 'cc', 'bcc', 'note', 'subject'] as $key) {
+            if (array_key_exists($key, $body)) {
+                $payload[$key] = $body[$key];
+            }
+        }
+        return $this->mutate($id, fn () => $this->api->sendInvoice($id, $payload), true);
+    }
+
+    public function reminder(int $id): array
+    {
+        return $this->mutate($id, fn () => $this->api->sendReminder($id), true);
+    }
+
+    /** @return array<string, mixed> */
+    public function publicLink(int $id): array
+    {
+        try {
+            $remote = ContactGateway::unwrap($this->api->getPublicLink($id));
+        } catch (MyUctoApiException $e) {
+            $this->mapUnavailable($e);
+            throw $e;
+        }
+        if (isset($remote['id'])) {
+            $this->upsertRemote($remote);
+        }
+
+        return $remote;
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
+    public function markPaid(int $id, array $body = []): array
+    {
+        $payload = [];
+        if (!empty($body['paid_at']) || !empty($body['paid_on'])) {
+            $payload['paid_at'] = (string) ($body['paid_at'] ?? $body['paid_on']);
+        }
+        return $this->mutate($id, fn () => $this->api->markPaid($id, $payload), true);
+    }
+
+    public function unmarkPaid(int $id): array
+    {
+        return $this->mutate($id, fn () => $this->api->unmarkPaid($id), true);
+    }
+
+    /** @return array<string, mixed> */
+    public function payments(int $id): array
+    {
+        try {
+            return $this->api->listPayments($id);
+        } catch (MyUctoApiException $e) {
+            $this->mapUnavailable($e);
+            throw $e;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
+    public function addPayment(int $id, array $body): array
+    {
+        return $this->mutate($id, fn () => $this->api->addPayment($id, $body), true);
+    }
+
+    public function deletePayment(int $id, int $paymentId): array
+    {
+        return $this->mutate($id, fn () => $this->api->deletePayment($id, $paymentId), true);
+    }
+
+    public function cloneInvoice(int $id): array
+    {
+        return $this->mutate($id, fn () => $this->api->cloneInvoice($id), false);
+    }
+
+    /**
+     * @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
+    public function linkAdvance(int $id, array $body): array
+    {
+        return $this->mutate($id, fn () => $this->api->linkAdvance($id, $body), true);
+    }
+
+    /**
+     * @param callable(): array<string, mixed> $call
+     * @return array<string, mixed>
+     */
+    private function mutate(int $id, callable $call, bool $idempotent): array
+    {
+        try {
+            $remote = ContactGateway::unwrap($call());
+        } catch (MyUctoApiException $e) {
+            $this->mapPeriodLocked($e);
+            if ($idempotent && $this->isAlreadyDone($e)) {
+                return $this->getDetail($id);
+            }
+            $this->mapUnavailable($e);
+            throw $e;
+        }
+        if (!isset($remote['id'])) {
+            return $this->getDetail($id);
+        }
+        $this->upsertRemote($remote);
+
+        return $this->present($remote);
+    }
+
+    private function mapPeriodLocked(MyUctoApiException $e): void
+    {
+        $code = strtolower($e->errorCode . ' ' . $e->getMessage());
+        if (
+            $e->httpStatus === 403 || $e->httpStatus === 409
+        ) {
+            if (
+                str_contains($code, 'period') || str_contains($code, 'obdob')
+                || str_contains($code, 'locked') || str_contains($code, 'uzav')
+                || str_contains($code, 'closed')
+            ) {
+                throw new MyUctoApiException(
+                    'period_locked',
+                    'Období je uzavřeno, kontaktujte účetní.',
+                    $e->httpStatus,
+                    $e,
+                    $e->details,
+                );
+            }
+        }
+    }
+
+    private function isAlreadyDone(MyUctoApiException $e): bool
+    {
+        $hay = strtolower($e->errorCode . ' ' . $e->getMessage());
+        foreach (['already', 'already_issued', 'already_sent', 'already_paid', 'not_draft', 'invalid_status'] as $needle) {
+            if (str_contains($hay, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function mapUnavailable(MyUctoApiException $e): void
     {
         if ($e->isUnavailable() || $e->errorCode === 'network') {

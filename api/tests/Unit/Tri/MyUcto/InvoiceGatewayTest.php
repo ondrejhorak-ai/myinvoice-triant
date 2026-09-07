@@ -158,6 +158,43 @@ final class InvoiceGatewayTest extends TestCase
         ]));
     }
 
+    public function testIssueMapsLockedPeriod(): void
+    {
+        $pdo = $this->sqlite();
+        $gw = new InvoiceGateway($this->api([
+            new Response(409, ['Content-Type' => 'application/json'], '{"error":{"code":"period_locked","message":"Accounting period is closed."}}'),
+        ]), $pdo, 1);
+        try {
+            $gw->issue(55);
+            $this->fail('expected exception');
+        } catch (MyUctoApiException $e) {
+            $this->assertSame('period_locked', $e->errorCode);
+            $this->assertStringContainsString('účetní', $e->getMessage());
+        }
+    }
+
+    public function testIssueAlreadyIssuedReturnsDetail(): void
+    {
+        $pdo = $this->sqlite();
+        $issued = [
+            'id' => 55,
+            'client_id' => 101,
+            'status' => 'issued',
+            'invoice_type' => 'invoice',
+            'currency' => 'CZK',
+            'items' => [],
+            'totals' => ['without_vat' => 100, 'vat' => 21, 'with_vat' => 121],
+            'updated_at' => '2026-09-07 12:00:00',
+        ];
+        $gw = new InvoiceGateway($this->api([
+            new Response(409, ['Content-Type' => 'application/json'], '{"error":{"code":"already_issued","message":"Already issued."}}'),
+            new Response(200, ['Content-Type' => 'application/json'], json_encode($issued)),
+        ]), $pdo, 1);
+        $out = $gw->issue(55);
+        $this->assertSame('issued', $out['status']);
+        $this->assertSame(55, $out['id']);
+    }
+
     private function sqlite(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

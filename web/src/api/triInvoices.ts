@@ -55,4 +55,18 @@ export const triInvoicesApi = {
     const qs = params.toString()
     return `/api/tri/invoices/${id}/pdf${qs ? `?${qs}` : ''}`
   },
+  issue: (id: number) => api.post<Invoice>(`/tri/invoices/${id}/issue`).then((r) => r.data),
+  recipients: (id: number) =>
+    api.get<{ to?: string[]; cc?: string[]; data?: { to?: string[] } }>(`/tri/invoices/${id}/recipients`).then((r) => r.data),
+  send: (id: number, payload: { to?: string[]; cc?: string; bcc?: string; note?: string; subject?: string }) =>
+    api.post<Invoice>(`/tri/invoices/${id}/send`, payload).then((r) => r.data),
+  reminder: (id: number) => api.post<Invoice>(`/tri/invoices/${id}/reminder`).then((r) => r.data),
+  publicLink: (id: number) => api.post<{ url?: string; public_token?: string }>(`/tri/invoices/${id}/public-link`).then((r) => r.data),
+  clone: (id: number) => api.post<Invoice>(`/tri/invoices/${id}/clone`).then((r) => r.data),
+  markPaid: (id: number, paidAt?: string) =>
+    api.post<Invoice>(`/tri/invoices/${id}/mark-paid`, paidAt ? { paid_at: paidAt } : {}).then((r) => r.data),
+  unmarkPaid: (id: number) => api.post<Invoice>(`/tri/invoices/${id}/unmark-paid`).then((r) => r.data),
+  payments: (id: number) => api.get(`/tri/invoices/${id}/payments`).then((r) => r.data),
+  addPayment: (id: number, payload: Record<string, unknown>) =>
+    api.post(`/tri/invoices/${id}/payments`, payload).then((r) => r.data),
 }

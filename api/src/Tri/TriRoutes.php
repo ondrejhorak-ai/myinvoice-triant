@@ -35,7 +35,7 @@ use MyInvoice\Tri\Action\Tag\SetClientTagsAction;
 use MyInvoice\Tri\Action\Tag\UpdateTagAction;
 use MyInvoice\Tri\Action\Invoice\CreateAdvanceInvoiceAction;
 use MyInvoice\Tri\Action\Invoice\CreateFinalInvoiceAction;
-use MyInvoice\Tri\Action\Invoice\CreateTriInvoiceAction;
+use MyInvoice\Tri\Action\Invoice\InvoiceCycleAction;
 use MyInvoice\Tri\Action\Invoice\DeleteTriInvoiceAction;
 use MyInvoice\Tri\Action\Invoice\GetInvoiceJobAction;
 use MyInvoice\Tri\Action\Invoice\GetInvoiceMetaAction;
@@ -148,6 +148,18 @@ final class TriRoutes
         $app->get('/api/tri/invoices/{id:[0-9]+}/pdf', GetInvoicePdfAction::class);
         $app->get('/api/tri/invoices/{id:[0-9]+}/job', GetInvoiceJobAction::class);
         $app->put('/api/tri/invoices/{id:[0-9]+}/job', SetInvoiceJobAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/issue', InvoiceCycleAction::class);
+        $app->get('/api/tri/invoices/{id:[0-9]+}/recipients', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/send', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/reminder', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/public-link', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/clone', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/mark-paid', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/unmark-paid', InvoiceCycleAction::class);
+        $app->get('/api/tri/invoices/{id:[0-9]+}/payments', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/payments', InvoiceCycleAction::class);
+        $app->delete('/api/tri/invoices/{id:[0-9]+}/payments/{paymentId:[0-9]+}', InvoiceCycleAction::class);
+        $app->post('/api/tri/invoices/{id:[0-9]+}/link-advance', InvoiceCycleAction::class);
 
         // Price lists (Ceníky TRI)
         $app->get('/api/tri/price-lists', ListPriceListsAction::class);

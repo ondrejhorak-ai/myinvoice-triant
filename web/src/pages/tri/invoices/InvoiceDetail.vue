@@ -31,8 +31,8 @@ const toast = useToast()
 
 const auth = useAuthStore()
 const isAdmin = computed(() => auth.user?.role === 'admin')
-/** H5 doplní vystavení / odeslání / platby. */
-const h5Ready = false
+/** Cyklus vystavit / odeslat / platby je přes MyÚčto (H5). */
+const h5Ready = true
 
 const supplierStore = useSupplierStore()
 const supplierIsVatPayer = computed(() => supplierStore.currentSupplier?.is_vat_payer ?? true)
@@ -425,7 +425,7 @@ async function issue() {
   if (!confirm(t('invoice.issue_confirm'))) return
   busy.value = 'issue'
   try {
-    invoice.value = await invoicesApi.issue(invoice.value.id)
+    invoice.value = await triInvoicesApi.issue(invoice.value.id)
     toast.success( t('invoice.issued_as', { varsymbol: invoice.value.varsymbol }))
     invoicesApi.activity(invoice.value.id).then(a => { activity.value = a }).catch(() => {})
     invoicesApi.listPdfs(invoice.value.id).then(items => { pdfHistory.value = items }).catch(() => {})
@@ -461,9 +461,7 @@ async function markPaid() {
   if (!invoice.value) return
   busy.value = 'paid'
   try {
-    invoice.value = await invoicesApi.markPaid(invoice.value.id, paidAtInput.value, {
-      sendThanks: thanksEnabled.value && sendThanks.value,
-    })
+    invoice.value = await triInvoicesApi.markPaid(invoice.value.id, paidAtInput.value)
     markPaidOpen.value = false
     toast.success( t('invoice.marked_paid_at', { date: paidAtInput.value }))
     const pt = invoice.value.payment_thanks
@@ -482,7 +480,7 @@ async function unmarkPaid() {
   if (!window.confirm(t('invoice.unmark_paid_confirm', { varsymbol: invoice.value.varsymbol || '' }))) return
   busy.value = 'unmark-paid'
   try {
-    invoice.value = await invoicesApi.unmarkPaid(invoice.value.id)
+    invoice.value = await triInvoicesApi.unmarkPaid(invoice.value.id)
     toast.success(t('invoice.unmark_paid_done'))
   } catch (e: any) {
     toast.error(e?.response?.data?.error?.message || t('invoice.operation_failed'))
@@ -638,15 +636,14 @@ async function unlinkAdvance(targetId?: number) {
 async function cloneInvoice() {
   if (!invoice.value) return
   if (!confirm(t('invoice.clone_confirm', { varsymbol: invoice.value.varsymbol || `#${invoice.value.id}` }))) return
-  const incrementMonths = confirm(t('invoice.clone_increment_confirm'))
   busy.value = 'clone'
   try {
-    const r = await invoicesApi.clone(invoice.value.id, { increment_month_in_descriptions: incrementMonths })
-    if (!r?.draft_id) {
+    const r = await triInvoicesApi.clone(invoice.value.id)
+    if (!r?.id) {
       toast.error( t('invoice.invalid_response'))
       return
     }
-    router.push(`/tri/invoices/${r.draft_id}/edit`)
+    router.push(`/tri/invoices/${r.id}/edit`)
   } catch (e: any) {
     toast.error( e?.response?.data?.error?.message || t('invoice.clone_failed'))
   } finally {
@@ -722,8 +719,9 @@ function openSendModal() {
   sendTo.value = ''
   void (async () => {
     try {
-      const r = await invoicesApi.recipients(invoice.value!.id, 'documents')
-      sendTo.value = r.to.join(', ')
+      const r = await triInvoicesApi.recipients(invoice.value!.id)
+      const to = r.to ?? r.data?.to ?? []
+      sendTo.value = Array.isArray(to) ? to.join(', ') : String(to || '')
     } catch {
       const main = invoice.value!.client_main_email || ''
       const billing = (invoice.value!.project_billing_emails || []).map(b => b.email)
@@ -743,12 +741,12 @@ async function send() {
   busy.value = 'send'
   try {
     const note = sendNote.value.trim()
-    const r = await invoicesApi.send(invoice.value.id, {
+    await triInvoicesApi.send(invoice.value.id, {
       to: recipients,
       ...(note ? { note } : {}),
     })
     sendOpen.value = false
-    toast.success( t('invoice.send_done', { recipients: r.sent_to.join(', ') }))
+    toast.success( t('invoice.send_done', { recipients: recipients.join(', ') }))
     await load()
   } catch (e: any) {
     toast.error( e?.response?.data?.error?.message || t('invoice.send_failed'))
@@ -778,8 +776,7 @@ const canMarkPaid = computed(() => {
   if (invoice.value.invoice_type === 'invoice' && invoice.value.parent_invoice_id) return true
   return hasPositiveAmountToPay.value
 })
-const canCancel = computed(() => invoice.value && ['issued', 'sent', 'reminded', 'paid'].includes(invoice.value.status)
-  && invoice.value.invoice_type !== 'cancellation')
+const canCancel = computed(() => false)
 // Dobropisu nelze vystavit další dobropis — v modalu skryjeme tu volbu.
 const isCreditNoteSource = computed(() => invoice.value?.invoice_type === 'credit_note')
 // Cancellation = interní storno doklad, nikdy se neposílá klientovi (na rozdíl od dobropisu)
@@ -822,11 +819,9 @@ async function sendReminder() {
   if (!invoice.value) return
   busy.value = 'reminder'
   try {
-    const r = await invoicesApi.sendReminder(invoice.value.id)
-    invoice.value = r.invoice
+    invoice.value = await triInvoicesApi.reminder(invoice.value.id)
     reminderOpen.value = false
-    toast.success( t('invoice.reminder_sent_ok', { recipients: r.sent_to.join(', '), days: r.days_overdue }))
-    invoicesApi.activity(invoice.value.id).then(a => { activity.value = a }).catch(() => {})
+    toast.success(t('invoice.reminder_sent_ok', { recipients: sendTo.value || '—', days: daysOverdue.value }))
   } catch (e: any) {
     toast.error( e?.response?.data?.error?.message || t('invoice.reminder_failed'))
   } finally {
@@ -926,7 +921,7 @@ async function requestApprovalTest() {
         <UiButton v-if="isDraft && auth.canWrite" :to="`/tri/invoices/${invoice.id}/edit`" variant="secondary" size="sm">
           {{ t('common.edit') }}
         </UiButton>
-        <UiButton v-if="canRequestApproval && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'approval-request'" @click="requestApproval">
+        <UiButton v-if="false && canRequestApproval && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'approval-request'" @click="requestApproval">
           {{ busy === 'approval-request' ? '…' : t('invoice.approval.send_request') }}
         </UiButton>
         <UiButton v-if="h5Ready && isDraft && canIssueDraft && auth.canWrite" size="sm"
@@ -936,7 +931,7 @@ async function requestApprovalTest() {
           @click="issue">
           {{ busy === 'issue' ? '…' : t('invoice.issue') }}
         </UiButton>
-        <UiButton v-if="isDraft && auth.canWrite" variant="outline" size="sm" :title="t('invoice.wr_btn')" @click="wrModalOpen = true">
+        <UiButton v-if="false && isDraft && auth.canWrite" variant="outline" size="sm" :title="t('invoice.wr_btn')" @click="wrModalOpen = true">
           {{ t('invoice.wr_btn') }}
         </UiButton>
         <UiButton v-if="isDraft && auth.canWrite" variant="danger" size="sm" :disabled="busy !== null" @click="deleteInvoice">
@@ -945,7 +940,7 @@ async function requestApprovalTest() {
         <UiButton v-if="canSendEmail && auth.canWrite" size="sm" :disabled="busy !== null" @click="openSendModal">
           {{ t('invoice.send_to_client') }}
         </UiButton>
-        <UiButton v-if="h5Ready && canIssueFinal && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'issue-final'" @click="issueFinalFromProforma">
+        <UiButton v-if="false && canIssueFinal && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'issue-final'" @click="issueFinalFromProforma">
           {{ busy === 'issue-final' ? '…' : t('invoice.issue_final') }}
         </UiButton>
         <UiButton v-if="isIssued && canMarkPaid && auth.canWrite" variant="outline" size="sm" :disabled="busy !== null" @click="openMarkPaid">
