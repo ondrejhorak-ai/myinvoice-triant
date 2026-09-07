@@ -106,7 +106,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **S4 — Daňový doklad k záloze.**
 - [x] **I10 — Konečná faktura ignoruje slevu varianty.** `finalItems` škáluje `line_total` (před slevou nabídky) na `variant.subtotal` (po 10 %). „Zbývá“ = varianta − vyfakturováno − zaplacené zálohy. Command key `job:{id}:final:{subtotal}`.
 - [x] **S5 — Doplatková (konečná) faktura.**
-- [ ] **S6 — Ceník a výroba (průvodky, hodiny, PDF).**
+- [x] **S6 — Ceník a výroba (průvodky, hodiny, PDF).**
 - [ ] **S7 — Kalendář (výroba + expedice, stavy).**
 - [ ] **S8 — Reklamace s chatem.**
 - [ ] **S9 — Změna kontaktu + fyzická osoba + 2 kontakty na zakázce.**
@@ -163,4 +163,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 S4** — Issue-final ze 92609001 založil koncept **#136** (faktura, odečet zálohy 24 829,20, k úhradě 0 Kč), parent 134, zakázka 260002. Office seznam + detail s odkazem na 92609001; MyÚčto `/invoices/136` stejně. Vedle toho zůstává auto-koncept **#135** (typ `tax_document` z úhrady zálohy) — nesmazáno.
 - **2026-09-07 I10** — `finalItems` bere `variant.subtotal` (po slevě); `line_total` na řádcích je před slevou nabídky. Remaining na zakázce odečítá zaplacené zálohy. Špatné koncepty 137/138 smazány.
 - **2026-09-07 S5** — Konečná **2609011** (id 139): položky varianty B se slevou 10 % (základ 41 040 + DPH 8 618,40 = 49 658,40), odečet zálohy 24 829,20, **k úhradě 24 829,20 Kč**, vystaveno. Office seznam + MyÚčto `/invoices/139` na projektu 260002 vedle zálohy 92609001. Poznámka `TRI-SCEN S5 doplatek`.
+- **2026-09-07 S6** — Ceník **Dvířka a korpusy 2026** (id 1): K10 Korpus 4200 / D10 Dvířka 2400 / H10 Úchytka 180. Kontakt `Ateliér Švestková s.r.o.` (office/MyÚčto id **39**, IČO **99920518**, Cejl 48 Brno). Zakázka **260003** / job id **3**, varianta A schválená (základ 6 780 Kč). Průvodky jen vyráběné: **260003-01** K10 (CNC 1,5 h + olepovačka 2 h = 3,5 h), **260003-02** D10; H10 bez průvodky. Součet hodin na zakázce 3,5. PDF průvodky 200, bez 4200 v bytestreamu. MyÚčto `/clients/39` + projekt `260003 Skříň na míru — Švestková`. Žádná oprava kódu.
 
