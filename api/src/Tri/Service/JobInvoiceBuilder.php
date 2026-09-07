@@ -105,13 +105,22 @@ final class JobInvoiceBuilder
         }
 
         $gw = $this->invoices($supplierId);
-        $items = self::finalItems($lineItems, fn (int $percent) => $gw->vatRateIdForPercent($percent));
+        $variantNet = isset($variant['subtotal']) ? (float) $variant['subtotal'] : null;
+        $items = self::finalItems(
+            $lineItems,
+            fn (int $percent) => $gw->vatRateIdForPercent($percent),
+            $variantNet,
+        );
         if ($items === []) {
             throw new \RuntimeException('Varianta nemá fakturovatelné položky.');
         }
 
         $advancePaid = $this->jobInvoices->paidAdvancesTotal($jobId, $supplierId);
         $today = date('Y-m-d');
+        $noteAbove = trim((string) ($variant['note_above_items'] ?? ''));
+        if (!str_contains($noteAbove, 'TRI-SCEN')) {
+            $noteAbove = trim('TRI-SCEN S5 doplatek — obj. ' . $job['number'] . ($noteAbove !== '' ? "\n" . $noteAbove : ''));
+        }
         $input = self::finalInput(
             clientId: (int) $job['customer_client_id'],
             projectId: (int) $job['myucto_project_id'],
@@ -120,10 +129,11 @@ final class JobInvoiceBuilder
             dueDate: $this->dueDateFromIssue($today, $job),
             items: $items,
             advancePaid: $advancePaid,
-            noteAbove: $variant['note_above_items'] ?? null,
+            noteAbove: $noteAbove !== '' ? $noteAbove : null,
             noteBelow: $variant['note_below_items'] ?? null,
         );
-        $invoice = $gw->createDraft($input, 'job:' . $jobId . ':final');
+        $keySuffix = $variantNet !== null ? (string) round($variantNet, 2) : '0';
+        $invoice = $gw->createDraft($input, 'job:' . $jobId . ':final:' . $keySuffix);
 
         return ['invoice_id' => (int) $invoice['id'], 'invoice' => $invoice];
     }
@@ -133,19 +143,15 @@ final class JobInvoiceBuilder
      * @param callable(int): int $vatRateIdForPercent
      * @return list<array<string, mixed>>
      */
-    public static function finalItems(array $lineItems, callable $vatRateIdForPercent): array
+    public static function finalItems(array $lineItems, callable $vatRateIdForPercent, ?float $variantNetTotal = null): array
     {
         $linesSubtotal = 0.0;
         foreach ($lineItems as $line) {
             $linesSubtotal += (float) ($line['line_total'] ?? 0);
         }
         $linesSubtotal = round($linesSubtotal, 2);
-        $variantSubtotal = 0.0;
-        foreach ($lineItems as $line) {
-            $variantSubtotal += (float) ($line['line_total'] ?? 0);
-        }
-        $ratio = $linesSubtotal > 0 ? $linesSubtotal / $linesSubtotal : 1.0;
-        unset($variantSubtotal);
+        $targetNet = $variantNetTotal !== null ? round($variantNetTotal, 2) : $linesSubtotal;
+        $ratio = ($linesSubtotal > 0 && $targetNet >= 0) ? ($targetNet / $linesSubtotal) : 1.0;
 
         $invoiceItems = [];
         foreach (array_values($lineItems) as $i => $line) {

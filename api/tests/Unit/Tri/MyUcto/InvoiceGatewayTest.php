@@ -172,6 +172,13 @@ final class InvoiceGatewayTest extends TestCase
         $this->assertSame(2, $items[1]['vat_rate_id']);
         $this->assertSame(100.0, $items[0]['unit_price_without_vat']);
 
+        $discounted = JobInvoiceBuilder::finalItems([
+            ['title' => 'Stůl', 'quantity' => 2, 'unit' => 'ks', 'line_total' => 200, 'vat_rate' => 21],
+            ['title' => 'Židle', 'quantity' => 4, 'unit' => 'ks', 'line_total' => 400, 'vat_rate' => 12],
+        ], static fn (int $p) => $p === 21 ? 3 : 2, 540.0);
+        $this->assertSame(90.0, $discounted[0]['unit_price_without_vat']);
+        $this->assertSame(90.0, $discounted[1]['unit_price_without_vat']);
+
         $this->assertSame(21, JobInvoiceBuilder::dominantVatRate([
             ['vat_rate' => 21, 'line_total' => 100],
             ['vat_rate' => 12, 'line_total' => 10],

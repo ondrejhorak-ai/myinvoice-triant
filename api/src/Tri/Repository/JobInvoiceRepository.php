@@ -93,7 +93,7 @@ final class JobInvoiceRepository
             'variant_subtotal' => round($variantSubtotal, 2),
             'invoiced_total' => round($invoicedTotal, 2),
             'paid_advances_total' => round($paidAdvances, 2),
-            'remaining_to_invoice' => round(max(0, $variantTotal - $invoicedTotal), 2),
+            'remaining_to_invoice' => round(max(0, $variantTotal - $invoicedTotal - $paidAdvances), 2),
         ];
     }
 
