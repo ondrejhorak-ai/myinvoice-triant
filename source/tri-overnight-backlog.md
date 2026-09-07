@@ -98,7 +98,9 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **S1 — Nový zákazník a zakázka.**
 - [x] **S2 — Dvě varianty, sleva, schválení B.**
 - [x] **I6 — Schválení varianty musí založit projekt MyÚčta.** `QuoteRepository::updateVariantStatus` při `approved` nastaví job `confirmed` bez `ProjectGateway` — tlačítko Propojit je workaround. Hook `ensureProjectForJob` do `UpdateVariantStatusAction` (chyba API nesmí zahodit schválení; projekt doplní další sync / tlačítko).
-- [ ] **S3 — Zálohová faktura.**
+- [x] **I7 — Sync DPH sazeb čte `rate_percent`.** `CodebookSync` ukládal `rate`/`name` (v MyÚčtu je `rate_percent` + `label_cs`) → všechny sazby 0 %, záloha z S3 bez DPH. Opravit mapování + čtení z `raw_json` v `InvoiceGateway::meta`/`vatRateIdForPercent`. Replay S3.
+- [ ] **I8 — Vystavení zálohy vrací 503 a schová chybu MyÚčta.** `POST /api/tri/invoices/134/issue` → 503 „MyÚčto nedostupné“ (`mapUnavailable` bere každé HTTP ≥500 jako network). Zachovat původní message; doklad `134` je koncept 50 % (24 829,20 Kč s DPH). Dokončit S3 (vystavit + zaplaceno).
+- [~] **S3 — Zálohová faktura.**
 - [ ] **S4 — Daňový doklad k záloze.**
 - [ ] **S5 — Doplatková (konečná) faktura.**
 - [ ] **S6 — Ceník a výroba (průvodky, hodiny, PDF).**
@@ -151,4 +153,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 S1** — Kontakt `Interiéry Malinová s.r.o.` (id 38, IČO 99918471, Brno) + zakázka **260002** „Kuchyň na míru — Malinová“. Tag Zákazník z checkboxu bez workaroundu. Write-through: klient v MyÚčtu `/clients/38` se stejnou adresou/e-mailem. Projekt až po potvrzení (S2). Žádná oprava kódu.
 - **2026-09-07 S2** — Varianta A `260002-A` koncept (K01×6 3200 + D01×8 1850 = 34 000 Kč). B `260002-B` schválená: sekce Spodní/Horní skříňky (K02×4 3800, D02×4 2100, K03×5 2800, D03×5 1600), sleva 10 % → základ 41 040 Kč, DPH 8 618 Kč, celkem 49 658 Kč. Schválení B auto-potvrdí zakázku; projekt MyÚčta vznikl až po **Propojit** (jeden projekt `260002 Kuchyň na míru — Malinová` u klienta 38). Follow-up **I6**. Žádná oprava kódu v tomto řezu.
 - **2026-09-07 I6** — `UpdateVariantStatusAction` po `approved` volá `ProjectGateway::tryEnsureProjectForJob` (chyba MyÚčta neshazuje schválení). PHPUnit `ProjectGatewayTest` (create + idempotence + swallow 503).
+- **2026-09-07 I7** — `CodebookSync` čte `rate_percent`/`label_cs` (dřív vše 0 %). `InvoiceGateway::meta` umí fallback z `raw_json`. PHPUnit `CodebookSyncVatTest`. Záloha 134 v editoru: 21 % DPH, 24 829,20 Kč. Vystavení ještě padá (I8).
 

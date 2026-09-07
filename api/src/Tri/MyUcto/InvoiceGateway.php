@@ -163,7 +163,7 @@ final class InvoiceGateway
     public function meta(): array
     {
         $vat = $this->pdo->query(
-            'SELECT id, code, name, rate, is_active FROM mu_vat_rates ORDER BY rate DESC, id'
+            'SELECT id, code, name, rate, is_active, raw_json FROM mu_vat_rates ORDER BY rate DESC, id'
         )->fetchAll(PDO::FETCH_ASSOC) ?: [];
         $cur = $this->pdo->query(
             'SELECT id, code, name, is_active FROM mu_currencies ORDER BY code'
@@ -186,15 +186,15 @@ final class InvoiceGateway
 
         $vatRates = [];
         foreach ($vat as $row) {
-            $rate = (float) $row['rate'];
+            $rate = CodebookSync::vatPercent($row);
             $vatRates[] = [
                 'id' => (int) $row['id'],
                 'code' => $row['code'],
-                'name' => $row['name'],
+                'name' => CodebookSync::vatName($row) ?? $row['name'],
                 'rate_percent' => $rate,
                 'is_active' => (bool) $row['is_active'],
                 'is_default' => abs($rate - 21) < 0.01,
-                'is_reverse_charge' => false,
+                'is_reverse_charge' => CodebookSync::vatIsReverseCharge($row),
             ];
         }
         $currencies = [];
@@ -246,15 +246,15 @@ final class InvoiceGateway
 
     public function vatRateIdForPercent(int $percent): int
     {
-        $stmt = $this->pdo->query('SELECT id, rate FROM mu_vat_rates WHERE is_active = 1');
+        $stmt = $this->pdo->query('SELECT id, rate, raw_json FROM mu_vat_rates WHERE is_active = 1');
         $rows = $stmt ? ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
         foreach ($rows as $row) {
-            if ((int) round((float) $row['rate']) === $percent) {
+            if ((int) round(CodebookSync::vatPercent($row)) === $percent) {
                 return (int) $row['id'];
             }
         }
         foreach ($rows as $row) {
-            if (abs((float) $row['rate'] - $percent) < 0.01) {
+            if (abs(CodebookSync::vatPercent($row) - $percent) < 0.01) {
                 return (int) $row['id'];
             }
         }
