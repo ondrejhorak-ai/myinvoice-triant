@@ -101,7 +101,8 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **I7 — Sync DPH sazeb čte `rate_percent`.** `CodebookSync` ukládal `rate`/`name` (v MyÚčtu je `rate_percent` + `label_cs`) → všechny sazby 0 %, záloha z S3 bez DPH. Opravit mapování + čtení z `raw_json` v `InvoiceGateway::meta`/`vatRateIdForPercent`. Replay S3.
 - [x] **I8 — Vystavení zálohy vrací 503 a schová chybu MyÚčta.** `MyUctoApiException::isUnavailable()` bralo každé HTTP ≥500 jako network → `mapUnavailable` přepsalo `varsymbol_failed` na „MyÚčto nedostupné“. Teď jen `network`/`timeout`/`rate_limited` + 502/503/504. `toInvoiceInput` posílá ruční `varsymbol`. Číslování v MyÚčtu (API `/settings/supplier`): proforma `9{YY}{MM}{CCC}`, faktura `{YY}{MM}{CCC}`, dobropis `7{YY}{MM}{CCC}`.
 - [x] **S3 — Zálohová faktura.**
-- [ ] **S4 — Daňový doklad k záloze.**
+- [x] **I9 — issue-final vrací obálku bez top-level `id`.** MyÚčto `POST /invoices/{id}/issue-final` vrací `{final_invoice_id, invoice:{...}}`. `ContactGateway::unwrap` bere vnořené `invoice`; `present` posílá `parent_invoice` / `parent_invoice_id` a `vat_rate_snapshot`. PHPUnit `testIssueFinalUnwrapsNestedInvoiceEnvelope`.
+- [x] **S4 — Daňový doklad k záloze.**
 - [ ] **S5 — Doplatková (konečná) faktura.**
 - [ ] **S6 — Ceník a výroba (průvodky, hodiny, PDF).**
 - [ ] **S7 — Kalendář (výroba + expedice, stavy).**
@@ -156,4 +157,6 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-07 I7** — `CodebookSync` čte `rate_percent`/`label_cs` (dřív vše 0 %). `InvoiceGateway::meta` umí fallback z `raw_json`. PHPUnit `CodebookSyncVatTest`. Záloha 134 v editoru: 21 % DPH, 24 829,20 Kč. Vystavení ještě padá (I8).
 - **2026-09-07 I8** — `isUnavailable()` už neschovává aplikační 500. Gateway propouští `varsymbol` z editoru. PHPUnit: issue 500 `varsymbol_failed` + ruční varsymbol. Skutečná příčina issue 134: prázdné `proforma_number_format` v MyÚčtu — nastaveno přes veřejné API (kód MyÚčta beze změny).
 - **2026-09-07 S3** — Záloha **92609001** (id 134): 50 % varianty B, 20 520 + DPH 4 309,20 = **24 829,20 Kč**, vystaveno + zaplaceno 7. 9. 2026. Office seznam drží řádek (Zaplaceno, zakázka 260002). MyÚčto `/invoices/134`: proforma zaplacená, projekt `260002 Kuchyň na míru — Malinová`, platba 24 829,20 Kč. MyÚčto samo založilo koncept daňového dokladu **#135** (`proforma_payment_document=always_tax_document`) — S4 může jít přes „Vystavit fakturu k záloze“ / issue-final.
+- **2026-09-07 I9** — `unwrap` bere vnořené `invoice` z issue-final obálky; `present` vrací `parent_invoice` (UI odkaz na zálohu) a `vat_rate_snapshot`. Bez toho toast OK, ale redirect zůstal na 134.
+- **2026-09-07 S4** — Issue-final ze 92609001 založil koncept **#136** (faktura, odečet zálohy 24 829,20, k úhradě 0 Kč), parent 134, zakázka 260002. Office seznam + detail s odkazem na 92609001; MyÚčto `/invoices/136` stejně. Vedle toho zůstává auto-koncept **#135** (typ `tax_document` z úhrady zálohy) — nesmazáno.
 
