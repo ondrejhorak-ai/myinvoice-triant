@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { invoicesApi, type Invoice, type InvoicePayload, type InvoiceItem, type WorkReportItem, type InvoiceAttachment } from '@/api/invoices'
+import { invoicesApi, type Invoice, type InvoicePayload, type InvoiceItem, type InvoiceAttachment } from '@/api/invoices'
 import { triInvoicesApi } from '@/api/triInvoices'
 import { useHotkey } from '@/composables/useHotkey'
 import { focusLastRow } from '@/composables/useRowFocus'
@@ -446,9 +446,8 @@ onMounted(async () => {
       await loadProjects(inv.client_id)
       await verifyClientVies(inv.client_id)
     }
-    // TRI doklady žijí v MyÚčtu — core work-report/attachments podle local invoices.id
+    // TRI doklady žijí v MyÚčtu — core attachments podle local invoices.id
     // vrací 404. Nesmí to zablokovat Načítám…
-    await loadWorkReport()
     await loadAttachments()
     if (editedStatus.value === 'draft') await loadVarsymbolPreview()
   } else {
@@ -550,9 +549,6 @@ async function applyClientDefaults(clientId: number) {
     if (form.value.items.length === 1 && (form.value.items[0].description || '').trim() === '') {
       form.value.items[0].unit_price_without_vat = c.hourly_rate
       form.value.items[0].unit = defaultItemUnit()
-    }
-    if (wrItems.value.length === 1 && (wrItems.value[0].description || '').trim() === '') {
-      wrItems.value[0].rate = c.hourly_rate
     }
   }
 }
@@ -787,72 +783,6 @@ const unitPriceHeaderLabel = computed(() => form.value.prices_include_vat && sup
   ? t('invoice.items_table.unit_price_gross')
   : t('invoice.items_table.unit_price'))
 
-// ─── WORK REPORT ────────────────────────────────────────────────
-const wrOpen = ref(false)
-const wrTitle = ref('')
-const wrItems = ref<WorkReportItem[]>([])
-
-async function loadWorkReport() {
-  if (!invoiceId.value) return
-  try {
-    const wr = await invoicesApi.getWorkReport(invoiceId.value)
-    if (wr) {
-      wrTitle.value = wr.title
-      wrItems.value = wr.items.map(i => ({ ...i }))
-      wrOpen.value = true
-    }
-  } catch {
-    /* TRI / MyÚčto id nemá core výkaz */
-  }
-}
-
-// Pro výpočty + uložení: jen řádky s vyplněným popisem. Prázdné řádky uživatel
-// typicky nevyplní (přidal Přidat řádek a zapomněl), automaticky je ignorujeme,
-// aby totals v položce faktury seděly s tím, co se opravdu uloží.
-const wrItemsValid = computed(() => wrItems.value.filter(i => (i.description || '').trim() !== ''))
-const wrTotalHours = computed(() => wrItemsValid.value.reduce((s, i) => s + (Number(i.hours) || 0), 0))
-const wrTotalAmount = computed(() => wrItemsValid.value.reduce((s, i) => s + (Number(i.hours) || 0) * (Number(i.rate) || 0), 0))
-
-/**
- * Pokud uživatel má otevřený výkaz s položkami, ověř jestli odpovídá faktuře.
- * Vrací null = OK, jinak warning string pro confirm().
- */
-function checkWorkReportSync(): string | null {
-  if (!wrOpen.value || wrItemsValid.value.length === 0) return null
-  const totalHours = Math.round(wrTotalHours.value * 100) / 100
-  const totalAmount = Math.round(wrTotalAmount.value * 100) / 100
-  const description = (wrTitle.value || t('invoice.work_report')).trim()
-  if (description === '') return null
-
-  const ccy = currencies.value.find(c => c.id === form.value.currency_id)?.code || ''
-  const loc = locale.value === 'cs' ? 'cs' : 'en-US'
-  const item = form.value.items.find(it => (it.description || '').trim() === description)
-
-  if (!item) {
-    return t('invoice.wr_not_in_items_confirm', {
-      description,
-      hours: totalHours,
-      amount: totalAmount.toLocaleString(loc),
-      ccy,
-    })
-  }
-
-  const itemQty = Number(item.quantity) || 0
-  const itemRate = Number(item.unit_price_without_vat) || 0
-  const itemAmount = Math.round(itemQty * itemRate * 100) / 100
-  const amountDiff = Math.abs(itemAmount - totalAmount) > 0.01
-
-  if (amountDiff) {
-    return t('invoice.wr_diff_confirm', {
-      hours: totalHours,
-      amount: totalAmount.toLocaleString(loc),
-      itemAmount: itemAmount.toLocaleString(loc),
-      ccy,
-    })
-  }
-  return null
-}
-
 // ── Přílohy faktury ────────────────────────────────────────────────────
 // Nová faktura: upload potřebuje id, které vznikne až po create → soubory
 //   držíme v prohlížeči (pendingAttachments) a nahrajeme je v submit() po create.
@@ -929,15 +859,10 @@ function onAttachmentDrop(e: DragEvent) {
 
 async function submit() {
   // Tiše vyhoď prázdné řádky (bez popisu i bez ceny) — uživatel přidal řádek a nezapsal ho.
-  // Zároveň smaž z form.value.items, ať checkWorkReportSync vidí stejnou množinu jako payload.
   form.value.items = form.value.items.filter(it =>
     (it.description || '').trim() !== '' || (Number(it.unit_price_without_vat) || 0) !== 0
   )
   form.value.items.forEach((it, i) => (it.order_index = i))
-
-  // Detekce nesouladu mezi výkazem a položkou faktury — uživatel má šanci se vrátit
-  const wrWarning = checkWorkReportSync()
-  if (wrWarning && !confirm(wrWarning)) return
 
   if (hasNonPositiveAmountToPay.value) {
     error.value = t('invoice.amount_positive_required')
@@ -1012,27 +937,6 @@ async function submit() {
         ? 'invoice.czk_recap.warning_last_known'
         : 'invoice.czk_recap.warning_fallback'
       toast.warning(t(key, { rate: rateStr, currency: rateMeta.currency, date: dateStr }))
-    }
-    // Po uložení faktury — pokud uživatel otevřel work report, ulož ho
-    // (jen řádky s vyplněným popisem; prázdné řádky tiše ignorujeme — viz wrItemsValid)
-    if (wrOpen.value && wrItemsValid.value.length > 0) {
-      try {
-        await invoicesApi.saveWorkReport(saved.id, {
-          project_id: saved.project_id,
-          title: wrTitle.value,
-          items: wrItemsValid.value.map((it, i) => ({
-            description: it.description,
-            work_date: it.work_date || null,
-            hours: Number(it.hours) || 0,
-            rate: Number(it.rate) || 0,
-            order_index: i,
-          })),
-        }, isForce.value)
-      } catch (e: any) {
-        // Faktura je uložená, výkaz ne — nepokračuj v redirectu, ať uživatel nepřijde o data ve formuláři
-        error.value = apiErrorMessage(e, t('invoice.wr_save_failed'))
-        return
-      }
     }
     // Přílohy nasbírané u nové faktury (držené v prohlížeči) — nahraj teď, když známe id.
     // Selhání uploadu nesmí shodit už vytvořenou fakturu → jen upozorni, pokračuj na detail.

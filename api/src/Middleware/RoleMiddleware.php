@@ -85,7 +85,6 @@ final class RoleMiddleware implements MiddlewareInterface
         '* #^/api/projects(/|$)#',
         '* #^/api/invoices(/|$)#',
         '* #^/api/tri(/|$)#',
-        '* #^/api/work-reports(/|$)#',
         // PDF podpis na faktuře (ne DMS) — /api/documents/{invoice|work_report}/{id}/signature-selection
         '* #^/api/documents/(invoice|work_report)/[0-9]+/signature-selection$#',
         // Codebooks read-only přes API (admin endpointy mají zvláštní cestu /api/admin/codebooks)

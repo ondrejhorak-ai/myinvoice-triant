@@ -16,7 +16,6 @@ import { useYearOptions } from '@/composables/useYearOptions'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
-import WorkReportModal from '@/components/modals/WorkReportModal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
@@ -458,14 +457,6 @@ function openInvoice(inv: InvoiceListItem, e?: MouseEvent) {
   navigateRow(`/tri/invoices/${inv.id}`, e)
 }
 
-// Work Report modal: otevíráno z buttonu "Výkaz" v sloupci Stav.
-const wrModalOpen = ref(false)
-const wrModalInvoiceId = ref(0)
-function openWorkReport(id: number) {
-  wrModalInvoiceId.value = id
-  wrModalOpen.value = true
-}
-
 // Year dropdown — distinct roky z `invoices` aktuálního supplier (issue #33).
 // Composable doplňuje aktuální + minulý rok + aktuálně zvolený rok z URL.
 const yearOptions = useYearOptions('invoices', yearFilter)
@@ -668,15 +659,7 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
                   {{ formatMoney(inv.amount_to_pay ?? inv.total_with_vat, inv.currency) }}
                 </td>
                 <td class="px-4 py-2.5 text-center" @click.stop>
-                  <!-- Pro koncepty (s právem editace) zobraz tlačítko "Výkaz" místo "KONCEPT" badge — rychlý přístup k modalu. -->
-                  <button v-if="inv.status === 'draft' && auth.canWrite"
-                    @click="openWorkReport(inv.id)"
-                    class="cursor-pointer text-xs px-2 py-0.5 rounded border border-primary-500/40 text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1"
-                    :title="t('invoice.wr_btn')">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6v-4m3 4v-2"/></svg>
-                    {{ t('invoice.wr_btn') }}
-                  </button>
-                  <span v-else class="text-xs px-2 py-0.5 rounded" :class="statusBadgeClass(inv.status)">
+                  <span class="text-xs px-2 py-0.5 rounded" :class="statusBadgeClass(inv.status)">
                     {{ statusLabel(inv.status) }}
                   </span>
                   <span v-if="inv.sent_at" class="ml-1 text-xs px-1 py-0.5 rounded bg-success-50 text-success-600"
@@ -749,15 +732,7 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
                       :title="t('invoice.sent_at', { date: formatDate(inv.sent_at) })">✉</span>
                     <span v-if="inv.reminder_count > 0" class="text-xs px-1 py-0.5 rounded bg-warning-50 text-warning-600 font-semibold"
                       :title="t('invoice.reminder_at', { count: inv.reminder_count, date: formatDate(inv.last_reminder_at) })">⚠ {{ inv.reminder_count }}</span>
-                    <!-- Pro koncepty (s právem editace) zobraz tlačítko "Výkaz" místo "KONCEPT" badge — stejně jako v desktop tabulce. -->
-                    <button v-if="inv.status === 'draft' && auth.canWrite"
-                      @click="openWorkReport(inv.id)"
-                      class="cursor-pointer text-xs px-2 py-0.5 rounded border border-primary-500/40 text-primary-700 hover:bg-primary-50 inline-flex items-center gap-1"
-                      :title="t('invoice.wr_btn')">
-                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-6m3 6v-4m3 4v-2"/></svg>
-                      {{ t('invoice.wr_btn') }}
-                    </button>
-                    <span v-else class="text-xs px-2 py-0.5 rounded" :class="statusBadgeClass(inv.status)">
+                    <span class="text-xs px-2 py-0.5 rounded" :class="statusBadgeClass(inv.status)">
                       {{ statusLabel(inv.status) }}
                     </span>
                   </div>
@@ -774,11 +749,5 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
         </UiButton>
       </div>
     </div>
-
-    <!-- Work report modal — otevřený z buttonu "Výkaz" v sloupci Stav. -->
-    <WorkReportModal v-if="wrModalInvoiceId > 0"
-      v-model="wrModalOpen"
-      :invoice-id="wrModalInvoiceId"
-      @saved="load(true)" />
   </div>
 </template>

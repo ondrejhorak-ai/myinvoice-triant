@@ -132,16 +132,4 @@ final class SecurityFixesTest extends TestCase
             'resolveLogoPath() musí použít SafeLogoPath (security #2 DiD)');
     }
 
-    /**
-     * #4 — SaveWorkReportAction musí validovat project ownership (project_id supplier scope)
-     */
-    public function testWorkReportValidatesProjectOwnership(): void
-    {
-        $code = file_get_contents(dirname(__DIR__, 3) . '/api/src/Action/WorkReport/SaveWorkReportAction.php');
-        self::assertIsString($code);
-        self::assertStringContainsString('ProjectRepository', $code,
-            'SaveWorkReportAction musí mít DI na ProjectRepository (security #4)');
-        self::assertStringContainsString('SupplierGuard::owns($request, $project)', $code,
-            'Project ownership check musí být v SaveWorkReportAction (security #4)');
-    }
 }

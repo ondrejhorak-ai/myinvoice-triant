@@ -60,27 +60,12 @@ final class SecurityHardening202606Test extends TestCase
 
     // ---- NX-P2-2 — approval atomicity + rate-limit ----------------------------
 
-    public function testApprovalDecideIsAtomic(): void
-    {
-        $repo = $this->src('Repository/InvoiceRepository.php');
-        self::assertStringContainsString('function decideIfRequested', $repo,
-            'InvoiceRepository musí mít atomický decideIfRequested');
-        self::assertStringContainsString("approval_status = 'requested'", $repo,
-            'Atomický UPDATE musí být podmíněný approval_status=requested');
-
-        $action = $this->src('Action/Approval/PublicApprovalDecideAction.php');
-        self::assertStringContainsString('decideIfRequested', $action,
-            'Public decide musí používat atomickou metodu (TOCTOU guard)');
-        self::assertStringNotContainsString('setApprovalDecision', $action,
-            'Public decide nesmí používat neatomický setApprovalDecision');
-    }
-
-    public function testApprovalRateLimitRule(): void
+    public function testPublicInvoiceRateLimitRule(): void
     {
         $code = $this->src('Middleware/RateLimitMiddleware.php');
-        self::assertStringContainsString('/api/public/approval/', $code,
-            'RateLimit musí mít pravidlo pro veřejné schvalování');
-        self::assertStringContainsString('approval_per_min_per_ip', $code);
+        self::assertStringContainsString('/api/public/invoice/', $code,
+            'RateLimit musí mít pravidlo pro veřejnou web fakturu');
+        self::assertStringContainsString('invoice_public_per_min_per_ip', $code);
     }
 
     // ---- NX-P3-* --------------------------------------------------------------

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { invoicesApi, type Invoice, type WorkReport, type InvoiceAttachment, type AdvanceCandidate } from '@/api/invoices'
+import { invoicesApi, type Invoice, type InvoiceAttachment, type AdvanceCandidate } from '@/api/invoices'
 import { triInvoicesApi } from '@/api/triInvoices'
 import { clientsApi, type Client } from '@/api/clients'
 import { clientMissingAddress } from '@/utils/clientCompleteness'
@@ -19,7 +19,6 @@ import { useAuthStore } from '@/stores/auth'
 import { useSupplierStore } from '@/stores/supplier'
 import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
-import WorkReportModal from '@/components/modals/WorkReportModal.vue'
 import { triApi, type TriJobLink } from '@/api/tri'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
@@ -50,7 +49,6 @@ const clientAddressMissing = computed(() =>
   clientForWarnings.value ? clientMissingAddress(clientForWarnings.value) : false,
 )
 const triJob = ref<TriJobLink | null>(null)
-const wrModalOpen = ref(false)
 const loading = ref(true)
 const busy = ref<string | null>(null)
 
@@ -88,7 +86,6 @@ const attachments = ref<InvoiceAttachment[]>([])
 const attachmentsBusy = ref(false)
 const attachmentsDragOver = ref(false)
 const attachmentInput = ref<HTMLInputElement | null>(null)
-const workReport = ref<WorkReport | null>(null)
 const signatureSelections = ref<Partial<Record<PdfSignatureDocumentEntityType, PdfSignatureDocumentSelection>>>({})
 const signingProfiles = ref<SigningProfile[]>([])
 const signatureSelectionLoading = ref(false)
@@ -111,7 +108,6 @@ const signatureSelectionRows = computed(() => {
   const rows: Array<{ entityType: PdfSignatureDocumentEntityType; label: string }> = [
     { entityType: 'invoice', label: t('invoice.signing.output_invoice') as string },
   ]
-  if (workReport.value) rows.push({ entityType: 'work_report', label: t('invoice.signing.output_work_report') as string })
   return rows
 })
 
@@ -130,12 +126,6 @@ async function load() {
   // Activity log + work report + PDF historie (parallel, ne blokuje UI)
   invoicesApi.activity(Number(route.params.id))
     .then(a => { activity.value = a })
-    .catch(() => {})
-  invoicesApi.getWorkReport(Number(route.params.id))
-    .then(wr => {
-      workReport.value = wr
-      if (wr && canManageSignatureSelection.value) loadSignatureSelection('work_report')
-    })
     .catch(() => {})
   invoicesApi.listPdfs(Number(route.params.id))
     .then(items => { pdfHistory.value = items })
@@ -830,60 +820,6 @@ async function sendReminder() {
   }
 }
 
-// ───── Schvalování výkazu zákazníkem ─────────────────────────────────
-const requiresApproval = computed(() =>
-  !!invoice.value?.project_requires_approval && !!workReport.value
-)
-const approvalStatus = computed(() => invoice.value?.approval_status ?? 'none')
-const canRequestApproval = computed(() =>
-  requiresApproval.value && invoice.value?.status === 'draft' && canIssueDraft.value
-)
-const approvalTokenExpired = computed(() => {
-  if (approvalStatus.value !== 'requested') return false
-  const exp = invoice.value?.approval_token_expires_at
-  if (!exp) return false
-  return new Date(exp) < new Date()
-})
-const approvalBadgeClass = computed(() => {
-  if (approvalTokenExpired.value) return 'bg-warning-50 text-warning-600'
-  switch (approvalStatus.value) {
-    case 'requested': return 'bg-primary-100 text-primary-700'
-    case 'approved':  return 'bg-success-50 text-success-600'
-    case 'rejected':  return 'bg-danger-50 text-danger-500'
-    default:          return 'bg-neutral-100 text-neutral-600'
-  }
-})
-
-async function requestApproval() {
-  if (!invoice.value) return
-  if (!confirm(t('invoice.approval.request_confirm'))) return
-  busy.value = 'approval-request'
-  try {
-    const r = await invoicesApi.requestApproval(invoice.value.id)
-    invoice.value = r.invoice
-    toast.success(t('invoice.approval.request_sent', { recipients: r.sent_to.join(', ') }))
-    invoicesApi.activity(invoice.value.id).then(a => { activity.value = a }).catch(() => {})
-  } catch (e: any) {
-    toast.error(e?.response?.data?.error?.message || t('invoice.approval.request_failed'))
-  } finally {
-    busy.value = null
-  }
-}
-
-async function requestApprovalTest() {
-  if (!invoice.value) return
-  busy.value = 'approval-test'
-  try {
-    const r = await invoicesApi.requestApprovalTest(invoice.value.id)
-    toast.success(t('invoice.approval.test_sent', { recipients: r.sent_to.join(', ') }))
-    invoicesApi.activity(invoice.value.id).then(a => { activity.value = a }).catch(() => {})
-  } catch (e: any) {
-    toast.error(e?.response?.data?.error?.message || t('invoice.approval.test_failed'))
-  } finally {
-    busy.value = null
-  }
-}
-
 </script>
 
 <template>
@@ -903,31 +839,17 @@ async function requestApprovalTest() {
             :title="invoice.income_tax_exempt_reason || ''">
             {{ t('invoice.income_tax_exempt_badge') }}
           </span>
-          <span v-if="requiresApproval"
-            class="text-xs px-2 py-0.5 rounded-full font-medium" :class="approvalBadgeClass">
-            {{ t('invoice.approval.badge') }}:
-            {{ approvalTokenExpired
-                ? t('invoice.approval.status_expired')
-                : t('invoice.approval.status_' + approvalStatus) }}
-          </span>
         </div>
       </template>
       <template #actions>
         <UiButton v-if="isDraft && auth.canWrite" :to="`/tri/invoices/${invoice.id}/edit`" variant="secondary" size="sm">
           {{ t('common.edit') }}
         </UiButton>
-        <UiButton v-if="false && canRequestApproval && auth.canWrite" size="sm" :disabled="busy !== null" :loading="busy === 'approval-request'" @click="requestApproval">
-          {{ busy === 'approval-request' ? '…' : t('invoice.approval.send_request') }}
-        </UiButton>
         <UiButton v-if="h5Ready && isDraft && canIssueDraft && auth.canWrite" size="sm"
-          :disabled="busy !== null || (requiresApproval && approvalStatus !== 'approved')"
-          :title="requiresApproval && approvalStatus !== 'approved' ? t('invoice.approval.issue_blocked') : ''"
+          :disabled="busy !== null"
           :loading="busy === 'issue'"
           @click="issue">
           {{ busy === 'issue' ? '…' : t('invoice.issue') }}
-        </UiButton>
-        <UiButton v-if="false && isDraft && auth.canWrite" variant="outline" size="sm" :title="t('invoice.wr_btn')" @click="wrModalOpen = true">
-          {{ t('invoice.wr_btn') }}
         </UiButton>
         <UiButton v-if="isDraft && auth.canWrite" variant="danger" size="sm" :disabled="busy !== null" @click="deleteInvoice">
           {{ t('common.delete') }}
@@ -1652,12 +1574,6 @@ async function requestApprovalTest() {
           {{ busy === 'send-test' ? '…' : t('invoice.send_test') }}
         </button>
 
-        <button v-if="requiresApproval" @click="requestApprovalTest" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-primary-300 rounded-md text-primary-600 hover:bg-primary-50 disabled:opacity-50 inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-          {{ busy === 'approval-test' ? '…' : t('invoice.approval.test_send') }}
-        </button>
-
         <button v-if="canSendTestReminder" @click="sendTestReminder" :disabled="busy !== null"
           class="cursor-pointer px-3 h-9 text-sm border border-warning-500/40 rounded-md text-warning-600 hover:bg-warning-50 disabled:opacity-50 inline-flex items-center gap-1.5">
           <svg class="w-4 h-4 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
@@ -1694,12 +1610,6 @@ async function requestApprovalTest() {
 
       </div>
     </div>
-
-    <!-- Work report modal (jen pro draft + workflow projekty) -->
-    <WorkReportModal v-if="invoice"
-      v-model="wrModalOpen"
-      :invoice-id="invoice.id"
-      @saved="load" />
 
   </div>
 </template>

@@ -71,15 +71,6 @@ final class CronCatalog
                 'critical' => false,
             ],
             [
-                'script' => 'cron-send-approval-reminders',
-                'recommended' => 'weekdays_0915',
-                'linux_cron' => '15 9 * * 1-5',
-                'windows_schtasks' => '/sc weekly /d MON,TUE,WED,THU,FRI /st 09:15',
-                'max_age_hours' => 96,
-                'weekdays_only' => true,
-                'critical' => false,
-            ],
-            [
                 'script' => 'cron-version-check',
                 'recommended' => 'daily_0600',
                 'linux_cron' => '0 6 * * *',
