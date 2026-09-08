@@ -63,7 +63,6 @@ use MyInvoice\Action\Invoice\DeletePaymentAction;
 use MyInvoice\Action\Invoice\CreatePaymentTaxDocumentAction;
 use MyInvoice\Action\Invoice\BulkReissueAction;
 use MyInvoice\Action\Invoice\CloneInvoiceAction;
-use MyInvoice\Action\PriceList\PriceListItemAction;
 use MyInvoice\Action\Invoice\IssueFinalFromProformaAction;
 use MyInvoice\Action\Invoice\AdvanceCandidatesAction as InvoiceAdvanceCandidatesAction;
 use MyInvoice\Action\Invoice\FinalCandidatesAction;
@@ -206,20 +205,6 @@ final class Routes
         $app->get('/api/codebooks/units',      [CodebookAction::class, 'units']);
         $app->get('/api/codebooks/years',      [CodebookAction::class, 'years']);
         $app->get('/api/codebooks/cnb-rate',   \MyInvoice\Action\Codebook\CnbRateAction::class);
-
-        // Ceníkové položky (interní session API; správa admin, čtení accountant)
-        $app->get   ('/api/price-list-items', [PriceListItemAction::class, 'list']);
-        $app->post  ('/api/price-list-items', [PriceListItemAction::class, 'create']);
-        $app->get   ('/api/price-list-items/{id:[0-9]+}', [PriceListItemAction::class, 'get']);
-        $app->put   ('/api/price-list-items/{id:[0-9]+}', [PriceListItemAction::class, 'update']);
-        $app->delete('/api/price-list-items/{id:[0-9]+}', [PriceListItemAction::class, 'delete']);
-        $app->get   ('/api/price-list-items/{id:[0-9]+}/resolve', [PriceListItemAction::class, 'resolve']);
-        $app->get   ('/api/price-list-items/{id:[0-9]+}/prices', [PriceListItemAction::class, 'prices']);
-        $app->put   ('/api/price-list-items/{id:[0-9]+}/prices/{currencyCode:[A-Za-z][A-Za-z][A-Za-z]}', [PriceListItemAction::class, 'upsertPrice']);
-        $app->delete('/api/price-list-items/{id:[0-9]+}/prices/{currencyCode:[A-Za-z][A-Za-z][A-Za-z]}', [PriceListItemAction::class, 'deletePrice']);
-        $app->get   ('/api/price-list-items/{id:[0-9]+}/customer-overrides', [PriceListItemAction::class, 'customerOverrides']);
-        $app->put   ('/api/price-list-items/{id:[0-9]+}/customer-overrides/{clientId:[0-9]+}/{currencyCode:[A-Za-z][A-Za-z][A-Za-z]}', [PriceListItemAction::class, 'upsertCustomerOverride']);
-        $app->delete('/api/price-list-items/{id:[0-9]+}/customer-overrides/{clientId:[0-9]+}/{currencyCode:[A-Za-z][A-Za-z][A-Za-z]}', [PriceListItemAction::class, 'deleteCustomerOverride']);
 
         // Clients
         $app->get   ('/api/clients',                 ListClientsAction::class);
