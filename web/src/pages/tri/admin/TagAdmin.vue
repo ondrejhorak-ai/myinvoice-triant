@@ -59,7 +59,7 @@ onMounted(() => load())
     <h1 class="text-2xl font-semibold">{{ t('tri.tags.admin_title') }}</h1>
     <p class="text-neutral-600 mb-6">{{ t('tri.tags.admin_subtitle') }}</p>
 
-    <form class="bg-surface border border-neutral-200 rounded-lg shadow-sm p-4 mb-6 space-y-3" @submit.prevent="save">
+    <form class="bg-surface border border-neutral-200 rounded-lg shadow-xs p-4 mb-6 space-y-3" @submit.prevent="save">
       <h2 class="font-medium">{{ editing ? t('common.edit') : t('tri.tags.new') }}</h2>
       <input
         v-model="form.name"
@@ -92,7 +92,7 @@ onMounted(() => load())
       <li
         v-for="tag in tags"
         :key="tag.id"
-        class="bg-surface border border-neutral-200 rounded-lg shadow-sm p-3 flex items-center justify-between"
+        class="bg-surface border border-neutral-200 rounded-lg shadow-xs p-3 flex items-center justify-between"
       >
         <span class="px-2 py-1 rounded text-white text-sm" :style="{ backgroundColor: tag.color }">{{ tag.name }}</span>
         <div class="flex gap-2">

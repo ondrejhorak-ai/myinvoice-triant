@@ -65,7 +65,7 @@ onMounted(load)
       <p class="text-sm text-neutral-500 mt-0.5">{{ t('tri_settings.subtitle') }}</p>
     </div>
 
-    <section class="bg-white border border-neutral-200 rounded-lg p-5 shadow-sm">
+    <section class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
       <p class="text-xs text-neutral-500 mb-4">{{ t('tri_settings.fixed_hint') }}</p>
 
       <div v-if="loading" class="text-center text-neutral-500 py-8 text-sm">{{ t('common.loading') }}</div>

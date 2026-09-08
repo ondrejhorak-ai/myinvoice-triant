@@ -728,14 +728,16 @@ onMounted(() => {
 
 <style scoped>
 .notion-ghost {
-  opacity: 0.45;
-  background: color-mix(in srgb, var(--color-primary-100) 80%, transparent);
+  opacity: 0.55;
+  background: color-mix(in srgb, var(--color-primary-200) 55%, var(--color-surface));
+  outline: 1px dashed color-mix(in srgb, var(--color-primary-400) 60%, transparent);
 }
 .notion-chosen {
-  background: var(--color-neutral-50);
+  background: color-mix(in srgb, var(--color-neutral-100) 70%, var(--color-surface));
 }
 .notion-drag {
   opacity: 1 !important;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-neutral-900) 18%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-neutral-900) 22%, transparent);
+  outline: 1px solid var(--color-primary-300);
 }
 </style>

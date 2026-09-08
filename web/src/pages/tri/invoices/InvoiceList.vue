@@ -569,15 +569,15 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
 
       <!-- Skupiny po měsících -->
       <section v-for="g in groups" :key="g.month" class="mb-5">
-        <header class="sticky top-16 z-[5] flex items-center justify-between bg-neutral-50/95 backdrop-blur border border-neutral-200 rounded-t-lg px-4 py-2.5 mb-0">
-          <div class="flex items-center gap-3">
-            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ formatMonth(g.month) }}</h2>
+        <header class="sticky top-16 z-[5] flex flex-wrap items-center justify-between gap-2 border border-neutral-200 rounded-t-lg px-4 py-2.5 mb-0 bg-surface/95 backdrop-blur-md supports-[backdrop-filter]:bg-surface/85 shadow-xs">
+          <div class="flex items-center gap-3 min-w-0">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">{{ formatMonth(g.month) }}</h2>
             <span class="text-xs text-neutral-500">{{ g.count }} {{ g.count === 1 ? t('invoice.doc_1') : (g.count < 5 ? t('invoice.doc_2_4') : t('invoice.doc_5plus')) }}</span>
           </div>
           <div class="flex items-center gap-3 text-xs">
-            <span v-for="t in g.totals_per_currency" :key="t.currency" class="font-mono">
-              <span class="text-neutral-500">{{ t.currency }}:</span>
-              <span class="font-semibold text-neutral-900 ml-1">{{ formatMoney(t.with_vat, t.currency) }}</span>
+            <span v-for="tot in g.totals_per_currency" :key="tot.currency" class="font-mono">
+              <span class="text-neutral-500">{{ tot.currency }}:</span>
+              <span class="font-semibold text-neutral-900 ml-1">{{ formatMoney(tot.with_vat, tot.currency) }}</span>
             </span>
           </div>
         </header>

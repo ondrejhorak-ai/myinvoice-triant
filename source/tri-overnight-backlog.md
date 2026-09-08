@@ -77,7 +77,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **G7 — Mobile pass:** karty/tabulky TRI agend na malých šířkách. (Polish, až po R1.)
 - [x] **G8 — Empty states + loading skeletony** TRI agend. (Polish, až po R1.)
 - [x] **G9 — Dark mode pass** TRI agend. (Polish, až po R1.)
-- [ ] **G11 — Drobné kontrastní passy:** sticky měsíční hlavičky faktur, Notion drag ghost, případné zbývající `bg-white` mimo TRI. (Polish.)
+- [x] **G11 — Drobné kontrastní passy:** sticky měsíční hlavičky faktur, Notion drag ghost, případné zbývající `bg-white` mimo TRI. (Polish.)
 - [x] **G10 — JobDetail tabulka faktur ukazuje holé klíče `INVOICE.COL_*`.** Hlavička neprochází `t()`. Polish po R1.
 
 - Sem zapisuj nově nalezené bugy a follow-upy jako další `G` řádky.
@@ -208,4 +208,5 @@ Jedna oblast na tick: smazat routy + Action + Service/Repository jen dané agend
 - **2026-09-08 G7** — Mobile pass: JobDetail karty (varianty/průvodky/faktury) + skládané hlavičky sekcí; UiPageHeader `flex-wrap`; InvoiceList filtry `min-w-0` + i18n hlaviček; kalendář toolbar/buňky; VariantEditor/NotionTable `overflow-x-auto`. Bez nových funkcí. Deploy OK.
 - **2026-09-08 G8** — Loading: `CardSkeleton` na detailech (zakázka, faktura, kontakt, varianta, průvodka, reklamace, ceník, MyÚčto); sekce/`JobActivityFeed`/`TagAdmin` → `TableSkeleton`; empty přes `EmptyState` (+ `compact`). Deploy OK.
 - **2026-09-08 G9** — Dark: `bg-white` → `bg-surface` (hodiny, fotky); kalendář/JobDetail emerald/amber chips `dark:`; Notion drag styly přes tokeny. Deploy OK. Další: G11.
+- **2026-09-08 G11** — Sticky měsíční hlavičky faktur `bg-surface/95` + blur; Notion ghost/drag přes tokeny; `bg-white` → `bg-surface` (ClientTagEditor, TriSettings). QR na veřejné faktuře záměrně `bg-white`. Deploy OK.
 

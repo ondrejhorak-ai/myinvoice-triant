@@ -78,7 +78,7 @@ defineExpose({ save, selected })
         class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
         :class="selected.includes(tag.id)
           ? 'border-transparent text-white'
-          : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300'"
+          : 'border-neutral-200 bg-surface text-neutral-700 hover:border-neutral-300'"
         :style="selected.includes(tag.id) ? { backgroundColor: tag.color } : {}"
         :disabled="readonly"
         @click="toggle(tag.id)"
