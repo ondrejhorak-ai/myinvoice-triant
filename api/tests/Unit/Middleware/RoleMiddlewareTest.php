@@ -115,7 +115,7 @@ final class RoleMiddlewareTest extends TestCase
     public function testReadonlyCanReadBusinessData(): void
     {
         foreach ([
-            '/api/clients', '/api/clients/5', '/api/projects', '/api/invoices',
+            '/api/clients', '/api/clients/5', '/api/invoices',
             '/api/tri/jobs', '/api/tri/contacts',
             '/api/invoices/5/pdf',
             '/api/documents/invoice/5/signature-selection',

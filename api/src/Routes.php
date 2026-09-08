@@ -89,13 +89,6 @@ use MyInvoice\Action\Invoice\SendTestEmailAction;
 use MyInvoice\Action\Invoice\SendTestReminderAction;
 use MyInvoice\Action\Invoice\UpdateInvoiceAction;
 use MyInvoice\Tri\Action\Invoice\CoreInvoiceWriteGoneAction;
-use MyInvoice\Action\Project\ArchiveProjectAction;
-use MyInvoice\Action\Project\CreateProjectAction;
-use MyInvoice\Action\Project\DeleteProjectAction;
-use MyInvoice\Action\Project\GetProjectAction;
-use MyInvoice\Action\Project\ListProjectsAction;
-use MyInvoice\Action\Project\ProjectStatsAction;
-use MyInvoice\Action\Project\UpdateProjectAction;
 use MyInvoice\Action\Auth\ApiMeAction;
 use MyInvoice\Action\Auth\ForgotPasswordAction;
 use MyInvoice\Action\Auth\LoginAction;
@@ -237,15 +230,6 @@ final class Routes
         $app->post  ('/api/clients/{id:[0-9]+}/archive',   \MyInvoice\Tri\Action\Contact\CoreClientWriteGoneAction::class);
         $app->post  ('/api/clients/{id:[0-9]+}/unarchive', \MyInvoice\Tri\Action\Contact\CoreClientWriteGoneAction::class);
         $app->delete('/api/clients/{id:[0-9]+}',           \MyInvoice\Tri\Action\Contact\CoreClientWriteGoneAction::class);
-        // Projects
-        $app->get   ('/api/clients/{client_id:[0-9]+}/projects', ListProjectsAction::class);
-        $app->get   ('/api/projects/stats',          ProjectStatsAction::class);
-        $app->get   ('/api/projects',                ListProjectsAction::class);
-        $app->post  ('/api/projects',                CreateProjectAction::class);
-        $app->get   ('/api/projects/{id:[0-9]+}',    GetProjectAction::class);
-        $app->put   ('/api/projects/{id:[0-9]+}',    UpdateProjectAction::class);
-        $app->post  ('/api/projects/{id:[0-9]+}/archive', ArchiveProjectAction::class);
-        $app->delete('/api/projects/{id:[0-9]+}',         DeleteProjectAction::class);
         // Invoices (M3 — draft + editor + sumace; vystavení/odeslání/PDF přijde v M4)
         $app->get    ('/api/invoices',              ListInvoicesAction::class);
         $app->get    ('/api/invoices/export.csv',   ExportCsvAction::class);

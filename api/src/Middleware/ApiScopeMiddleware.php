@@ -53,7 +53,6 @@ final class ApiScopeMiddleware implements MiddlewareInterface
         '#^/api/auth/api-me$#',
         // Byznys zdroje
         '#^/api/clients(/|$)#',
-        '#^/api/projects(/|$)#',
         '#^/api/invoices(/|$)#',
         '#^/api/documents/(invoice|work_report)/[0-9]+/signature-selection$#',
         '#^/api/suppliers(/|$)#',

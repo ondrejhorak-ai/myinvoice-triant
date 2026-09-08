@@ -13,7 +13,6 @@ const toast = useToast()
 
 useHotkey('ctrl+s', (e) => { e.preventDefault(); submit() })
 import { clientsApi, type Client, type ViesLookupResult } from '@/api/clients'
-import { projectsApi, type Project } from '@/api/projects'
 import { type VatRate, type Currency, type Unit } from '@/api/codebooks'
 import { formatMoney, formatPercent } from '@/composables/useFormat'
 import { evalMath } from '@/directives/vMath'
@@ -104,7 +103,6 @@ async function ensureClientLoaded(id: number, fallbackName?: string | null, fall
     selectedClientOption.value = { value: id, label: fallbackName ?? `#${id}`, secondary: fallbackIc ?? undefined }
   }
 }
-const projects = ref<Project[]>([])
 const vatRates = ref<VatRate[]>([])
 const currencies = ref<Currency[]>([])
 const units = ref<Unit[]>([])
@@ -264,12 +262,8 @@ const selectableVatRates = computed(() => vatRates.value.filter(r => !r.is_rever
 function blankItem(): InvoiceItem {
   // Dobropis = záporné množství (sleva/refundace), default -1
   const qty = form.value.invoice_type === 'credit_note' ? -1 : 1
-  const projectRate = projects.value.find(p => p.id === form.value.project_id)?.hourly_rate
   const clientRate = clients.value.find(c => c.id === form.value.client_id)?.hourly_rate
-  // Project sazba má přednost; client.hourly_rate je fallback pro faktury bez zakázky.
-  const rate = (projectRate && projectRate > 0) ? projectRate
-    : (clientRate && clientRate > 0) ? clientRate
-    : 0
+  const rate = (clientRate && clientRate > 0) ? clientRate : 0
   return {
     description: '',
     quantity: qty,
@@ -312,13 +306,6 @@ watch(() => [form.value.invoice_type, form.value.issue_date, form.value.client_i
 watch(() => form.value.issue_date, (newIssue) => {
   if (!loaded.value || editedStatus.value !== 'draft' || !newIssue) return
   // Zakázka přebíjí vše — má vlastní hodnotu i jednotku (NULL unit = dny).
-  if (form.value.project_id) {
-    const p = projects.value.find(x => x.id === form.value.project_id)
-    if (p && typeof p.payment_due_days === 'number') {
-      form.value.due_date = computeDueDate(newIssue, p.payment_due_days, (p.payment_due_unit ?? 'days') as DueUnit)
-      return
-    }
-  }
   // Klient s vlastní hodnotou → jeho jednotka (bez vlastní = dny, ne supplier),
   // jinak plně dědí supplier default (hodnotu i jednotku).
   const c = form.value.client_id ? clients.value.find(x => x.id === form.value.client_id) : null
@@ -443,7 +430,6 @@ onMounted(async () => {
       : null
     if (inv.client_id) {
       await ensureClientLoaded(inv.client_id, (inv as any).client_company_name, (inv as any).client_ic)
-      await loadProjects(inv.client_id)
       await verifyClientVies(inv.client_id)
     }
     // TRI doklady žijí v MyÚčtu — core attachments podle local invoices.id
@@ -491,10 +477,6 @@ onMounted(async () => {
     loaded.value = true
   }
 })
-
-async function loadProjects(clientId: number) {
-  projects.value = await projectsApi.listForClient(clientId)
-}
 
 // Inline client creation přes modal — UX zlepšení, žádné opouštění editoru.
 const clientModalOpen = ref(false)

@@ -82,7 +82,6 @@ final class RoleMiddleware implements MiddlewareInterface
     private const ACCOUNTANT_RULES = [
         // Klienti, zakázky, faktury, výkazy — plná CRUD
         '* #^/api/clients(/|$)#',
-        '* #^/api/projects(/|$)#',
         '* #^/api/invoices(/|$)#',
         '* #^/api/tri(/|$)#',
         // PDF podpis na faktuře (ne DMS) — /api/documents/{invoice|work_report}/{id}/signature-selection
@@ -136,7 +135,6 @@ final class RoleMiddleware implements MiddlewareInterface
         '* #^/api/auth/webauthn/credentials/[0-9]+$#',
         // Byznys data
         'GET #^/api/clients(/|$)#',
-        'GET #^/api/projects(/|$)#',
         'GET #^/api/invoices(/|$)#',
         'GET #^/api/tri(/|$)#',
         'GET #^/api/documents/(invoice|work_report)/[0-9]+/signature-selection$#',
