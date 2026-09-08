@@ -11,7 +11,6 @@ use MyInvoice\Middleware\AuthMiddleware;
 use MyInvoice\Repository\InvoiceRepository;
 use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\Invoice\InvoiceCalculator;
-use MyInvoice\Service\Oss\OssPeriod;
 use MyInvoice\Service\IpMatcher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -132,11 +131,6 @@ final class CancelInvoiceAction
         $user = (array) $request->getAttribute(AuthMiddleware::ATTR_USER, []);
         $userId = (int) ($user['id'] ?? 0);
         $supportsOss = $this->db->hasColumn('invoice_items', 'oss_applicable');
-        $sourcePeriod = OssPeriod::quarterCode((string) ($invoice['tax_date'] ?? $invoice['issue_date'] ?? ''));
-        $creditPeriod = OssPeriod::quarterCode(date('Y-m-d'));
-        $defaultOriginalPeriod = $sourcePeriod !== null && $creditPeriod !== null && $sourcePeriod < $creditPeriod
-            ? $sourcePeriod
-            : null;
 
         $pdo->beginTransaction();
         try {
@@ -205,10 +199,7 @@ final class CancelInvoiceAction
                 ];
                 if ($supportsOss) {
                     $ossApplicable = !empty($item['oss_applicable']);
-                    $originalPeriod = trim((string) ($item['oss_original_period'] ?? '')) ?: $defaultOriginalPeriod;
-                    if ($originalPeriod !== null && $creditPeriod !== null && $originalPeriod >= $creditPeriod) {
-                        $originalPeriod = $defaultOriginalPeriod;
-                    }
+                    $originalPeriod = trim((string) ($item['oss_original_period'] ?? ''));
                     array_push(
                         $params,
                         $ossApplicable ? 1 : 0,
@@ -223,7 +214,7 @@ final class CancelInvoiceAction
                         $ossApplicable && ($item['oss_vat_amount_return'] ?? null) !== null
                             ? -1 * (float) $item['oss_vat_amount_return']
                             : null,
-                        $ossApplicable ? $originalPeriod : null,
+                        $ossApplicable && $originalPeriod !== '' ? $originalPeriod : null,
                     );
                 }
                 $itemStmt->execute($params);

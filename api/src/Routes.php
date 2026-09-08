@@ -33,13 +33,6 @@ use MyInvoice\Action\Admin\Import\IdokladCredentialsAction;
 use MyInvoice\Action\Admin\Import\FakturoidCredentialsAction;
 use MyInvoice\Action\Admin\Import\AnthropicCredentialsAction;
 use MyInvoice\Action\Admin\Import\AiExtractPdfAction;
-use MyInvoice\Action\Report\DphPriznaniAction;
-use MyInvoice\Action\Report\KontrolniHlaseniAction;
-use MyInvoice\Action\Report\DphBookAction;
-use MyInvoice\Action\Report\MonthlyExportAction;
-use MyInvoice\Action\Report\OssReportAction;
-use MyInvoice\Action\Report\SouhrnneHlaseniAction;
-use MyInvoice\Action\Report\IncomeTaxAction;
 use MyInvoice\Action\Admin\InvoicesZipAction;
 use MyInvoice\Action\Admin\CronJobsAction;
 use MyInvoice\Action\Admin\RunCronJobAction;
@@ -268,18 +261,6 @@ final class Routes
         $app->get('/api/codebooks/years',      [CodebookAction::class, 'years']);
         $app->get('/api/codebooks/cnb-rate',   \MyInvoice\Action\Codebook\CnbRateAction::class);
 
-        // Expense categories (pro rozpad nákladů v CRM dashboardu)
-        $app->get   ('/api/expense-categories',                  [\MyInvoice\Action\Codebook\ExpenseCategoriesAction::class, 'list']);
-        $app->post  ('/api/expense-categories',                  [\MyInvoice\Action\Codebook\ExpenseCategoriesAction::class, 'create']);
-        $app->put   ('/api/expense-categories/{id:[0-9]+}',      [\MyInvoice\Action\Codebook\ExpenseCategoriesAction::class, 'update']);
-        $app->delete('/api/expense-categories/{id:[0-9]+}',      [\MyInvoice\Action\Codebook\ExpenseCategoriesAction::class, 'delete']);
-
-        // Revenue categories (pro rozpad tržeb v CRM dashboardu + Stats)
-        $app->get   ('/api/revenue-categories',                  [\MyInvoice\Action\Codebook\RevenueCategoriesAction::class, 'list']);
-        $app->post  ('/api/revenue-categories',                  [\MyInvoice\Action\Codebook\RevenueCategoriesAction::class, 'create']);
-        $app->put   ('/api/revenue-categories/{id:[0-9]+}',      [\MyInvoice\Action\Codebook\RevenueCategoriesAction::class, 'update']);
-        $app->delete('/api/revenue-categories/{id:[0-9]+}',      [\MyInvoice\Action\Codebook\RevenueCategoriesAction::class, 'delete']);
-
         // Ceníkové položky (interní session API; správa admin, čtení accountant)
         $app->get   ('/api/price-list-items', [PriceListItemAction::class, 'list']);
         $app->post  ('/api/price-list-items', [PriceListItemAction::class, 'create']);
@@ -293,17 +274,6 @@ final class Routes
         $app->get   ('/api/price-list-items/{id:[0-9]+}/customer-overrides', [PriceListItemAction::class, 'customerOverrides']);
         $app->put   ('/api/price-list-items/{id:[0-9]+}/customer-overrides/{clientId:[0-9]+}/{currencyCode:[A-Za-z][A-Za-z][A-Za-z]}', [PriceListItemAction::class, 'upsertCustomerOverride']);
         $app->delete('/api/price-list-items/{id:[0-9]+}/customer-overrides/{clientId:[0-9]+}/{currencyCode:[A-Za-z][A-Za-z][A-Za-z]}', [PriceListItemAction::class, 'deleteCustomerOverride']);
-
-        // Roční daňové konstanty (globální číselník, override defaultů z TaxConstants; migrace 0079)
-        $app->get   ('/api/codebooks/tax-constants',                [\MyInvoice\Action\Codebook\TaxConstantsAction::class, 'list']);
-        $app->put   ('/api/codebooks/tax-constants/{year:[0-9]+}',  [\MyInvoice\Action\Codebook\TaxConstantsAction::class, 'update']);
-        $app->delete('/api/codebooks/tax-constants/{year:[0-9]+}',  [\MyInvoice\Action\Codebook\TaxConstantsAction::class, 'reset']);
-
-        // VAT klasifikační kódy (pro DPHDP3 + KH)
-        $app->get   ('/api/vat-classifications',                 [\MyInvoice\Action\Codebook\VatClassificationsAction::class, 'list']);
-        $app->post  ('/api/vat-classifications',                 [\MyInvoice\Action\Codebook\VatClassificationsAction::class, 'create']);
-        $app->put   ('/api/vat-classifications/{id:[0-9]+}',     [\MyInvoice\Action\Codebook\VatClassificationsAction::class, 'update']);
-        $app->delete('/api/vat-classifications/{id:[0-9]+}',     [\MyInvoice\Action\Codebook\VatClassificationsAction::class, 'delete']);
 
         // Clients
         $app->get   ('/api/clients',                 ListClientsAction::class);
@@ -492,42 +462,6 @@ final class Routes
         $app->delete ('/api/admin/imports/anthropic/credentials', [AnthropicCredentialsAction::class, 'delete']);
         $app->post   ('/api/admin/imports/ai-extract-pdf',        AiExtractPdfAction::class);
 
-        // EPO výkazy (fáze 6) — DPH přiznání DPHDP3
-        $app->get    ('/api/reports/dphdp3/settings', [DphPriznaniAction::class, 'settings']);
-        $app->get    ('/api/reports/dphdp3/preview',  [DphPriznaniAction::class, 'preview']);
-        $app->get    ('/api/reports/dphdp3/trend',    [DphPriznaniAction::class, 'trend']);
-        $app->get    ('/api/reports/dphdp3/drafts-prediction', [DphPriznaniAction::class, 'draftsPrediction']);
-        $app->get    ('/api/reports/dphdp3',          [DphPriznaniAction::class, 'download']);
-        // Kontrolní hlášení DPHKH1 (vždy měsíční)
-        $app->get    ('/api/reports/dphkh1/preview',  [KontrolniHlaseniAction::class, 'preview']);
-        $app->get    ('/api/reports/dphkh1',          [KontrolniHlaseniAction::class, 'download']);
-        // Kniha DPH (interní VAT žurnál — NE EPO podání, vždy měsíční)
-        $app->get    ('/api/reports/dph-book/preview', [DphBookAction::class, 'preview']);
-        $app->get    ('/api/reports/dph-book',         [DphBookAction::class, 'download']);
-        // OSS (One Stop Shop) — etapa 1: kvartální dashboard z ručně označených řádků.
-        $app->get    ('/api/reports/oss/preview',      [OssReportAction::class, 'preview']);
-        $app->get    ('/api/reports/oss',              [OssReportAction::class, 'download']);
-        // Měsíční export — background job: jeden ZIP s vybranými exporty za měsíc
-        // (VF/PF PDF+ISDOC, výpisy PDF+GPC, Kniha DPH). Běží na pozadí (import_jobs).
-        $app->get    ('/api/reports/monthly-export/preview',                  [MonthlyExportAction::class, 'preview']);
-        $app->post   ('/api/reports/monthly-export/start',                    [MonthlyExportAction::class, 'start']);
-        $app->get    ('/api/reports/monthly-export/jobs',                     [MonthlyExportAction::class, 'list']);
-        $app->get    ('/api/reports/monthly-export/jobs/{id:[0-9]+}',          [MonthlyExportAction::class, 'jobStatus']);
-        $app->get    ('/api/reports/monthly-export/jobs/{id:[0-9]+}/download', [MonthlyExportAction::class, 'download']);
-        $app->post   ('/api/reports/monthly-export/jobs/{id:[0-9]+}/cancel',   [MonthlyExportAction::class, 'cancel']);
-        $app->delete ('/api/reports/monthly-export/jobs/{id:[0-9]+}',          [MonthlyExportAction::class, 'delete']);
-        // Souhrnné hlášení DPHSHV (EU dodání, měsíční — podávají i identifikované osoby)
-        $app->get    ('/api/reports/dphshv/preview',  [SouhrnneHlaseniAction::class, 'preview']);
-        $app->get    ('/api/reports/dphshv',          [SouhrnneHlaseniAction::class, 'download']);
-        // Daň z příjmů FO/PO (MVP foundation — kostra XML s warning)
-        $app->get    ('/api/reports/income-tax/preview', [IncomeTaxAction::class, 'preview']);
-        $app->get    ('/api/reports/income-tax',         [IncomeTaxAction::class, 'download']);
-        // Tax submission archive (historie všech generovaných EPO XML)
-        $app->get    ('/api/reports/submissions',                 [\MyInvoice\Action\Report\TaxSubmissionAction::class, 'list']);
-        $app->get    ('/api/reports/submissions/{id:[0-9]+}',     [\MyInvoice\Action\Report\TaxSubmissionAction::class, 'detail']);
-        $app->get    ('/api/reports/submissions/{id:[0-9]+}/xml', [\MyInvoice\Action\Report\TaxSubmissionAction::class, 'downloadXml']);
-        $app->delete ('/api/reports/submissions/{id:[0-9]+}',     [\MyInvoice\Action\Report\TaxSubmissionAction::class, 'delete']);
-
         $app->get    ('/api/admin/imports/{id:[0-9]+}',         ImportJobStatusAction::class);
         $app->post   ('/api/admin/imports/{id:[0-9]+}/cancel',  CancelImportJobAction::class);
         $app->delete ('/api/admin/imports/{id:[0-9]+}',         \MyInvoice\Action\Admin\Import\DeleteImportJobAction::class);
@@ -624,10 +558,6 @@ final class Routes
         $app->delete ('/api/settings/units/{id:[0-9]+}',              [SettingsAction::class, 'deleteUnit']);
         $app->get    ('/api/settings/tri-sidebar',                    [TriSidebarSettingsAction::class, 'get']);
         $app->put    ('/api/settings/tri-sidebar',                    [TriSidebarSettingsAction::class, 'put']);
-
-        // Tax optimizer — daňový optimalizátor (srovnání režimů + predikce limitů)
-        $app->get ('/api/tax/analysis',  [\MyInvoice\Action\Tax\TaxAction::class, 'analysis']);
-        $app->put ('/api/tax/profile',   [\MyInvoice\Action\Tax\TaxAction::class, 'updateProfile']);
 
         // Dokumenty (sekce Dokumenty — plán source/11)
         // Specifické cesty PŘED {id:[0-9]+}, aby je fast-route nepohltil.

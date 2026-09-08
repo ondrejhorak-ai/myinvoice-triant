@@ -95,34 +95,9 @@ final class RoleMiddlewareTest extends TestCase
         self::assertSame(403, $response->getStatusCode());
     }
 
-    /**
-     * Měsíční export je „čtení" (readonly = čtení + export) — workflow background
-     * jobu (start/cancel/delete) musí projít pro všechny role, action má vlastní guard.
-     */
-    public function testAllRolesCanRunMonthlyExportWorkflow(): void
+    public function testReadonlyCannotMutateBusinessData(): void
     {
-        foreach (['readonly', 'accountant', 'admin'] as $role) {
-            foreach ([
-                ['POST', '/api/reports/monthly-export/start'],
-                ['POST', '/api/reports/monthly-export/jobs/42/cancel'],
-                ['DELETE', '/api/reports/monthly-export/jobs/42'],
-            ] as [$method, $path]) {
-                $response = $this->middleware()->process(
-                    $this->request($method, $path, $role),
-                    $this->okHandler(),
-                );
-                self::assertSame(204, $response->getStatusCode(), "$role $method $path");
-            }
-        }
-    }
-
-    public function testReadonlyCannotMutateOutsideMonthlyExport(): void
-    {
-        // Pojistka, že nová pravidla neotevřela víc, než měla — sousední
-        // reports endpointy i jiné POSTy zůstávají pro readonly zavřené.
         foreach ([
-            ['POST', '/api/reports/monthly-export/jobs/42/restart'],   // neexistující sub-akce
-            ['DELETE', '/api/reports/submissions/42'],                 // mazání EPO archivu = mutace
             ['POST', '/api/invoices/1/send'],
             ['POST', '/api/clients'],
         ] as [$method, $path]) {
@@ -145,8 +120,7 @@ final class RoleMiddlewareTest extends TestCase
             '/api/invoices/5/pdf', '/api/purchase-invoices', '/api/purchase-invoices/5/our-pdf',
             '/api/documents', '/api/documents/5/download', '/api/document-folders',
             '/api/suppliers', '/api/search',
-            '/api/reports/dphkh1/preview', '/api/tax/analysis', '/api/codebooks/currencies',
-            '/api/expense-categories', '/api/revenue-categories', '/api/vat-classifications',
+            '/api/codebooks/currencies',
             '/api/settings/supplier', '/api/settings/currencies', '/api/admin/export',
             '/api/admin/invoices-zip',
         ] as $path) {

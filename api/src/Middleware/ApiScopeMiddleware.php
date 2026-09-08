@@ -59,16 +59,10 @@ final class ApiScopeMiddleware implements MiddlewareInterface
         '#^/api/documents(/|$)#',
         '#^/api/document-folders(/|$)#',
         '#^/api/suppliers(/|$)#',
-        // Reporty (čtení + exporty)
-        '#^/api/reports(/|$)#',
-        '#^/api/tax(/|$)#',
         '#^/api/search$#',
         '#^/api/branding-profiles$#',
         // Číselníky
         '#^/api/codebooks(/|$)#',
-        '#^/api/expense-categories(/|$)#',
-        '#^/api/revenue-categories(/|$)#',
-        '#^/api/vat-classifications(/|$)#',
         // Nastavení — JEN veřejný subset (supplier + číselníky), NE signing/
         // pdf-signing/email-branding.
         '#^/api/settings/supplier$#',

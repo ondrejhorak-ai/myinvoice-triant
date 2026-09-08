@@ -150,14 +150,8 @@ final class RoleMiddleware implements MiddlewareInterface
         'GET #^/api/document-folders(/|$)#',
         'GET #^/api/suppliers(/|$)#',
         'GET #^/api/search$#',
-        // Reporty / daňový optimalizátor (čtení)
-        'GET #^/api/reports(/|$)#',
-        'GET #^/api/tax(/|$)#',
         // Číselníky
         'GET #^/api/codebooks(/|$)#',
-        'GET #^/api/expense-categories(/|$)#',
-        'GET #^/api/revenue-categories(/|$)#',
-        'GET #^/api/vat-classifications(/|$)#',
         // Nastavení — jen čtení supplier + číselníkové sekce; signing/pdf-signing/
         // email-branding NEdáváme readonly (admin/accountant only).
         'GET #^/api/settings/supplier$#',
@@ -168,13 +162,6 @@ final class RoleMiddleware implements MiddlewareInterface
         // Admin endpointy typu „export = čtení" (povolené i nižším rolím)
         'GET #^/api/admin/export$#',
         'GET #^/api/admin/invoices-zip$#',
-        // Měsíční export = čtení (sbalí existující doklady do ZIP), jen kvůli
-        // délce renderování běží jako background job — start/cancel/smazání jobu
-        // jsou operační stav exportu, ne mutace business dat. MonthlyExportAction
-        // má vlastní guard admin/accountant/readonly („export = čtení").
-        'POST #^/api/reports/monthly-export/start$#',
-        'POST #^/api/reports/monthly-export/jobs/[0-9]+/cancel$#',
-        'DELETE #^/api/reports/monthly-export/jobs/[0-9]+$#',
     ];
 
     public function __construct(

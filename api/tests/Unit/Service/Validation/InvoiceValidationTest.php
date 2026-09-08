@@ -157,10 +157,10 @@ final class InvoiceValidationTest extends TestCase
         self::assertSame([], InvoiceValidation::invoice($data));
     }
 
-    public function testOssItemRejectsCurrentReturnPeriod(): void
+    public function testOssItemRejectsInvalidReturnPeriod(): void
     {
         $data = $this->validOssInvoice();
-        $data['items'][0]['oss_original_period'] = '2026Q3';
+        $data['items'][0]['oss_original_period'] = '2020Q1';
 
         $err = InvoiceValidation::invoice($data);
 

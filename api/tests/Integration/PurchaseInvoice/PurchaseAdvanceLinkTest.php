@@ -9,7 +9,6 @@ use MyInvoice\Bootstrap;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Middleware\SupplierScopeMiddleware;
 use MyInvoice\Repository\PurchaseInvoiceRepository;
-use MyInvoice\Service\Report\IncomeTaxBuilder;
 use PDO;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -27,7 +26,6 @@ use Slim\Psr7\Response as Psr7Response;
  *   - validace: jiný dodavatel / link na ne-advance → výjimka
  *   - unlinkAdvance: vazba pryč, kandidát se vrátí
  *   - findAdvanceByReference + suggestAdvanceLink (AI návrh)
- *   - IncomeTaxBuilder: záloha NIKDY není uznatelný náklad (ani zaplacená)
  *
  * Izolováno v roce 2099 pod existujícím supplierem, vše uklizeno v tearDown.
  * Soft-skip pokud chybí cfg.php (CI runner bez DB).
@@ -39,7 +37,6 @@ final class PurchaseAdvanceLinkTest extends TestCase
 
     private Connection $db;
     private PurchaseInvoiceRepository $repo;
-    private IncomeTaxBuilder $incomeTax;
     private GetClientAction $getClientAction;
 
     private int $supplierId = 0;
@@ -63,7 +60,6 @@ final class PurchaseAdvanceLinkTest extends TestCase
             $container = Bootstrap::buildApp()->getContainer();
             $this->db        = $container->get(Connection::class);
             $this->repo      = $container->get(PurchaseInvoiceRepository::class);
-            $this->incomeTax = $container->get(IncomeTaxBuilder::class);
             $this->getClientAction = $container->get(GetClientAction::class);
         } catch (\Throwable $e) {
             $this->markTestSkipped('DI nedostupné: ' . $e->getMessage());
@@ -193,21 +189,6 @@ final class PurchaseAdvanceLinkTest extends TestCase
         self::assertNull($finalRow['advance_purchase_invoice_id'], 'návrh neaplikuje vazbu');
         self::assertNotNull($finalRow['advance_link_suggestion']);
         self::assertSame($advance, $finalRow['advance_link_suggestion']['id']);
-    }
-
-    public function testIncomeTaxExcludesAdvanceAlways(): void
-    {
-        $vendor = $this->vendor('Dodavatel F', 'CZ10000006');
-        // Řádná faktura → uznatelný náklad
-        $this->purchase($vendor, 'invoice', 'FAK-6', 'received', 20000.0, $this->d(10));
-        // Zaplacená záloha → NESMÍ být náklad (není daňový doklad), ani spárovaná
-        $this->purchase($vendor, 'advance', 'ZAL-6', 'paid', 50000.0, $this->d(11));
-        // Nezaplacená nespárovaná záloha → taky NESMÍ být náklad v dani z příjmů
-        $this->purchase($vendor, 'advance', 'ZAL-6B', 'received', 30000.0, $this->d(12));
-
-        $summary = $this->incomeTax->build($this->supplierId, self::YEAR, 'fo')['summary'];
-        self::assertEqualsWithDelta(20000.0, $summary['costs_orientacni'], 0.01,
-            'daň z příjmů: jen řádná faktura, zálohy (zaplacená i nezaplacená) vyloučené');
     }
 
     /**

@@ -26,7 +26,6 @@ use MyInvoice\Bootstrap;
 use MyInvoice\Repository\ImportJobRepository;
 use MyInvoice\Service\Import\FakturoidImportService;
 use MyInvoice\Service\Import\IdokladImportService;
-use MyInvoice\Service\Export\MonthlyExportService;
 use MyInvoice\Service\Document\DocumentJobService;
 
 // STDOUT/STDERR existují pouze v CLI SAPI. Worker může být spuštěn také
@@ -77,8 +76,6 @@ try {
         $container->get(IdokladImportService::class)->run($jobId);
     } elseif ($source === 'fakturoid') {
         $container->get(FakturoidImportService::class)->run($jobId);
-    } elseif ($source === 'monthly_export') {
-        $container->get(MonthlyExportService::class)->run($jobId);
     } elseif ($source === 'document_zip_import' || $source === 'document_zip_export' || $source === 'document_folder_import') {
         $container->get(DocumentJobService::class)->run($jobId);
     } else {

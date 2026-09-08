@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace MyInvoice\Service\Validation;
 
-use MyInvoice\Service\Oss\OssPeriod;
-
 final class InvoiceValidation
 {
     /**
@@ -111,16 +109,8 @@ final class InvoiceValidation
                     }
 
                     $originalPeriod = strtoupper(trim((string) ($item['oss_original_period'] ?? '')));
-                    if ($originalPeriod !== '') {
-                        if (!preg_match('/^[0-9]{4}Q[1-4]$/', $originalPeriod) || $originalPeriod < '2021Q3') {
-                            $err["items.{$i}.oss_original_period"][] = 'Původní OSS období musí být ve formátu RRRRQn a nejdříve Q3 2021';
-                        } else {
-                            $taxDate = (string) ($data['tax_date'] ?? $data['issue_date'] ?? '');
-                            $currentPeriod = OssPeriod::quarterCode($taxDate);
-                            if ($currentPeriod !== null && $originalPeriod >= $currentPeriod) {
-                                $err["items.{$i}.oss_original_period"][] = 'Původní OSS období musí předcházet období dokladu';
-                            }
-                        }
+                    if ($originalPeriod !== '' && (!preg_match('/^[0-9]{4}Q[1-4]$/', $originalPeriod) || $originalPeriod < '2021Q3')) {
+                        $err["items.{$i}.oss_original_period"][] = 'Původní OSS období musí být ve formátu RRRRQn a nejdříve Q3 2021';
                     }
                 }
             }

@@ -5,7 +5,6 @@ import { useI18n } from 'vue-i18n'
 import { clientsApi, type ClientPayload, type Client } from '@/api/clients'
 import { triApi } from '@/api/tri'
 import { codebooksApi, type Country, type Currency } from '@/api/codebooks'
-import { revenueCategoriesApi, type RevenueCategory } from '@/api/revenueCategories'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { useSupplierStore } from '@/stores/supplier'
@@ -118,7 +117,6 @@ const lockVendor = ref(false)
 
 const countries = ref<Country[]>([])
 const currencies = ref<Currency[]>([])
-const revenueCategories = ref<RevenueCategory[]>([])
 const submitting = ref(false)
 const error = ref('')
 const errors = ref<Record<string, string[]>>({})
@@ -150,14 +148,12 @@ async function loadVatPayerDetails() {
 }
 
 onMounted(async () => {
-  const [c, cur, rc] = await Promise.all([
+  const [c, cur] = await Promise.all([
     codebooksApi.countries(),
     codebooksApi.currencies(),
-    revenueCategoriesApi.list(false).catch(() => [] as RevenueCategory[]),
   ])
   countries.value = c
   currencies.value = cur
-  revenueCategories.value = rc
   if (form.value.currency_default_id === 0) {
     const def = cur.find(x => x.is_default && x.code === 'CZK') || cur[0]
     if (def) form.value.currency_default_id = def.id
@@ -534,18 +530,6 @@ async function submit() {
                 </label>
                 <p class="text-xs text-neutral-500 mt-1 ml-6">{{ t('client.auto_send_reminders_hint') }}</p>
               </div>
-            </div>
-
-            <div v-if="form.is_customer">
-              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.default_revenue_category') }}</label>
-              <select v-model="form.default_revenue_category_id"
-                class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
-                <option :value="null">— {{ t('client.default_revenue_category_none') }} —</option>
-                <option v-for="c in revenueCategories" :key="c.id" :value="c.id">
-                  {{ c.label }} ({{ c.code }})
-                </option>
-              </select>
-              <p class="text-xs text-neutral-500 mt-1">{{ t('client.default_revenue_category_hint') }}</p>
             </div>
 
             <!-- Vlastní číselná řada (volitelná) -->

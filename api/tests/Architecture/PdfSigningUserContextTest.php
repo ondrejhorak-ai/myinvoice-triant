@@ -25,9 +25,6 @@ final class PdfSigningUserContextTest extends TestCase
             '/api/src/Action/Admin/InvoicesZipAction.php' => [
                 '$this->pdf->render((int) $inv[\'id\'], false, $userId)',
             ],
-            '/api/src/Service/Export/MonthlyExportService.php' => [
-                '$this->invoicePdf->render($id, false, $userId)',
-            ],
             '/api/src/Service/Invoice/AutoIssueAndSendService.php' => [
                 '$this->renderer->render($invoiceId, false, $userId)',
             ],
@@ -54,9 +51,6 @@ final class PdfSigningUserContextTest extends TestCase
             ],
             '/api/src/Action/Admin/InvoicesZipAction.php' => [
                 '$this->pdf->render((int) $inv[\'id\']);',
-            ],
-            '/api/src/Service/Export/MonthlyExportService.php' => [
-                '$this->invoicePdf->render($id);',
             ],
             '/api/src/Service/Invoice/AutoIssueAndSendService.php' => [
                 '$this->renderer->render($invoiceId);',
