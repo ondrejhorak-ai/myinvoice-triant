@@ -86,9 +86,8 @@ final class RoleMiddleware implements MiddlewareInterface
         '* #^/api/invoices(/|$)#',
         '* #^/api/tri(/|$)#',
         '* #^/api/work-reports(/|$)#',
-        // Dokumenty — účetní smí zakládat/upravovat/mazat (do koše) + spravovat složky
-        '* #^/api/documents(/|$)#',
-        '* #^/api/document-folders(/|$)#',
+        // PDF podpis na faktuře (ne DMS) — /api/documents/{invoice|work_report}/{id}/signature-selection
+        '* #^/api/documents/(invoice|work_report)/[0-9]+/signature-selection$#',
         // Codebooks read-only přes API (admin endpointy mají zvláštní cestu /api/admin/codebooks)
         'GET #^/api/codebooks(/|$)#',
         'GET #^/api/price-list-items(/|$)#',
@@ -141,8 +140,7 @@ final class RoleMiddleware implements MiddlewareInterface
         'GET #^/api/projects(/|$)#',
         'GET #^/api/invoices(/|$)#',
         'GET #^/api/tri(/|$)#',
-        'GET #^/api/documents(/|$)#',
-        'GET #^/api/document-folders(/|$)#',
+        'GET #^/api/documents/(invoice|work_report)/[0-9]+/signature-selection$#',
         'GET #^/api/suppliers(/|$)#',
         'GET #^/api/search$#',
         // Číselníky

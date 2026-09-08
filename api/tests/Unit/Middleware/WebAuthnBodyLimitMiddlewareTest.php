@@ -36,7 +36,7 @@ final class WebAuthnBodyLimitMiddlewareTest extends TestCase
     public function testLimitDoesNotAffectOtherEndpoints(): void
     {
         $request = (new ServerRequestFactory())
-            ->createServerRequest('POST', '/api/documents/upload')
+            ->createServerRequest('POST', '/api/invoices')
             ->withBody((new StreamFactory())->createStream(str_repeat('x', 65_537)));
 
         $response = (new WebAuthnBodyLimitMiddleware(new ResponseFactory()))

@@ -85,13 +85,6 @@ final class SecurityHardening202606Test extends TestCase
 
     // ---- NX-P3-* --------------------------------------------------------------
 
-    public function testDocumentSearchEscapesLikeWildcards(): void
-    {
-        $code = $this->src('Repository/DocumentRepository.php');
-        self::assertStringContainsString("addcslashes(\$q, '%_\\\\')", $code,
-            'DocumentRepository::search musí escapovat LIKE wildcardy');
-    }
-
     public function testFileDownloadsSetNosniff(): void
     {
         foreach ([
@@ -131,14 +124,5 @@ final class SecurityHardening202606Test extends TestCase
         $code = $this->src('Repository/PurchaseInvoiceRepository.php');
         self::assertStringContainsString('supplier_id = ? AND pdf_hash = ?', $code,
             'PDF hash lookup musí být scope-ovaný na supplier_id');
-    }
-
-    public function testAddLinkValidatesEntityOwnership(): void
-    {
-        $repo = $this->src('Repository/DocumentLinkRepository.php');
-        self::assertStringContainsString('function entityBelongsToSupplier', $repo);
-        $action = $this->src('Action/Document/DocumentsAction.php');
-        self::assertStringContainsString('entityBelongsToSupplier', $action,
-            'addLink musí ověřit vlastnictví cílové entity');
     }
 }

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import LinkedDocumentsPanel from '@/components/documents/LinkedDocumentsPanel.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -1702,6 +1701,5 @@ async function requestApprovalTest() {
       :invoice-id="invoice.id"
       @saved="load" />
 
-    <LinkedDocumentsPanel v-if="invoice" class="mt-4 block" entity-type="invoice" :entity-id="invoice.id" />
   </div>
 </template>

@@ -118,7 +118,7 @@ final class RoleMiddlewareTest extends TestCase
             '/api/clients', '/api/clients/5', '/api/projects', '/api/invoices',
             '/api/tri/jobs', '/api/tri/contacts',
             '/api/invoices/5/pdf',
-            '/api/documents', '/api/documents/5/download', '/api/document-folders',
+            '/api/documents/invoice/5/signature-selection',
             '/api/suppliers', '/api/search',
             '/api/codebooks/currencies',
             '/api/settings/supplier', '/api/settings/currencies', '/api/admin/export',
