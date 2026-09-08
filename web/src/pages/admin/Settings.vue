@@ -655,13 +655,6 @@ async function removeLogo() {
           </div>
           <div class="md:col-span-2">
             <label class="flex items-center gap-2 text-sm">
-              <input v-model="supplier.auto_generate_recurring" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
-              {{ t('settings.auto_generate_recurring') }}
-            </label>
-            <p class="text-xs text-neutral-500 mt-1 ml-6">{{ t('settings.auto_generate_recurring_hint') }}</p>
-          </div>
-          <div class="md:col-span-2">
-            <label class="flex items-center gap-2 text-sm">
               <input v-model="supplier.embed_isdoc" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
               {{ t('settings.embed_isdoc') }}
             </label>
