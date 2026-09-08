@@ -18,8 +18,8 @@ use Slim\Psr7\Factory\ResponseFactory;
  * Hierarchie: admin > accountant > readonly. Authorization model:
  *
  *   - readonly:  GET kdekoliv + vlastní účet (logout, change-password, totp/*)
- *   - accountant: vše co readonly + mutace na business datech (clients, projects,
- *                 invoices, work-reports, ARES/VIES lookup)
+ *   - accountant: vše co readonly + mutace na business datech (clients,
+ *                 invoices, TRI, ARES/VIES lookup)
  *   - admin:     vše + admin endpointy (users, settings, codebooks, email-templates,
  *                activity-log, invoices-zip)
  *
@@ -80,7 +80,7 @@ final class RoleMiddleware implements MiddlewareInterface
      * Method může být '*' pro libovolnou.
      */
     private const ACCOUNTANT_RULES = [
-        // Klienti, zakázky, faktury, výkazy — plná CRUD
+        // Klienti, faktury, TRI — plná CRUD
         '* #^/api/clients(/|$)#',
         '* #^/api/invoices(/|$)#',
         '* #^/api/tri(/|$)#',

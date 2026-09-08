@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { invoicesApi, type MonthGroup, type InvoiceListItem } from '@/api/invoices'
+import { triInvoicesApi } from '@/api/triInvoices'
 import { triApi, type TriJob } from '@/api/tri'
 import { formatMoney, formatDate, formatMonth, statusLabel, typeLabel, statusBadgeClass, isOverdue, invoiceRowClass } from '@/composables/useFormat'
 import { useHotkey } from '@/composables/useHotkey'
@@ -9,7 +10,6 @@ import { useRowLink } from '@/composables/useRowLink'
 import { useToast } from '@/composables/useToast'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { useSupplierStore } from '@/stores/supplier'
 import { clientsApi, type Client } from '@/api/clients'
 import { codebooksApi, type Currency } from '@/api/codebooks'
 import { useYearOptions } from '@/composables/useYearOptions'
@@ -24,8 +24,6 @@ import UiInput from '@/components/ui/UiInput.vue'
 const { t, tm, rt } = useI18n()
 const toast = useToast()
 const auth = useAuthStore()
-const supplierStore = useSupplierStore()
-const thanksEnabled = computed(() => supplierStore.currentSupplier?.payment_thanks_enabled ?? false)
 
 useHotkey('ctrl+n', (e) => { e.preventDefault(); router.push('/tri/invoices/new') })
 
@@ -175,33 +173,23 @@ async function bulkMarkPaid() {
     return
   }
   if (!confirm(t('invoice.bulk_mark_paid_confirm', { n: list.length }))) return
-  // Volitelně i poděkování za úhradu (issue #57) — jen pokud má dodavatel funkci zapnutou.
-  const sendThanks = thanksEnabled.value && confirm(t('invoice.bulk_send_thanks_confirm', { n: list.length }))
   const today = new Date().toISOString().slice(0, 10)
   bulkBusy.value = true
   let okCount = 0
-  let thanksSent = 0
-  let thanksFailed = 0
   const errors: string[] = []
   try {
     for (const inv of list) {
       try {
-        const updated = await invoicesApi.markPaid(inv.id, today, sendThanks ? { sendThanks: true, thanksTrigger: 'bulk' } : undefined)
+        await triInvoicesApi.markPaid(inv.id, today)
         okCount++
-        const pt = updated.payment_thanks
-        if (pt?.status === 'sent') thanksSent++
-        else if (pt?.status === 'failed') thanksFailed++
       } catch (e: any) {
         errors.push(`${inv.varsymbol || `#${inv.id}`}: ${e?.response?.data?.error?.message || 'chyba'}`)
       }
     }
     selectedIds.value = []
-    let msg = errors.length
+    const msg = errors.length
       ? t('invoice.bulk_mark_paid_partial', { ok: okCount, err: errors.length })
       : t('invoice.bulk_mark_paid_success', { n: okCount })
-    if (sendThanks) {
-      msg += '\n' + t('invoice.bulk_thanks_summary', { sent: thanksSent, failed: thanksFailed })
-    }
     if (errors.length) {
       toast.warning(msg + '\n' + errors.join('\n'))
     } else {
@@ -226,7 +214,7 @@ async function bulkIssue() {
   try {
     for (const inv of list) {
       try {
-        await invoicesApi.issue(inv.id)
+        await triInvoicesApi.issue(inv.id)
         okCount++
       } catch (e: any) {
         errors.push(`#${inv.id}: ${e?.response?.data?.error?.message || 'chyba'}`)
@@ -257,7 +245,7 @@ async function bulkSend() {
   try {
     for (const inv of list) {
       try {
-        await invoicesApi.send(inv.id)
+        await triInvoicesApi.send(inv.id, {})
         okCount++
       } catch (e: any) {
         errors.push(`${inv.varsymbol || `#${inv.id}`}: ${e?.response?.data?.error?.message || 'chyba'}`)

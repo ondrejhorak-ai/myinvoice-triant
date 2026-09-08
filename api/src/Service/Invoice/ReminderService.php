@@ -15,9 +15,8 @@ use MyInvoice\Service\Validation\InvoiceAmountPolicy;
 
 /**
  * Sdílená logika pro odeslání upomínky — používá:
- *   - SendReminderAction (HTTP single)
- *   - BulkSendRemindersAction (HTTP bulk)
  *   - bin/cron-send-reminders.php (CLI)
+ *   - TRI InvoiceGateway reminder (HTTP)
  *
  * Validace: faktura musí být ve stavu 'issued'/'sent'/'reminded' a po splatnosti.
  * Po úspěchu: status = 'reminded', last_reminder_at = NOW(), reminder_count++.

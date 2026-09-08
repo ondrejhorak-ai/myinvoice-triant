@@ -10,7 +10,7 @@ namespace MyInvoice\Service\Cron;
  * Zdrojem pravdy je {@see CronCatalog} — stejný seznam úloh + frekvencí, jaký
  * ukazuje UI „Systém → Plánované úlohy". Crontab se tak při Docker buildu generuje
  * z katalogu (tools/generateDockerCrontab.php), místo aby se ručně opisoval a časem
- * se rozešel (např. by chyběl cron-backup-documents).
+ * se rozešel (např. by chyběl cron-backup).
  *
  * Každý řádek volá wrapper `/usr/local/bin/myinvoice-cron-run`, který načte runtime
  * ENV (cron je v Debianu nedědí) a spustí PHP skript jako www-data s logem do
