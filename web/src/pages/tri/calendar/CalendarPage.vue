@@ -251,8 +251,8 @@ watch([kind, view, rangeFrom, rangeTo], () => load())
       </template>
     </UiPageHeader>
 
-    <div class="flex flex-wrap items-center gap-2 mb-4">
-      <div class="inline-flex rounded-md border border-neutral-200 p-0.5 bg-surface">
+    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center mb-4">
+      <div class="inline-flex flex-wrap rounded-md border border-neutral-200 p-0.5 bg-surface">
         <button
           v-for="k in KINDS"
           :key="k"
@@ -268,7 +268,7 @@ watch([kind, view, rangeFrom, rangeTo], () => load())
         <button type="button" class="h-9 px-3 text-sm font-semibold rounded-md" :class="view === 'month' ? 'bg-neutral-100' : 'text-neutral-600'" @click="view = 'month'">{{ t('tri.calendar.month') }}</button>
         <button type="button" class="h-9 px-3 text-sm font-semibold rounded-md" :class="view === 'week' ? 'bg-neutral-100' : 'text-neutral-600'" @click="view = 'week'">{{ t('tri.calendar.week') }}</button>
       </div>
-      <div class="flex items-center gap-1 ml-auto">
+      <div class="flex items-center gap-1 sm:ml-auto">
         <UiButton variant="ghost" size="sm" @click="shift(-1)">←</UiButton>
         <UiButton variant="outline" size="sm" @click="cursor = startOfDay(new Date())">{{ t('tri.calendar.today') }}</UiButton>
         <UiButton variant="ghost" size="sm" @click="shift(1)">→</UiButton>
@@ -279,7 +279,7 @@ watch([kind, view, rangeFrom, rangeTo], () => load())
 
     <div class="border border-neutral-200 rounded-lg overflow-hidden bg-surface shadow-xs">
       <div class="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50">
-        <div v-for="n in 7" :key="n" class="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 text-center">
+        <div v-for="n in 7" :key="n" class="px-0.5 sm:px-2 py-2 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 text-center truncate">
           {{ t(`tri.calendar.weekday_${n}`) }}
         </div>
       </div>
@@ -287,8 +287,8 @@ watch([kind, view, rangeFrom, rangeTo], () => load())
         <div
           v-for="day in days"
           :key="day"
-          class="min-h-[6.5rem] border-r border-b border-neutral-100 p-1.5 text-left align-top hover:bg-neutral-50 cursor-pointer"
-          :class="view === 'week' ? 'min-h-[14rem]' : ''"
+          class="min-h-[4.5rem] sm:min-h-[6.5rem] border-r border-b border-neutral-100 p-1 sm:p-1.5 text-left align-top hover:bg-neutral-50 cursor-pointer"
+          :class="view === 'week' ? 'min-h-[10rem] sm:min-h-[14rem]' : ''"
           @click="auth.canWrite ? openCreate(day) : undefined"
         >
           <div class="text-xs tabular-nums mb-1" :class="inMonth(day) ? 'text-neutral-700 font-medium' : 'text-neutral-300'">

@@ -356,7 +356,8 @@ onMounted(() => {
 
 <template>
   <div class="space-y-3">
-    <div class="bg-surface border border-neutral-200 rounded-lg overflow-hidden shadow-xs">
+    <div class="bg-surface border border-neutral-200 rounded-lg overflow-x-auto shadow-xs">
+      <div class="min-w-[732px]">
       <div
         class="grid bg-neutral-50 border-b border-neutral-200 text-[12px] font-semibold uppercase tracking-wide text-neutral-500 select-none"
         :style="{ gridTemplateColumns }"
@@ -708,6 +709,7 @@ onMounted(() => {
           </div>
         </template>
       </draggable>
+      </div>
     </div>
 
     <div class="flex gap-2">

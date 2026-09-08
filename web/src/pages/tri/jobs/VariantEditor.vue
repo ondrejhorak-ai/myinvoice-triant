@@ -775,7 +775,7 @@ onBeforeUnmount(() => {
             <span class="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">{{ t('tri.quote.status_label') }}</span>
             <div
               v-if="auth.canWrite"
-              class="inline-flex h-10 items-center gap-0.5 rounded-md bg-neutral-100 p-1"
+              class="inline-flex h-10 max-w-full flex-wrap items-center gap-0.5 rounded-md bg-neutral-100 p-1"
             >
               <button
                 v-for="s in variantStatusOptions"
@@ -880,8 +880,9 @@ onBeforeUnmount(() => {
     <template v-else>
       <div
         v-if="blocks.length"
-        class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden"
+        class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-x-auto"
       >
+        <div class="min-w-[620px]">
         <!-- Column header -->
         <div
           :class="[gridCols, 'bg-neutral-50 border-b border-neutral-200 px-3 py-2.5 text-[12px] uppercase tracking-wide text-neutral-500']"
@@ -1086,6 +1087,7 @@ onBeforeUnmount(() => {
         </template>
 
         <div v-if="lastBlockIsSection" class="bg-neutral-50 h-6" aria-hidden="true"></div>
+        </div>
       </div>
 
       <div class="flex gap-2">

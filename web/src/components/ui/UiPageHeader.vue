@@ -12,7 +12,7 @@ defineProps<{
       <p v-if="subtitle" class="mt-1 text-sm text-neutral-500">{{ subtitle }}</p>
       <slot name="below" />
     </div>
-    <div v-if="$slots.actions" class="flex shrink-0 items-center gap-3">
+    <div v-if="$slots.actions" class="flex flex-wrap shrink-0 items-center gap-2 sm:gap-3">
       <slot name="actions" />
     </div>
   </div>

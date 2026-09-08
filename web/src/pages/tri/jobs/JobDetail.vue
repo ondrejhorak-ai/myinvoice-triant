@@ -363,48 +363,72 @@ onMounted(() => load())
     </UiCard>
 
     <UiCard>
-      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
+      <div class="px-5 py-3 border-b border-neutral-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="font-semibold text-neutral-900">{{ t('tri.jobs.variants') }}</h3>
-        <UiButton v-if="auth.canWrite" size="sm" @click="addVariant">
+        <UiButton v-if="auth.canWrite" size="sm" class="self-start sm:self-auto" @click="addVariant">
           {{ t('tri.jobs.add_variant') }}
         </UiButton>
       </div>
       <div v-if="!job.variants?.length" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.no_data') }}</div>
       <div v-else>
-        <UiTable>
-          <template #head>
-            <tr>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.jobs.variant') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.jobs.status') }}</th>
-              <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.quote.price_no_vat') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.quote.created_col') }}</th>
-              <th class="px-4 py-2.5"></th>
+        <div class="hidden md:block">
+          <UiTable>
+            <template #head>
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.jobs.variant') }}</th>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.jobs.status') }}</th>
+                <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.quote.price_no_vat') }}</th>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.quote.created_col') }}</th>
+                <th class="px-4 py-2.5"></th>
+              </tr>
+            </template>
+            <tr
+              v-for="v in job.variants"
+              :key="v.id"
+              class="cursor-pointer"
+              @click="openVariant(v.id)"
+            >
+              <td class="px-4 py-3 font-mono">{{ v.number }}</td>
+              <td class="px-4 py-3">
+                <UiBadge :variant="variantBadgeVariant(v.status)">{{ t(`tri.quote.status_${v.status}`) }}</UiBadge>
+              </td>
+              <td class="px-4 py-3 text-right font-mono">{{ formatMoney(Math.round(v.subtotal), 'CZK', 0) }}</td>
+              <td class="px-4 py-3 text-neutral-600">{{ formatDate(v.job_date) }}</td>
+              <td class="px-4 py-3 text-right" @click.stop>
+                <UiButton v-if="auth.canWrite" variant="ghost" size="sm" @click="duplicateVariant(v.id)">
+                  {{ t('tri.jobs.duplicate_variant') }}
+                </UiButton>
+              </td>
             </tr>
-          </template>
-          <tr
+          </UiTable>
+        </div>
+        <div class="md:hidden divide-y divide-neutral-100">
+          <div
             v-for="v in job.variants"
-            :key="v.id"
-            class="cursor-pointer"
+            :key="`m-v-${v.id}`"
+            class="cursor-pointer hover:bg-neutral-50 px-4 py-3"
             @click="openVariant(v.id)"
           >
-            <td class="px-4 py-3 font-mono">{{ v.number }}</td>
-            <td class="px-4 py-3">
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="font-mono font-medium text-neutral-900">{{ v.number }}</span>
+              <span class="font-mono text-sm font-semibold whitespace-nowrap">{{ formatMoney(Math.round(v.subtotal), 'CZK', 0) }}</span>
+            </div>
+            <div class="mt-2 flex items-center justify-between gap-2">
               <UiBadge :variant="variantBadgeVariant(v.status)">{{ t(`tri.quote.status_${v.status}`) }}</UiBadge>
-            </td>
-            <td class="px-4 py-3 text-right font-mono">{{ formatMoney(Math.round(v.subtotal), 'CZK', 0) }}</td>
-            <td class="px-4 py-3 text-neutral-600">{{ formatDate(v.job_date) }}</td>
-            <td class="px-4 py-3 text-right" @click.stop>
-              <UiButton v-if="auth.canWrite" variant="ghost" size="sm" @click="duplicateVariant(v.id)">
+              <span class="text-xs text-neutral-500">{{ formatDate(v.job_date) }}</span>
+            </div>
+            <div v-if="auth.canWrite" class="mt-2" @click.stop>
+              <UiButton variant="ghost" size="sm" @click="duplicateVariant(v.id)">
                 {{ t('tri.jobs.duplicate_variant') }}
               </UiButton>
-            </td>
-          </tr>
-        </UiTable>
+            </div>
+          </div>
+        </div>
       </div>
     </UiCard>
 
     <UiCard>
-      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
+      <div class="px-5 py-3 border-b border-neutral-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="font-semibold text-neutral-900">{{ t('tri.travelers.section_title') }}</h3>
         <div class="flex flex-wrap gap-2">
           <UiButton
@@ -447,41 +471,66 @@ onMounted(() => load())
             </span>
           </div>
         </div>
-        <UiTable>
-          <template #head>
-            <tr>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.number') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.item') }}</th>
-              <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.quantity') }}</th>
-              <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.hours') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.status') }}</th>
+        <div class="hidden md:block">
+          <UiTable>
+            <template #head>
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.number') }}</th>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.item') }}</th>
+                <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.quantity') }}</th>
+                <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.hours') }}</th>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.status') }}</th>
+              </tr>
+            </template>
+            <tr
+              v-for="row in travelers"
+              :key="row.id"
+              class="cursor-pointer"
+              @click="router.push({ name: 'tri-traveler-detail', params: { id: row.id } })"
+            >
+              <td class="px-4 py-3 font-mono">{{ row.number }}</td>
+              <td class="px-4 py-3">
+                <span v-if="row.designation" class="font-mono text-neutral-500 mr-1.5">{{ row.designation }}</span>
+                {{ row.title }}
+              </td>
+              <td class="px-4 py-3 text-right tabular-nums">{{ row.quantity }} {{ row.unit }}</td>
+              <td class="px-4 py-3 text-right tabular-nums font-mono">{{ formatHours(row.hours_total ?? 0) }}</td>
+              <td class="px-4 py-3">
+                <UiBadge :variant="row.status === 'done' ? 'success' : 'primary'">
+                  {{ t(`tri.travelers.status_${row.status}`) }}
+                </UiBadge>
+              </td>
             </tr>
-          </template>
-          <tr
+          </UiTable>
+        </div>
+        <div class="md:hidden divide-y divide-neutral-100">
+          <div
             v-for="row in travelers"
-            :key="row.id"
-            class="cursor-pointer"
+            :key="`m-t-${row.id}`"
+            class="cursor-pointer hover:bg-neutral-50 px-4 py-3"
             @click="router.push({ name: 'tri-traveler-detail', params: { id: row.id } })"
           >
-            <td class="px-4 py-3 font-mono">{{ row.number }}</td>
-            <td class="px-4 py-3">
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="font-mono font-medium text-neutral-900">{{ row.number }}</span>
+              <span class="tabular-nums font-mono text-sm font-semibold">{{ formatHours(row.hours_total ?? 0) }} h</span>
+            </div>
+            <div class="mt-1 text-sm text-neutral-700">
               <span v-if="row.designation" class="font-mono text-neutral-500 mr-1.5">{{ row.designation }}</span>
               {{ row.title }}
-            </td>
-            <td class="px-4 py-3 text-right tabular-nums">{{ row.quantity }} {{ row.unit }}</td>
-            <td class="px-4 py-3 text-right tabular-nums font-mono">{{ formatHours(row.hours_total ?? 0) }}</td>
-            <td class="px-4 py-3">
+            </div>
+            <div class="mt-2 flex items-center justify-between gap-2">
               <UiBadge :variant="row.status === 'done' ? 'success' : 'primary'">
                 {{ t(`tri.travelers.status_${row.status}`) }}
               </UiBadge>
-            </td>
-          </tr>
-        </UiTable>
+              <span class="text-xs text-neutral-500 tabular-nums">{{ row.quantity }} {{ row.unit }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </UiCard>
 
     <UiCard>
-      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
+      <div class="px-5 py-3 border-b border-neutral-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="font-semibold text-neutral-900">{{ t('tri.calendar.upcoming') }}</h3>
         <UiButton variant="outline" size="sm" :to="{ name: 'tri-calendar' }">
           {{ t('tri.calendar.open_calendar') }}
@@ -510,7 +559,7 @@ onMounted(() => load())
     </UiCard>
 
     <UiCard>
-      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
+      <div class="px-5 py-3 border-b border-neutral-200 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="font-semibold text-neutral-900">{{ t('tri.complaints.section_title') }}</h3>
         <div class="flex flex-wrap gap-2">
           <UiButton variant="outline" size="sm" :to="{ name: 'tri-complaints', query: { job_id: String(jobId) } }">
@@ -542,7 +591,7 @@ onMounted(() => load())
     </UiCard>
 
     <UiCard>
-      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-3">
+      <div class="px-5 py-3 border-b border-neutral-200 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <h3 class="font-semibold text-neutral-900">{{ t('tri.invoices.section_title') }}</h3>
         <div v-if="auth.canWrite" class="flex flex-wrap gap-2">
           <UiButton
@@ -605,35 +654,59 @@ onMounted(() => load())
       <div v-if="invoicesLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
       <div v-else-if="jobInvoices.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.invoices.no_invoices') }}</div>
       <div v-else>
-        <UiTable>
-          <template #head>
-            <tr>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.varsymbol') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.type') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.status_label') }}</th>
-              <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.totals.total') }}</th>
-              <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.amount_to_pay') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.issue_date') }}</th>
+        <div class="hidden md:block">
+          <UiTable>
+            <template #head>
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.varsymbol') }}</th>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.type') }}</th>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.status_label') }}</th>
+                <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.totals.total') }}</th>
+                <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.amount_to_pay') }}</th>
+                <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.issue_date') }}</th>
+              </tr>
+            </template>
+            <tr
+              v-for="inv in jobInvoices"
+              :key="inv.id"
+              class="cursor-pointer"
+              @click="openInvoice(inv)"
+            >
+              <td class="px-4 py-3 font-mono">{{ inv.varsymbol ?? '—' }}</td>
+              <td class="px-4 py-3 text-neutral-600">{{ typeLabel(inv.invoice_type) }}</td>
+              <td class="px-4 py-3">
+                <span class="text-xs px-2 py-0.5 rounded" :class="statusBadgeClass(inv.status)">
+                  {{ statusLabel(inv.status) }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-right font-mono">{{ formatMoney(inv.total_with_vat, 'CZK') }}</td>
+              <td class="px-4 py-3 text-right font-mono">{{ formatMoney(inv.amount_to_pay, 'CZK') }}</td>
+              <td class="px-4 py-3 text-neutral-600">{{ formatDate(inv.issue_date) }}</td>
             </tr>
-          </template>
-          <tr
+          </UiTable>
+        </div>
+        <div class="md:hidden divide-y divide-neutral-100">
+          <div
             v-for="inv in jobInvoices"
-            :key="inv.id"
-            class="cursor-pointer"
+            :key="`m-inv-${inv.id}`"
+            class="cursor-pointer hover:bg-neutral-50 px-4 py-3"
             @click="openInvoice(inv)"
           >
-            <td class="px-4 py-3 font-mono">{{ inv.varsymbol ?? '—' }}</td>
-            <td class="px-4 py-3 text-neutral-600">{{ typeLabel(inv.invoice_type) }}</td>
-            <td class="px-4 py-3">
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="font-mono font-medium text-neutral-900">{{ inv.varsymbol ?? `#${inv.id}` }}</span>
+              <span class="font-mono text-sm font-semibold whitespace-nowrap">{{ formatMoney(inv.amount_to_pay, 'CZK') }}</span>
+            </div>
+            <div class="mt-1 flex items-baseline justify-between gap-2 text-xs text-neutral-500">
+              <span>{{ typeLabel(inv.invoice_type) }}</span>
+              <span>{{ formatDate(inv.issue_date) }}</span>
+            </div>
+            <div class="mt-2">
               <span class="text-xs px-2 py-0.5 rounded" :class="statusBadgeClass(inv.status)">
                 {{ statusLabel(inv.status) }}
               </span>
-            </td>
-            <td class="px-4 py-3 text-right font-mono">{{ formatMoney(inv.total_with_vat, 'CZK') }}</td>
-            <td class="px-4 py-3 text-right font-mono">{{ formatMoney(inv.amount_to_pay, 'CZK') }}</td>
-            <td class="px-4 py-3 text-neutral-600">{{ formatDate(inv.issue_date) }}</td>
-          </tr>
-        </UiTable>
+            </div>
+          </div>
+        </div>
       </div>
     </UiCard>
     </div>

@@ -485,10 +485,10 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
           v-model="search"
           type="search"
           size="sm"
-          class="flex-1 min-w-48"
+          class="flex-1 min-w-0 w-full sm:min-w-48"
           :placeholder="t('invoice.search_placeholder')"
         />
-        <select v-model="statusFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
+        <select v-model="statusFilter" class="h-9 w-full sm:w-auto px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
           <option value="">{{ t('invoice.all_statuses') }}</option>
           <option value="draft">{{ t('status.draft') }}</option>
           <option value="issued">{{ t('status.issued') }}</option>
@@ -497,13 +497,13 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
           <option value="paid">{{ t('status.paid') }}</option>
           <option value="cancelled">{{ t('status.cancelled') }}</option>
         </select>
-        <select v-model="typeFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
+        <select v-model="typeFilter" class="h-9 w-full sm:w-auto px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
           <option value="">{{ t('invoice.all_types') }}</option>
           <option value="invoice">{{ t('type.invoice') }}</option>
           <option value="proforma">{{ t('type.proforma') }}</option>
           <option value="credit_note">{{ t('type.credit_note') }}</option>
         </select>
-        <div class="min-w-48 flex-1 max-w-xs">
+        <div class="min-w-0 w-full sm:min-w-48 flex-1 max-w-full sm:max-w-xs">
           <SearchableSelect
             :model-value="clientFilter === '' ? null : clientFilter"
             @update:model-value="(v) => clientFilter = v === null ? '' : v"
@@ -511,7 +511,7 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
             :placeholder="t('project.all_clients')"
           />
         </div>
-        <div class="min-w-48 flex-1 max-w-xs">
+        <div class="min-w-0 w-full sm:min-w-48 flex-1 max-w-full sm:max-w-xs">
           <SearchableSelect
             :model-value="jobFilter === '' ? null : jobFilter"
             @update:model-value="(v) => jobFilter = v === null ? '' : v"
@@ -519,25 +519,25 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
             :placeholder="t('tri.invoices.job_label')"
           />
         </div>
-        <select v-model="currencyFilter" class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
+        <select v-model="currencyFilter" class="h-9 w-full sm:w-auto px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring">
           <option value="">{{ t('invoice.all_currencies') }}</option>
           <option v-for="c in currencies" :key="c.id" :value="c.code">{{ c.code }}</option>
         </select>
         <select v-model="yearFilter" :disabled="!!dateFrom || !!dateTo"
-          class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring disabled:opacity-50">
+          class="h-9 w-full sm:w-auto px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring disabled:opacity-50">
           <option value="">{{ t('invoice.all_years') }}</option>
           <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
         </select>
         <select v-model="monthFilter" :disabled="!!dateFrom || !!dateTo || yearFilter === ''"
-          class="h-9 px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring disabled:opacity-50"
+          class="h-9 w-full sm:w-auto px-3 border border-neutral-300 rounded-md bg-surface text-sm shadow-xs outline-none focus-ring disabled:opacity-50"
           :title="t('invoice.month_filter')">
           <option :value="''">{{ t('invoice.all_months') }}</option>
           <option v-for="(label, i) in monthOptions" :key="i + 1" :value="i + 1">{{ label }}</option>
         </select>
         <input v-model="dateFrom" type="date" placeholder="Od"
-          class="h-9 px-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring" title="Datum od" />
+          class="h-9 w-full sm:w-auto px-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring" title="Datum od" />
         <input v-model="dateTo" type="date" placeholder="Do"
-          class="h-9 px-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring" title="Datum do" />
+          class="h-9 w-full sm:w-auto px-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring" title="Datum do" />
         <UiButton v-if="dateFrom || dateTo" variant="ghost" size="sm" @click="dateFrom = ''; dateTo = ''">{{ t('invoice.clear_date_filter') }}</UiButton>
         <label class="flex items-center gap-1.5 text-sm text-neutral-700 px-2">
           <input v-model="overdueOnly" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
@@ -547,7 +547,7 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
           <input v-model="unpaidOnly" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
           {{ t('invoice.unpaid_only') }}
         </label>
-        <UiButton variant="outline" size="sm" class="ml-auto" @click="exportCsv">
+        <UiButton variant="outline" size="sm" class="w-full sm:w-auto sm:ml-auto" @click="exportCsv">
           {{ t('invoice.csv_export') }}
         </UiButton>
       </div>
@@ -589,14 +589,14 @@ const monthOptions = computed(() => (tm('common.months_short') as unknown as str
             <thead class="bg-neutral-50 text-neutral-500 text-[12px] uppercase tracking-wide">
               <tr>
                 <th class="px-2 py-2 w-10"></th>
-                <th class="text-left px-4 py-2 font-medium w-32">Var. symbol</th>
+                <th class="text-left px-4 py-2 font-medium w-32">{{ t('invoice.varsymbol') }}</th>
                 <th class="text-left px-4 py-2 font-medium">{{ t('invoice.client_project') }}</th>
                 <th class="text-left px-4 py-2 font-medium">{{ t('tri.invoices.job_label') }}</th>
-                <th class="text-center px-4 py-2 font-medium">Typ</th>
-                <th class="text-center px-4 py-2 font-medium">DUZP / Vystaveno</th>
-                <th class="text-center px-4 py-2 font-medium">Splatnost</th>
+                <th class="text-center px-4 py-2 font-medium">{{ t('invoice.type') }}</th>
+                <th class="text-center px-4 py-2 font-medium">{{ t('invoice.issue_date') }}</th>
+                <th class="text-center px-4 py-2 font-medium">{{ t('invoice.due_date') }}</th>
                 <th class="text-right px-4 py-2 font-medium">{{ t('invoice.amount_to_pay') }}</th>
-                <th class="text-center px-4 py-2 font-medium">Stav</th>
+                <th class="text-center px-4 py-2 font-medium">{{ t('invoice.status_label') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-neutral-100">

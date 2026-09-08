@@ -74,7 +74,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [-] **G4 — Restyle zbývajících core stránek** — ZRUŠENO: tyto stránky (banka, výkazy, recurring, nákupy…) se v sekci K mažou.
 - [-] **G5 — PDF nabídky:** neměnit. Je zdroj brand barev (`#0B4F7C`, `#EAF1F5`, `#F59B00`).
 - [-] **G6 — PDF faktury polish** — ZRUŠENO: PDF faktur generuje MyÚčto.
-- [ ] **G7 — Mobile pass:** karty/tabulky TRI agend na malých šířkách. (Polish, až po R1.)
+- [x] **G7 — Mobile pass:** karty/tabulky TRI agend na malých šířkách. (Polish, až po R1.)
 - [ ] **G8 — Empty states + loading skeletony** TRI agend. (Polish, až po R1.)
 - [ ] **G9 — Dark mode pass** TRI agend. (Polish, až po R1.)
 - [x] **G10 — JobDetail tabulka faktur ukazuje holé klíče `INVOICE.COL_*`.** Hlavička neprochází `t()`. Polish po R1.
@@ -204,4 +204,5 @@ Jedna oblast na tick: smazat routy + Action + Service/Repository jen dané agend
 - **2026-09-08 I11** — Mirror po `mark-paid` / list-sync zahazoval Zaplaceno → konečná bez zálohy. Fix: GET detail po mark/unmark; při local paid + remote unpaid re-GET; `paidAdvancesTotal` i přes `paid_at`/`paid_total`; force write paid při stejném `updated_at`; command key final `:adv:{amount}`. Commits `4606f758`, `0d554f34`. Replay S5 → konečná **148** (odečet 26 767,62). Zbytek koncept **147** bez zálohy ponechán.
 - **2026-09-08 R1** — Replay S1–S10 nová data: Břízová (43) / **260007** záloha **92609003**/144 + konečná **148**; Jeřábová (44) / **260008** ceník Korpusy R1, průvodky K30/D30 (3,5 h), kalendář+reklamace; S9 ulice Údolní 18 (MyÚčto OK) + FO Dubský (46) + job **260009** `customer_client_id`=43; S10 Topolová (47) / **260010** záloha 149 → konečná **152** k úhradě 4 101,90. Branding Triant office; `/invoices`→`/tri/invoices`, `/clients`→`/tri/contacts`; storno 404; send e-mail ohlásí `pdf_failed` (mpdf cache). Po I11 bez dalšího zásahu do kódu. Další: Polish G7–G10.
 - **2026-09-08 G10** — JobDetail faktury: hlavičky `invoice.col_*` (chybějící klíče) → existující `invoice.varsymbol` / `type` / `status_label` / `totals.total` / `amount_to_pay` / `issue_date`. Deploy OK.
+- **2026-09-08 G7** — Mobile pass: JobDetail karty (varianty/průvodky/faktury) + skládané hlavičky sekcí; UiPageHeader `flex-wrap`; InvoiceList filtry `min-w-0` + i18n hlaviček; kalendář toolbar/buňky; VariantEditor/NotionTable `overflow-x-auto`. Bez nových funkcí. Deploy OK.
 
