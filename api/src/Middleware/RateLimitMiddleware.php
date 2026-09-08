@@ -188,7 +188,6 @@ final class RateLimitMiddleware implements MiddlewareInterface
         // při kompromitované admin session). Sliding window 5 min / per user.
         if ($userId > 0 && $method === 'POST' && in_array($path, [
             '/api/admin/imports/ai-extract-pdf',
-            '/api/purchase-invoices/scan-inbox',
         ], true)) {
             return ['rl:ai:user:' . $userId, (int) ($rl['ai_per_5min_per_user'] ?? 30), 300];
         }

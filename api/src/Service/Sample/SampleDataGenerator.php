@@ -9,11 +9,11 @@ use PDO;
 
 /**
  * Generuje testovací sample data — 5 klientů, 8 zakázek, 20 faktur, 4 dobropisy,
- * 4 dodavatelé, 12 přijatých faktur.
+ * 4 dodavatelé, 0 přijatých faktur.
  * Sdílená logika pro `bin/sample.php` (CLI) i `SetupSampleAction` (HTTP wizard).
  *
  * Vrací: ['clients' => 5, 'projects' => 8, 'invoices' => 20, 'credit_notes' => 4,
- *         'vendors' => 4, 'purchase_invoices' => 12, 'recurring' => 0,
+ *         'vendors' => 4, 'purchase_invoices' => 0, 'recurring' => 0,
  *         'cars' => 0, 'trips' => 0, 'fuelings' => 0]
  */
 final class SampleDataGenerator
@@ -333,102 +333,7 @@ final class SampleDataGenerator
             ];
         }
 
-        // ───── Přijaté faktury (12 ks rozprostřených přes posledních 6 měsíců) ─────
         $purchaseCount = 0;
-        for ($i = 0; $i < 12; $i++) {
-            $monthsBack = (int) floor($i / 2);
-            $issueDt = $today->modify("-{$monthsBack} months")->modify('-' . ($i * 2) . ' days');
-            if ($issueDt > $today) $issueDt = $today->modify('-1 day');
-            $issueDate = $issueDt->format('Y-m-d');
-            $taxDate   = $issueDate;
-            $dueDate   = $issueDt->modify('+14 days')->format('Y-m-d');
-            $receivedAt = $issueDt->modify('+2 days')->format('Y-m-d');
-
-            $v = $vendorMeta[$i % count($vendorMeta)];
-            $period = $issueDt->format('Ym');
-            $vs = $this->nextPurchaseVarsymbol($pdo, $supplierId, $period);
-
-            // Status: starší jsou paid, novější booked/received
-            $status = match (true) {
-                $monthsBack >= 3 => 'paid',
-                $monthsBack >= 1 => 'booked',
-                default          => 'received',
-            };
-            $bookedAt = in_array($status, ['booked', 'paid'], true) ? $issueDate . ' 14:00:00' : null;
-            $paidAt   = $status === 'paid' ? $issueDt->modify('+' . random_int(3, 12) . ' days')->format('Y-m-d') : null;
-
-            $vendorInvoiceNumber = sprintf('INV-%s-%04d', substr($period, 2), $i + 100);
-            $vendorSnapshot = json_encode([
-                'company_name' => $v['company'],
-                'ic' => $v['ic'], 'dic' => $v['dic'],
-                'street' => $v['street'], 'city' => $v['city'], 'zip' => $v['zip'],
-                'country_iso2' => $v['iso2'],
-            ], JSON_UNESCAPED_UNICODE);
-
-            $exchangeRate = $v['currency'] === 'CZK' ? null : 25.0;
-            $pool = $vendorItemPools[$v['company']];
-            $isRc = $pool['rc'];
-
-            $stmt = $pdo->prepare(
-                'INSERT INTO purchase_invoices
-                    (supplier_id, vendor_id, varsymbol, vendor_invoice_number, document_kind,
-                     issue_date, tax_date, due_date, received_at, currency_id, exchange_rate, exchange_rate_date,
-                     exchange_rate_source, reverse_charge, language, vendor_snapshot, vat_classification_code,
-                     total_without_vat, total_vat, total_with_vat, status, booked_at, paid_at, created_by)
-                 VALUES (?, ?, ?, ?, "invoice", ?, ?, ?, ?, ?, ?, ?, "cnb", ?, "cs", ?, ?, 0, 0, 0, ?, ?, ?, ?)'
-            );
-            $stmt->execute([
-                $supplierId, $v['id'], $vs, $vendorInvoiceNumber,
-                $issueDate, $taxDate, $dueDate, $receivedAt,
-                $v['currency_id'], $exchangeRate, $exchangeRate !== null ? $issueDate : null,
-                $isRc ? 1 : 0,
-                $vendorSnapshot,
-                $isRc ? '24' : null, // dovoz služby (ř.12 + mirror ř.43); tuzemsko per položka
-                $status, $bookedAt, $paidAt, $adminUserId,
-            ]);
-            $piId = (int) $pdo->lastInsertId();
-            $track('purchase_invoice', $piId);
-
-            // 1-3 položky z vendor poolu (popis + sazba + klasifikace k sobě patří)
-            $itemCount = random_int(1, min(3, count($pool['items'])));
-            $totalBase = 0; $totalVat = 0;
-            for ($k = 0; $k < $itemCount; $k++) {
-                [$description, $ratePct, $clsCode] = $pool['items'][($i + $k) % count($pool['items'])];
-                $qty  = random_int(1, 5);
-                $rate = $v['currency'] === 'CZK' ? random_int(500, 5000) : random_int(20, 200);
-                $base = $qty * $rate;
-                // RC: nominální sazba zůstává, daň 0 (samovyměří se až ve výkazech)
-                $vatAmt = $isRc ? 0.0 : round($base * $ratePct / 100, 2);
-                $totalBase += $base; $totalVat += $vatAmt;
-                $pdo->prepare(
-                    'INSERT INTO purchase_invoice_items
-                        (purchase_invoice_id, description, quantity, unit, unit_price_without_vat,
-                         vat_rate_id, vat_rate_snapshot, total_without_vat, total_vat, total_with_vat,
-                         vat_classification_code, order_index)
-                     VALUES (?,?,?,"ks",?,?,?,?,?,?,?,?)'
-                )->execute([
-                    $piId, $description, $qty, $rate,
-                    $ratePct >= 21 ? $stdVat : $lowVat, $ratePct,
-                    $base, $vatAmt, $base + $vatAmt, $clsCode, $k,
-                ]);
-            }
-            $totalWithVat = $totalBase + $totalVat;
-            $pdo->prepare(
-                'UPDATE purchase_invoices SET total_without_vat = ?, total_vat = ?, total_with_vat = ? WHERE id = ?'
-            )->execute([$totalBase, $totalVat, $totalWithVat, $piId]);
-            $purchaseCount++;
-        }
-
-        // Zapiš evidenci sample entit — řídí „Odebrat ukázková data" (přesné smazání)
-        // i zobrazení tlačítka v UI (issue #162).
-        if ($tracked !== []) {
-            $ins = $pdo->prepare(
-                'INSERT INTO sample_data_entries (supplier_id, entity_type, entity_id) VALUES (?, ?, ?)'
-            );
-            foreach ($tracked as [$type, $id]) {
-                $ins->execute([$supplierId, $type, $id]);
-            }
-        }
 
         $pdo->commit();
         } catch (\Throwable $e) {

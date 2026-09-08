@@ -54,8 +54,8 @@ final class SecurityHardening202606Test extends TestCase
         // Cílíme na array-element tvar (s čárkou), ne na zmínku v komentáři.
         self::assertStringNotContainsString("'GET *',", $code,
             'RoleMiddleware už nesmí mít blanket GET * pravidlo (čtecí autorizace musí být explicitní)');
-        self::assertStringContainsString('#^/api/purchase-invoices(/|$)#', $code,
-            'Accountant musí mít plnou CRUD na purchase-invoices');
+        self::assertStringContainsString('#^/api/invoices(/|$)#', $code,
+            'Accountant musí mít plnou CRUD na invoices');
     }
 
     // ---- NX-P2-2 — approval atomicity + rate-limit ----------------------------
@@ -128,9 +128,9 @@ final class SecurityHardening202606Test extends TestCase
 
     public function testPurchasePdfDedupScopedBySupplier(): void
     {
-        $code = $this->src('Action/PurchaseInvoice/DeletePurchaseInvoicePdfAction.php');
-        self::assertStringContainsString('pdf_hash = ? AND supplier_id = ? AND id != ?', $code,
-            'Dedup check musí být scope-ovaný na supplier_id');
+        $code = $this->src('Repository/PurchaseInvoiceRepository.php');
+        self::assertStringContainsString('supplier_id = ? AND pdf_hash = ?', $code,
+            'PDF hash lookup musí být scope-ovaný na supplier_id');
     }
 
     public function testAddLinkValidatesEntityOwnership(): void

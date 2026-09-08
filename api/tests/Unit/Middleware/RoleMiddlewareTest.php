@@ -117,7 +117,7 @@ final class RoleMiddlewareTest extends TestCase
         foreach ([
             '/api/clients', '/api/clients/5', '/api/projects', '/api/invoices',
             '/api/tri/jobs', '/api/tri/contacts',
-            '/api/invoices/5/pdf', '/api/purchase-invoices', '/api/purchase-invoices/5/our-pdf',
+            '/api/invoices/5/pdf',
             '/api/documents', '/api/documents/5/download', '/api/document-folders',
             '/api/suppliers', '/api/search',
             '/api/codebooks/currencies',
@@ -227,35 +227,6 @@ final class RoleMiddlewareTest extends TestCase
         }
     }
 
-    /**
-     * Oprava funkční mezery: účetní smí plnou CRUD na přijatých fakturách.
-     */
-    public function testAccountantCanMutatePurchaseInvoices(): void
-    {
-        foreach ([
-            ['POST', '/api/purchase-invoices'],
-            ['PUT', '/api/purchase-invoices/5'],
-            ['PUT', '/api/purchase-invoices/5/items'],
-            ['POST', '/api/purchase-invoices/5/transition'],
-            ['POST', '/api/purchase-invoices/5/pdf'],
-            ['DELETE', '/api/purchase-invoices/5'],
-        ] as [$method, $path]) {
-            $response = $this->middleware()->process(
-                $this->request($method, $path, 'accountant'),
-                $this->okHandler(),
-            );
-            self::assertSame(204, $response->getStatusCode(), "accountant $method $path");
-        }
-    }
-
-    public function testReadonlyCannotMutatePurchaseInvoices(): void
-    {
-        $response = $this->middleware()->process(
-            $this->request('POST', '/api/purchase-invoices', 'readonly'),
-            $this->okHandler(),
-        );
-        self::assertSame(403, $response->getStatusCode());
-    }
 
     public function testAccountantCanReadImportJobStatusAndSigningSettings(): void
     {

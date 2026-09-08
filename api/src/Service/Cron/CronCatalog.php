@@ -71,16 +71,6 @@ final class CronCatalog
                 'critical' => false,
             ],
             [
-                'script' => 'cron-scan-purchase-inbox',
-                'recommended' => 'every_10_min',
-                'linux_cron' => '*/10 * * * *',
-                'windows_schtasks' => '/sc minute /mo 10',
-                'max_age_hours' => 2,
-                'weekdays_only' => false,
-                'critical' => false,
-                'requires_config' => 'purchase_invoice.inbox_dir',
-            ],
-            [
                 'script' => 'cron-send-reminders',
                 'recommended' => 'weekdays_0900',
                 'linux_cron' => '0 9 * * 1-5',

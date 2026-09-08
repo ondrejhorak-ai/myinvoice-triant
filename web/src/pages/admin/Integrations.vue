@@ -4,10 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { integrationsApi,
   type IdokladCredentialsStatus, type FakturoidCredentialsStatus,
   type AnthropicCredentialsStatus, type AiExtractResult, type ImportJob } from '@/api/integrations'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import { apiErrorMessage } from '@/api/errors'
-import { purchaseInvoicesApi, type PurchaseDocumentKind } from '@/api/purchaseInvoices'
 import { useSessionAwarePolling } from '@/composables/useSessionAwarePolling'
 
 const { t } = useI18n()
@@ -267,7 +266,6 @@ async function startFakImport() {
 }
 
 // ── Anthropic AI ─────────────────────────────────────────────────────
-const router = useRouter()
 const aiStatus = ref<AnthropicCredentialsStatus | null>(null)
 const aiApiKey = ref('')
 const aiModel = ref('claude-haiku-4-5')
@@ -378,7 +376,6 @@ const aiBatchRunning = ref(false)
 // Identifikátor dávky (#232) — protáhne se do každého importu, ať jde celá dávka
 // po dokončení dohledat/filtrovat v seznamu přijatých faktur.
 const aiBatchId = ref('')
-const kindBusyIdx = ref<number | null>(null)
 
 function newBatchId(): string {
   const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
@@ -417,29 +414,6 @@ const batchOkCount = computed(() => aiBatchQueue.value.filter(x => x.status === 
 const batchFailedCount = computed(() => aiBatchQueue.value.filter(x => x.status === 'failed').length)
 const batchDone = computed(() =>
   aiBatchQueue.value.length > 0 && aiBatchQueue.value.every(x => x.status === 'ok' || x.status === 'failed'))
-
-// Inline oprava typu dokladu přímo v přehledu dávky (#232) — AI účtenku klasifikuje
-// jako „Doklad o úhradě" (receipt), účetní ji přehodí na „Faktura" bez otevírání detailu.
-async function changeBatchItemKind(item: BatchItem, idx: number, kind: PurchaseDocumentKind) {
-  const id = item.result?.purchase_invoice_id
-  if (!id) return
-  kindBusyIdx.value = idx
-  try {
-    await purchaseInvoicesApi.setDocumentKind(id, kind)
-    item.result.document_kind = kind
-    toast.success(t('integrations.ai.kind_changed'))
-  } catch (e) {
-    toast.error(apiErrorMessage(e))
-  } finally {
-    kindBusyIdx.value = null
-  }
-}
-
-// Otevřít celou dávku v seznamu přijatých faktur (předfiltrováno na tuto dávku).
-function openBatchInList() {
-  if (!aiBatchId.value) return
-  router.push({ path: '/purchase-invoices', query: { import_batch: aiBatchId.value } })
-}
 
 function clearBatch() {
   aiBatchQueue.value = []
@@ -481,10 +455,6 @@ async function runAiExtract() {
   } finally {
     aiExtracting.value = false
   }
-}
-
-function gotoInvoice(id: number) {
-  router.push(`/purchase-invoices/${id}`)
 }
 
 onMounted(() => {
@@ -1069,26 +1039,15 @@ onMounted(() => {
                     <template v-else>—</template>
                   </td>
                   <td class="px-2 py-1.5">
-                    <select v-if="item.status === 'ok' && item.result?.purchase_invoice_id && item.result?.document_kind !== 'advance'"
-                      :value="item.result.document_kind"
-                      :disabled="kindBusyIdx === idx"
-                      @change="changeBatchItemKind(item, idx, ($event.target as HTMLSelectElement).value as PurchaseDocumentKind)"
-                      class="h-7 px-1.5 border border-neutral-300 rounded bg-surface text-[11px] disabled:opacity-50">
-                      <option value="invoice">{{ t('purchase_invoice.document_kind.invoice') }}</option>
-                      <option value="receipt">{{ t('purchase_invoice.document_kind.receipt') }}</option>
-                      <option value="credit_note">{{ t('purchase_invoice.document_kind.credit_note') }}</option>
-                    </select>
-                    <span v-else-if="item.result?.document_kind === 'advance'" class="text-[11px] text-neutral-500">
-                      {{ t('purchase_invoice.document_kind.advance') }}
+                    <span v-if="item.result?.document_kind" class="text-[11px] text-neutral-500">
+                      {{ item.result.document_kind }}
                     </span>
                     <span v-else class="text-neutral-300">—</span>
                   </td>
                   <td class="px-2 py-1.5 text-right">
-                    <RouterLink v-if="item.status === 'ok' && item.result?.purchase_invoice_id"
-                      :to="`/purchase-invoices/${item.result.purchase_invoice_id}`"
-                      class="text-primary-600 hover:underline whitespace-nowrap">
-                      {{ t('integrations.ai.open') }} #{{ item.result.purchase_invoice_id }}
-                    </RouterLink>
+                    <span v-if="item.status === 'ok'" class="text-neutral-500 whitespace-nowrap">
+                      #{{ item.result?.purchase_invoice_id || '—' }}
+                    </span>
                     <span v-else-if="item.status === 'failed'" class="text-danger-500 text-[11px]" :title="item.result?.error || item.result?.error?.message || ''">
                       {{ t('integrations.ai.failed_short') }}
                     </span>
@@ -1103,14 +1062,10 @@ onMounted(() => {
           </button>
 
           <!-- Souhrn dokončené dávky + proklik na celou dávku v seznamu přijatých -->
-          <div v-if="batchDone" class="mt-3 flex items-center justify-between gap-2 flex-wrap rounded-md bg-success-50 border border-success-500/40 px-3 py-2">
+          <div v-if="batchDone" class="mt-3 rounded-md bg-success-50 border border-success-500/40 px-3 py-2">
             <span class="text-sm text-success-700">
               ✓ {{ t('integrations.ai.batch_summary', { ok: batchOkCount, failed: batchFailedCount }) }}
             </span>
-            <button type="button" @click="openBatchInList"
-                    class="cursor-pointer text-sm font-medium text-primary-700 hover:text-primary-800 underline">
-              {{ t('integrations.ai.show_in_list') }}
-            </button>
           </div>
 
           <p class="text-xs text-neutral-500 mt-2">
@@ -1121,10 +1076,6 @@ onMounted(() => {
         <div v-if="aiResult" class="mt-4 pt-4 border-t border-neutral-100">
           <div v-if="aiResult.ok" class="rounded-md bg-success-50 border border-success-500/40 px-3 py-2 text-sm text-success-600">
             <strong>✓ {{ t('integrations.ai.extracted_via', { source: aiResult.source }) }}</strong>
-            <button v-if="aiResult.purchase_invoice_id" type="button" @click="gotoInvoice(aiResult.purchase_invoice_id!)"
-                    class="ml-3 cursor-pointer underline hover:text-success-700">
-              {{ t('integrations.ai.go_to_invoice') }} #{{ aiResult.purchase_invoice_id }}
-            </button>
             <div v-if="aiResult.usage" class="text-xs mt-1 font-mono">
               Tokens: in={{ aiResult.usage.input_tokens }}, out={{ aiResult.usage.output_tokens }}
               <span v-if="aiResult.model" class="ml-2">· {{ aiResult.model }}</span>

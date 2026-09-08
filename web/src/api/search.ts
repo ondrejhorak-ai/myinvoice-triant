@@ -19,26 +19,13 @@ export interface SearchInvoice {
   company_name: string
 }
 
-export interface SearchPurchaseInvoice {
-  id: number
-  varsymbol: string | null
-  vendor_invoice_number: string | null
-  document_kind: string | null
-  status: string
-  issue_date: string | null
-  total_with_vat: number
-  currency: string
-  company_name: string
-}
-
 export interface SearchResults {
   q: string
   clients: SearchClient[]
   invoices: SearchInvoice[]
-  purchase_invoices: SearchPurchaseInvoice[]
 }
 
 export const searchApi = {
-  /** Globální vyhledávání — klienti/dodavatelé + vydané/přijaté faktury (dle čísla dokladu). */
+  /** Globální vyhledávání — klienti/dodavatelé + vydané faktury (dle čísla dokladu). */
   query: (q: string) => api.get<SearchResults>('/search', { params: { q } }).then(r => r.data),
 }

@@ -69,33 +69,6 @@ use MyInvoice\Action\Invoice\DeletePaymentAction;
 use MyInvoice\Action\Invoice\CreatePaymentTaxDocumentAction;
 use MyInvoice\Action\Invoice\BulkReissueAction;
 use MyInvoice\Action\Invoice\CloneInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\AdvanceCandidatesAction;
-use MyInvoice\Action\PurchaseInvoice\SettlementCandidatesAction;
-use MyInvoice\Action\PurchaseInvoice\CreatePurchaseInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\DeletePurchaseInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\DeletePurchaseInvoicePdfAction;
-use MyInvoice\Action\PurchaseInvoice\DismissAdvanceSuggestionAction;
-use MyInvoice\Action\PurchaseInvoice\DismissExtractionWarningAction;
-use MyInvoice\Action\PurchaseInvoice\LinkAdvancePurchaseInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\UnlinkAdvancePurchaseInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\DownloadPurchaseInvoicePdfAction;
-use MyInvoice\Action\PurchaseInvoice\DownloadPurchaseInvoiceSourceAction;
-use MyInvoice\Action\PurchaseInvoice\OurPdfPurchaseInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\ExportPurchaseInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\ExportPurchaseInvoicesAction;
-use MyInvoice\Action\PurchaseInvoice\GetPurchaseInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\PaymentQrAction;
-use MyInvoice\Action\PurchaseInvoice\PaymentOrderAction;
-use MyInvoice\Action\PurchaseInvoice\ListPurchaseInvoicesAction;
-use MyInvoice\Action\PurchaseInvoice\PurchaseInvoiceImportBatchesAction;
-use MyInvoice\Action\PurchaseInvoice\SetPurchaseInvoiceDocumentKindAction;
-use MyInvoice\Action\PurchaseInvoice\PurchaseInvoiceActivityAction;
-use MyInvoice\Action\PurchaseInvoice\ScanInboxAction;
-use MyInvoice\Action\PurchaseInvoice\SetPurchaseInvoiceExchangeRateAction;
-use MyInvoice\Action\PurchaseInvoice\SetPurchaseInvoiceItemsAction;
-use MyInvoice\Action\PurchaseInvoice\TransitionPurchaseInvoiceStatusAction;
-use MyInvoice\Action\PurchaseInvoice\UpdatePurchaseInvoiceAction;
-use MyInvoice\Action\PurchaseInvoice\UploadPurchaseInvoicePdfAction;
 use MyInvoice\Action\PriceList\PriceListItemAction;
 use MyInvoice\Action\Invoice\IssueFinalFromProformaAction;
 use MyInvoice\Action\Invoice\AdvanceCandidatesAction as InvoiceAdvanceCandidatesAction;
@@ -355,53 +328,6 @@ final class Routes
         $app->get    ('/api/documents/{entity_type:invoice|work_report}/{id:[0-9]+}/signature-selection', [SignatureDocumentSelectionAction::class, 'get']);
         $app->put    ('/api/documents/{entity_type:invoice|work_report}/{id:[0-9]+}/signature-selection', [SignatureDocumentSelectionAction::class, 'put']);
         $app->delete ('/api/documents/{entity_type:invoice|work_report}/{id:[0-9]+}/signature-selection', [SignatureDocumentSelectionAction::class, 'delete']);
-
-        // Přijaté faktury (purchase invoices) — fáze 1 integrace forku.
-        // Všechny chráněné AuthMiddleware + SupplierScopeMiddleware (skrz globální group).
-        // scan-inbox je admin/accountant only (check v Action).
-        $app->post   ('/api/purchase-invoices/scan-inbox',                ScanInboxAction::class);
-        $app->get    ('/api/purchase-invoices/export',                     ExportPurchaseInvoicesAction::class);
-        $app->get    ('/api/purchase-invoices/import-batches',             PurchaseInvoiceImportBatchesAction::class);
-        $app->get    ('/api/purchase-invoices',                           ListPurchaseInvoicesAction::class);
-        $app->post   ('/api/purchase-invoices',                           CreatePurchaseInvoiceAction::class);
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}',                GetPurchaseInvoiceAction::class);
-        $app->put    ('/api/purchase-invoices/{id:[0-9]+}',                UpdatePurchaseInvoiceAction::class);
-        $app->delete ('/api/purchase-invoices/{id:[0-9]+}',                DeletePurchaseInvoiceAction::class);
-        $app->put    ('/api/purchase-invoices/{id:[0-9]+}/items',          SetPurchaseInvoiceItemsAction::class);
-        $app->post   ('/api/purchase-invoices/{id:[0-9]+}/exchange-rate', SetPurchaseInvoiceExchangeRateAction::class);
-        $app->post   ('/api/purchase-invoices/{id:[0-9]+}/transition',     TransitionPurchaseInvoiceStatusAction::class);
-        $app->post   ('/api/purchase-invoices/{id:[0-9]+}/document-kind',   SetPurchaseInvoiceDocumentKindAction::class);
-        $app->post   ('/api/purchase-invoices/{id:[0-9]+}/dismiss-extraction-warning', DismissExtractionWarningAction::class);
-        // Propojení se zálohovou fakturou (advance) — proti dvojímu započtení nákladu
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/advance-candidates', AdvanceCandidatesAction::class);
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/settlement-candidates', SettlementCandidatesAction::class);
-        $app->post   ('/api/purchase-invoices/{id:[0-9]+}/link-advance',     LinkAdvancePurchaseInvoiceAction::class);
-        $app->delete ('/api/purchase-invoices/{id:[0-9]+}/link-advance',     UnlinkAdvancePurchaseInvoiceAction::class);
-        $app->delete ('/api/purchase-invoices/{id:[0-9]+}/advance-suggestion', DismissAdvanceSuggestionAction::class);
-        $app->post   ('/api/purchase-invoices/{id:[0-9]+}/pdf',            UploadPurchaseInvoicePdfAction::class);
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/pdf',            DownloadPurchaseInvoicePdfAction::class);
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/source',         DownloadPurchaseInvoiceSourceAction::class);
-        $app->delete ('/api/purchase-invoices/{id:[0-9]+}/pdf',            DeletePurchaseInvoicePdfAction::class);
-        // Our generated PDF + Pohoda/ISDOC export pro přijatou
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/our-pdf',        OurPdfPurchaseInvoiceAction::class);
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/isdoc',          [ExportPurchaseInvoiceAction::class, 'isdoc']);
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/pohoda',         [ExportPurchaseInvoiceAction::class, 'pohoda']);
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/activity',       PurchaseInvoiceActivityAction::class);
-        // „Zaplatit pomocí QR" — QR z uloženého účtu (GET, read), jednorázové lazy
-        // doplnění účtu z ISDOC/AI (POST, write), ruční editace účtu (PUT, write).
-        $app->get    ('/api/purchase-invoices/{id:[0-9]+}/payment-qr',     PaymentQrAction::class);
-        $app->post   ('/api/purchase-invoices/{id:[0-9]+}/payment-qr/extract-account', [PaymentQrAction::class, 'extractAccount']);
-        $app->put    ('/api/purchase-invoices/{id:[0-9]+}/payment-account', [PaymentQrAction::class, 'updateAccount']);
-        // Platební příkazy (payment orders) — hromadný příkaz k úhradě z nezaplacených
-        // přijatých faktur do CSV/PDF/ABO(KPC). Literální „payment-orders" je nečíselné,
-        // takže nekoliduje s GET /{id:[0-9]+}. POST je write (RoleMiddleware dle metody).
-        $app->get    ('/api/purchase-invoices/payment-orders/candidates',          [PaymentOrderAction::class, 'candidates']);
-        $app->get    ('/api/purchase-invoices/payment-orders/verify-account',       [PaymentOrderAction::class, 'verifyAccount']);
-        $app->get    ('/api/purchase-invoices/payment-orders',                      [PaymentOrderAction::class, 'history']);
-        $app->post   ('/api/purchase-invoices/payment-orders',                      [PaymentOrderAction::class, 'create']);
-        $app->post   ('/api/purchase-invoices/payment-orders/mark',                 [PaymentOrderAction::class, 'markOrdered']);
-        $app->get    ('/api/purchase-invoices/payment-orders/{id:[0-9]+}/download', [PaymentOrderAction::class, 'download']);
-        $app->get    ('/api/purchase-invoices/payment-orders/{id:[0-9]+}',          [PaymentOrderAction::class, 'show']);
 
         // Work reports — výkaz víceprací (M5)
         $app->get    ('/api/invoices/{id:[0-9]+}/work-report', GetWorkReportAction::class);

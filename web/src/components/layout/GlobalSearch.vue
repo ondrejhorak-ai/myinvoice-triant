@@ -15,7 +15,7 @@ const q = ref('')
 const open = ref(false)
 const loading = ref(false)
 const activeIndex = ref(0)
-const results = ref<SearchResults>({ q: '', clients: [], invoices: [], purchase_invoices: [] })
+const results = ref<SearchResults>({ q: '', clients: [], invoices: [] })
 const inputEl = ref<HTMLInputElement | null>(null)
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
@@ -58,7 +58,7 @@ watch(q, (val) => {
   clearTimeout(debounceTimer)
   const needle = val.trim()
   if (needle.length < 2) {
-    results.value = { q: needle, clients: [], invoices: [], purchase_invoices: [] }
+    results.value = { q: needle, clients: [], invoices: [] }
     loading.value = false
     return
   }
@@ -69,7 +69,7 @@ watch(q, (val) => {
       const r = await searchApi.query(needle)
       if (mySeq === seq) results.value = r
     } catch {
-      if (mySeq === seq) results.value = { q: needle, clients: [], invoices: [], purchase_invoices: [] }
+      if (mySeq === seq) results.value = { q: needle, clients: [], invoices: [] }
     } finally {
       if (mySeq === seq) loading.value = false
     }
@@ -88,7 +88,7 @@ function reset() {
   q.value = ''
   open.value = false
   activeIndex.value = 0
-  results.value = { q: '', clients: [], invoices: [], purchase_invoices: [] }
+  results.value = { q: '', clients: [], invoices: [] }
   inputEl.value?.blur()
 }
 
