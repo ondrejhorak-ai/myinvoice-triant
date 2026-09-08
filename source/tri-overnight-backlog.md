@@ -110,7 +110,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [x] **S7 — Kalendář (výroba + expedice, stavy).**
 - [x] **S8 — Reklamace s chatem.**
 - [x] **S9 — Změna kontaktu + fyzická osoba + 2 kontakty na zakázce.**
-- [ ] **S10 — Regrese celku (druhá zakázka zkráceně + kontroly brandingu/redirectů).**
+- [x] **S10 — Regrese celku (druhá zakázka zkráceně + kontroly brandingu/redirectů).**
 
 ### P. Prune mrtvého PHP (až po zelených S1–S10)
 
@@ -167,4 +167,5 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - **2026-09-08 S7** — Zakázka **260003**: výroba `Výroba skříně Švestková` (stanice Výroba, 8. 9. 2026, `planned` → `in_progress`, chip emerald + ring) a expedice `Expedice skříně Švestková` (10. 9. 2026, `planned` dashed amber → `confirmed` solid amber). Mini-sekce **Nadcházející termíny** na `/tri/jobs/3` obě ukazuje (Probíhá / Potvrzeno). Kalendář jen office, bez write-through. Žádná oprava kódu.
 - **2026-09-08 S8** — Reklamace **#1** `Odchlípená hrana dvířek` na zakázce **260003** (Švestková): chat `TRI-SCEN S8: olepovačka znovu přilepí hranu D10`, stav Uzavřená. Seznam `/tri/complaints` + sekce na zakázce. Activity: otevřel(a) 01:03, uzavřel(a) 01:08. Žádná oprava kódu.
 - **2026-09-08 S9** — Malinová (id **38**) ulice `Křídlovická 22` → **`Křídlovická 28`**, MyÚčto `/clients/38` propsáno. FO **Ing. Klára Jeřábková** (id **40**, bez IČO, tag Architekt), write-through `/clients/40`. Zakázka **260004** / job id **4** se dvěma kontakty (architekt první, zákazník Malinová); `customer_client_id` = **38**. Žádná oprava kódu.
+- **2026-09-08 S10** — Kontakt `Nábytek Ořechová s.r.o.` (id **41**, IČO **99930629**, Lidická 15 Brno) + zakázka **260005** / job id **5** „Vestavěný šatník — Ořechová“, varianta A z ceníku (K10+D10+H10, základ 6 780 Kč). Záloha **92609002** (id 140) 50 % = **4 101,90 Kč** vystavena+zaplacena; issue-final koncept **#142**; auto-koncept **#141** z úhrady. Konečná **2609012** (id 143) 8 203,80 − záloha, **k úhradě 4 101,90 Kč**, vystavena. MyÚčto `/clients/41` + projekt `260005`. Seznamy kontaktů/faktur neprázdné; editor+detail OK; title/footer Triant office; `/invoices`→`/tri/invoices`, `/clients`→`/tri/contacts`; žádné storno. Odeslání e-mailu ohlásilo chybu MyÚčta (mpdf cache not writable) — ne tiché úspěch. Žádná oprava kódu. G10 (`INVOICE.COL_*`) dál platí.
 
