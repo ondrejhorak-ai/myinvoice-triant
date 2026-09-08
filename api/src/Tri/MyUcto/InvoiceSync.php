@@ -129,6 +129,11 @@ final class InvoiceSync
         }
 
         if (!ApiPage::shouldWrite($localUpdatedStr, is_string($row['updated_at'] ?? null) ? $row['updated_at'] : null)) {
+            // updated_at se nezměnil, ale platba ano (mark-paid nemění updated_at stejně jako list).
+            if (is_array($local) && self::isPaidMirrorRow($row) && !self::isPaidMirrorRow($local)) {
+                $this->writer->upsert('mu_invoices', $row, array_values(array_diff(array_keys($row), ['id'])));
+                return;
+            }
             $this->pdo->prepare('UPDATE mu_invoices SET mu_synced_at = ?, deleted_at = NULL WHERE id = ?')
                 ->execute([$row['mu_synced_at'], $row['id']]);
             return;

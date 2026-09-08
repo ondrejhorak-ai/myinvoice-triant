@@ -133,6 +133,7 @@ final class JobInvoiceBuilder
             noteBelow: $variant['note_below_items'] ?? null,
         );
         $keySuffix = $variantNet !== null ? (string) round($variantNet, 2) : '0';
+        $keySuffix .= ':adv:' . (string) round($advancePaid, 2);
         $invoice = $gw->createDraft($input, 'job:' . $jobId . ':final:' . $keySuffix);
 
         return ['invoice_id' => (int) $invoice['id'], 'invoice' => $invoice];
