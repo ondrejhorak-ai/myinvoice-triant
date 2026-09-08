@@ -801,12 +801,22 @@ final class InvoiceGateway
         if (!empty($body['paid_at']) || !empty($body['paid_on'])) {
             $payload['paid_at'] = (string) ($body['paid_at'] ?? $body['paid_on']);
         }
-        return $this->mutate($id, fn () => $this->api->markPaid($id, $payload), true);
+        // Odpověď mark-paid bývá zkrácená; list-sync by pak mohl přepsat unpaid.
+        // Vždy načti detail, ať mirror drží paid_at / payment_status.
+        return $this->mutate($id, function () use ($id, $payload) {
+            $this->api->markPaid($id, $payload);
+
+            return $this->api->getInvoice($id);
+        }, true);
     }
 
     public function unmarkPaid(int $id): array
     {
-        return $this->mutate($id, fn () => $this->api->unmarkPaid($id), true);
+        return $this->mutate($id, function () use ($id) {
+            $this->api->unmarkPaid($id);
+
+            return $this->api->getInvoice($id);
+        }, true);
     }
 
     /** @return array<string, mixed> */

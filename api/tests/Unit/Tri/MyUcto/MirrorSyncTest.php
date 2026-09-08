@@ -53,6 +53,62 @@ final class MirrorSyncTest extends TestCase
         $this->assertStringContainsString('TEST', (string) $row['items_json']);
     }
 
+    public function testIsPaidMirrorRowDetectsPaidStates(): void
+    {
+        $this->assertTrue(InvoiceSync::isPaidMirrorRow(['status' => 'paid']));
+        $this->assertTrue(InvoiceSync::isPaidMirrorRow(['payment_status' => 'paid']));
+        $this->assertTrue(InvoiceSync::isPaidMirrorRow([
+            'status' => 'issued',
+            'payment_status' => 'unpaid',
+            'paid_at' => '2026-09-08 10:00:00',
+            'paid_total' => 100,
+        ]));
+        $this->assertFalse(InvoiceSync::isPaidMirrorRow([
+            'status' => 'issued',
+            'payment_status' => 'unpaid',
+            'paid_at' => null,
+            'paid_total' => 0,
+        ]));
+    }
+
+    public function testInvoiceUpsertRefreshesDetailInsteadOfDowngradingPaid(): void
+    {
+        $pdo = $this->sqlite();
+        $pdo->exec(
+            "INSERT INTO mu_invoices (id, status, payment_status, paid_at, paid_total, total_with_vat, invoice_type, currency, updated_at, mu_synced_at)
+             VALUES (144, 'paid', 'paid', '2026-09-08 10:00:00', '26767.62', '26767.62', 'proforma', 'CZK', '2026-09-08 10:00:00', '2026-09-08 10:00:00')"
+        );
+        $detail = [
+            'id' => 144,
+            'status' => 'paid',
+            'payment_status' => 'paid',
+            'paid_at' => '2026-09-08T10:00:00+02:00',
+            'paid_total' => 26767.62,
+            'invoice_type' => 'proforma',
+            'currency' => 'CZK',
+            'totals' => ['without_vat' => 22122, 'vat' => 4645.62, 'with_vat' => 26767.62],
+            'updated_at' => '2026-09-08 12:00:00',
+        ];
+        $api = $this->api([new Response(200, [], json_encode($detail, JSON_THROW_ON_ERROR))]);
+        $sync = new InvoiceSync($api, $pdo, new MirrorWriter($pdo));
+        $sync->upsert([
+            'id' => 144,
+            'status' => 'issued',
+            'payment_status' => 'unpaid',
+            'paid_at' => null,
+            'paid_total' => 0,
+            'invoice_type' => 'proforma',
+            'currency' => 'CZK',
+            'totals' => ['without_vat' => 22122, 'vat' => 4645.62, 'with_vat' => 26767.62],
+            'updated_at' => '2026-09-08 12:00:00',
+        ]);
+
+        $row = $pdo->query('SELECT status, payment_status, paid_total FROM mu_invoices WHERE id = 144')->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('paid', $row['status']);
+        $this->assertSame('paid', $row['payment_status']);
+        $this->assertSame('26767.62', $row['paid_total']);
+    }
+
     public function testClientUpsertAndSkipUnchanged(): void
     {
         $pdo = $this->sqlite();

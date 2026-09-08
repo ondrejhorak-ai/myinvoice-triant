@@ -105,10 +105,29 @@ final class InvoiceSync
         if ($row === null) {
             return;
         }
-        $stmt = $this->pdo->prepare('SELECT updated_at FROM mu_invoices WHERE id = ?');
+        $stmt = $this->pdo->prepare(
+            'SELECT updated_at, status, payment_status, paid_at, paid_total FROM mu_invoices WHERE id = ?'
+        );
         $stmt->execute([$row['id']]);
-        $localUpdated = $stmt->fetchColumn();
-        $localUpdatedStr = $localUpdated !== false && $localUpdated !== null ? (string) $localUpdated : null;
+        $local = $stmt->fetch(PDO::FETCH_ASSOC);
+        $localUpdatedStr = is_array($local) && $local['updated_at'] !== null ? (string) $local['updated_at'] : null;
+
+        // List endpoint často vrací issued/unpaid i u zaplacené proformy.
+        // Bez detailu by sync smazal paid_at a konečná faktura neodečetla zálohu.
+        if (is_array($local) && self::isPaidMirrorRow($local) && !self::isPaidMirrorRow($row)) {
+            try {
+                $detail = ContactGateway::unwrap($this->api->getInvoice((int) $row['id']));
+                if (is_array($detail) && (int) ($detail['id'] ?? 0) === (int) $row['id']) {
+                    $row = self::toRow($detail, $this->writer->now()) ?? $row;
+                }
+            } catch (MyUctoApiException) {
+                $row['status'] = (string) ($local['status'] ?? $row['status']);
+                $row['payment_status'] = $local['payment_status'] ?? $row['payment_status'];
+                $row['paid_at'] = $local['paid_at'] ?? $row['paid_at'];
+                $row['paid_total'] = $local['paid_total'] ?? $row['paid_total'];
+            }
+        }
+
         if (!ApiPage::shouldWrite($localUpdatedStr, is_string($row['updated_at'] ?? null) ? $row['updated_at'] : null)) {
             $this->pdo->prepare('UPDATE mu_invoices SET mu_synced_at = ?, deleted_at = NULL WHERE id = ?')
                 ->execute([$row['mu_synced_at'], $row['id']]);
@@ -116,6 +135,20 @@ final class InvoiceSync
         }
 
         $this->writer->upsert('mu_invoices', $row, array_values(array_diff(array_keys($row), ['id'])));
+    }
+
+    /** @param array<string, mixed> $row */
+    public static function isPaidMirrorRow(array $row): bool
+    {
+        $status = strtolower((string) ($row['status'] ?? ''));
+        $payment = strtolower((string) ($row['payment_status'] ?? ''));
+        if ($status === 'paid' || in_array($payment, ['paid', 'overpaid'], true)) {
+            return true;
+        }
+        $paidAt = $row['paid_at'] ?? null;
+        $paidTotal = (float) ($row['paid_total'] ?? 0);
+
+        return $paidAt !== null && $paidAt !== '' && $paidTotal > 0;
     }
 
     /**

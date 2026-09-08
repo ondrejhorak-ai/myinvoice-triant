@@ -110,7 +110,11 @@ final class JobInvoiceRepository
               WHERE project_id = ?
                 AND deleted_at IS NULL
                 AND invoice_type = 'proforma'
-                AND (status = 'paid' OR payment_status IN ('paid', 'overpaid'))"
+                AND (
+                    status = 'paid'
+                    OR payment_status IN ('paid', 'overpaid')
+                    OR (paid_at IS NOT NULL AND paid_total > 0)
+                )"
         );
         $stmt->execute([$projectId]);
 

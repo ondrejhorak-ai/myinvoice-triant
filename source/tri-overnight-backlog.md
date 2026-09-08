@@ -132,9 +132,13 @@ Jedna oblast na tick: smazat routy + Action + Service/Repository jen dané agend
 - [x] **P13 — Mrtvé core invoice write Action.** Třídy pod `Action/Invoice/` které routy mapují na `CoreInvoiceWriteGoneAction` (create/update/delete/issue/send/cancel/clone/mark-paid/…). GET list/detail/pdf/attachments/recipients/activity nechat — TRI `invoicesApi` je ještě čte. Až v pozdějším Polish přepojit čtení čistě na `triInvoices.ts`.
 - [x] **P14 — Sweep.** `RoleMiddleware` allowlisty mrtvých skupin; `CronCatalog` mrtvé joby; osiřelé `web/src/api/*.ts`; `GlobalSearchAction` bez nákupů (H6 částečně). `composer dump-autoload` + PHPUnit + build + deploy.
 
+### I. Blokátory R1 (během replay)
+
+- [~] **I11 — Mirror `mu_invoices` přepisuje zaplacenou zálohu zpět na unpaid.** Po `mark-paid` je v MyÚčtu Zaplaceno, ale list-sync upsertne `status=issued`/`payment_status=unpaid` → `paidAdvancesTotal` = 0 → konečná faktura bez odečtu zálohy. Oprava: po mark-paid vždy GET detail před upsert; sync nesmí downgradovat paid bez detailu; `paidAdvancesTotal` bere i `paid_at`/`paid_total`.
+
 ### R. Závěrečný průchod
 
-- [ ] **R1 — Kompletní replay S1–S10** s novými fiktivními daty. Bez zásahu do kódu = hotovo; jinak bug → fix → replay dotčeného scénáře a R1 znovu.
+- [~] **R1 — Kompletní replay S1–S10** s novými fiktivními daty. Bez zásahu do kódu = hotovo; jinak bug → fix → replay dotčeného scénáře a R1 znovu.
 
 ## Log
 
