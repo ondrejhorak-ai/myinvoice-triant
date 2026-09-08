@@ -73,7 +73,7 @@ async function selected(event: Event) {
       :disabled="disabled || uploading"
       @click="choose"
     >
-      <img v-if="image" :src="image.url" alt="" class="h-full w-full object-contain bg-white" />
+      <img v-if="image" :src="image.url" alt="" class="h-full w-full object-contain bg-surface" />
       <span v-else-if="uploading" class="text-xs">…</span>
       <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
         <path d="M4 6h4l1.5-2h5L16 6h4v13H4z" />

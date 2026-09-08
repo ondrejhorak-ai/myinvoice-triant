@@ -99,7 +99,7 @@ watch(q, () => {
                 @click.stop
                 @change="item.id && toggle(item.id)"
               />
-              <img v-if="item.image" :src="item.image.url" alt="" class="h-9 w-9 object-contain bg-white border border-neutral-200 rounded" />
+              <img v-if="item.image" :src="item.image.url" alt="" class="h-9 w-9 object-contain bg-surface border border-neutral-200 rounded" />
               <div class="min-w-0 flex-1">
                 <div class="text-sm font-medium text-neutral-900 truncate">
                   <span v-if="item.designation" class="font-mono text-neutral-500 mr-1.5">{{ item.designation }}</span>

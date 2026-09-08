@@ -467,7 +467,7 @@ onMounted(() => load())
             <span
               v-for="row in hoursSummary.by_station"
               :key="row.station"
-              class="inline-flex items-center gap-1.5 rounded-full bg-white border border-neutral-200 px-2.5 py-1 text-xs text-neutral-700"
+              class="inline-flex items-center gap-1.5 rounded-full bg-surface border border-neutral-200 px-2.5 py-1 text-xs text-neutral-700"
             >
               {{ t(`tri.travelers.station_${row.station}`) }}
               <span class="tabular-nums font-mono font-medium">{{ formatHours(row.hours) }}</span>
@@ -553,7 +553,7 @@ onMounted(() => load())
           </div>
           <span
             class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-            :class="ev.status === 'done' ? 'bg-neutral-100 text-neutral-600' : ev.status === 'confirmed' || ev.status === 'in_progress' ? 'bg-emerald-50 text-emerald-800' : 'border border-dashed border-neutral-300 text-neutral-600'"
+            :class="ev.status === 'done' ? 'bg-neutral-100 text-neutral-600' : ev.status === 'confirmed' || ev.status === 'in_progress' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border border-dashed border-neutral-300 text-neutral-600'"
           >
             {{ t(`tri.calendar.status_${ev.status}`) }}
           </span>

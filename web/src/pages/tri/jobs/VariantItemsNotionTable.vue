@@ -729,13 +729,13 @@ onMounted(() => {
 <style scoped>
 .notion-ghost {
   opacity: 0.45;
-  background: rgb(239 246 255);
+  background: color-mix(in srgb, var(--color-primary-100) 80%, transparent);
 }
 .notion-chosen {
-  background: rgb(249 250 251);
+  background: var(--color-neutral-50);
 }
 .notion-drag {
   opacity: 1 !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-neutral-900) 18%, transparent);
 }
 </style>

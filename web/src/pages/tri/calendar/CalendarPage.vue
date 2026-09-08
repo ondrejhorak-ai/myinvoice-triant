@@ -34,13 +34,13 @@ function nextStatusOf(calendar: TriCalendarKind, status: string): string | null 
 function eventClass(ev: { calendar: TriCalendarKind; status: string }) {
   if (ev.calendar === 'dispatch') {
     return ev.status === 'confirmed'
-      ? 'bg-amber-100 text-amber-900 border border-amber-300'
-      : 'bg-transparent text-amber-900 border border-dashed border-amber-400'
+      ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-700'
+      : 'bg-transparent text-amber-900 border border-dashed border-amber-400 dark:text-amber-200 dark:border-amber-600'
   }
   if (ev.calendar === 'production') {
     if (ev.status === 'done') return 'bg-neutral-100 text-neutral-500 border border-neutral-200'
-    if (ev.status === 'in_progress') return 'bg-emerald-100 text-emerald-800 border border-emerald-400 ring-1 ring-emerald-500'
-    return 'bg-transparent text-emerald-800 border border-dashed border-emerald-400'
+    if (ev.status === 'in_progress') return 'bg-emerald-100 text-emerald-800 border border-emerald-400 ring-1 ring-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-600 dark:ring-emerald-700'
+    return 'bg-transparent text-emerald-800 border border-dashed border-emerald-400 dark:text-emerald-300 dark:border-emerald-600'
   }
   return 'bg-primary-100 text-primary-800 border border-primary-200'
 }
