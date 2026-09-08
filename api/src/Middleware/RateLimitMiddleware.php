@@ -177,14 +177,6 @@ final class RateLimitMiddleware implements MiddlewareInterface
             return ['rl:ares:user:' . $userId, (int) ($rl['ares_per_min_per_user'] ?? 30), 60];
         }
 
-        // AI / inbox scan endpoints — costly Anthropic API calls (BYOK billing risk
-        // při kompromitované admin session). Sliding window 5 min / per user.
-        if ($userId > 0 && $method === 'POST' && in_array($path, [
-            '/api/admin/imports/ai-extract-pdf',
-        ], true)) {
-            return ['rl:ai:user:' . $userId, (int) ($rl['ai_per_5min_per_user'] ?? 30), 300];
-        }
-
         // Generic per-user mutation/read limit (jen pro přihlášené, mimo public)
         if ($userId > 0 && !str_starts_with($path, '/api/auth/')) {
             if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {

@@ -165,9 +165,8 @@ const navSections = computed<NavSection[]>(() => {
     },
   ]
 
-  if (isAdmin) {
+    if (isAdmin) {
     // Suppliers (multi-tenant firmy) jsou teď přístupné jako první tab v Codebooks.
-    // Sjednocený "Import" pokrývá vystavené i přijaté faktury (admin/import s tabs).
     sections.push({
       title: t('nav.system'),
       accent: 'neutral',
@@ -177,7 +176,6 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'users', to: '/admin/users', label: t('nav.users'), icon: ICONS.users },
         { moduleId: 'emails', to: '/admin/emails', label: t('nav.emails'), icon: ICONS.email },
         { moduleId: 'activity-log', to: '/admin/activity-log', label: t('nav.log'), icon: ICONS.log },
-        { moduleId: 'integrations', to: '/admin/integrations', label: t('nav.integrations'), icon: ICONS.api_tokens },
         { moduleId: 'cron-jobs', to: '/admin/cron-jobs', label: t('nav.cron_jobs'), icon: ICONS.cron },
         { moduleId: 'updates', to: '/admin/update', label: t('nav.updates'), icon: ICONS.updates },
         { moduleId: 'api-tokens', to: '/profile/api-tokens', label: t('nav.api_tokens'), icon: ICONS.api_tokens },

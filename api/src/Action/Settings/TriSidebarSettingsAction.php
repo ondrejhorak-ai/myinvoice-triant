@@ -26,7 +26,6 @@ final class TriSidebarSettingsAction
         'tri-complaints',
         'settings',
         'codebooks',
-        'integrations',
         'users',
         'emails',
         'activity-log',

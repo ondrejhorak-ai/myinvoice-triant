@@ -13,7 +13,6 @@ export const TRI_SIDEBAR_MODULES = [
   { id: 'users', labelKey: 'nav.users', hideable: true },
   { id: 'emails', labelKey: 'nav.emails', hideable: true },
   { id: 'activity-log', labelKey: 'nav.log', hideable: true },
-  { id: 'integrations', labelKey: 'nav.integrations', hideable: true },
   { id: 'cron-jobs', labelKey: 'nav.cron_jobs', hideable: true },
   { id: 'updates', labelKey: 'nav.updates', hideable: true },
   { id: 'api-tokens', labelKey: 'nav.api_tokens', hideable: true },

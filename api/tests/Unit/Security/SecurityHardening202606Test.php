@@ -103,11 +103,4 @@ final class SecurityHardening202606Test extends TestCase
                 "Supplier redakce musí pokrýt $needle");
         }
     }
-
-    public function testPurchasePdfDedupScopedBySupplier(): void
-    {
-        $code = $this->src('Repository/PurchaseInvoiceRepository.php');
-        self::assertStringContainsString('supplier_id = ? AND pdf_hash = ?', $code,
-            'PDF hash lookup musí být scope-ovaný na supplier_id');
-    }
 }

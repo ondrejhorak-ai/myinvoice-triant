@@ -52,7 +52,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/electronic-signatures', name: 'admin-electronic-signatures', component: () => import('@/pages/admin/ElectronicSignatures.vue'), meta: { requiresWrite: true, signingProfiles: true } },
       { path: 'admin/export', name: 'admin-export', redirect: '/tri/jobs' },
       { path: 'admin/import', name: 'admin-import', redirect: '/tri/jobs' },
-      { path: 'admin/integrations',     name: 'admin-integrations', component: () => import('@/pages/admin/Integrations.vue'), meta: { adminOnly: true } },
+      { path: 'admin/integrations', name: 'admin-integrations', redirect: '/tri/jobs' },
       { path: 'crm', name: 'crm-dashboard', redirect: '/tri/jobs' },
       { path: 'reports/dph', name: 'reports-dph', redirect: '/tri/jobs' },
       { path: 'reports/kh', name: 'reports-kh', redirect: '/tri/jobs' },

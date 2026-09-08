@@ -150,7 +150,6 @@ final class RoleMiddlewareTest extends TestCase
                 '/api/admin/email-templates/invoice_send/cs',
                 '/api/admin/update/status',
                 '/api/admin/smtp-log-analysis',
-                '/api/admin/imports/idoklad/credentials',
                 '/api/settings/email-branding/preview',
             ] as $path) {
                 $response = $this->middleware()->process(
@@ -228,85 +227,13 @@ final class RoleMiddlewareTest extends TestCase
     }
 
 
-    public function testAccountantCanReadImportJobStatusAndSigningSettings(): void
+    public function testAccountantCanReadSigningSettings(): void
     {
-        foreach (['/api/admin/imports/42', '/api/settings/signing'] as $path) {
-            $response = $this->middleware()->process(
-                $this->request('GET', $path, 'accountant'),
-                $this->okHandler(),
-            );
-            self::assertSame(204, $response->getStatusCode(), "accountant GET $path");
-        }
-        // readonly na import job status nemá co dělat
         $response = $this->middleware()->process(
-            $this->request('GET', '/api/admin/imports/42', 'readonly'),
+            $this->request('GET', '/api/settings/signing', 'accountant'),
             $this->okHandler(),
         );
-        self::assertSame(403, $response->getStatusCode());
-    }
-
-    /**
-     * Import dokladů = data, ne konfigurace. Action vrstva (ImportAction,
-     * Start*ImportAction, AiExtractPdfAction, Cancel/DeleteImportJobAction) povoluje
-     * admin|accountant — middleware ho tam musí vůbec pustit.
-     */
-    public function testAccountantCanRunImports(): void
-    {
-        foreach ([
-            ['POST', '/api/admin/import'],
-            ['POST', '/api/admin/imports/idoklad/start'],
-            ['POST', '/api/admin/imports/fakturoid/start'],
-            ['POST', '/api/admin/imports/ai-extract-pdf'],
-            ['POST', '/api/admin/imports/42/cancel'],
-            ['DELETE', '/api/admin/imports/42'],
-            ['GET', '/api/admin/imports/anthropic/credentials'],
-        ] as [$method, $path]) {
-            $response = $this->middleware()->process(
-                $this->request($method, $path, 'accountant'),
-                $this->okHandler(),
-            );
-            self::assertSame(204, $response->getStatusCode(), "accountant $method $path");
-        }
-    }
-
-    /** Konfigurace integrací (API klíče) zůstává admin-only. */
-    public function testAccountantCannotManageIntegrationCredentials(): void
-    {
-        foreach ([
-            ['PUT', '/api/admin/imports/idoklad/credentials'],
-            ['DELETE', '/api/admin/imports/idoklad/credentials'],
-            ['PUT', '/api/admin/imports/fakturoid/credentials'],
-            ['DELETE', '/api/admin/imports/fakturoid/credentials'],
-            ['PUT', '/api/admin/imports/anthropic/credentials'],
-            ['DELETE', '/api/admin/imports/anthropic/credentials'],
-            ['GET', '/api/admin/imports/idoklad/credentials'],
-            ['GET', '/api/admin/imports/fakturoid/credentials'],
-        ] as [$method, $path]) {
-            $response = $this->middleware()->process(
-                $this->request($method, $path, 'accountant'),
-                $this->okHandler(),
-            );
-            self::assertSame(403, $response->getStatusCode(), "accountant $method $path");
-        }
-    }
-
-    public function testReadonlyCannotRunImports(): void
-    {
-        foreach ([
-            ['POST', '/api/admin/import'],
-            ['POST', '/api/admin/imports/idoklad/start'],
-            ['POST', '/api/admin/imports/fakturoid/start'],
-            ['POST', '/api/admin/imports/ai-extract-pdf'],
-            ['POST', '/api/admin/imports/42/cancel'],
-            ['DELETE', '/api/admin/imports/42'],
-            ['GET', '/api/admin/imports/anthropic/credentials'],
-        ] as [$method, $path]) {
-            $response = $this->middleware()->process(
-                $this->request($method, $path, 'readonly'),
-                $this->okHandler(),
-            );
-            self::assertSame(403, $response->getStatusCode(), "readonly $method $path");
-        }
+        self::assertSame(204, $response->getStatusCode());
     }
 
     private function middleware(): RoleMiddleware

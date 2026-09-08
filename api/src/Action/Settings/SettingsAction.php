@@ -694,7 +694,7 @@ final class SettingsAction
             'proforma'    => (string) $this->config->get('varsymbol.templates.proforma', ''),
             'credit_note' => (string) $this->config->get('varsymbol.templates.credit_note', ''),
             // Přijaté faktury nemají cfg fallback — výchozí je vestavěná šablona generátoru.
-            'purchase'    => \MyInvoice\Repository\PurchaseInvoiceRepository::PURCHASE_DEFAULT_TEMPLATE,
+            'purchase'    => '{PP}{YY}{MM}{CCC}',
         ];
         // Uložený CZ-NACE kód přeložený přes číselník ČINNOSTI (název činnosti +
         // stav platnosti). Díky tomu UI ukáže u pole, co kód znamená, a případnou

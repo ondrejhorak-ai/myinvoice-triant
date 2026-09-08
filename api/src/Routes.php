@@ -18,15 +18,6 @@ use MyInvoice\Action\Client\UpdateClientAction;
 use MyInvoice\Action\Codebook\CodebookAction;
 use MyInvoice\Action\Admin\EmailTemplateAction;
 use MyInvoice\Action\Admin\ExportAction;
-use MyInvoice\Action\Admin\ImportAction;
-use MyInvoice\Action\Admin\Import\StartIdokladImportAction;
-use MyInvoice\Action\Admin\Import\StartFakturoidImportAction;
-use MyInvoice\Action\Admin\Import\ImportJobStatusAction;
-use MyInvoice\Action\Admin\Import\CancelImportJobAction;
-use MyInvoice\Action\Admin\Import\IdokladCredentialsAction;
-use MyInvoice\Action\Admin\Import\FakturoidCredentialsAction;
-use MyInvoice\Action\Admin\Import\AnthropicCredentialsAction;
-use MyInvoice\Action\Admin\Import\AiExtractPdfAction;
 use MyInvoice\Action\Admin\InvoicesZipAction;
 use MyInvoice\Action\Admin\CronJobsAction;
 use MyInvoice\Action\Admin\RunCronJobAction;
@@ -109,7 +100,6 @@ use MyInvoice\Action\Auth\TotpAction;
 use MyInvoice\Action\System\HealthAction;
 use MyInvoice\Action\System\OpenApiAction;
 use MyInvoice\Action\System\VersionAction;
-use MyInvoice\Action\Admin\MyuctoUpgradeAction;
 use MyInvoice\Action\Admin\UpdateAction;
 use Slim\App;
 
@@ -132,14 +122,6 @@ final class Routes
         $app->post ('/api/admin/update/refresh', [UpdateAction::class, 'refresh']);
         $app->post ('/api/admin/update/trigger', [UpdateAction::class, 'trigger']);
         $app->post ('/api/admin/update/cancel',  [UpdateAction::class, 'cancel']);
-
-        // Admin — přechod na nástupce MyÚčto.cz. Vlastní endpointy, ne varianta
-        // /api/admin/update/*: jiný produkt, jiný dopad, jiný stav.
-        $app->get  ('/api/admin/myucto-upgrade/status',    [MyuctoUpgradeAction::class, 'status']);
-        $app->get  ('/api/admin/myucto-upgrade/preflight', [MyuctoUpgradeAction::class, 'preflight']);
-        $app->post ('/api/admin/myucto-upgrade/refresh',   [MyuctoUpgradeAction::class, 'refresh']);
-        $app->post ('/api/admin/myucto-upgrade/trigger',   [MyuctoUpgradeAction::class, 'trigger']);
-        $app->post ('/api/admin/myucto-upgrade/cancel',    [MyuctoUpgradeAction::class, 'cancel']);
 
         // Admin — správa ukázkových (sample) dat (issue #162); admin-only přes RoleMiddleware
         $app->get   ('/api/maintenance/sample-data', [\MyInvoice\Action\Maintenance\SampleDataAction::class, 'status']);
@@ -285,29 +267,6 @@ final class Routes
         $app->post   ('/api/admin/cron-jobs/{script:cron-[a-z0-9-]+}/run', RunCronJobAction::class);
         $app->get    ('/api/admin/invoices-zip',    InvoicesZipAction::class);  // legacy — drží se kvůli historickým bookmark URL
         $app->get    ('/api/admin/export',          ExportAction::class);       // generic export (?format=pdf-zip|isdoc|pohoda|stereo&month=YYYY-MM nebo period=quarterly)
-        $app->post   ('/api/admin/import',          ImportAction::class);       // import vystavených faktur z Pohoda XML / ISDOC (single nebo ZIP)
-
-        // iDoklad API import (fáze 2a) — credentials + background job lifecycle
-        $app->get    ('/api/admin/imports/idoklad/credentials', [IdokladCredentialsAction::class, 'status']);
-        $app->put    ('/api/admin/imports/idoklad/credentials', [IdokladCredentialsAction::class, 'update']);
-        $app->delete ('/api/admin/imports/idoklad/credentials', [IdokladCredentialsAction::class, 'delete']);
-        $app->post   ('/api/admin/imports/idoklad/start',       StartIdokladImportAction::class);
-
-        // Fakturoid (fáze 2b) — credentials + start
-        $app->get    ('/api/admin/imports/fakturoid/credentials', [FakturoidCredentialsAction::class, 'status']);
-        $app->put    ('/api/admin/imports/fakturoid/credentials', [FakturoidCredentialsAction::class, 'update']);
-        $app->delete ('/api/admin/imports/fakturoid/credentials', [FakturoidCredentialsAction::class, 'delete']);
-        $app->post   ('/api/admin/imports/fakturoid/start',       StartFakturoidImportAction::class);
-
-        // Anthropic Claude AI extraction (fáze 2c) — BYOK + synchronní PDF extract
-        $app->get    ('/api/admin/imports/anthropic/credentials', [AnthropicCredentialsAction::class, 'status']);
-        $app->put    ('/api/admin/imports/anthropic/credentials', [AnthropicCredentialsAction::class, 'update']);
-        $app->delete ('/api/admin/imports/anthropic/credentials', [AnthropicCredentialsAction::class, 'delete']);
-        $app->post   ('/api/admin/imports/ai-extract-pdf',        AiExtractPdfAction::class);
-
-        $app->get    ('/api/admin/imports/{id:[0-9]+}',         ImportJobStatusAction::class);
-        $app->post   ('/api/admin/imports/{id:[0-9]+}/cancel',  CancelImportJobAction::class);
-        $app->delete ('/api/admin/imports/{id:[0-9]+}',         \MyInvoice\Action\Admin\Import\DeleteImportJobAction::class);
         $app->get    ('/api/admin/users',           [UserAdminAction::class, 'list']);
         $app->post   ('/api/admin/users',           [UserAdminAction::class, 'create']);
         $app->put    ('/api/admin/users/{id:[0-9]+}', [UserAdminAction::class, 'update']);
