@@ -77,7 +77,7 @@ Pozor: tyto řezy se dělají **v `/opt/office/repo`** až po provedení runbook
 - [ ] **G7 — Mobile pass:** karty/tabulky TRI agend na malých šířkách. (Polish, až po R1.)
 - [ ] **G8 — Empty states + loading skeletony** TRI agend. (Polish, až po R1.)
 - [ ] **G9 — Dark mode pass** TRI agend. (Polish, až po R1.)
-- [ ] **G10 — JobDetail tabulka faktur ukazuje holé klíče `INVOICE.COL_*`.** Hlavička neprochází `t()`. Polish po R1.
+- [x] **G10 — JobDetail tabulka faktur ukazuje holé klíče `INVOICE.COL_*`.** Hlavička neprochází `t()`. Polish po R1.
 
 - Sem zapisuj nově nalezené bugy a follow-upy jako další `G` řádky.
 
@@ -134,11 +134,11 @@ Jedna oblast na tick: smazat routy + Action + Service/Repository jen dané agend
 
 ### I. Blokátory R1 (během replay)
 
-- [~] **I11 — Mirror `mu_invoices` přepisuje zaplacenou zálohu zpět na unpaid.** Po `mark-paid` je v MyÚčtu Zaplaceno, ale list-sync upsertne `status=issued`/`payment_status=unpaid` → `paidAdvancesTotal` = 0 → konečná faktura bez odečtu zálohy. Oprava: po mark-paid vždy GET detail před upsert; sync nesmí downgradovat paid bez detailu; `paidAdvancesTotal` bere i `paid_at`/`paid_total`.
+- [x] **I11 — Mirror `mu_invoices` přepisuje zaplacenou zálohu zpět na unpaid.** Po `mark-paid` je v MyÚčtu Zaplaceno, ale list-sync upsertne `status=issued`/`payment_status=unpaid` → `paidAdvancesTotal` = 0 → konečná faktura bez odečtu zálohy. Oprava: po mark-paid vždy GET detail před upsert; sync nesmí downgradovat paid bez detailu; `paidAdvancesTotal` bere i `paid_at`/`paid_total`; upsert paid i při stejném `updated_at`.
 
 ### R. Závěrečný průchod
 
-- [~] **R1 — Kompletní replay S1–S10** s novými fiktivními daty. Bez zásahu do kódu = hotovo; jinak bug → fix → replay dotčeného scénáře a R1 znovu.
+- [x] **R1 — Kompletní replay S1–S10** s novými fiktivními daty. Bez zásahu do kódu = hotovo; jinak bug → fix → replay dotčeného scénáře a R1 znovu.
 
 ## Log
 
@@ -201,4 +201,7 @@ Jedna oblast na tick: smazat routy + Action + Service/Repository jen dané agend
 - **2026-09-08 P12** — Smazány importy (Pohoda/ISDOC/iDoklad/Fakturoid/AI) a konverze MyÚčto: Action/Admin/Import*, ImportAction, MyuctoUpgradeAction + `/api/admin/myucto-upgrade*`, Service/Import kromě IsdocParser (round-trip exportu), Upgrade/MyuctoUpgradeService, CLI import-worker/myucto-upgrade + cmd docker-upgrade, FE imports.ts/integrations.ts/Integrations.vue. RoleMiddleware/RateLimit import pryč. Sidebar Integrations → redirect `/tri/jobs`. Smazáno i ProjectRepository, PurchaseInvoiceRepository/Calculator, BankAccountParser (jen import). **Ponecháno:** IsdocParser, IsdocExporter, DownloadImportedPdfAction, GET invoice PDF. Tabulky v DB beze změny. Namespace MyInvoice\ beze změny. PHPUnit: jen známé faily CzkRecap/ClientValidation.
 - **2026-09-08 P13** — Smazány mrtvé core invoice write Action (create/update/delete/issue/send/cancel/clone/mark-paid/payments/attachments write/public-link/bulk/issue-final/link-advance) + HandlesVarsymbolDuplicate. Routy dál vrací 410 přes CoreInvoiceWriteGoneAction. **Ponecháno:** GET list/detail/activity/pdf/isdoc/attachments/recipients/payments/preview-varsymbol/export + veřejná web faktura. IncrementMonthInStringTest na MonthIncrementer. Tabulky v DB beze změny. Namespace MyInvoice\ beze změny. PHPUnit: jen známé faily CzkRecap/ClientValidation.
 - **2026-09-08 P14** — Sweep: RoleMiddleware/CronCatalog/GlobalSearch už čisté (žádné mrtvé skupiny/joby/nákupy). Smazány osiřelé `components/purchase/*` a 13 nepoužívaných grafů (ponechány MonthlyRevenueChart + TopProjectsBarChart). ICONS v AppLayout oříznuty. invoices.ts bez výkazu práce. Hromadné issue/send/markPaid na TRI seznamu přes `triInvoicesApi`. Tabulky v DB beze změny. Namespace MyInvoice\ beze změny. PHPUnit: jen známé faily CzkRecap/ClientValidation.
+- **2026-09-08 I11** — Mirror po `mark-paid` / list-sync zahazoval Zaplaceno → konečná bez zálohy. Fix: GET detail po mark/unmark; při local paid + remote unpaid re-GET; `paidAdvancesTotal` i přes `paid_at`/`paid_total`; force write paid při stejném `updated_at`; command key final `:adv:{amount}`. Commits `4606f758`, `0d554f34`. Replay S5 → konečná **148** (odečet 26 767,62). Zbytek koncept **147** bez zálohy ponechán.
+- **2026-09-08 R1** — Replay S1–S10 nová data: Břízová (43) / **260007** záloha **92609003**/144 + konečná **148**; Jeřábová (44) / **260008** ceník Korpusy R1, průvodky K30/D30 (3,5 h), kalendář+reklamace; S9 ulice Údolní 18 (MyÚčto OK) + FO Dubský (46) + job **260009** `customer_client_id`=43; S10 Topolová (47) / **260010** záloha 149 → konečná **152** k úhradě 4 101,90. Branding Triant office; `/invoices`→`/tri/invoices`, `/clients`→`/tri/contacts`; storno 404; send e-mail ohlásí `pdf_failed` (mpdf cache). Po I11 bez dalšího zásahu do kódu. Další: Polish G7–G10.
+- **2026-09-08 G10** — JobDetail faktury: hlavičky `invoice.col_*` (chybějící klíče) → existující `invoice.varsymbol` / `type` / `status_label` / `totals.total` / `amount_to_pay` / `issue_date`. Deploy OK.
 

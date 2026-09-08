@@ -608,12 +608,12 @@ onMounted(() => load())
         <UiTable>
           <template #head>
             <tr>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.col_number') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.col_type') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.col_status') }}</th>
-              <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.col_amount') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.varsymbol') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.type') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.status_label') }}</th>
+              <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.totals.total') }}</th>
               <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.amount_to_pay') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.col_issued') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.issue_date') }}</th>
             </tr>
           </template>
           <tr
