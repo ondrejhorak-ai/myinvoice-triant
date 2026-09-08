@@ -20,6 +20,7 @@ import QuoteLineImageControl from './QuoteLineImageControl.vue'
 import CatalogPickerModal from './CatalogPickerModal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -745,7 +746,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
+  <CardSkeleton v-if="loading" :blocks="3" />
   <div v-else-if="variant" class="max-w-5xl space-y-6">
     <RouterLink
       :to="{ name: 'tri-job-detail', params: { id: jobId } }"

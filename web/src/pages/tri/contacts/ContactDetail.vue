@@ -19,6 +19,9 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiTable from '@/components/ui/UiTable.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
+import TableSkeleton from '@/components/ui/TableSkeleton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -308,7 +311,7 @@ async function deleteClient() {
 </script>
 
 <template>
-  <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
+  <CardSkeleton v-if="loading" :blocks="3" />
 
   <div v-else-if="client" class="space-y-6">
     <div>
@@ -552,10 +555,8 @@ async function deleteClient() {
           {{ t('invoice.new') }}
         </UiButton>
       </div>
-      <div v-if="invoicesLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
-      <div v-else-if="!invoices.length" class="p-8 text-center text-neutral-500 text-sm">
-        {{ t('common.no_data') }}
-      </div>
+      <TableSkeleton v-if="invoicesLoading" :rows="4" :cols="6" />
+      <EmptyState v-else-if="!invoices.length" compact :title="t('common.no_data')" />
       <!-- Desktop: tabulka -->
       <div v-else class="hidden md:block">
         <UiTable>

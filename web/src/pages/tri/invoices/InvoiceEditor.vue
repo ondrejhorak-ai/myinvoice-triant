@@ -24,6 +24,7 @@ import TriJobLinkField from '@/components/tri/TriJobLinkField.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 import { triApi, type TriPriceListItem } from '@/api/tri'
 import CatalogPickerModal from '@/pages/tri/jobs/CatalogPickerModal.vue'
 
@@ -955,7 +956,7 @@ async function deleteDraft() {
 </script>
 
 <template>
-  <div v-if="!loaded" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
+  <CardSkeleton v-if="!loaded" :blocks="3" />
 
   <div v-else class="max-w-5xl">
     <RouterLink to="/tri/invoices" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('tri.invoices.back_to_list') }}</RouterLink>

@@ -16,6 +16,7 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import Modal from '@/components/ui/Modal.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const { t, locale } = useI18n()
 const auth = useAuthStore()
@@ -307,7 +308,7 @@ watch([kind, view, rangeFrom, rangeTo], () => load())
         </div>
       </div>
     </div>
-    <p v-if="!loading && events.length === 0" class="mt-3 text-sm text-neutral-500">{{ t('tri.calendar.empty') }}</p>
+    <EmptyState v-if="!loading && events.length === 0" compact :title="t('tri.calendar.empty')" />
 
     <Modal
       v-if="modalOpen"

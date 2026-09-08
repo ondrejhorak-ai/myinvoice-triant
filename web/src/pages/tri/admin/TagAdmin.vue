@@ -3,6 +3,8 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { triApi, type TriTag } from '@/api/tri'
 import { useToast } from '@/composables/useToast'
+import TableSkeleton from '@/components/ui/TableSkeleton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -84,7 +86,8 @@ onMounted(() => load())
       </div>
     </form>
 
-    <div v-if="loading" class="text-neutral-500">{{ t('common.loading') }}</div>
+    <TableSkeleton v-if="loading" :rows="4" :cols="2" />
+    <EmptyState v-else-if="!tags.length" compact :title="t('common.no_data')" />
     <ul v-else class="space-y-2">
       <li
         v-for="tag in tags"

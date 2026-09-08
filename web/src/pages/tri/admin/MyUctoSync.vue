@@ -7,6 +7,7 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -57,7 +58,7 @@ onMounted(() => load())
       </template>
     </UiPageHeader>
 
-    <p v-if="loading && !data" class="text-sm text-neutral-500">{{ t('common.loading') }}</p>
+    <CardSkeleton v-if="loading && !data" :blocks="2" />
 
     <template v-else-if="data">
       <div class="flex flex-wrap items-center gap-3 mb-6">

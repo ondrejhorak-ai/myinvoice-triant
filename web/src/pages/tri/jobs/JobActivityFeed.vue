@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
+import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 
 const props = defineProps<{ jobId: number }>()
 
@@ -225,7 +226,7 @@ onUnmounted(() => {
 
 <template>
   <UiCard>
-    <div v-if="loading" class="p-5 text-sm text-neutral-500">{{ t('common.loading') }}</div>
+    <TableSkeleton v-if="loading" :rows="5" :cols="2" />
     <div v-else class="p-5 space-y-3">
       <div v-if="hasMore" class="text-center">
         <UiButton

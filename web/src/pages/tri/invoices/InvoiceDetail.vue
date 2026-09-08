@@ -23,6 +23,7 @@ import { triApi, type TriJobLink } from '@/api/tri'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -823,7 +824,7 @@ async function sendReminder() {
 </script>
 
 <template>
-  <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
+  <CardSkeleton v-if="loading" :blocks="3" />
 
   <div v-else-if="invoice" class="max-w-5xl space-y-6">
     <RouterLink to="/tri/invoices" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('tri.invoices.back_to_list') }}</RouterLink>

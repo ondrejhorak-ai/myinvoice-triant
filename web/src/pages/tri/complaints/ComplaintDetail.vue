@@ -11,6 +11,7 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -195,7 +196,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="loading" class="text-sm text-neutral-500">{{ t('common.loading') }}</div>
+  <CardSkeleton v-if="loading" :blocks="2" />
   <div v-else-if="item" class="space-y-6">
     <UiPageHeader :title="item.title">
       <template #below>

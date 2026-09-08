@@ -17,6 +17,9 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiTable from '@/components/ui/UiTable.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
+import TableSkeleton from '@/components/ui/TableSkeleton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import ComplaintFormModal from '../complaints/ComplaintFormModal.vue'
 
 const { t } = useI18n()
@@ -299,7 +302,7 @@ onMounted(() => load())
 </script>
 
 <template>
-  <div v-if="loading" class="text-center text-neutral-500 py-12">{{ t('common.loading') }}</div>
+  <CardSkeleton v-if="loading" :blocks="4" />
   <div v-else-if="job" class="space-y-6">
     <div>
       <RouterLink to="/tri/jobs" class="text-sm text-neutral-500 hover:text-neutral-900">← {{ t('tri.jobs.back_to_list') }}</RouterLink>
@@ -369,7 +372,7 @@ onMounted(() => load())
           {{ t('tri.jobs.add_variant') }}
         </UiButton>
       </div>
-      <div v-if="!job.variants?.length" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.no_data') }}</div>
+      <EmptyState v-if="!job.variants?.length" compact :title="t('common.no_data')" />
       <div v-else>
         <div class="hidden md:block">
           <UiTable>
@@ -453,8 +456,8 @@ onMounted(() => load())
           </UiButton>
         </div>
       </div>
-      <div v-if="travelersLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
-      <div v-else-if="travelers.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.travelers.no_data') }}</div>
+      <TableSkeleton v-if="travelersLoading" :rows="3" :cols="5" />
+      <EmptyState v-else-if="travelers.length === 0" compact :title="t('tri.travelers.no_data')" />
       <div v-else>
         <div class="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
           <div class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.travelers.hours_widget') }}</div>
@@ -536,8 +539,8 @@ onMounted(() => load())
           {{ t('tri.calendar.open_calendar') }}
         </UiButton>
       </div>
-      <div v-if="calendarLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
-      <div v-else-if="calendarEvents.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.calendar.upcoming_empty') }}</div>
+      <TableSkeleton v-if="calendarLoading" :rows="3" :cols="3" />
+      <EmptyState v-else-if="calendarEvents.length === 0" compact :title="t('tri.calendar.upcoming_empty')" />
       <ul v-else class="divide-y divide-neutral-100">
         <li v-for="ev in calendarEvents" :key="ev.id" class="px-5 py-3 flex items-start justify-between gap-3">
           <div>
@@ -570,8 +573,8 @@ onMounted(() => load())
           </UiButton>
         </div>
       </div>
-      <div v-if="complaintsLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
-      <div v-else-if="complaints.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.complaints.no_data') }}</div>
+      <TableSkeleton v-if="complaintsLoading" :rows="3" :cols="3" />
+      <EmptyState v-else-if="complaints.length === 0" compact :title="t('tri.complaints.no_data')" />
       <ul v-else class="divide-y divide-neutral-100">
         <li
           v-for="row in complaints"
@@ -651,8 +654,8 @@ onMounted(() => load())
         </div>
       </div>
 
-      <div v-if="invoicesLoading" class="p-8 text-center text-neutral-500 text-sm">{{ t('common.loading') }}</div>
-      <div v-else-if="jobInvoices.length === 0" class="p-8 text-center text-neutral-500 text-sm">{{ t('tri.invoices.no_invoices') }}</div>
+      <TableSkeleton v-if="invoicesLoading" :rows="4" :cols="6" />
+      <EmptyState v-else-if="jobInvoices.length === 0" compact :title="t('tri.invoices.no_invoices')" />
       <div v-else>
         <div class="hidden md:block">
           <UiTable>

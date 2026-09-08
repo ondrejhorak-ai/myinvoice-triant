@@ -11,6 +11,7 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTable from '@/components/ui/UiTable.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -90,7 +91,7 @@ function formatHours(n: number) {
 
 <template>
   <div>
-    <p v-if="loading" class="text-sm text-neutral-500">{{ t('common.loading') }}</p>
+    <CardSkeleton v-if="loading" :blocks="2" />
     <template v-else-if="traveler">
       <UiPageHeader
         :title="traveler.number"

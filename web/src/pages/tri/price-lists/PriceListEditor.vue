@@ -10,6 +10,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 import PriceListItemsTable, { type PriceListRow } from './PriceListItemsTable.vue'
 
 const { t } = useI18n()
@@ -226,7 +227,7 @@ watch(listId, (id, prev) => {
       </template>
     </UiPageHeader>
 
-    <div v-if="loading" class="text-sm text-neutral-500 py-8">{{ t('common.loading') }}</div>
+    <CardSkeleton v-if="loading" :blocks="2" />
 
     <div v-else class="space-y-5">
       <UiCard padding>
