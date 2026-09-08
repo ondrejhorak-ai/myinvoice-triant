@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Doplňující testy pro generický increment(text, months) — pro frequency
  * quarterly/annually se posouvá o 3/12 měsíců. Test {@see IncrementMonthInStringTest}
- * pokrývá pouze default +1 přes BulkReissueAction wrapper.
+ * pokrývá default +1.
  */
 final class MonthIncrementerTest extends TestCase
 {
