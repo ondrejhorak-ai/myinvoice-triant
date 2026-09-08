@@ -13,7 +13,6 @@ use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\Invoice\InvoicePaymentService;
 use MyInvoice\Service\IpMatcher;
 use MyInvoice\Service\Pdf\InvoicePdfRenderer;
-use MyInvoice\Service\Stats\StatsRecomputer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -34,7 +33,6 @@ final class UnmarkPaidAction
         private readonly Connection $db,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
-        private readonly StatsRecomputer $stats,
         private readonly InvoicePdfRenderer $pdf,
         private readonly InvoicePaymentService $payments,
     ) {}
@@ -115,7 +113,6 @@ final class UnmarkPaidAction
             'previous_paid_at' => $previousPaidAt ?: null,
         ], $ip, $request->getHeaderLine('User-Agent'));
 
-        $this->stats->recomputeForInvoiceId($id);
 
         return Json::ok($response, $this->repo->find($id));
     }

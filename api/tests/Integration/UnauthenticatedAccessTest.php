@@ -55,9 +55,9 @@ final class UnauthenticatedAccessTest extends TestCase
         self::assertSame(401, $r['status']);
     }
 
-    public function testProtectedDashboardReturns401(): void
+    public function testProtectedTriJobsReturns401(): void
     {
-        $r = $this->request('GET', '/api/dashboard/summary');
+        $r = $this->request('GET', '/api/tri/jobs');
         self::assertSame(401, $r['status']);
     }
 

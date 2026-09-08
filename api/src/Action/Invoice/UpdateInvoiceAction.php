@@ -17,7 +17,6 @@ use MyInvoice\Service\Invoice\VarsymbolGenerator;
 use MyInvoice\Service\IpMatcher;
 use MyInvoice\Service\Pdf\InvoicePdfRenderer;
 use MyInvoice\Service\Report\VatClassificationDefaulter;
-use MyInvoice\Service\Stats\StatsRecomputer;
 use MyInvoice\Service\Validation\InvoiceValidation;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -32,7 +31,6 @@ final class UpdateInvoiceAction
         private readonly InvoiceCalculator $calc,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
-        private readonly StatsRecomputer $stats,
         private readonly ExchangeRateApplier $rateApplier,
         private readonly InvoicePdfRenderer $pdf,
         private readonly VatClassificationDefaulter $vatDefaulter,
@@ -201,7 +199,6 @@ final class UpdateInvoiceAction
         }
 
         // Force update vystavené faktury → revenue cache musí přijmout nové total/currency
-        $this->stats->recomputeForInvoiceId($id);
 
         // Force-edit vystavené faktury: přepiš snapshoty z opravených live dat, aby se
         // změny v údajích odběratele/dodavatele/banky promítly do nově generovaného PDF.

@@ -144,7 +144,7 @@ final class RoleMiddlewareTest extends TestCase
             '/api/tri/jobs', '/api/tri/contacts',
             '/api/invoices/5/pdf', '/api/purchase-invoices', '/api/purchase-invoices/5/our-pdf',
             '/api/documents', '/api/documents/5/download', '/api/document-folders',
-            '/api/suppliers', '/api/search', '/api/dashboard/summary', '/api/crm/overview',
+            '/api/suppliers', '/api/search',
             '/api/reports/dphkh1/preview', '/api/tax/analysis', '/api/codebooks/currencies',
             '/api/expense-categories', '/api/revenue-categories', '/api/vat-classifications',
             '/api/settings/supplier', '/api/settings/currencies', '/api/admin/export',

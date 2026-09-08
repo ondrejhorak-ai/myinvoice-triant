@@ -12,7 +12,6 @@ use MyInvoice\Service\Mail\Mailer;
 use MyInvoice\Service\Mail\RecipientResolver;
 use MyInvoice\Service\Pdf\InvoicePdfRenderer;
 use MyInvoice\Service\Pdf\PdfArchiveService;
-use MyInvoice\Service\Stats\StatsRecomputer;
 use MyInvoice\Service\Validation\InvoiceAmountPolicy;
 
 /**
@@ -38,7 +37,6 @@ final class AutoIssueAndSendService
         private readonly Mailer $mailer,
         private readonly InvoiceEmailVarsBuilder $varsBuilder,
         private readonly ActivityLogger $logger,
-        private readonly StatsRecomputer $stats,
         private readonly PdfArchiveService $pdfArchive,
         private readonly RecipientResolver $recipients,
     ) {}
@@ -80,7 +78,6 @@ final class AutoIssueAndSendService
                 'varsymbol'   => $invoice['varsymbol'],
                 'auto_reason' => 'work_report_approved',
             ], $ip, $ua);
-            $this->stats->recomputeForInvoiceId($invoiceId);
             // Re-invalidate i po flipu na 'issued' — kdyby si někdo mezi alokací VS
             // a tímto blokem vyrenderoval Faktura-VS.pdf jako draft (bez "issued"
             // metadat), nahradíme ho čerstvým renderem.

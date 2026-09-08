@@ -33,7 +33,6 @@ use MyInvoice\Action\Admin\Import\IdokladCredentialsAction;
 use MyInvoice\Action\Admin\Import\FakturoidCredentialsAction;
 use MyInvoice\Action\Admin\Import\AnthropicCredentialsAction;
 use MyInvoice\Action\Admin\Import\AiExtractPdfAction;
-use MyInvoice\Action\Crm\CrmDashboardAction;
 use MyInvoice\Action\Report\DphPriznaniAction;
 use MyInvoice\Action\Report\KontrolniHlaseniAction;
 use MyInvoice\Action\Report\DphBookAction;
@@ -57,8 +56,6 @@ use MyInvoice\Action\Settings\SignatureDocumentSelectionAction;
 use MyInvoice\Action\Settings\SigningProfilesAction;
 use MyInvoice\Action\Settings\TriSidebarSettingsAction;
 use MyInvoice\Action\Settings\SupplierInvoiceCounterAction;
-use MyInvoice\Action\Dashboard\SummaryAction;
-use MyInvoice\Action\Dashboard\PurchaseSummaryAction;
 use MyInvoice\Action\Invoice\CancelInvoiceAction;
 use MyInvoice\Action\Invoice\CreateInvoiceAction;
 use MyInvoice\Action\Invoice\DeleteInvoiceAction;
@@ -465,10 +462,6 @@ final class Routes
         $app->post   ('/api/public/work-report/{token:[a-f0-9]{32,128}}/request-code', PublicWorkReportRequestCodeAction::class);
         $app->post   ('/api/public/work-report/{token:[a-f0-9]{32,128}}/verify',       PublicWorkReportVerifyAction::class);
 
-        // Dashboard
-        $app->get ('/api/dashboard/summary',          SummaryAction::class);
-        $app->get ('/api/dashboard/purchase-summary', PurchaseSummaryAction::class);
-
         // Admin (M6)
         $app->get    ('/api/admin/activity-log',    ListActivityLogAction::class);
         $app->get    ('/api/admin/sent-emails',     ListSentEmailsAction::class);
@@ -498,32 +491,6 @@ final class Routes
         $app->put    ('/api/admin/imports/anthropic/credentials', [AnthropicCredentialsAction::class, 'update']);
         $app->delete ('/api/admin/imports/anthropic/credentials', [AnthropicCredentialsAction::class, 'delete']);
         $app->post   ('/api/admin/imports/ai-extract-pdf',        AiExtractPdfAction::class);
-
-        // CRM dashboard (fáze 5)
-        $app->get    ('/api/crm/overview',     [CrmDashboardAction::class, 'overview']);
-        $app->get    ('/api/crm/monthly',      [CrmDashboardAction::class, 'monthly']);
-        $app->get    ('/api/crm/top-clients',  [CrmDashboardAction::class, 'topClients']);
-        $app->get    ('/api/crm/top-vendors',  [CrmDashboardAction::class, 'topVendors']);
-        $app->get    ('/api/crm/aging-receivables', [CrmDashboardAction::class, 'agingReceivables']);
-        $app->get    ('/api/crm/aging-payables',    [CrmDashboardAction::class, 'agingPayables']);
-        $app->get    ('/api/crm/yearly',            [CrmDashboardAction::class, 'yearly']);
-        $app->get    ('/api/crm/dso',               [CrmDashboardAction::class, 'dso']);
-        $app->get    ('/api/crm/payment-punctuality', [CrmDashboardAction::class, 'punctuality']);
-        $app->get    ('/api/crm/concentration',     [CrmDashboardAction::class, 'concentration']);
-        $app->get    ('/api/crm/vendor-concentration', [CrmDashboardAction::class, 'vendorConcentration']);
-        $app->get    ('/api/crm/dpo',               [CrmDashboardAction::class, 'dpo']);
-        $app->get    ('/api/crm/expense-breakdown', [CrmDashboardAction::class, 'expenseBreakdown']);
-        $app->get    ('/api/crm/revenue-breakdown', [CrmDashboardAction::class, 'revenueBreakdown']);
-        $app->get    ('/api/crm/churn-risk',        [CrmDashboardAction::class, 'churnRisk']);
-        $app->get    ('/api/crm/action-items',      [CrmDashboardAction::class, 'actionItems']);
-        $app->post   ('/api/crm/action-items/dismiss', [CrmDashboardAction::class, 'dismissActionItem']);
-        $app->post   ('/api/crm/action-items/restore', [CrmDashboardAction::class, 'restoreActionItem']);
-        $app->post   ('/api/crm/action-items/restore-all', [CrmDashboardAction::class, 'restoreAllActionItems']);
-        $app->get    ('/api/crm/cash-flow-forecast', [CrmDashboardAction::class, 'cashFlowForecast']);
-        $app->get    ('/api/crm/late-risk',         [CrmDashboardAction::class, 'lateRisk']);
-        $app->get    ('/api/crm/reminder-effectiveness', [CrmDashboardAction::class, 'reminderEffectiveness']);
-        $app->get    ('/api/crm/payment-time-histogram', [CrmDashboardAction::class, 'paymentTimeHistogram']);
-        $app->post   ('/api/crm/recompute',    [CrmDashboardAction::class, 'recompute']);
 
         // EPO výkazy (fáze 6) — DPH přiznání DPHDP3
         $app->get    ('/api/reports/dphdp3/settings', [DphPriznaniAction::class, 'settings']);

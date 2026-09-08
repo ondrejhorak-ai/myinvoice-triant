@@ -6,7 +6,6 @@ namespace MyInvoice\Service\Invoice;
 
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Service\Pdf\InvoicePdfRenderer;
-use MyInvoice\Service\Stats\StatsRecomputer;
 use PDO;
 
 /**
@@ -23,7 +22,7 @@ use PDO;
  *   - smazání platby pod tuto hranici → revert na 'sent'/'issued' (jako unmark-paid)
  *
  * Transakce: respektuje otevřenou transakci volajícího (StatementMatcher), jinak
- * vlastní. Side-effecty (PDF invalidace, stats) běží až po DB zápisu.
+ * vlastní. Side-effecty (PDF invalidace) běží až po DB zápisu.
  */
 final class InvoicePaymentService
 {
@@ -36,7 +35,6 @@ final class InvoicePaymentService
     public function __construct(
         private readonly Connection $db,
         private readonly InvoicePdfRenderer $pdf,
-        private readonly StatsRecomputer $stats,
     ) {}
 
     /**
@@ -470,15 +468,6 @@ final class InvoicePaymentService
             // I bez status flipu se mění obsah PDF — řádek „Uhrazeno / Zbývá uhradit"
             // a QR na zbývající částku. Cached PDF by jinak chtělo starou částku.
             $this->pdf->invalidate($invoiceId, 'invalidate_payment_change');
-        }
-        // Pohledávkové agregace (po splatnosti, aging) pracují s amount_to_pay - paid_total,
-        // takže přepočet je vhodný i bez změny lifecycle statusu. StatsRecomputer si ale
-        // otevírá VLASTNÍ transakci — uvnitř transakce volajícího (StatementMatcher,
-        // bank unmatch) by spadl na „already an active transaction". Vnořené volání
-        // recompute přeskočí (shodné s dosavadním chováním bankovního párování;
-        // cache se dopočte při nejbližší přímé akci / cronu).
-        if (!$this->db->pdo()->inTransaction()) {
-            $this->stats->recomputeForInvoiceId($invoiceId);
         }
     }
 

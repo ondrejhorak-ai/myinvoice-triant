@@ -15,7 +15,6 @@ use MyInvoice\Service\Invoice\VarsymbolGenerator;
 use MyInvoice\Service\IpMatcher;
 use MyInvoice\Service\Pdf\InvoicePdfRenderer;
 use MyInvoice\Service\Pdf\PdfArchiveService;
-use MyInvoice\Service\Stats\StatsRecomputer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -36,8 +35,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  * Strana effektů:
  *   1. PDF cache invalidace pro fakturu I všechny děti (DB cascade soubory neuklidí)
  *   2. SQL DELETE (cascade smaže items, work_reports, child invoices)
- *   3. StatsRecomputer pro klienta + projekt (revenue cache)
- *   4. ActivityLog: 'invoice.deleted' (draft) | 'invoice.force_deleted' (non-draft)
+ *   3. ActivityLog: 'invoice.deleted' (draft) | 'invoice.force_deleted' (non-draft)
  *      s detaily o smazaných potomcích pro forenzní audit
  */
 final class DeleteInvoiceAction
@@ -50,7 +48,6 @@ final class DeleteInvoiceAction
         private readonly InvoicePdfRenderer $pdf,
         private readonly PdfArchiveService $pdfArchive,
         private readonly InvoiceAttachmentRepository $attachments,
-        private readonly StatsRecomputer $stats,
         private readonly VarsymbolGenerator $varsymbol,
     ) {}
 
@@ -139,12 +136,7 @@ final class DeleteInvoiceAction
         //    invoice_pdfs, invoice_attachments — vše nahoru na FK invoice_id)
         $this->repo->delete($id);
 
-        // 3. Recompute revenue stats (po smazání issued/sent/paid se mění agregát)
-        if ($clientId !== null) {
-            $this->stats->recomputeForIds($clientId, $projectId);
-        }
-
-        // 4. Audit log — víc detailů pro force-delete než pro draft
+        // 3. Audit log — víc detailů pro force-delete než pro draft
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());
         $eventName = ($status === 'draft') ? 'invoice.deleted' : 'invoice.force_deleted';
         $this->logger->log($eventName, $user['id'] ?? null, 'invoice', $id, [

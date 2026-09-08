@@ -14,7 +14,6 @@ use MyInvoice\Service\Invoice\InvoicePaymentService;
 use MyInvoice\Service\IpMatcher;
 use MyInvoice\Service\Mail\PaymentThanksMailer;
 use MyInvoice\Service\Pdf\InvoicePdfRenderer;
-use MyInvoice\Service\Stats\StatsRecomputer;
 use MyInvoice\Service\Validation\InvoiceAmountPolicy;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -26,7 +25,6 @@ final class MarkPaidAction
         private readonly Connection $db,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
-        private readonly StatsRecomputer $stats,
         private readonly InvoicePdfRenderer $pdf,
         private readonly PaymentThanksMailer $paymentThanks,
         private readonly InvoicePaymentService $payments,
@@ -77,7 +75,6 @@ final class MarkPaidAction
             // Cached PDF má embedded status (UHRAZENO stamp, QR skip) — bez invalidace by
             // se servíroval starý soubor s výzvou k platbě i po označení za zaplacené.
             $this->pdf->invalidate($id, 'invalidate_mark_paid');
-            $this->stats->recomputeForInvoiceId($id);
         }
 
         $ip = $this->ipMatcher->clientIpFromRequest($request->getServerParams());

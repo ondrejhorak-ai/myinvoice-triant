@@ -150,9 +150,7 @@ final class RoleMiddleware implements MiddlewareInterface
         'GET #^/api/document-folders(/|$)#',
         'GET #^/api/suppliers(/|$)#',
         'GET #^/api/search$#',
-        // Dashboardy / CRM / reporty / daňový optimalizátor (čtení)
-        'GET #^/api/dashboard(/|$)#',
-        'GET #^/api/crm(/|$)#',
+        // Reporty / daňový optimalizátor (čtení)
         'GET #^/api/reports(/|$)#',
         'GET #^/api/tax(/|$)#',
         // Číselníky

@@ -59,9 +59,7 @@ final class ApiScopeMiddleware implements MiddlewareInterface
         '#^/api/documents(/|$)#',
         '#^/api/document-folders(/|$)#',
         '#^/api/suppliers(/|$)#',
-        // Dashboard / CRM / reporty (čtení + exporty)
-        '#^/api/dashboard(/|$)#',
-        '#^/api/crm(/|$)#',
+        // Reporty (čtení + exporty)
         '#^/api/reports(/|$)#',
         '#^/api/tax(/|$)#',
         '#^/api/search$#',

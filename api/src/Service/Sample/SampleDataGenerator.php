@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace MyInvoice\Service\Sample;
 
 use MyInvoice\Infrastructure\Database\Connection;
-use MyInvoice\Service\Stats\StatsRecomputer;
 use PDO;
 
 /**
@@ -21,7 +20,6 @@ final class SampleDataGenerator
 {
     public function __construct(
         private readonly Connection $db,
-        private readonly StatsRecomputer $stats,
     ) {}
 
     /**
@@ -70,8 +68,7 @@ final class SampleDataGenerator
         $eurId = $resolveCurrency('EUR');
 
         // Vše v jedné transakci → při chybě (např. UNIQUE) se nic nezapíše a DB
-        // nezůstane v polovičním stavu. Stats recompute běží AŽ po commitu, protože
-        // StatsRecomputer si otevírá vlastní transakci (vnořené PDO transakce nejdou).
+        // nezůstane v polovičním stavu.
         $pdo->beginTransaction();
         try {
 
@@ -438,13 +435,6 @@ final class SampleDataGenerator
             if ($pdo->inTransaction()) $pdo->rollBack();
             throw $e;
         }
-
-        // Sample data nejdou přes InvoiceActions, takže project/client revenue cache by zůstaly prázdné
-        // → dashboard a top-clients koláč by hlásily nulu. Recompute všech vygenerovaných entit.
-        // AŽ po commitu — StatsRecomputer si otevírá vlastní transakci.
-        foreach ($projectIds as $pid) $this->stats->recomputeProject((int) $pid);
-        foreach ($clientIds  as $cid) $this->stats->recomputeClient((int) $cid);
-        foreach ($vendorIds  as $vid) $this->stats->recomputeClient((int) $vid);
 
         return [
             'clients'           => count($clientIds),

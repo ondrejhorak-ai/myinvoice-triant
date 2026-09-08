@@ -13,7 +13,6 @@ use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\Invoice\InvoiceCalculator;
 use MyInvoice\Service\Oss\OssPeriod;
 use MyInvoice\Service\IpMatcher;
-use MyInvoice\Service\Stats\StatsRecomputer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -36,7 +35,6 @@ final class CancelInvoiceAction
         private readonly InvoiceCalculator $calc,
         private readonly ActivityLogger $logger,
         private readonly IpMatcher $ipMatcher,
-        private readonly StatsRecomputer $stats,
     ) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
@@ -121,7 +119,6 @@ final class CancelInvoiceAction
         ], $ip, $request->getHeaderLine('User-Agent'));
 
         // Stornovaná faktura odejde z revenue cache
-        $this->stats->recomputeForInvoiceId((int) $invoice['id']);
 
         return Json::ok($response, [
             'cancellation_id' => $cancellationId,
