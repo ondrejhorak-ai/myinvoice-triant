@@ -42,17 +42,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/cron-jobs',        name: 'cron-jobs',      component: () => import('@/pages/admin/CronJobs.vue'),    meta: { adminOnly: true } },
       { path: 'admin/users',            name: 'admin-users',    component: () => import('@/pages/admin/Users.vue'),       meta: { adminOnly: true } },
       { path: 'admin/settings',         name: 'admin-settings', component: () => import('@/pages/admin/Settings.vue'),    meta: { adminOnly: true } },
-      // Bývalá stránka Systém → Bankovní účty je nyní součástí /bank (Finance) jako záložky.
-      // Redirect zachovává bookmarks vč. původního ?tab=.
-      {
-        path: 'admin/bank-accounts',
-        name: 'admin-bank-accounts',
-        redirect: to => ({
-          path: '/bank',
-          query: { tab: ['accounts', 'balances', 'email'].includes(String(to.query.tab)) ? String(to.query.tab) : 'accounts' },
-        }),
-      },
-      { path: 'admin/bank-email-notices', name: 'admin-bank-email-notices', redirect: '/bank?tab=email' },
+      { path: 'admin/bank-accounts', name: 'admin-bank-accounts', redirect: '/tri/jobs' },
+      { path: 'admin/bank-email-notices', name: 'admin-bank-email-notices', redirect: '/tri/jobs' },
       { path: 'admin/tri-settings',     name: 'admin-tri-settings', component: () => import('@/pages/admin/TriSettings.vue'), meta: { adminOnly: true } },
       // /admin/suppliers byla samostatná stránka — Suppliers jsou nyní embedded jako první tab v Codebooks.
       // Redirect zachovává bookmarks / staré odkazy.

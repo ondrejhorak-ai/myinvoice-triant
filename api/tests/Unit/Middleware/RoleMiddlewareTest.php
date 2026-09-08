@@ -143,7 +143,7 @@ final class RoleMiddlewareTest extends TestCase
             '/api/clients', '/api/clients/5', '/api/projects', '/api/invoices',
             '/api/tri/jobs', '/api/tri/contacts',
             '/api/invoices/5/pdf', '/api/purchase-invoices', '/api/purchase-invoices/5/our-pdf',
-            '/api/recurring', '/api/bank-statements', '/api/bank-transactions/5/match-candidates',
+            '/api/recurring',
             '/api/documents', '/api/documents/5/download', '/api/document-folders',
             '/api/suppliers', '/api/search', '/api/dashboard/summary', '/api/crm/overview',
             '/api/reports/dphkh1/preview', '/api/tax/analysis', '/api/codebooks/currencies',
@@ -178,7 +178,6 @@ final class RoleMiddlewareTest extends TestCase
                 '/api/admin/update/status',
                 '/api/admin/smtp-log-analysis',
                 '/api/admin/imports/idoklad/credentials',
-                '/api/settings/bank-email-notices',
                 '/api/settings/email-branding/preview',
             ] as $path) {
                 $response = $this->middleware()->process(

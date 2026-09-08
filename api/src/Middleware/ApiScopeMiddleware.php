@@ -57,8 +57,6 @@ final class ApiScopeMiddleware implements MiddlewareInterface
         '#^/api/invoices(/|$)#',
         '#^/api/purchase-invoices(/|$)#',
         '#^/api/recurring(/|$)#',
-        '#^/api/bank-statements(/|$)#',
-        '#^/api/bank-transactions(/|$)#',
         '#^/api/logbook(/|$)#',
         '#^/api/documents(/|$)#',
         '#^/api/document-folders(/|$)#',
@@ -76,7 +74,7 @@ final class ApiScopeMiddleware implements MiddlewareInterface
         '#^/api/revenue-categories(/|$)#',
         '#^/api/vat-classifications(/|$)#',
         // Nastavení — JEN veřejný subset (supplier + číselníky), NE signing/
-        // pdf-signing/email-branding/bank-email-notices.
+        // pdf-signing/email-branding.
         '#^/api/settings/supplier$#',
         '#^/api/settings/supplier/invoice-counter$#',
         '#^/api/settings/supplier/logo$#',

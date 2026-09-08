@@ -116,46 +116,6 @@ final class SecurityFixesTest extends TestCase
     }
 
     /**
-     * #1 — BankStatementAction::ignore musí volat ActivityLogger (forensic trace)
-     */
-    public function testBankIgnoreWritesActivityLog(): void
-    {
-        $code = file_get_contents(dirname(__DIR__, 3) . '/api/src/Action/Bank/BankStatementAction.php');
-        self::assertIsString($code);
-
-        // Najdi `ignore` method
-        $start = strpos($code, 'public function ignore(');
-        self::assertNotFalse($start, 'ignore() metoda musí existovat');
-        $end = strpos($code, "\n    }", $start);
-        $methodBody = substr($code, $start, $end - $start);
-
-        self::assertStringContainsString('bank.tx_ignore', $methodBody,
-            'ignore() musí logovat bank.tx_ignore action (forensic, security #1)');
-        self::assertStringContainsString('logger->log', $methodBody,
-            'ignore() musí volat ActivityLogger (security #1)');
-        self::assertStringContainsString('txBelongsToCurrentSupplier', $methodBody,
-            'ignore() musí ověřit ownership tx (security #1 IDOR)');
-    }
-
-    /**
-     * #1 — match a unmatch také musí ověřit tx ownership
-     */
-    public function testBankMutationsCheckSupplierScope(): void
-    {
-        $code = file_get_contents(dirname(__DIR__, 3) . '/api/src/Action/Bank/BankStatementAction.php');
-        self::assertIsString($code);
-
-        foreach (['manualMatch', 'unmatch', 'ignore'] as $method) {
-            $start = strpos($code, "public function $method(");
-            self::assertNotFalse($start, "$method() metoda musí existovat");
-            $end = strpos($code, "\n    }", $start);
-            $body = substr($code, $start, $end - $start);
-            self::assertStringContainsString('txBelongsToCurrentSupplier', $body,
-                "$method() musí ověřit tx ownership (security #1)");
-        }
-    }
-
-    /**
      * #2 (DiD) — InvoicePdfRenderer::resolveLogoPath musí použít SafeLogoPath
      */
     public function testPdfRendererUsesSafeLogoPath(): void

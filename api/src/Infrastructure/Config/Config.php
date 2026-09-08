@@ -239,18 +239,6 @@ final class Config
                     'token' => '',
                 ],
             ],
-            'bank_email' => [
-                'notice_parsers' => [
-                    'regex' => \MyInvoice\Service\Bank\EmailNotice\Parser\RegexBankEmailNoticeParser::class,
-                    'raiffeisenbank' => \MyInvoice\Service\Bank\EmailNotice\Parser\RaiffeisenbankEmailNoticeParser::class,
-                    'unicredit' => \MyInvoice\Service\Bank\EmailNotice\Parser\UnicreditBankEmailNoticeParser::class,
-                    'csob' => \MyInvoice\Service\Bank\EmailNotice\Parser\CsobBankEmailNoticeParser::class,
-                    'fio' => \MyInvoice\Service\Bank\EmailNotice\Parser\FioBankEmailNoticeParser::class,
-                    'creditas' => \MyInvoice\Service\Bank\EmailNotice\Parser\CreditasBankEmailNoticeParser::class,
-                    'moneta' => \MyInvoice\Service\Bank\EmailNotice\Parser\MonetaBankEmailNoticeParser::class,
-                    'airbank' => \MyInvoice\Service\Bank\EmailNotice\Parser\AirBankBankEmailNoticeParser::class,
-                ],
-            ],
         ];
     }
 

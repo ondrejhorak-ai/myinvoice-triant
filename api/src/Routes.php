@@ -57,8 +57,6 @@ use MyInvoice\Action\Settings\SignatureDocumentSelectionAction;
 use MyInvoice\Action\Settings\SigningProfilesAction;
 use MyInvoice\Action\Settings\TriSidebarSettingsAction;
 use MyInvoice\Action\Settings\SupplierInvoiceCounterAction;
-use MyInvoice\Action\Bank\BankEmailNoticeAction;
-use MyInvoice\Action\Bank\BankStatementAction;
 use MyInvoice\Action\Dashboard\SummaryAction;
 use MyInvoice\Action\Dashboard\PurchaseSummaryAction;
 use MyInvoice\Action\Invoice\CancelInvoiceAction;
@@ -645,23 +643,6 @@ final class Routes
         $app->post   ('/api/settings/currencies',                     [SettingsAction::class, 'createCurrency']);
         $app->put    ('/api/settings/currencies/{id:[0-9]+}',         [SettingsAction::class, 'updateCurrency']);
         $app->delete ('/api/settings/currencies/{id:[0-9]+}',         [SettingsAction::class, 'deleteCurrency']);
-        $app->get    ('/api/settings/bank-email-notices',             [BankEmailNoticeAction::class, 'overview']);
-        $app->put    ('/api/settings/bank-email-notices/imap',        [BankEmailNoticeAction::class, 'updateImap']);
-        $app->post   ('/api/settings/bank-email-notices/imap/test',   [BankEmailNoticeAction::class, 'testImap']);
-        $app->post   ('/api/settings/bank-email-notices/imap-accounts', [BankEmailNoticeAction::class, 'createImapAccount']);
-        $app->post   ('/api/settings/bank-email-notices/imap-accounts/folders', [BankEmailNoticeAction::class, 'browseImapFolders']);
-        $app->put    ('/api/settings/bank-email-notices/imap-accounts/{id:[0-9]+}', [BankEmailNoticeAction::class, 'updateImapAccount']);
-        $app->delete ('/api/settings/bank-email-notices/imap-accounts/{id:[0-9]+}', [BankEmailNoticeAction::class, 'deleteImapAccount']);
-        $app->post   ('/api/settings/bank-email-notices/imap-accounts/{id:[0-9]+}/test', [BankEmailNoticeAction::class, 'testImapAccount']);
-        $app->post   ('/api/settings/bank-email-notices/imap-accounts/{id:[0-9]+}/folders', [BankEmailNoticeAction::class, 'browseImapFolders']);
-        $app->post   ('/api/settings/bank-email-notices/providers',   [BankEmailNoticeAction::class, 'createProvider']);
-        $app->put    ('/api/settings/bank-email-notices/providers/{id:[0-9]+}', [BankEmailNoticeAction::class, 'updateProvider']);
-        $app->delete ('/api/settings/bank-email-notices/providers/{id:[0-9]+}', [BankEmailNoticeAction::class, 'deleteProvider']);
-        $app->put    ('/api/settings/bank-email-notices/mappings',    [BankEmailNoticeAction::class, 'updateMappings']);
-        $app->post   ('/api/settings/bank-email-notices/parser/test', [BankEmailNoticeAction::class, 'testParser']);
-        $app->post   ('/api/settings/bank-email-notices/scan',        [BankEmailNoticeAction::class, 'scan']);
-        $app->get    ('/api/settings/bank-email-notices/messages',    [BankEmailNoticeAction::class, 'messages']);
-        $app->delete ('/api/settings/bank-email-notices/messages/{id:[0-9]+}', [BankEmailNoticeAction::class, 'deleteMessage']);
 
         $app->get    ('/api/settings/vat-rates',                      [SettingsAction::class, 'listVatRates']);
         $app->post   ('/api/settings/vat-rates',                      [SettingsAction::class, 'createVatRate']);
@@ -692,26 +673,6 @@ final class Routes
         // Tax optimizer — daňový optimalizátor (srovnání režimů + predikce limitů)
         $app->get ('/api/tax/analysis',  [\MyInvoice\Action\Tax\TaxAction::class, 'analysis']);
         $app->put ('/api/tax/profile',   [\MyInvoice\Action\Tax\TaxAction::class, 'updateProfile']);
-
-        // Bank statements (M5b)
-        $app->post ('/api/bank-statements/upload',           [BankStatementAction::class, 'upload']);
-        $app->post ('/api/bank-statements/upload-pdf',       [BankStatementAction::class, 'importPdf']);
-        $app->post ('/api/bank-statements/scan',             [BankStatementAction::class, 'scan']);
-        $app->get  ('/api/bank-statements',                  [BankStatementAction::class, 'list']);
-        $app->get  ('/api/bank-statements/account-balances', [BankStatementAction::class, 'accountBalances']);
-        $app->get  ('/api/bank-statements/{id:[0-9]+}',      [BankStatementAction::class, 'detail']);
-        $app->get  ('/api/bank-statements/{id:[0-9]+}/download', [BankStatementAction::class, 'download']);
-        $app->post ('/api/bank-statements/{id:[0-9]+}/pdf',  [BankStatementAction::class, 'uploadPdf']);
-        $app->get  ('/api/bank-statements/{id:[0-9]+}/pdf',  [BankStatementAction::class, 'downloadPdf']);
-        $app->delete('/api/bank-statements/{id:[0-9]+}/pdf', [BankStatementAction::class, 'deletePdf']);
-        $app->delete('/api/bank-statements/{id:[0-9]+}',     [BankStatementAction::class, 'delete']);
-        $app->post ('/api/bank-statements/{id:[0-9]+}/rematch', [BankStatementAction::class, 'rematch']);
-        $app->get  ('/api/bank-transactions/{id:[0-9]+}/match-candidates', [BankStatementAction::class, 'matchCandidates']);
-        $app->get  ('/api/bank-transactions/{id:[0-9]+}/split-suggestions', [BankStatementAction::class, 'splitSuggestions']);
-        $app->post ('/api/bank-transactions/{id:[0-9]+}/match',   [BankStatementAction::class, 'manualMatch']);
-        $app->post ('/api/bank-transactions/{id:[0-9]+}/unmatch', [BankStatementAction::class, 'unmatch']);
-        $app->post ('/api/bank-transactions/{id:[0-9]+}/ignore',  [BankStatementAction::class, 'ignore']);
-        $app->post ('/api/bank-transactions/{id:[0-9]+}/create-purchase-invoice', [BankStatementAction::class, 'createPurchaseInvoice']);
 
         // Dokumenty (sekce Dokumenty — plán source/11)
         // Specifické cesty PŘED {id:[0-9]+}, aby je fast-route nepohltil.

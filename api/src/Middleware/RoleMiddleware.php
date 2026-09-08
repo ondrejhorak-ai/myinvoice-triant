@@ -19,9 +19,9 @@ use Slim\Psr7\Factory\ResponseFactory;
  *
  *   - readonly:  GET kdekoliv + vlastní účet (logout, change-password, totp/*)
  *   - accountant: vše co readonly + mutace na business datech (clients, projects,
- *                 invoices, work-reports, bank-statements/transactions, ARES/VIES lookup)
+ *                 invoices, work-reports, ARES/VIES lookup)
  *   - admin:     vše + admin endpointy (users, settings, codebooks, email-templates,
- *                activity-log, invoices-zip, bank/scan)
+ *                activity-log, invoices-zip)
  *
  * AuthMiddleware už zajistil, že je uživatel přihlášen (jinak public path).
  * Tento middleware běží PO Auth a kontroluje minimální roli pro danou kombinaci
@@ -80,7 +80,7 @@ final class RoleMiddleware implements MiddlewareInterface
      * Method může být '*' pro libovolnou.
      */
     private const ACCOUNTANT_RULES = [
-        // Klienti, zakázky, faktury, výkazy, banka — plná CRUD
+        // Klienti, zakázky, faktury, výkazy — plná CRUD
         '* #^/api/clients(/|$)#',
         '* #^/api/projects(/|$)#',
         '* #^/api/invoices(/|$)#',
@@ -91,8 +91,6 @@ final class RoleMiddleware implements MiddlewareInterface
         // na purchase-invoices do admin-only fallbacku (funkční mezera).
         '* #^/api/purchase-invoices(/|$)#',
         '* #^/api/work-reports(/|$)#',
-        '* #^/api/bank-statements(/|$)#',
-        '* #^/api/bank-transactions(/|$)#',
         // Dokumenty — účetní smí zakládat/upravovat/mazat (do koše) + spravovat složky
         '* #^/api/documents(/|$)#',
         '* #^/api/document-folders(/|$)#',
@@ -133,8 +131,8 @@ final class RoleMiddleware implements MiddlewareInterface
      * POZOR: dříve zde bylo blanket `'GET *'`, které pouštělo KAŽDÝ GET pro všechny
      * role — čtecí autorizace tak stála výhradně na vlastním guardu v Action vrstvě.
      * Zúženo na explicitní allowlist datových/exportních skupin, aby `/api/admin/*`
-     * (mimo export carve-outy) a citlivá nastavení (signing/pdf-signing/email-branding/
-     * bank-email-notices) propadla do admin-only fallbacku → middleware blokuje
+     * (mimo export carve-outy) a citlivá nastavení (signing/pdf-signing/email-branding)
+     * propadla do admin-only fallbacku → middleware blokuje
      * non-admin GET i kdyby Action zapomněl vlastní kontrolu (defense-in-depth).
      * Allowlist je záměrně velkorysý na byznys data (readonly = čtení + export všeho
      * krom administrace); jemnější admin/accountant/readonly rozlišení uvnitř settings
@@ -152,8 +150,6 @@ final class RoleMiddleware implements MiddlewareInterface
         'GET #^/api/tri(/|$)#',
         'GET #^/api/purchase-invoices(/|$)#',
         'GET #^/api/recurring(/|$)#',
-        'GET #^/api/bank-statements(/|$)#',
-        'GET #^/api/bank-transactions(/|$)#',
         'GET #^/api/documents(/|$)#',
         'GET #^/api/document-folders(/|$)#',
         'GET #^/api/logbook(/|$)#',
@@ -170,7 +166,7 @@ final class RoleMiddleware implements MiddlewareInterface
         'GET #^/api/revenue-categories(/|$)#',
         'GET #^/api/vat-classifications(/|$)#',
         // Nastavení — jen čtení supplier + číselníkové sekce; signing/pdf-signing/
-        // email-branding/bank-email-notices NEdáváme readonly (admin/accountant only).
+        // email-branding NEdáváme readonly (admin/accountant only).
         'GET #^/api/settings/supplier$#',
         'GET #^/api/settings/currencies(/|$)#',
         'GET #^/api/settings/vat-rates(/|$)#',

@@ -141,11 +141,4 @@ final class SecurityHardening202606Test extends TestCase
         self::assertStringContainsString('entityBelongsToSupplier', $action,
             'addLink musí ověřit vlastnictví cílové entity');
     }
-
-    public function testBankUploadHandlesNullSize(): void
-    {
-        $code = $this->src('Action/Bank/BankStatementAction.php');
-        self::assertStringContainsString('$file->getSize() ?? $file->getStream()->getSize()', $code,
-            'Bank upload musí řešit null getSize() fallbackem na stream');
-    }
 }

@@ -125,27 +125,6 @@ final class Bootstrap
                 $c->get(\MyInvoice\Repository\EmailProfileRepository::class),
                 $c->get(\MyInvoice\Service\Mail\SentMailImapAppender::class),
             ),
-            \MyInvoice\Service\Bank\EmailNotice\ImapMailboxClientInterface::class => fn (ContainerInterface $c) => new \MyInvoice\Service\Bank\EmailNotice\WebklexImapMailboxClient(
-                $c->get(\MyInvoice\Service\Bank\EmailNotice\EmailNoticeTextNormalizer::class),
-            ),
-            \MyInvoice\Service\Bank\EmailNotice\Parser\BankEmailNoticeParserRepository::class => fn (ContainerInterface $c) => new \MyInvoice\Service\Bank\EmailNotice\Parser\BankEmailNoticeParserRepository(
-                $c->get(Connection::class),
-                self::bankEmailNoticeParsers($c, $config),
-            ),
-            \MyInvoice\Service\Bank\StatementMatcher::class => fn (ContainerInterface $c) => new \MyInvoice\Service\Bank\StatementMatcher(
-                $c->get(Connection::class),
-                $c->get(\MyInvoice\Service\Invoice\FinalFromProformaCreator::class),
-                // #127 — automatické párování (GPC import, e-mailové avízo, cron) musí
-                // poslat děkovný e-mail za úhradu stejně jako ruční mark-paid/manualMatch.
-                $c->get(\MyInvoice\Service\Mail\PaymentThanksMailer::class),
-                // #89 — evidence plateb (exact i částečné úhrady přes invoice_payments)
-                // + auto DRAFT daňového dokladu k přijaté platbě u částečně uhrazené proformy.
-                $c->get(\MyInvoice\Service\Invoice\InvoicePaymentService::class),
-                $c->get(\MyInvoice\Service\Invoice\PaymentTaxDocumentCreator::class),
-                // Aktivita dokladu — „payment_matched" záznam u auto-spárování platby
-                // (vidět v aktivitě vystavené i přijaté faktury).
-                $c->get(\MyInvoice\Service\ActivityLogger::class),
-            ),
 
             // IpMatcher má v konstruktoru volitelný `?Config $config = null`. Autowiring
             // takový parametr neresolvuje (dosadí default null), takže clientIpFromRequest()
@@ -162,16 +141,6 @@ final class Bootstrap
                 $c->get(\MyInvoice\Service\Logbook\Fuel\AxigonStatementParser::class),
                 $c->get(\MyInvoice\Service\Logbook\Fuel\AiFuelStatementParser::class),
                 $c->get(\MyInvoice\Service\Logbook\Fuel\SummaryFuelParser::class),
-            ]),
-
-            // "Upload PDF" bankovních výpisů — registry bank-specifických PDF parserů
-            // (banky bez GPC/ABO exportu). PŘIDÁNÍ NOVÉ BANKY: nová třída implements
-            // BankStatementPdfParserInterface a vlož ji do tohoto pole.
-            \MyInvoice\Service\Bank\Pdf\BankStatementPdfParserRegistry::class => fn (ContainerInterface $c) => new \MyInvoice\Service\Bank\Pdf\BankStatementPdfParserRegistry([
-                $c->get(\MyInvoice\Service\Bank\Pdf\CreditasStatementPdfParser::class),
-                $c->get(\MyInvoice\Service\Bank\Pdf\CsobStatementPdfParser::class),
-                $c->get(\MyInvoice\Service\Bank\Pdf\KbStatementPdfParser::class),
-                $c->get(\MyInvoice\Service\Bank\Pdf\RaiffeisenbankStatementPdfParser::class),
             ]),
         ]);
 
@@ -205,31 +174,6 @@ final class Bootstrap
         $app->addErrorMiddleware($displayErrors, true, true, $container->get(LoggerInterface::class));
 
         return $app;
-    }
-
-    /**
-     * Resolve class names ze slotů cfg.bank_email.notice_parsers na instance.
-     * Validaci (interface, prázdný/duplicitní key) dělá konstruktor
-     * BankEmailNoticeParserRepository — tady se jen vypínají sloty (null/false/'').
-     *
-     * @return list<object>
-     */
-    private static function bankEmailNoticeParsers(ContainerInterface $container, Config $config): array
-    {
-        $classes = $config->get('bank_email.notice_parsers', []);
-        if (!is_array($classes) || $classes === []) {
-            throw new \RuntimeException('cfg.bank_email.notice_parsers musí být neprázdná mapa parser slot => class.');
-        }
-
-        $parsers = [];
-        foreach ($classes as $class) {
-            if ($class === null || $class === false || trim((string) $class) === '') {
-                continue; // slot vypnutý přes cfg.php
-            }
-            $parsers[] = $container->get(trim((string) $class));
-        }
-
-        return $parsers;
     }
 
     private static function resolveLogLevel(string $level): \Monolog\Level
