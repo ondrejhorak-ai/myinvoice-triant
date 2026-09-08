@@ -56,7 +56,6 @@ final class ApiScopeMiddleware implements MiddlewareInterface
         '#^/api/projects(/|$)#',
         '#^/api/invoices(/|$)#',
         '#^/api/purchase-invoices(/|$)#',
-        '#^/api/recurring(/|$)#',
         '#^/api/logbook(/|$)#',
         '#^/api/documents(/|$)#',
         '#^/api/document-folders(/|$)#',

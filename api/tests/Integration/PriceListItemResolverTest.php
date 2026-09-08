@@ -13,7 +13,6 @@ use MyInvoice\Middleware\SupplierScopeMiddleware;
 use MyInvoice\Repository\PriceListItemRepository;
 use MyInvoice\Service\Invoice\PriceListItemResolver;
 use MyInvoice\Service\Invoice\PriceListResolutionException;
-use MyInvoice\Service\Invoice\RecurringPriceListService;
 use PDO;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -26,7 +25,6 @@ final class PriceListItemResolverTest extends TestCase
     private Connection $db;
     private PriceListItemRepository $items;
     private PriceListItemResolver $resolver;
-    private RecurringPriceListService $recurringPrices;
     private PriceListItemAction $action;
     private int $supplierId;
     private int $clientId;
@@ -46,7 +44,6 @@ final class PriceListItemResolverTest extends TestCase
             $this->db = $container->get(Connection::class);
             $this->items = $container->get(PriceListItemRepository::class);
             $this->resolver = $container->get(PriceListItemResolver::class);
-            $this->recurringPrices = $container->get(RecurringPriceListService::class);
             $this->action = $container->get(PriceListItemAction::class);
         } catch (\Throwable $e) {
             $this->markTestSkipped('DI unavailable: ' . $e->getMessage());
@@ -171,69 +168,6 @@ final class PriceListItemResolverTest extends TestCase
         self::assertNotNull($row);
         self::assertSame('customer_explicit', $row['resolved_price']['catalog_price_source']);
         self::assertSame(1100, $row['resolved_price']['unit_price_without_vat']);
-    }
-
-    public function testRecurringPoliciesKeepRefreshOrReviewSnapshot(): void
-    {
-        $this->createdItemId = $this->createItem(false, 1250.00);
-        $baseItem = [
-            'description' => 'Template description',
-            'quantity' => 1,
-            'unit' => 'ks',
-            'unit_price_without_vat' => 0,
-            'vat_rate_id' => $this->vatRateId,
-            'order_index' => 0,
-            'price_list_item_id' => $this->createdItemId,
-            'description_source' => 'catalog',
-        ];
-        $referenceDate = new DateTimeImmutable('2026-01-15');
-
-        $snapshots = [];
-        foreach (['fixed', 'current', 'review_required'] as $policy) {
-            $snapshots[$policy] = $this->recurringPrices->prepareForSave(
-                [[...$baseItem, 'catalog_policy' => $policy]],
-                $this->supplierId,
-                $this->clientId,
-                $this->currencyId,
-                false,
-                $referenceDate,
-                true,
-            )[0];
-        }
-        $this->items->upsertPrice(
-            $this->supplierId,
-            $this->createdItemId,
-            $this->currencyCode,
-            1500.00,
-        );
-        $priceCount = $this->db->pdo()->prepare(
-            'SELECT COUNT(*) FROM price_list_item_prices
-              WHERE supplier_id = ? AND price_list_item_id = ? AND currency_code = ?'
-        );
-        $priceCount->execute([$this->supplierId, $this->createdItemId, $this->currencyCode]);
-        self::assertSame(1, (int) $priceCount->fetchColumn(), 'Repeated save must update, not duplicate, a currency price');
-
-        $fixed = $this->recurringPrices->resolveForGeneration(
-            [$snapshots['fixed']], $this->supplierId, $this->clientId,
-            $this->currencyId, false, $referenceDate,
-        )[0];
-        $current = $this->recurringPrices->resolveForGeneration(
-            [$snapshots['current']], $this->supplierId, $this->clientId,
-            $this->currencyId, false, $referenceDate,
-        )[0];
-
-        self::assertSame(1250.00, $fixed['unit_price_without_vat']);
-        self::assertSame(1500.00, $current['unit_price_without_vat']);
-
-        try {
-            $this->recurringPrices->resolveForGeneration(
-                [$snapshots['review_required']], $this->supplierId, $this->clientId,
-                $this->currencyId, false, $referenceDate,
-            );
-            self::fail('Expected recurring price review requirement');
-        } catch (PriceListResolutionException $e) {
-            self::assertSame('price_list_review_required', $e->errorCode);
-        }
     }
 
     private function createItem(bool $pricesIncludeVat, float $price): int

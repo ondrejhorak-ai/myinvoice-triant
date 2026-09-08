@@ -99,15 +99,6 @@ final class CronCatalog
                 'critical' => false,
             ],
             [
-                'script' => 'cron-generate-recurring-invoices',
-                'recommended' => 'daily_0630',
-                'linux_cron' => '30 6 * * *',
-                'windows_schtasks' => '/sc daily /st 06:30',
-                'max_age_hours' => 36,
-                'weekdays_only' => false,
-                'critical' => true,
-            ],
-            [
                 'script' => 'cron-version-check',
                 'recommended' => 'daily_0600',
                 'linux_cron' => '0 6 * * *',

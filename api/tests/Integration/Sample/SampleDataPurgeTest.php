@@ -92,13 +92,13 @@ final class SampleDataPurgeTest extends TestCase
         self::assertSame(5, $r['clients']);
         self::assertSame(20, $r['invoices']);
 
-        // Evidence: 5 client + 8 project + 20 invoice + 4 credit_note + 4 vendor + 12 PI + 2 recurring + 1 car = 56
+        // Evidence: 5 client + 8 project + 20 invoice + 4 credit_note + 4 vendor + 12 PI + 1 car = 54
         $tracked = (int) $pdo->query("SELECT COUNT(*) FROM sample_data_entries WHERE supplier_id={$this->supplierId}")->fetchColumn();
-        self::assertSame(56, $tracked);
+        self::assertSame(54, $tracked);
 
         $sum = $this->service->summary($this->supplierId);
         self::assertTrue($sum['has']);
-        self::assertSame(56, $sum['total']);
+        self::assertSame(54, $sum['total']);
         self::assertSame(20, $sum['counts']['invoice']);
 
         // Před purge data existují (clients = 5 zákazníků + 4 dodavatelé).

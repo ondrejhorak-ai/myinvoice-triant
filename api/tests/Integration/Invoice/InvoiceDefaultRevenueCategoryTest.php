@@ -7,9 +7,7 @@ namespace MyInvoice\Tests\Integration\Invoice;
 use MyInvoice\Bootstrap;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\InvoiceRepository;
-use MyInvoice\Repository\RecurringTemplateRepository;
 use MyInvoice\Service\Invoice\FinalFromProformaCreator;
-use MyInvoice\Service\Invoice\RecurringInvoiceGenerator;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
@@ -31,8 +29,6 @@ final class InvoiceDefaultRevenueCategoryTest extends TestCase
     private Connection $db;
     private InvoiceRepository $repo;
     private FinalFromProformaCreator $proformaCreator;
-    private RecurringInvoiceGenerator $generator;
-    private RecurringTemplateRepository $templates;
 
     private int $supplierId = 0;
     private int $currencyId = 0;
@@ -48,8 +44,6 @@ final class InvoiceDefaultRevenueCategoryTest extends TestCase
     private array $projectIds = [];
     /** @var int[] */
     private array $invoiceIds = [];
-    /** @var int[] */
-    private array $templateIds = [];
 
     protected function setUp(): void
     {
@@ -62,8 +56,6 @@ final class InvoiceDefaultRevenueCategoryTest extends TestCase
             $this->db   = $container->get(Connection::class);
             $this->repo = $container->get(InvoiceRepository::class);
             $this->proformaCreator = $container->get(FinalFromProformaCreator::class);
-            $this->generator = $container->get(RecurringInvoiceGenerator::class);
-            $this->templates = $container->get(RecurringTemplateRepository::class);
         } catch (\Throwable $e) {
             $this->markTestSkipped('DI nedostupné: ' . $e->getMessage());
         }
@@ -85,10 +77,6 @@ final class InvoiceDefaultRevenueCategoryTest extends TestCase
     {
         if (!isset($this->db)) return;
         $pdo = $this->db->pdo();
-        foreach ($this->templateIds as $id) {
-            $pdo->prepare('DELETE FROM recurring_invoice_template_items WHERE template_id = ?')->execute([$id]);
-            $pdo->prepare('DELETE FROM recurring_invoice_templates WHERE id = ?')->execute([$id]);
-        }
         foreach ($this->invoiceIds as $id) {
             $pdo->prepare('DELETE FROM invoice_items WHERE invoice_id = ?')->execute([$id]);
             $pdo->prepare('DELETE FROM invoices WHERE id = ?')->execute([$id]);
@@ -197,53 +185,6 @@ final class InvoiceDefaultRevenueCategoryTest extends TestCase
 
         self::assertSame($catId, $this->storedCategory($finalId),
             'finální faktura z proformy musí zdědit kategorii tržby proformy');
-    }
-
-    public function testRecurringGenerationAppliesProjectDefault(): void
-    {
-        if ($this->vatRateId === 0) {
-            self::markTestSkipped('Žádná použitelná sazba DPH.');
-        }
-        $clientCat  = $this->category('TST-R-CLI', 'Recurring klient');
-        $projectCat = $this->category('TST-R-PRJ', 'Recurring projekt');
-        $client  = $this->customer('Zákazník recurring', 'CZ30000013', $clientCat);
-        $project = $this->project($client, $projectCat);
-        $today = (new \DateTimeImmutable('today'))->format('Y-m-d');
-
-        $tplId = $this->templates->create([
-            'supplier_id'    => $this->supplierId,
-            'client_id'      => $client,
-            'project_id'     => $project,
-            'name'           => 'TEST recurring revenue cat (PHPUnit)',
-            'frequency'      => 'monthly',
-            'end_of_month'   => false,
-            'anchor_date'    => $today,
-            'next_run_date'  => $today,
-            'invoice_type'   => 'invoice',
-            'currency_id'    => $this->currencyId,
-            'language'       => 'cs',
-            'payment_method' => 'bank_transfer',
-            'payment_due_days' => 14,
-            'increment_month_in_descriptions' => false,
-            'auto_issue'     => false,
-            'auto_send_email'=> false,
-            'status'         => 'active',
-        ], $this->userId);
-        $this->templateIds[] = $tplId;
-        $this->templates->replaceItems($tplId, [[
-            'description' => 'Paušál',
-            'quantity' => 1.0,
-            'unit' => 'měs',
-            'unit_price_without_vat' => 1000.00,
-            'vat_rate_id' => $this->vatRateId,
-            'order_index' => 0,
-        ]]);
-
-        $result = $this->generator->generate($tplId, $today, $this->userId, '127.0.0.1', 'phpunit');
-        $this->invoiceIds[] = $result['invoice_id'];
-
-        self::assertSame($projectCat, $this->storedCategory($result['invoice_id']),
-            'recurring generace musí aplikovat výchozí kategorii zakázky (přednost před klientem)');
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

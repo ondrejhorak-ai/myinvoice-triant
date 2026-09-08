@@ -85,7 +85,6 @@ final class RoleMiddleware implements MiddlewareInterface
         '* #^/api/projects(/|$)#',
         '* #^/api/invoices(/|$)#',
         '* #^/api/tri(/|$)#',
-        '* #^/api/recurring(/|$)#',
         // Přijaté faktury — účetní smí plnou CRUD (vč. items, PDF, transition,
         // payment-qr, link-advance). Bez tohoto pravidla padaly všechny non-GET
         // na purchase-invoices do admin-only fallbacku (funkční mezera).
@@ -149,7 +148,6 @@ final class RoleMiddleware implements MiddlewareInterface
         'GET #^/api/invoices(/|$)#',
         'GET #^/api/tri(/|$)#',
         'GET #^/api/purchase-invoices(/|$)#',
-        'GET #^/api/recurring(/|$)#',
         'GET #^/api/documents(/|$)#',
         'GET #^/api/document-folders(/|$)#',
         'GET #^/api/logbook(/|$)#',

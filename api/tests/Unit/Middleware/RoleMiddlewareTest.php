@@ -143,7 +143,6 @@ final class RoleMiddlewareTest extends TestCase
             '/api/clients', '/api/clients/5', '/api/projects', '/api/invoices',
             '/api/tri/jobs', '/api/tri/contacts',
             '/api/invoices/5/pdf', '/api/purchase-invoices', '/api/purchase-invoices/5/our-pdf',
-            '/api/recurring',
             '/api/documents', '/api/documents/5/download', '/api/document-folders',
             '/api/suppliers', '/api/search', '/api/dashboard/summary', '/api/crm/overview',
             '/api/reports/dphkh1/preview', '/api/tax/analysis', '/api/codebooks/currencies',
@@ -282,42 +281,6 @@ final class RoleMiddlewareTest extends TestCase
             $this->okHandler(),
         );
         self::assertSame(403, $response->getStatusCode());
-    }
-
-    public function testAccountantCanMutateRecurringTemplates(): void
-    {
-        foreach ([
-            ['POST', '/api/recurring'],
-            ['PUT', '/api/recurring/5'],
-            ['DELETE', '/api/recurring/5'],
-            ['POST', '/api/recurring/5/pause'],
-            ['POST', '/api/recurring/5/resume'],
-            ['POST', '/api/recurring/5/run-now'],
-        ] as [$method, $path]) {
-            $response = $this->middleware()->process(
-                $this->request($method, $path, 'accountant'),
-                $this->okHandler(),
-            );
-            self::assertSame(204, $response->getStatusCode(), "accountant $method $path");
-        }
-    }
-
-    public function testReadonlyCannotMutateRecurringTemplates(): void
-    {
-        foreach ([
-            ['POST', '/api/recurring'],
-            ['PUT', '/api/recurring/5'],
-            ['DELETE', '/api/recurring/5'],
-            ['POST', '/api/recurring/5/pause'],
-            ['POST', '/api/recurring/5/resume'],
-            ['POST', '/api/recurring/5/run-now'],
-        ] as [$method, $path]) {
-            $response = $this->middleware()->process(
-                $this->request($method, $path, 'readonly'),
-                $this->okHandler(),
-            );
-            self::assertSame(403, $response->getStatusCode(), "readonly $method $path");
-        }
     }
 
     public function testAccountantCanReadImportJobStatusAndSigningSettings(): void
