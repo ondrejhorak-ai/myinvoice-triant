@@ -16,8 +16,8 @@ use MyInvoice\Repository\PurchaseInvoiceRepository;
  *   - {@see InvoiceImportService}        — dávkový import (/admin/import?tab=purchase),
  *   - {@see PurchaseInvoiceInboxScanner} — cron scan inbox adresáře.
  *
- * Resoluce archive rootu ZRCADLÍ read-side ({@see \MyInvoice\Service\Logbook\PurchaseInvoicePdfReader}
- * a DownloadPurchaseInvoicePdfAction): `archive_storage` → `dirname(uploads_dir)/purchase-invoices`
+ * Resoluce archive rootu ZRCADLÍ read-side ({@see DownloadPurchaseInvoicePdfAction}):
+ * `archive_storage` → `dirname(uploads_dir)/purchase-invoices`
  * → {@see RuntimePaths::storage()}. Jméno souboru na disku = prvních 16 znaků SHA-256 obsahu
  * (dedup uvnitř tenanta); sloupec `pdf_hash` nese `hashKey` (default = hash bajtů, ISDOCX inbox
  * scan předává hash celého `.isdocx` kvůli scanner dedupu).
