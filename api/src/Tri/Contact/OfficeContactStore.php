@@ -47,14 +47,14 @@ final class OfficeContactStore
             throw new ContactValidationException($errors);
         }
         $kind = ContactParty::kind($body, $fallback);
+        $companyId = $this->companyLink($kind, (int) ($body['company_client_id'] ?? 0), $id);
         $linked = (int) ($existing['myucto_id'] ?? 0) > 0;
-        if ($linked && $kind === ContactParty::PERSON) {
+        if ($linked && !ContactParty::isBillable($kind, $companyId)) {
             throw new ContactValidationException([
-                'party_kind' => ['Napojeného odběratele nelze změnit na kontaktní osobu.'],
+                'party_kind' => ['Napojeného odběratele nelze změnit na osobu firmy.'],
             ]);
         }
-        $companyId = $this->companyLink($kind, (int) ($body['company_client_id'] ?? 0), $id);
-        if ($linked && $this->api !== null && ContactParty::isBillable($kind)) {
+        if ($linked && $this->api !== null && ContactParty::isBillable($kind, $companyId)) {
             $gw = new ContactGateway($this->api, $this->pdo, $this->clients, $this->supplierId);
             $gw->update($id, $this->payload($body, $kind));
         } else {
@@ -70,7 +70,10 @@ final class OfficeContactStore
     {
         $existing = $this->require($id);
         $linked = (int) ($existing['myucto_id'] ?? 0) > 0
-            && (string) ($existing['party_kind'] ?? ContactParty::COMPANY) !== ContactParty::PERSON;
+            && ContactParty::isBillable(
+                (string) ($existing['party_kind'] ?? ContactParty::COMPANY),
+                isset($existing['company_client_id']) ? (int) $existing['company_client_id'] : null,
+            );
         if ($linked && $this->api !== null) {
             $gw = new ContactGateway($this->api, $this->pdo, $this->clients, $this->supplierId);
 
@@ -218,7 +221,10 @@ final class OfficeContactStore
         $street = ContactParty::blank($body['street'] ?? null);
         $city = ContactParty::blank($body['city'] ?? null);
         $zip = ContactParty::blank($body['zip'] ?? null);
-        $customer = $kind === ContactParty::PERSON ? 0 : null;
+        $customer = null;
+        if ($kind === ContactParty::PERSON) {
+            $customer = ($companyId ?? 0) > 0 ? 0 : 1;
+        }
         $this->pdo->prepare(
             'UPDATE clients
                 SET party_kind = ?, company_client_id = ?, street = ?, city = ?, zip = ?,
@@ -244,7 +250,7 @@ final class OfficeContactStore
         $party = $stmt->fetchColumn();
         if ($party === false || (string) $party !== ContactParty::COMPANY) {
             throw new ContactValidationException([
-                'company_client_id' => ['Kontaktní osobu lze navázat jen na firmu.'],
+                'company_client_id' => ['Osobu lze navázat jen na firmu.'],
             ]);
         }
 

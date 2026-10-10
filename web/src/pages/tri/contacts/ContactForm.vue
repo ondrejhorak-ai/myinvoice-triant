@@ -88,7 +88,7 @@ const supplierDueLabel = computed(() => {
 
 const form = ref<ClientPayload>({
   company_name: '',
-  party_kind: 'company',
+  party_kind: 'person',
   company_client_id: null,
   ic: null,
   dic: null,
@@ -178,7 +178,7 @@ onMounted(async () => {
 function sanitize(c: Client): Partial<ClientPayload> {
   return {
     company_name: c.company_name,
-    party_kind: c.party_kind ?? 'company',
+    party_kind: c.party_kind === 'company' ? 'company' : 'person',
     company_client_id: c.company_client_id ?? null,
     first_name: c.first_name ?? null,
     last_name: c.last_name ?? null,
@@ -289,8 +289,12 @@ const companyLoading = ref(false)
 const selectedCompany = ref<{ value: number; label: string } | null>(null)
 let suggestTimer: ReturnType<typeof setTimeout> | null = null
 
-const isPerson = computed(() => form.value.party_kind === 'person')
-const isCompany = computed(() => (form.value.party_kind ?? 'company') === 'company')
+const isPerson = computed(() => form.value.party_kind !== 'company')
+const isCompany = computed(() => form.value.party_kind === 'company')
+
+watch(() => form.value.party_kind, (kind) => {
+  if (kind === 'company') form.value.company_client_id = null
+})
 
 watch(
   () => [form.value.company_name, form.value.main_email, form.value.phone, form.value.ic, form.value.party_kind],
@@ -396,9 +400,8 @@ async function submit() {
       <UiCard>
       <div class="p-5 space-y-4">
         <UiSelect v-model="form.party_kind" :label="t('tri.contacts.kind')">
-          <option value="company">{{ t('tri.contacts.kind_company') }}</option>
-          <option value="private">{{ t('tri.contacts.kind_private') }}</option>
           <option value="person">{{ t('tri.contacts.kind_person') }}</option>
+          <option value="company">{{ t('tri.contacts.kind_company') }}</option>
         </UiSelect>
         <p class="text-xs text-neutral-500">{{ t('tri.contacts.kind_hint') }}</p>
 
@@ -436,7 +439,7 @@ async function submit() {
           <div class="text-xs font-semibold text-primary-800 mb-2">{{ t('client.lookup_in_registries') }}</div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('client.ic') }}</label>
+              <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('client.ic') }} *</label>
               <div class="flex gap-2">
                 <input autocomplete="off" v-model="form.ic" maxlength="8" placeholder="12345678"
                   @blur="checkDuplicateIc"
@@ -445,6 +448,7 @@ async function submit() {
                   ARES
                 </UiButton>
               </div>
+              <p v-if="errors.ic?.[0]" class="text-xs text-danger-600 mt-1">{{ errors.ic[0] }}</p>
               <p v-if="duplicateIc" class="text-xs text-warning-600 mt-1">
                 ⚠ {{ t('client.duplicate_ic') }} <strong>{{ duplicateIc.name }}</strong>
                 <RouterLink :to="`/tri/contacts/${duplicateIc.id}`" class="text-primary-700 hover:underline ml-1">{{ t('client.open_existing') }} →</RouterLink>
@@ -524,7 +528,8 @@ async function submit() {
           <UiInput v-model="form.phone" :label="t('client.phone')" />
         </div>
 
-        <p v-if="!isPerson" class="text-xs text-neutral-500">{{ t('tri.contacts.address_later') }}</p>
+        <p v-if="isPerson" class="text-xs text-neutral-500">{{ t('tri.contacts.person_address_hint') }}</p>
+        <p v-else class="text-xs text-neutral-500">{{ t('tri.contacts.address_later') }}</p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <UiInput class="sm:col-span-2" v-model="form.street" :label="t('client.street')" />
           <UiInput v-model="form.zip" :label="t('client.zip')" />

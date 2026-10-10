@@ -286,9 +286,10 @@ function onContactCreated(client: Client) {
   cacheContact(client)
   cacheContactAddress(client.id, client.company_name, client)
   if (!form.value.contacts.some((c) => c.client_id === client.id)) {
-    const role = client.party_kind === 'person' ? 'contact' : 'customer'
+    const linkedPerson = client.party_kind === 'person' && client.company_client_id != null
+    const role = linkedPerson ? 'contact' : 'customer'
     form.value.contacts = [...form.value.contacts, { client_id: client.id, role: role as 'customer' | 'architect' | 'contact' }]
-    if (client.party_kind !== 'person' && form.value.customer_client_id == null) {
+    if (!linkedPerson && form.value.customer_client_id == null) {
       form.value.customer_client_id = client.id
       selectedBilling.value = clientToOption(client)
     }

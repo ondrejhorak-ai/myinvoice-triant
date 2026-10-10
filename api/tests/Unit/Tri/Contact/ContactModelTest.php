@@ -32,8 +32,15 @@ final class ContactModelTest extends TestCase
             'party_kind' => 'company',
             'company_name' => 'TEST s.r.o.',
             'main_email' => 'a@b.cz',
+            'ic' => '12345678',
         ]);
         $this->assertSame([], $company);
+        $missingIc = ContactParty::errors([
+            'party_kind' => 'company',
+            'company_name' => 'TEST s.r.o.',
+        ]);
+        $this->assertArrayHasKey('ic', $missingIc);
+        $this->assertSame('person', ContactParty::kind(['party_kind' => 'private']));
         $this->assertFalse(ContactParty::billingReady([
             'party_kind' => 'company',
             'company_name' => 'TEST s.r.o.',
@@ -41,8 +48,16 @@ final class ContactModelTest extends TestCase
             'city' => 'Praha',
             'zip' => '11000',
         ]));
+        $this->assertTrue(ContactParty::billingReady([
+            'party_kind' => 'person',
+            'company_name' => 'Jana',
+            'street' => 'Ulice 1',
+            'city' => 'Praha',
+            'zip' => '11000',
+        ]));
         $this->assertFalse(ContactParty::billingReady([
             'party_kind' => 'person',
+            'company_client_id' => 4,
             'company_name' => 'Jana',
             'street' => 'Ulice 1',
             'city' => 'Praha',
@@ -88,8 +103,8 @@ final class ContactModelTest extends TestCase
     public function testPersonIsNeverPushed(): void
     {
         $pdo = $this->sqlite();
-        $pdo->exec("INSERT INTO clients (id, supplier_id, party_kind, company_name, main_email)
-            VALUES (11, 1, 'person', 'Jana Nováková', 'jana@example.cz')");
+        $pdo->exec("INSERT INTO clients (id, supplier_id, party_kind, company_name, main_email, company_client_id)
+            VALUES (11, 1, 'person', 'Jana Nováková', 'jana@example.cz', 10)");
         $pub = new BillingContactPublisher($this->api([]), $pdo, 1);
         try {
             $pub->ensure(11);
@@ -98,6 +113,26 @@ final class ContactModelTest extends TestCase
             $this->assertSame('person_not_billable', $e->errorCode);
         }
         $this->assertNull($pdo->query('SELECT myucto_id FROM clients WHERE id = 11')->fetchColumn());
+    }
+
+    public function testPersonWithoutCompanyIsPushedWhenAddressIsComplete(): void
+    {
+        $pdo = $this->sqlite();
+        $pdo->exec("INSERT INTO clients (id, supplier_id, party_kind, company_name, main_email, street, city, zip)
+            VALUES (17, 1, 'person', 'Jana Nováková', 'jana@example.cz', 'Ulice 1', 'Praha', '11000')");
+        $pub = new BillingContactPublisher($this->api([
+            new Response(201, ['Content-Type' => 'application/json'], json_encode([
+                'id' => 91,
+                'company_name' => 'Jana Nováková',
+                'street' => 'Ulice 1',
+                'city' => 'Praha',
+                'zip' => '11000',
+                'updated_at' => '2026-10-10 12:00:00',
+            ])),
+        ]), $pdo, 1);
+
+        $this->assertSame(91, $pub->ensure(17));
+        $this->assertSame(91, (int) $pdo->query('SELECT myucto_id FROM clients WHERE id = 17')->fetchColumn());
     }
 
     public function testIncompleteAddressDoesNotCallMyucto(): void
@@ -217,6 +252,7 @@ final class ContactModelTest extends TestCase
             id INTEGER PRIMARY KEY,
             supplier_id INTEGER,
             party_kind TEXT,
+            company_client_id INTEGER,
             company_name TEXT,
             first_name TEXT,
             last_name TEXT,

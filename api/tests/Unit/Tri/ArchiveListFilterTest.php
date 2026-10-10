@@ -56,6 +56,35 @@ final class ArchiveListFilterTest extends TestCase
         }
     }
 
+    public function testContactListSelectsKindAndDoesNotHidePersons(): void
+    {
+        $queries = [];
+        $statement = $this->createStub(PDOStatement::class);
+        $statement->method('fetchColumn')->willReturn(0);
+        $statement->method('fetchAll')->willReturn([]);
+        $statement->method('fetch')->willReturn(false);
+        $pdo = $this->createMock(PDO::class);
+        $pdo->expects($this->atLeastOnce())->method('prepare')->willReturnCallback(function (string $sql) use (&$queries, $statement) {
+            $queries[] = $sql;
+            return $statement;
+        });
+        $db = $this->createStub(Connection::class);
+        $db->method('pdo')->willReturn($pdo);
+
+        (new ClientRepository($db))->list(['supplier_id' => 41, 'role' => 'all'], 1, 25);
+
+        $select = null;
+        foreach ($queries as $sql) {
+            if (str_contains($sql, 'SELECT c.id')) {
+                $select = $sql;
+            }
+        }
+        self::assertNotNull($select);
+        self::assertStringContainsString('c.party_kind', $select);
+        self::assertStringContainsString('c.company_client_id', $select);
+        self::assertStringNotContainsString('c.party_kind =', $select);
+    }
+
     public function testActionsForwardExplicitAllAndKeepLegacyDefaults(): void
     {
         foreach ([null, 'all'] as $scope) {

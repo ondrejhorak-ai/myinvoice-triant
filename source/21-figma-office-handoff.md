@@ -241,16 +241,18 @@ s předchozí prací, žádný automatický commit ani migrace.
   odvod `max(0, napočítáno − základ)`, rozdíl se uloží a kniha se nepřepíše.
   Číslo je ASCII `PR-RRRR-MM`. Opakovaný `client_token` vrátí existující řádek.
   Příloha je poznámka. Menu: Další agendy. Role readonly smí jen číst.
-- Částečná úhrada faktury se nezadává. Kontakt žije v Office (migrace 9024):
-  odběratel je firma nebo soukromá osoba, kontaktní osoba je navázaná na firmu
-  a do MyÚčta se neposílá. Odběratel se do MyÚčta zapíše až s první zálohou nebo
-  fakturou. Potvrzení zakázky projekt nevyžaduje; projekt vznikne s dokladem.
+- Částečná úhrada faktury se nezadává. Kontakt žije v Office (migrace 9024 a 9026):
+  jen **Firma** a **Osoba**. Osoba bez firmy je soukromý zákazník a do MyÚčta se
+  zapíše s prvním dokladem, jakmile má adresu. Osoba u firmy se neposílá. Firma
+  má povinné IČO při uložení. Seznam ukazuje oba druhy. Potvrzení zakázky projekt
+  nevyžaduje; projekt vznikne s dokladem.
   Role osoby na zakázce jsou zákazník, architekt a kontakt. Jediné shodné IČO
   se spojí samo, stejné jméno jen jako návrh.
 - Tlačítko `lg` je 44 px. Události kalendáře používají `.office-event-*`,
   souhrn pokladny `.office-stat`.
-- Úhrada zálohy sama nezakládá daňový doklad k přijaté platbě. Vznikne jen
-  tlačítkem **Vystavit fakturu k záloze** a nese částku a DPH zálohy. Prázdný
+- Úhrada zálohy sama nezakládá daňový doklad k přijaté platbě a neotevření
+  zaplacené zálohy ho také nezaloží. Vznikne jen tlačítkem **Vystavit fakturu k záloze**
+  a nese částku a DPH zálohy. Prázdný
   účet CZK v nastavení doplní migrace 9025 cvičným účtem; doklad ho čte odtud,
   a když má MyÚčto vlastní snapshot, ukáže ten.
 - Osoba na zakázce s firemním odběratelem se nabídne k navázání (výchozí

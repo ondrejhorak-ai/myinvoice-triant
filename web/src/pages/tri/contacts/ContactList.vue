@@ -107,6 +107,15 @@ watch(search, () => {
   searchTimeout = setTimeout(() => load(true), 300)
 })
 
+function kindKey(kind?: string | null): string {
+  return kind === 'person' || kind === 'private' ? 'tri.contacts.kind_person' : 'tri.contacts.kind_company'
+}
+
+function awaitingMyucto(c: Client): boolean {
+  if (c.myucto_id) return false
+  return !((c.party_kind === 'person' || c.party_kind === 'private') && c.company_client_id)
+}
+
 const navigateRow = useRowLink()
 function openContact(c: Client, e?: MouseEvent) {
   navigateRow(`/tri/contacts/${c.id}`, e)
@@ -129,7 +138,7 @@ function openContact(c: Client, e?: MouseEvent) {
     <EmptyState v-else-if="!items.length && !error" :title="t('tri.contacts.no_data')"><UiButton variant="secondary" @click="clearFilters">{{ t('office.clear_filters') }}</UiButton></EmptyState>
     <UiTable v-else><template #head><tr><th class="px-4 text-left">{{ t('office.contact') }}</th><th class="px-4 text-left">{{ t('office.email_phone') }}</th><th class="px-4 text-left">{{ t('tri.tags.label') }}</th><th class="px-4 text-right">{{ t('tri.jobs.title') }}</th><th class="px-4 text-left">{{ t('common.last_activity') }}</th><th class="px-4 text-right">{{ t('common.revenue') }}</th></tr></template>
       <tr v-for="c in items" :key="c.id" class="cursor-pointer" @click="openContact(c,$event)" @auxclick.prevent="openContact(c,$event)">
-        <td class="px-4 py-4 min-w-[200px]"><RouterLink :to="`/tri/contacts/${c.id}`" class="font-semibold text-neutral-900" @click.stop>{{ c.company_name }}</RouterLink><div class="mt-1 flex flex-wrap gap-1"><UiBadge>{{ t(c.party_kind === 'person' ? 'tri.contacts.kind_person' : c.party_kind === 'private' ? 'tri.contacts.kind_private' : 'tri.contacts.kind_company') }}</UiBadge><UiBadge v-if="c.party_kind !== 'person' && !c.myucto_id">{{ t('tri.contacts.not_in_myucto') }}</UiBadge><UiBadge v-if="c.archived_at">{{ t('common.archived') }}</UiBadge></div><p v-if="clientIsIncomplete(c)" class="text-warning-600 text-xs mt-1" :title="t('client.incomplete_list_hint')">{{ t('office.incomplete_contact') }}</p></td>
+        <td class="px-4 py-4 min-w-[200px]"><RouterLink :to="`/tri/contacts/${c.id}`" class="font-semibold text-neutral-900" @click.stop>{{ c.company_name }}</RouterLink><div class="mt-1 flex flex-wrap gap-1"><UiBadge>{{ t(kindKey(c.party_kind)) }}</UiBadge><UiBadge v-if="awaitingMyucto(c)">{{ t('tri.contacts.not_in_myucto') }}</UiBadge><UiBadge v-if="c.archived_at">{{ t('common.archived') }}</UiBadge></div><p v-if="clientIsIncomplete(c)" class="text-warning-600 text-xs mt-1" :title="t('client.incomplete_list_hint')">{{ t('office.incomplete_contact') }}</p></td>
         <td class="px-4 py-4"><a v-if="c.main_email" :href="`mailto:${c.main_email}`" class="block text-primary-700 break-all" @click.stop>{{ c.main_email }}</a><span v-else>—</span><a v-if="c.phone" :href="`tel:${c.phone}`" class="block text-neutral-600 mt-1" @click.stop>{{ c.phone }}</a><span v-else class="block">—</span></td>
         <td class="px-4"><div class="flex flex-wrap gap-1"><OfficeRoleTag v-for="tag in c.tri_tags" :key="tag.id" :name="tag.name" :slug="tag.slug" /><span v-if="!c.tri_tags?.length">—</span></div></td>
         <td class="px-4 text-right text-primary-700">{{ c.tri_jobs_count || '—' }}</td>

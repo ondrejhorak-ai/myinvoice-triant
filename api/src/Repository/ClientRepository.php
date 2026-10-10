@@ -100,7 +100,7 @@ final class ClientRepository
             $listParams[] = (int) $filters['expense_category_id'];
         }
         if (!empty($filters['billable'])) {
-            $listWhere[] = "c.party_kind IN ('company','private')";
+            $listWhere[] = "(c.party_kind = 'company' OR c.party_kind = 'private' OR (c.party_kind = 'person' AND c.company_client_id IS NULL))";
         }
         if (!empty($filters['tri_tag_id'])) {
             $listWhere[] = 'EXISTS (SELECT 1 FROM tri_client_tags tct WHERE tct.client_id = c.id AND tct.tag_id = ?)';
@@ -174,7 +174,7 @@ final class ClientRepository
                    ) tj ON tj.client_id = c.id"
             : '';
         // Cache `client_revenue_cache` — primární řádek vybíráme přes c.currency_default_id
-        $sql = "SELECT c.id, c.supplier_id, c.company_name, c.ic, c.dic, c.tax_number,
+        $sql = "SELECT c.id, c.supplier_id, c.company_name, c.party_kind, c.company_client_id, c.myucto_id, c.ic, c.dic, c.tax_number,
                        c.street, c.city, c.zip,
                        c.main_email, c.phone, c.language,
                        c.currency_default_id, cur.code AS currency_default,

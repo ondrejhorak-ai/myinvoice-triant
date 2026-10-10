@@ -169,6 +169,15 @@ async function addPerson() {
   }
 }
 
+function kindKey(kind?: string | null): string {
+  return kind === 'person' || kind === 'private' ? 'tri.contacts.kind_person' : 'tri.contacts.kind_company'
+}
+
+function awaitingMyucto(c: { party_kind?: string | null; company_client_id?: number | null; myucto_id?: number | null }): boolean {
+  if (c.myucto_id) return false
+  return !((c.party_kind === 'person' || c.party_kind === 'private') && c.company_client_id)
+}
+
 function listedAmount(inv: InvoiceListItem): number {
   if (inv.invoice_type === 'tax_document') return inv.total_with_vat
   return inv.amount_to_pay ?? inv.total_with_vat
@@ -179,7 +188,7 @@ function listedAmount(inv: InvoiceListItem): number {
   <CardSkeleton v-if="loading" :blocks="3" />
   <div v-else-if="client" class="space-y-6">
     <div><OfficeBreadcrumb :items="[{label:t('tri.contacts.title'),to:'/tri/contacts'},{label:client.company_name}]" />
-    <UiPageHeader :title="client.company_name"><template #below><div class="flex flex-wrap gap-2 mt-2"><UiBadge>{{ t(client.party_kind === 'person' ? 'tri.contacts.kind_person' : client.party_kind === 'private' ? 'tri.contacts.kind_private' : 'tri.contacts.kind_company') }}</UiBadge><UiBadge v-if="client.party_kind !== 'person' && !client.myucto_id">{{ t('tri.contacts.not_in_myucto') }}</UiBadge><OfficeRoleTag v-for="tag in tags" :key="tag.id" :name="tag.name" :slug="tag.slug" /><RouterLink v-if="client.company" :to="`/tri/contacts/${client.company.id}`" class="text-sm text-primary-700">{{ client.company.company_name }}</RouterLink><span class="text-neutral-600 text-sm" v-if="client.ic">{{ t('common.ic') }} {{ client.ic }}</span><span class="text-neutral-600 text-sm" v-if="client.dic">{{ t('common.dic') }} {{ client.dic }}</span><UiBadge v-if="client.archived_at">{{ t('common.archived') }}</UiBadge></div><p v-if="client.party_kind !== 'person' && !client.myucto_id" class="text-xs text-neutral-500 mt-2">{{ t('tri.contacts.kind_hint') }}</p></template><template #actions><UiButton v-if="auth.canWrite" :to="`/tri/contacts/${client.id}/edit`">{{ t('office.edit_contact') }}</UiButton><details v-if="auth.canWrite" class="relative"><summary class="cursor-pointer border border-neutral-200 bg-surface px-4 py-2" :aria-label="t('office.actions')">⋯</summary><div class="absolute right-0 top-full bg-surface border border-neutral-200 p-2 min-w-48 z-20 shadow-lg"><button class="block w-full text-left p-2" @click="rolesOpen=true">{{ t('office.edit_roles') }}</button><button v-if="!client.archived_at" class="block w-full text-left p-2" @click="archive">{{ t('common.archive') }}</button><button v-else class="block w-full text-left p-2" @click="unarchive">{{ t('common.unarchive') }}</button></div></details></template></UiPageHeader></div>
+    <UiPageHeader :title="client.company_name"><template #below><div class="flex flex-wrap gap-2 mt-2"><UiBadge>{{ t(kindKey(client.party_kind)) }}</UiBadge><UiBadge v-if="awaitingMyucto(client)">{{ t('tri.contacts.not_in_myucto') }}</UiBadge><OfficeRoleTag v-for="tag in tags" :key="tag.id" :name="tag.name" :slug="tag.slug" /><RouterLink v-if="client.company" :to="`/tri/contacts/${client.company.id}`" class="text-sm text-primary-700">{{ client.company.company_name }}</RouterLink><span class="text-neutral-600 text-sm" v-if="client.ic">{{ t('common.ic') }} {{ client.ic }}</span><span class="text-neutral-600 text-sm" v-if="client.dic">{{ t('common.dic') }} {{ client.dic }}</span><UiBadge v-if="client.archived_at">{{ t('common.archived') }}</UiBadge></div><p v-if="awaitingMyucto(client)" class="text-xs text-neutral-500 mt-2">{{ t('tri.contacts.kind_hint') }}</p></template><template #actions><UiButton v-if="auth.canWrite" :to="`/tri/contacts/${client.id}/edit`">{{ t('office.edit_contact') }}</UiButton><details v-if="auth.canWrite" class="relative"><summary class="cursor-pointer border border-neutral-200 bg-surface px-4 py-2" :aria-label="t('office.actions')">⋯</summary><div class="absolute right-0 top-full bg-surface border border-neutral-200 p-2 min-w-48 z-20 shadow-lg"><button class="block w-full text-left p-2" @click="rolesOpen=true">{{ t('office.edit_roles') }}</button><button v-if="!client.archived_at" class="block w-full text-left p-2" @click="archive">{{ t('common.archive') }}</button><button v-else class="block w-full text-left p-2" @click="unarchive">{{ t('common.unarchive') }}</button></div></details></template></UiPageHeader></div>
     <div v-if="error" class="office-error" role="alert">{{ error }}</div>
     <ClientIncompleteBanner :client="client" :edit-to="`/tri/contacts/${client.id}/edit`" />
     <div class="grid lg:grid-cols-[3fr_2fr] gap-6">

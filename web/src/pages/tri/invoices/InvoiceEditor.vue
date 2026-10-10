@@ -1058,7 +1058,7 @@ async function deleteDraft() {
                 </template>
               </div>
               <div v-if="form.client_id" class="border border-neutral-200 bg-neutral-50 px-3 py-3">
-                <template v-if="selectedBillingClient?.party_kind === 'person'">
+                <template v-if="selectedBillingClient?.party_kind === 'person' && selectedBillingClient.company_client_id">
                   <p class="text-sm font-medium text-neutral-900">{{ t('invoice.myucto_person') }}</p>
                   <p class="mt-1 text-xs text-neutral-500">{{ t('invoice.myucto_person_hint') }}</p>
                 </template>

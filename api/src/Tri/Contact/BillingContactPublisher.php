@@ -13,7 +13,7 @@ use PDO;
 
 /**
  * Odběratele založí nebo spojí v MyÚčtu až při prvním dokladu.
- * Kontaktní osoba se neposílá. Neúplná adresa ani výpadek MyÚčta doklad nevystaví
+ * Osoba navázaná na firmu se neposílá. Neúplná adresa ani výpadek MyÚčta doklad nevystaví
  * a řádek v Office zůstane.
  */
 final class BillingContactPublisher
@@ -56,10 +56,11 @@ final class BillingContactPublisher
             throw new MyUctoApiException('not_found', 'Kontakt nenalezen.', 404);
         }
         $kind = (string) ($row['party_kind'] ?? ContactParty::COMPANY);
-        if ($kind === ContactParty::PERSON) {
+        $companyId = (int) ($row['company_client_id'] ?? 0);
+        if (!ContactParty::isBillable($kind, $companyId)) {
             throw new MyUctoApiException(
                 'person_not_billable',
-                'Kontaktní osoba se do MyÚčta neposílá. Na dokladu vyberte firmu nebo soukromou osobu.',
+                'Osoba u firmy se do MyÚčta neposílá. Na dokladu vyberte firmu, nebo osobu bez firmy.',
                 422,
             );
         }
@@ -198,7 +199,7 @@ final class BillingContactPublisher
     private function load(int $id): ?array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT id, party_kind, company_name, first_name, last_name, ic, dic, street, city, zip,
+            'SELECT id, party_kind, company_client_id, company_name, first_name, last_name, ic, dic, street, city, zip,
                     main_email, phone, is_customer, is_vendor, payment_due_default, myucto_id
                FROM clients WHERE id = ? AND supplier_id = ?'
         );

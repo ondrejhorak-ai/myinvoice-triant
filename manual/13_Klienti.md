@@ -16,11 +16,13 @@ a archivované kontakty, **Další** přidá výsledky.
 Detail obsahuje kontaktní a fakturační údaje, související zakázky a faktury.
 Zakázky zahrnují zákazníka i další přiřazené kontakty. **Upravit role** umožňuje
 kombinovat role; změnu potvrzuje **Uložit role**. Archivace respektuje oprávnění.
-Kontakt je buď **odběratel** (firma nebo soukromá osoba), nebo **kontaktní osoba**
-navázaná na firmu. Zakázku jde založit jen se jménem a e-mailem. Adresa do té doby
-není chyba. Do MyÚčta se odešle jen odběratel, a to až s první zálohou nebo fakturou,
-když má název, ulici, město a PSČ. Jediné shodné IČO se spojí samo. Stejné jméno nebo
-e-mail se jen nabídne, nic není předvolené. Kontaktní osoba v MyÚčtu nevznikne.
+Kontakt je **Firma** nebo **Osoba**. Seznam ukazuje obojí, u jména je značka druhu.
+Nový kontakt se otevírá jako osoba. Osoba má jméno, e-mail, telefon a volitelnou adresu
+a může patřit k firmě. Bez firmy je soukromý zákazník a do MyÚčta se odešle s prvním
+dokladem, jakmile má ulici, město a PSČ. S firmou je člověk té firmy a v MyÚčtu nevznikne.
+Firma se bez IČO neuloží; firma, která IČO ještě nemá, se dá otevřít a IČO se chce až
+při dalším uložení. Adresa firmy stačí až před dokladem. Jediné shodné IČO se spojí samo.
+Stejné jméno nebo e-mail se jen nabídne, nic není předvolené.
 Když je MyÚčto nedostupné, doklad se nevystaví a karta v Office zůstane.
 
 ## 13.1 Seznam klientů

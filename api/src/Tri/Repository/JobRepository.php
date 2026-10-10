@@ -413,7 +413,7 @@ final class JobRepository
     }
 
     /**
-     * Odběratel faktury je samostatná volba. Kontaktní osoba jím není,
+     * Odběratel faktury je samostatná volba. Osoba navázaná na firmu jím není,
      * ani když má na zakázce roli zákazník.
      *
      * @param array<string, mixed> $data
@@ -433,16 +433,16 @@ final class JobRepository
             if ($contact['role'] !== JobContacts::CUSTOMER) {
                 continue;
             }
-            $kind = $this->partyKind($pdo, $supplierId, $contact['client_id']);
-            if (ContactParty::isBillable($kind)) {
+            $party = $this->partyRow($pdo, $supplierId, $contact['client_id']);
+            if (ContactParty::isBillable($party['kind'], $party['company_id'])) {
                 return $contact['client_id'];
             }
         }
         $ids = array_map(static fn (array $c) => $c['client_id'], $contacts);
         $billable = [];
         foreach ($ids as $id) {
-            $kind = $this->partyKind($pdo, $supplierId, $id);
-            if (ContactParty::isBillable($kind)) {
+            $party = $this->partyRow($pdo, $supplierId, $id);
+            if (ContactParty::isBillable($party['kind'], $party['company_id'])) {
                 $billable[] = $id;
             }
         }
@@ -452,21 +452,28 @@ final class JobRepository
 
     private function assertBillable(PDO $pdo, int $supplierId, int $clientId): int
     {
-        $kind = $this->partyKind($pdo, $supplierId, $clientId);
-        if (!ContactParty::isBillable($kind)) {
-            throw new \InvalidArgumentException('Odběratelem faktury může být jen firma nebo soukromá osoba.');
+        $party = $this->partyRow($pdo, $supplierId, $clientId);
+        if (!ContactParty::isBillable($party['kind'], $party['company_id'])) {
+            throw new \InvalidArgumentException('Odběratelem faktury může být firma, nebo osoba bez vazby na firmu.');
         }
 
         return $clientId;
     }
 
-    private function partyKind(PDO $pdo, int $supplierId, int $clientId): string
+    /** @return array{kind: string, company_id: int} */
+    private function partyRow(PDO $pdo, int $supplierId, int $clientId): array
     {
-        $stmt = $pdo->prepare('SELECT party_kind FROM clients WHERE id = ? AND supplier_id = ?');
+        $stmt = $pdo->prepare('SELECT party_kind, company_client_id FROM clients WHERE id = ? AND supplier_id = ?');
         $stmt->execute([$clientId, $supplierId]);
-        $kind = $stmt->fetchColumn();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return ['kind' => '', 'company_id' => 0];
+        }
 
-        return is_string($kind) && $kind !== '' ? $kind : '';
+        return [
+            'kind' => is_string($row['party_kind'] ?? null) ? (string) $row['party_kind'] : '',
+            'company_id' => (int) ($row['company_client_id'] ?? 0),
+        ];
     }
 
     private function cascadeJobNumber(PDO $pdo, int $jobId, string $newNumber): void

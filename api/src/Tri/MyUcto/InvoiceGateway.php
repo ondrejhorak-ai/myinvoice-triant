@@ -125,8 +125,8 @@ final class InvoiceGateway
             $this->mapUnavailable($e);
             throw $e;
         }
+        // Načtení dokladu v MyÚčtu nic nezakládá ani nemaže.
         $this->upsertRemote($remote);
-        $this->dropStrayTaxDrafts($remote);
 
         return $this->present($remote);
     }
