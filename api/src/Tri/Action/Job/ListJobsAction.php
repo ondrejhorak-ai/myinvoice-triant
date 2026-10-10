@@ -22,6 +22,8 @@ final class ListJobsAction
         $perPage = min(100, max(5, (int) ($q['per_page'] ?? 25)));
         $filters = [
             'q'      => isset($q['q']) ? trim((string) $q['q']) : '',
+            'archive' => in_array($q['archive'] ?? '', ['all', 'archived'], true) ? $q['archive'] : 'active',
+            'client_id' => (int) ($q['client_id'] ?? 0),
             'status' => isset($q['status']) ? (string) $q['status'] : '',
         ];
 

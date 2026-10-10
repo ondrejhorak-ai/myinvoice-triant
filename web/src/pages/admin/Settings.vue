@@ -10,6 +10,7 @@ import { renderVarsymbolTemplate, hasCounterPlaceholder } from '@/utils/varsymbo
 import { formatDate } from '@/composables/useFormat'
 import BrandingProfilesSettings from '@/components/settings/BrandingProfilesSettings.vue'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
+import { TRI_SIDEBAR_MODULES, normalizeHiddenSidebarModules } from '@/config/triSidebar'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -257,9 +258,54 @@ async function load() {
     bumpPreview()
   } finally { loading.value = false }
   loadSampleStatus()
+  loadMenuVisibility()
 }
 
 onMounted(load)
+
+// ── Viditelnost položek menu (dříve /admin/tri-settings) ──
+const menuLoading = ref(true)
+const menuSaving = ref(false)
+const hiddenModules = ref<string[]>([])
+const hideableModules = computed(() => TRI_SIDEBAR_MODULES.filter((item) => item.hideable))
+
+async function loadMenuVisibility() {
+  menuLoading.value = true
+  try {
+    const data = await settingsApi.getTriSidebarSettings()
+    hiddenModules.value = normalizeHiddenSidebarModules(data.hidden_modules)
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error?.message || t('common.error'))
+  } finally {
+    menuLoading.value = false
+  }
+}
+
+function isMenuVisible(moduleId: string): boolean {
+  return !hiddenModules.value.includes(moduleId)
+}
+
+function toggleMenuModule(moduleId: string, visible: boolean) {
+  const next = new Set(hiddenModules.value)
+  if (visible) next.delete(moduleId)
+  else next.add(moduleId)
+  hiddenModules.value = [...next]
+}
+
+async function saveMenuVisibility() {
+  menuSaving.value = true
+  try {
+    const updated = await settingsApi.updateTriSidebarSettings({
+      hidden_modules: normalizeHiddenSidebarModules(hiddenModules.value),
+    })
+    hiddenModules.value = normalizeHiddenSidebarModules(updated.hidden_modules)
+    toast.success(t('common.saved'))
+  } catch (e: any) {
+    toast.error(e?.response?.data?.error?.message || t('common.error'))
+  } finally {
+    menuSaving.value = false
+  }
+}
 
 // ── Ukázková (sample) data — sekce se zobrazí jen když nějaká evidovaná existují (issue #162) ──
 const sampleStatus = ref<SampleDataStatus | null>(null)
@@ -1036,6 +1082,39 @@ async function removeLogo() {
             </div>
             <iframe :srcdoc="previewHtml" sandbox="allow-same-origin" class="w-full h-[420px] border border-neutral-200 rounded-md bg-neutral-50" />
           </div>
+        </div>
+      </section>
+
+      <!-- Položky menu (viditelnost v draweru) -->
+      <section class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-sm">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-1">{{ t('tri_settings.title') }}</h2>
+        <p class="text-sm text-neutral-500 mb-4">{{ t('tri_settings.subtitle') }}</p>
+        <p class="text-xs text-neutral-500 mb-4">{{ t('tri_settings.fixed_hint') }}</p>
+        <div v-if="menuLoading" class="text-center text-neutral-500 py-6 text-sm">{{ t('common.loading') }}</div>
+        <div v-else class="space-y-2">
+          <label
+            v-for="module in hideableModules"
+            :key="module.id"
+            class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-neutral-50"
+          >
+            <input
+              :checked="isMenuVisible(module.id)"
+              type="checkbox"
+              class="rounded border-neutral-300 text-primary-600"
+              @change="toggleMenuModule(module.id, ($event.target as HTMLInputElement).checked)"
+            />
+            <span class="text-sm text-neutral-800">{{ t(module.labelKey) }}</span>
+          </label>
+        </div>
+        <div class="mt-5 flex justify-end">
+          <button
+            type="button"
+            :disabled="menuSaving || menuLoading"
+            class="cursor-pointer px-4 h-10 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white text-sm font-medium rounded-md"
+            @click="saveMenuVisibility"
+          >
+            {{ menuSaving ? t('common.loading') : t('common.save') }}
+          </button>
         </div>
       </section>
 

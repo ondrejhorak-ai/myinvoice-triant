@@ -76,7 +76,6 @@ use MyInvoice\Action\Auth\TotpAction;
 use MyInvoice\Action\System\HealthAction;
 use MyInvoice\Action\System\OpenApiAction;
 use MyInvoice\Action\System\VersionAction;
-use MyInvoice\Action\Admin\UpdateAction;
 use Slim\App;
 
 final class Routes
@@ -91,13 +90,6 @@ final class Routes
         $app->get('/api/docs',         [OpenApiAction::class, 'docs']);       // Swagger UI (Try it out)
         $app->get('/api/reference',    [OpenApiAction::class, 'reference']);  // Redoc (pretty static)
         $app->get('/api/scalar',       [OpenApiAction::class, 'scalar']);     // Scalar (moderní reference)
-
-        // Admin — kontrola a upgrade nové verze (M9, issue „Kontrola a upgrade")
-        $app->get  ('/api/admin/update/status',  [UpdateAction::class, 'status']);
-        $app->get  ('/api/admin/update/preflight', [UpdateAction::class, 'preflight']);
-        $app->post ('/api/admin/update/refresh', [UpdateAction::class, 'refresh']);
-        $app->post ('/api/admin/update/trigger', [UpdateAction::class, 'trigger']);
-        $app->post ('/api/admin/update/cancel',  [UpdateAction::class, 'cancel']);
 
         // Admin — správa ukázkových (sample) dat (issue #162); admin-only přes RoleMiddleware
         $app->get   ('/api/maintenance/sample-data', [\MyInvoice\Action\Maintenance\SampleDataAction::class, 'status']);

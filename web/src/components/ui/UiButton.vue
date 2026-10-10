@@ -19,11 +19,11 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ click: [e: MouseEvent] }>()
 
 const VARIANT: Record<NonNullable<typeof props.variant>, string> = {
-  primary:   'bg-primary-600 hover:bg-primary-700 text-white shadow-xs',
-  secondary: 'bg-surface border border-neutral-300 text-neutral-700 shadow-xs hover:bg-neutral-50',
-  outline:   'bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50',
+  primary:   'bg-primary-600 hover:bg-primary-700 text-white',
+  secondary: 'bg-surface border border-neutral-200 text-primary-700 hover:bg-neutral-50',
+  outline:   'bg-transparent border border-neutral-200 text-primary-700 hover:bg-neutral-50',
   ghost:     'bg-transparent text-neutral-700 hover:bg-neutral-100',
-  danger:    'bg-danger-600 hover:bg-danger-600/90 text-white shadow-xs',
+  danger:    'bg-danger-600 hover:bg-danger-600/90 text-white',
 }
 
 const SIZE: Record<NonNullable<typeof props.size>, string> = {

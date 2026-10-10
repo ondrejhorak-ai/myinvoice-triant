@@ -1,0 +1,21 @@
+---
+description: Context for the Figma implementation, versioned pricing and MyUcto boundary
+alwaysApply: true
+---
+
+# Kontext Triant office
+
+Před změnou UI nebo katalogu čti `source/21-figma-office-handoff.md`.
+Přesné Figma uzly a zadání jsou v `source/21-figma-office-reference.md`.
+Pro vzhled Office mají přednost před staršími designy a overnight-loop plány.
+Architektonickou autoritou zůstávají `AGENTS.md`, `source/18-myucto-split-architecture.md`
+a `source/19-myucto-phase-briefs.md`.
+
+Ceníky mají katalogové produkty a neměnná publikovaná vydání. Historické nabídky
+se nepřeceňují automaticky; zachovej odkazy na zdroj i snímky. První převod
+původního ceníku neslučuje kódy napříč ceníky. Nevracej živou globální cenu do
+katalogu. Každou další změnu modelu/workflow a ověření připiš do handoff dokumentu.
+
+Používej existující Office komponenty, lokalizace cs/en, Open Sans a sdílené
+tokeny. Ověř desktop i mobilní tabulky v prohlížeči. Žádné přímé čtení/zápis DB
+MyÚčta. Produkční testy nesmí vytvářet či odesílat reálné doklady.

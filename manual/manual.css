@@ -1,3 +1,4 @@
+@font-face { font-family:'Open Sans'; src:url('/assets/fonts/open-sans.ttf') format('truetype'); font-weight:300 800; font-display:swap; }
 /* ============================================================================
    MyInvoice.cz — manuál. Design tokeny zrcadlí web/src/styles/main.css
    (light + .dark přepíná hodnoty, ne komponenty). Při změně palety apky
@@ -8,33 +9,33 @@
     /* Plochy + text (neutral škála z apky — Untitled gray) */
     --bg:          #F9FAFB;
     --surface:     #FFFFFF;
-    --surface-2:   #F2F4F7;
+    --surface-2:   #F4F4F4;
     --border:      #EAECF0;
-    --border-soft: #F2F4F7;
+    --border-soft: #F4F4F4;
     --text:        #101828;
     --text-2:      #344054;
     --muted:       #475467;
     --faint:       #98A2B3;
 
     /* Primary — Triant petrolej */
-    --prim:        #155A86;   /* interactive / link */
-    --prim-deep:   #0B4F7C;   /* brand deep */
-    --prim-soft:   #EAF1F5;   /* soft pill bg */
+    --prim:        #265780;   /* interactive / link */
+    --prim-deep:   #204A6D;   /* brand deep */
+    --prim-soft:   #F2F6F9;   /* soft pill bg */
     --prim-100:    #D3E3EC;
-    --btn:         #155A86;
-    --btn-h:       #0B4F7C;
+    --btn:         #265780;
+    --btn-h:       #204A6D;
 
     /* Accent pilulky sekcí (jako barevné menu v apce) */
-    --acc-primary-bg: #EAF1F5;  --acc-primary-fg: #0B4F7C;
+    --acc-primary-bg: #F2F6F9;  --acc-primary-fg: #204A6D;
     --acc-warning-bg: #FDF6E9;  --acc-warning-fg: #96671C;
     --acc-success-bg: #ECF6F0;  --acc-success-fg: #2E7B53;
     --acc-sky-bg:     #EFF6FC;  --acc-sky-fg:     #2D6E9E;
     --acc-danger-bg:  #FBEDED;  --acc-danger-fg:  #B84545;
-    --acc-neutral-bg: #F2F4F7;  --acc-neutral-fg: #475467;
+    --acc-neutral-bg: #F4F4F4;  --acc-neutral-fg: #475467;
     --acc-indigo-bg:    #E7EAFB;  --acc-indigo-fg:    #3B47A6;
     --acc-stone-bg:    #EFE9E1;  --acc-stone-fg:    #6B5536;
 
-    --code-bg: #F2F4F7;
+    --code-bg: #F4F4F4;
     --code-fg: #B84545;
     --bq-bg:   #FDF6E9;
     --bq-border: #E8A547;
@@ -44,7 +45,7 @@
     --shadow-lg: 0 12px 16px -4px rgba(16, 24, 40, .08), 0 4px 6px -2px rgba(16, 24, 40, .03);
 
     --topbar-h: 56px;
-    --sidebar-w: 264px;
+    --sidebar-w: 248px;
 }
 
 .dark {
@@ -91,7 +92,7 @@ html, body { overflow-x: hidden; max-width: 100%; }
 body {
     margin: 0;
     padding-top: var(--topbar-h);
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-family: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     font-size: 15.5px;
     line-height: 1.65;
     color: var(--text);

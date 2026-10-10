@@ -5,11 +5,21 @@ import { useI18n } from 'vue-i18n'
 import { searchApi, type SearchResults } from '@/api/search'
 
 interface MenuItem { to: string; label: string; icon: string; external?: boolean }
-const props = defineProps<{ menuItems: MenuItem[] }>()
+
+/**
+ * Globální vyhledávač — našeptává menu + hledá klienty/faktury.
+ * variant=topbar: kompaktní input do horní lišty; default = drawer.
+ */
+const props = withDefaults(defineProps<{
+  menuItems: MenuItem[]
+  variant?: 'drawer' | 'topbar'
+}>(), { variant: 'drawer' })
 const emit = defineEmits<{ navigated: [] }>()
 
 const { t } = useI18n()
 const router = useRouter()
+
+const isTopbar = computed(() => props.variant === 'topbar')
 
 const q = ref('')
 const open = ref(false)
@@ -121,7 +131,7 @@ onBeforeUnmount(() => clearTimeout(debounceTimer))
 </script>
 
 <template>
-  <div class="relative px-0.5 pb-2">
+  <div class="relative" :class="isTopbar ? 'w-full min-w-0' : 'px-0.5 pb-2'">
     <div class="relative">
       <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -131,8 +141,9 @@ onBeforeUnmount(() => clearTimeout(debounceTimer))
         ref="inputEl"
         v-model="q"
         type="text"
-        :placeholder="t('search.placeholder')"
-        class="w-full h-10 pl-9 pr-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 shadow-xs focus:bg-surface focus:border-primary-500 focus:outline-none focus-ring"
+        :placeholder="t(isTopbar?'search.placeholder':'common.search')"
+        class="w-full pl-9 pr-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 shadow-xs focus:bg-surface focus:border-primary-500 focus:outline-none focus-ring"
+        :class="isTopbar ? 'h-9' : 'h-10'"
         autocomplete="off"
         spellcheck="false"
         @focus="open = q.trim().length > 0"
@@ -144,7 +155,8 @@ onBeforeUnmount(() => clearTimeout(debounceTimer))
     <!-- Dropdown výsledků -->
     <div
       v-if="showDropdown"
-      class="absolute left-0 right-0 mt-1 z-40 bg-surface border border-neutral-200 rounded-md shadow-lg max-h-[70vh] overflow-y-auto"
+      class="absolute mt-1 z-40 bg-surface border border-neutral-200 rounded-md shadow-lg max-h-[70vh] overflow-y-auto"
+      :class="isTopbar ? 'left-0 right-0 sm:left-auto sm:right-0 sm:w-80' : 'left-0 right-0'"
     >
       <div v-if="loading && !hasResults" class="px-3 py-2 text-xs text-neutral-500">{{ t('common.loading') }}</div>
       <div v-else-if="!hasResults" class="px-3 py-2 text-xs text-neutral-500">{{ t('search.no_results') }}</div>

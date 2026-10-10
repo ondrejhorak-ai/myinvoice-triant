@@ -34,6 +34,7 @@ use MyInvoice\Tri\Action\Tag\ListTagsAction;
 use MyInvoice\Tri\Action\Tag\SetClientTagsAction;
 use MyInvoice\Tri\Action\Tag\UpdateTagAction;
 use MyInvoice\Tri\Action\Invoice\CreateAdvanceInvoiceAction;
+use MyInvoice\Tri\Action\Invoice\CreateTriInvoiceAction;
 use MyInvoice\Tri\Action\Invoice\CreateFinalInvoiceAction;
 use MyInvoice\Tri\Action\Invoice\InvoiceCycleAction;
 use MyInvoice\Tri\Action\Invoice\DeleteTriInvoiceAction;
@@ -103,6 +104,8 @@ final class TriRoutes
         $app->post('/api/tri/contacts/{id:[0-9]+}/unarchive', ArchiveContactAction::class);
         $app->post('/api/tri/contacts/lookup-ares', TriLookupAresAction::class);
 
+        $app->get('/api/tri/contacts/{id:[0-9]+}', \MyInvoice\Tri\Action\Contact\GetContactAction::class);
+
         // Jobs (Zakázky TRI)
         $app->get('/api/tri/users', ListJobUsersAction::class);
         $app->get('/api/tri/jobs', ListJobsAction::class);
@@ -121,6 +124,8 @@ final class TriRoutes
         $app->post('/api/tri/jobs/{id:[0-9]+}/activity', CreateJobCommentAction::class);
         $app->put('/api/tri/activity/{id:[0-9]+}', UpdateJobCommentAction::class);
         $app->delete('/api/tri/activity/{id:[0-9]+}', DeleteJobCommentAction::class);
+
+        $app->get('/api/tri/offers', \MyInvoice\Tri\Action\Quote\ListVariantsAction::class);
 
         // Quote variants
         $app->post('/api/tri/jobs/{job_id:[0-9]+}/variants', CreateVariantAction::class);
@@ -161,6 +166,23 @@ final class TriRoutes
         $app->post('/api/tri/invoices/{id:[0-9]+}/payments', InvoiceCycleAction::class);
         $app->delete('/api/tri/invoices/{id:[0-9]+}/payments/{paymentId:[0-9]+}', InvoiceCycleAction::class);
         $app->post('/api/tri/invoices/{id:[0-9]+}/link-advance', InvoiceCycleAction::class);
+
+        // Versioned catalogue. Internal session API, isolated from MyÚčto's public API.
+        $pricing = \MyInvoice\Tri\Action\Pricing\PricingAction::class;
+        $app->get('/api/tri/pricing/releases/{release:[0-9]+}', $pricing);
+        $app->post('/api/tri/pricing/images', \MyInvoice\Tri\Action\Pricing\UploadCatalogImageAction::class);
+        $app->get('/api/tri/pricing/products', $pricing);
+        $app->get('/api/tri/pricing/products/{id:[0-9]+}/prices', $pricing);
+        $app->post('/api/tri/pricing/products', $pricing);
+        $app->put('/api/tri/pricing/products/{id:[0-9]+}', $pricing);
+        $app->get('/api/tri/pricing/lists', $pricing);
+        $app->post('/api/tri/pricing/lists', $pricing);
+        $app->get('/api/tri/pricing/lists/{id:[0-9]+}', $pricing);
+        $app->post('/api/tri/pricing/lists/{id:[0-9]+}/draft', $pricing);
+        $app->post('/api/tri/pricing/lists/{id:[0-9]+}/archive', $pricing);
+        $app->post('/api/tri/pricing/lists/{id:[0-9]+}/import-preview', \MyInvoice\Tri\Action\Pricing\ImportPreviewAction::class);
+        $app->put('/api/tri/pricing/lists/{id:[0-9]+}/releases/{release:[0-9]+}', $pricing);
+        $app->post('/api/tri/pricing/lists/{id:[0-9]+}/releases/{release:[0-9]+}/publish', $pricing);
 
         // Price lists (Ceníky TRI)
         $app->get('/api/tri/price-lists', ListPriceListsAction::class);

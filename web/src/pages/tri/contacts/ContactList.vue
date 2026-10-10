@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import OfficeFilterButton from '@/components/tri/OfficeFilterButton.vue'
+import OfficeAppliedFilters from '@/components/tri/OfficeAppliedFilters.vue'
+import { useAppliedFilters } from '@/composables/tri/useAppliedFilters'
+
+import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { clientsApi, type Client } from '@/api/clients'
@@ -14,33 +18,55 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiTable from '@/components/ui/UiTable.vue'
+import Modal from '@/components/ui/Modal.vue'
+import OfficeRoleTag from '@/components/tri/OfficeRoleTag.vue'
+import { apiErrorMessage } from '@/api/errors'
 import { clientIsIncomplete } from '@/utils/clientCompleteness'
 
 const { t } = useI18n()
 const auth = useAuthStore()
 
 const items = ref<Client[]>([])
+const error = ref('')
+const filtersOpen = ref(false)
+const draftArchived = ref<boolean | 'all'>(false)
+const draftRole = ref<number | null>(null)
+let request = 0
+function openFilters() { draftArchived.value = showArchived.value; draftRole.value = triTagFilter.value; filtersOpen.value = true }
+function applyFilters() { showArchived.value = draftArchived.value; triTagFilter.value = draftRole.value; filtersOpen.value = false }
+
+onBeforeUnmount(() => { if (searchTimeout) clearTimeout(searchTimeout) })
 const total = ref(0)
 const page = ref(1)
 const pages = ref(1)
 const loading = ref(false)
 const loadingMore = ref(false)
 const search = ref('')
-const showArchived = ref(false)
+const showArchived = ref<boolean | 'all'>(false)
 const sort = ref<'name' | 'revenue' | 'last_activity'>('name')
 const triTags = ref<TriTag[]>([])
 const triTagFilter = ref<number | null>(null)
+const { conditions, removeFilter, clearFilters } = useAppliedFilters([
+  { id: 'archive', active: () => showArchived.value !== 'all', label: () => `${t('office.archive_filter')}: ${t(showArchived.value ? 'office.archived_only' : 'office.not_archived')}`, clear: () => { showArchived.value = 'all' } },
+  { id: 'role', active: () => triTagFilter.value !== null, label: () => `${t('tri.tags.label')}: ${triTags.value.find(tag => tag.id === triTagFilter.value)?.name ?? '#' + triTagFilter.value}`, clear: () => { triTagFilter.value = null } },
+])
 let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
-const filteredItems = computed(() => items.value)
+
 
 async function load(reset = true) {
+  if (!reset && (loading.value || loadingMore.value)) return
+  const seq = ++request
+  const next = reset ? 1 : page.value + 1
+  error.value = ''
   if (reset) {
     loading.value = true
-    page.value = 1
+    items.value = []
+    page.value = 1; pages.value = 1; total.value = 0
+
   } else {
     loadingMore.value = true
-    page.value++
+
   }
   try {
     const r = await clientsApi.list({
@@ -50,8 +76,10 @@ async function load(reset = true) {
       role: 'all',
       tri_tag_id: triTagFilter.value ?? undefined,
       tri_stats: true,
-      page: page.value,
+      page: next,
     })
+    if (seq !== request) return
+    page.value = next
     if (reset) {
       items.value = r.data
     } else {
@@ -59,7 +87,10 @@ async function load(reset = true) {
     }
     total.value = r.meta.total
     pages.value = r.meta.pages
+  } catch (e) {
+    if (seq === request) error.value = apiErrorMessage(e, t('common.error'))
   } finally {
+    if (seq !== request) return
     loading.value = false
     loadingMore.value = false
   }
@@ -69,9 +100,7 @@ onMounted(async () => {
   load(true)
   triTags.value = await triApi.tags.list().catch(() => [])
 })
-watch(showArchived, () => load(true))
-watch(sort, () => load(true))
-watch(triTagFilter, () => load(true))
+watch([showArchived, sort, triTagFilter], () => load(true))
 watch(search, () => {
   if (searchTimeout) clearTimeout(searchTimeout)
   searchTimeout = setTimeout(() => load(true), 300)
@@ -84,167 +113,31 @@ function openContact(c: Client, e?: MouseEvent) {
 </script>
 
 <template>
-  <div>
-    <UiPageHeader :title="t('tri.contacts.title')">
-      <template #actions>
-        <UiButton v-if="auth.canWrite" to="/tri/contacts/new" size="sm">
-          <template #icon>
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>
-          </template>
-          {{ t('tri.contacts.new') }}
-        </UiButton>
-      </template>
-    </UiPageHeader>
-
-    <UiCard>
-      <div class="px-4 py-3 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center gap-3">
-        <UiInput
-          v-model="search"
-          type="search"
-          size="sm"
-          class="flex-1"
-          :placeholder="t('common.search')"
-        >
-          <template #prefix>
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/></svg>
-          </template>
-        </UiInput>
-        <label class="flex items-center gap-2 text-sm text-neutral-700 shrink-0">
-          <input v-model="showArchived" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
-          {{ t('client.show_archived') }}
-        </label>
-        <select v-model.number="triTagFilter"
-          class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs">
-          <option :value="null">{{ t('tri.tags.label') }} — {{ t('common.all') }}</option>
-          <option v-for="tag in triTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
-        </select>
-        <select v-model="sort" class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs"
-          :title="t('common.sort_by')">
-          <option value="name">{{ t('common.sort_name') }}</option>
-          <option value="revenue">{{ t('common.sort_revenue') }}</option>
-          <option value="last_activity">{{ t('common.sort_last_activity') }}</option>
-        </select>
-      </div>
-
-      <TableSkeleton v-if="loading" :rows="6" :cols="7" />
-
-      <EmptyState v-else-if="!items.length"
-        :title="t('tri.contacts.no_data')"
-        :cta="t('tri.contacts.create_first')"
-        to="/tri/contacts/new" />
-
-      <div v-else class="hidden md:block">
-        <UiTable>
-          <template #head>
-            <tr>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('client.company') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('client.email') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('client.phone') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.tags.label') }}</th>
-              <th class="text-center px-4 py-2.5 font-medium">{{ t('nav.projects') }}</th>
-              <th class="text-right px-4 py-2.5 font-medium">{{ t('common.revenue') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('common.last_activity') }}</th>
-            </tr>
-          </template>
-          <tr
-            v-for="c in filteredItems"
-            :key="c.id"
-            @click="openContact(c, $event)"
-            @auxclick.prevent="openContact(c, $event)"
-            class="cursor-pointer"
-          >
-            <td class="px-4 py-3">
-              <div class="font-medium text-neutral-900 flex items-center gap-1.5">
-                <span>{{ c.company_name }}</span>
-                <span
-                  v-if="clientIsIncomplete(c)"
-                  class="text-warning-600"
-                  :title="t('client.incomplete_list_hint')"
-                >⚠</span>
-                <UiBadge v-if="c.archived_at" variant="draft">{{ t('common.archived') }}</UiBadge>
-              </div>
-            </td>
-            <td class="px-4 py-3 text-neutral-600">{{ c.main_email?.trim() || '—' }}</td>
-            <td class="px-4 py-3 text-neutral-600">{{ c.phone || '—' }}</td>
-            <td class="px-4 py-3">
-              <div v-if="c.tri_tags?.length" class="flex flex-wrap gap-1">
-                <span
-                  v-for="tag in c.tri_tags"
-                  :key="tag.id"
-                  class="inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                  :style="{ backgroundColor: tag.color }"
-                >{{ tag.name }}</span>
-              </div>
-              <span v-else class="text-neutral-300">—</span>
-            </td>
-            <td class="px-4 py-3 text-center">
-              <UiBadge v-if="c.tri_jobs_count" variant="primary">{{ c.tri_jobs_count }}</UiBadge>
-              <span v-else class="text-neutral-300">—</span>
-            </td>
-            <td class="px-4 py-3 text-right font-mono">
-              <span v-if="c.tri_revenue && c.tri_revenue > 0">{{ formatMoney(Math.round(c.tri_revenue), 'CZK', 0) }}</span>
-              <span v-else class="text-neutral-300">—</span>
-            </td>
-            <td class="px-4 py-3 text-neutral-600 text-xs">
-              <span v-if="c.tri_last_job_date">{{ formatDate(c.tri_last_job_date) }}</span>
-              <span v-else class="text-neutral-300">—</span>
-            </td>
-          </tr>
-        </UiTable>
-      </div>
-
-      <!-- Mobile: karty -->
-      <div v-if="items.length" class="md:hidden divide-y divide-neutral-100">
-        <div
-          v-for="c in filteredItems"
-          :key="`m-${c.id}`"
-          @click="openContact(c, $event)"
-          @auxclick.prevent="openContact(c, $event)"
-          class="cursor-pointer hover:bg-neutral-50 transition px-4 py-3"
-        >
-          <div class="flex items-baseline justify-between gap-2">
-            <div class="font-medium text-neutral-900 truncate flex items-center gap-1.5">
-              <span>{{ c.company_name }}</span>
-              <span v-if="clientIsIncomplete(c)" class="text-warning-600 shrink-0" :title="t('client.incomplete_list_hint')">⚠</span>
-            </div>
-            <div class="font-mono text-sm whitespace-nowrap">
-              <span v-if="c.tri_revenue && c.tri_revenue > 0">{{ formatMoney(Math.round(c.tri_revenue), 'CZK', 0) }}</span>
-              <span v-else class="text-neutral-300">—</span>
-            </div>
-          </div>
-          <div v-if="c.archived_at" class="mt-0.5"><UiBadge variant="draft">{{ t('common.archived') }}</UiBadge></div>
-          <div class="mt-1 text-xs text-neutral-500 truncate">
-            <span v-if="c.main_email">{{ c.main_email }}</span>
-            <span v-if="c.main_email && c.phone" class="text-neutral-400"> · </span>
-            <span v-if="c.phone">{{ c.phone }}</span>
-            <span v-if="!c.main_email && !c.phone" class="text-neutral-300">—</span>
-          </div>
-          <div v-if="c.tri_tags?.length" class="flex flex-wrap gap-1 mt-1.5">
-            <span
-              v-for="tag in c.tri_tags"
-              :key="tag.id"
-              class="inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white"
-              :style="{ backgroundColor: tag.color }"
-            >{{ tag.name }}</span>
-          </div>
-          <div class="flex items-center justify-between gap-2 mt-2 text-xs">
-            <span class="text-neutral-600">
-              <span v-if="c.tri_last_job_date">{{ formatDate(c.tri_last_job_date) }}</span>
-              <span v-else class="text-neutral-300">—</span>
-            </span>
-            <UiBadge v-if="c.tri_jobs_count" variant="primary">
-              {{ t('nav.projects') }}: {{ c.tri_jobs_count }}
-            </UiBadge>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="items.length" class="px-4 py-3 border-t border-neutral-200 flex items-center justify-between text-sm">
-        <span class="text-neutral-500">{{ t('common.loaded_count', { loaded: filteredItems.length, total: total }) }}</span>
-        <UiButton v-if="page < pages" size="sm" :loading="loadingMore" :disabled="loadingMore" @click="load(false)">
-          {{ loadingMore ? t('common.loading_more') : t('common.load_more') }}
-        </UiButton>
-      </div>
-    </UiCard>
+<div>
+  <UiPageHeader :title="t('tri.contacts.title')" :subtitle="t('office.contacts_subtitle')"><template #actions><UiButton v-if="auth.canWrite" to="/tri/contacts/new">{{ t('tri.contacts.new') }}</UiButton></template></UiPageHeader>
+  <div class="office-filters">
+    <UiInput v-model="search" type="search" class="w-full sm:max-w-[520px]" :label="t('common.search')" :placeholder="t('office.contacts_search')" />
+    <OfficeFilterButton :count="conditions.length" :expanded="filtersOpen" @click="openFilters" />
+    <label class="grid gap-1 sm:ml-auto w-[230px]">{{ t('common.sort_by') }}<select v-model="sort" class="px-3 border bg-surface"><option value="name">{{ t('common.sort_name') }}</option><option value="revenue">{{ t('common.sort_revenue') }}</option><option value="last_activity">{{ t('common.sort_last_activity') }}</option></select></label>
   </div>
+  <OfficeAppliedFilters :conditions="conditions" @remove="removeFilter" @clear="clearFilters" />
+  <p class="text-xs text-neutral-500 mb-4">{{ t('office.loaded', {n:items.length,total}) }}</p>
+  <div v-if="error" class="office-error" role="alert">{{ error }} <UiButton variant="secondary" @click="load(true)">{{ t('office.retry') }}</UiButton></div>
+  <UiCard>
+    <TableSkeleton v-if="loading" :rows="7" :cols="6" />
+    <EmptyState v-else-if="!items.length && !error" :title="t('tri.contacts.no_data')"><UiButton variant="secondary" @click="clearFilters">{{ t('office.clear_filters') }}</UiButton></EmptyState>
+    <UiTable v-else><template #head><tr><th class="px-4 text-left">{{ t('office.contact') }}</th><th class="px-4 text-left">{{ t('office.email_phone') }}</th><th class="px-4 text-left">{{ t('tri.tags.label') }}</th><th class="px-4 text-right">{{ t('tri.jobs.title') }}</th><th class="px-4 text-left">{{ t('common.last_activity') }}</th><th class="px-4 text-right">{{ t('common.revenue') }}</th></tr></template>
+      <tr v-for="c in items" :key="c.id" class="cursor-pointer" @click="openContact(c,$event)" @auxclick.prevent="openContact(c,$event)">
+        <td class="px-4 py-4 min-w-[200px]"><RouterLink :to="`/tri/contacts/${c.id}`" class="font-semibold text-neutral-900" @click.stop>{{ c.company_name }}</RouterLink><p v-if="clientIsIncomplete(c)" class="text-warning-600 text-xs mt-1" :title="t('client.incomplete_list_hint')">{{ t('office.incomplete_contact') }}</p><UiBadge v-if="c.archived_at">{{ t('common.archived') }}</UiBadge></td>
+        <td class="px-4 py-4"><a v-if="c.main_email" :href="`mailto:${c.main_email}`" class="block text-primary-700 break-all" @click.stop>{{ c.main_email }}</a><span v-else>—</span><a v-if="c.phone" :href="`tel:${c.phone}`" class="block text-neutral-600 mt-1" @click.stop>{{ c.phone }}</a><span v-else class="block">—</span></td>
+        <td class="px-4"><div class="flex flex-wrap gap-1"><OfficeRoleTag v-for="tag in c.tri_tags" :key="tag.id" :name="tag.name" :slug="tag.slug" /><span v-if="!c.tri_tags?.length">—</span></div></td>
+        <td class="px-4 text-right text-primary-700">{{ c.tri_jobs_count || '—' }}</td>
+        <td class="px-4 text-neutral-600 whitespace-nowrap">{{ c.tri_last_job_date ? formatDate(c.tri_last_job_date) : '—' }}</td>
+        <td class="px-4 text-right font-semibold whitespace-nowrap">{{ c.tri_revenue ? formatMoney(c.tri_revenue, 'CZK', 0) : '—' }}</td>
+      </tr>
+    </UiTable>
+  </UiCard>
+  <div v-if="page < pages && !loading" class="flex justify-center p-6"><UiButton variant="secondary" :loading="loadingMore" @click="load(false)">{{ t('office.more') }}</UiButton></div>
+  <Modal v-if="filtersOpen" :title="t('office.filters')" width-class="max-w-lg" @close="filtersOpen=false"><div class="space-y-5"><label class="grid gap-1">{{ t('tri.tags.label') }}<select v-model="draftRole" class="h-11 border border-neutral-200 px-3 bg-surface"><option :value="null">{{ t('common.all') }}</option><option v-for="tag in triTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option></select></label><label class="grid gap-1">{{ t('office.archive_filter') }}<select v-model="draftArchived" class="h-11 border border-neutral-200 px-3 bg-surface"><option value="all">{{ t('common.all') }}</option><option :value="false">{{ t('office.not_archived') }}</option><option :value="true">{{ t('office.archived_only') }}</option></select></label></div><template #footer><UiButton variant="secondary" @click="clearFilters(); filtersOpen=false">{{ t('office.clear_filters') }}</UiButton><UiButton @click="applyFilters">{{ t('office.apply_filters') }}</UiButton></template></Modal>
+</div>
 </template>

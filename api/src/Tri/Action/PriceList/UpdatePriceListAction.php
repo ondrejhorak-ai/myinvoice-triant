@@ -12,7 +12,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 final class UpdatePriceListAction
 {
-    public function __construct(private readonly PriceListRepository $repo) {}
+    public function __construct(private readonly PriceListRepository $repo, private readonly \MyInvoice\Tri\Repository\PricingRepository $pricing) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
     {
@@ -24,6 +24,7 @@ final class UpdatePriceListAction
         if (!$this->repo->exists($id, $supplierId)) {
             return Json::error($response, 'not_found', 'Ceník nenalezen.', 404);
         }
+        if ($this->pricing->detail($supplierId, $id)['releases']) return Json::error($response, 'conflict', 'Ceník používá vydání. Upravte jeho koncept.', 409);
         $body = (array) ($request->getParsedBody() ?? []);
         $name = trim((string) ($body['name'] ?? ''));
         if ($name === '') {

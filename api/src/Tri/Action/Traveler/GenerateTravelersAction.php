@@ -24,8 +24,9 @@ final class GenerateTravelersAction
             return Json::error($response, 'no_supplier', 'Chybí supplier kontext.', 400);
         }
         try {
-            $result = $this->repo->generateForJob((int) ($args['id'] ?? 0), $supplierId);
+            $result = $this->repo->generateForJob((int) ($args['id'] ?? 0), $supplierId, isset(((array)$request->getParsedBody())['line_id']) ? (int)((array)$request->getParsedBody())['line_id'] : null);
         } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'INVALID_LINE') return Json::error($response, 'invalid_line', 'Položka není výrobní položkou schválené varianty.', 422);
             if ($e->getMessage() === 'NOT_FOUND') {
                 return Json::error($response, 'not_found', 'Zakázka nenalezena.', 404);
             }

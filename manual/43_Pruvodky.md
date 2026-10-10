@@ -22,6 +22,10 @@ Průvodky, na kterých už jsou zapsané hodiny, se nepřepisují.
 > 💡 Řádek bez „Vyrábíme" (např. obchodní položka z ceníku, kterou jen
 > prodáváte) průvodku nedostane.
 
+V editoru uložené výrobní položky nabídky je také **… → Vytvořit průvodku**.
+Tato akce vytvoří průvodku pouze pro vybraný řádek a vyžaduje schválenou
+variantu na potvrzené nebo dokončené zakázce. Neuložené změny nejprve ulož.
+
 ## 43.2 Stanoviště
 
 Každá průvodka má pevných 9 stanovišť, v tomto pořadí:

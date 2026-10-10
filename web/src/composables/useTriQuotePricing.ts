@@ -144,7 +144,7 @@ export function calculateVariantPricing(
     markupAmount: 0,
     afterLineDiscount: 0,
     lineTotalBeforeQuote: 0,
-    vatRate: Number(line.vat_rate) || 21,
+    vatRate: Number(line.vat_rate ?? 21),
   }))
 
   const hasQuoteCommission = quoteCommission !== null

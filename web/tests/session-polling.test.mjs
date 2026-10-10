@@ -105,13 +105,7 @@ test('disabled automatic lock does not emit activity heartbeats', () => {
 })
 
 test('known private pollers use the shared lifecycle helper instead of raw intervals', async () => {
-  const pages = [
-    'pages/admin/Integrations.vue',
-    'pages/admin/CronJobs.vue',
-    'pages/admin/Update.vue',
-    'pages/documents/DocumentsBrowser.vue',
-    'pages/reports/MonthlyExportReport.vue',
-  ]
+  const pages = ['pages/admin/CronJobs.vue']
 
   for (const page of pages) {
     const source = await readFile(new URL(page, root), 'utf8')

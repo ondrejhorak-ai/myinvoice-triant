@@ -31,7 +31,9 @@ test('logout failures are surfaced by both private layout and forced MFA setup',
 
 test('manual lock is available only for a session with passkey unlock', () => {
   assert.match(layout, /canLockSession[\s\S]*unlock_methods\.includes\('passkey'\)/)
-  assert.equal((layout.match(/v-if="canLockSession"/g) || []).length, 2)
+  const lockButtons = layout.match(/<button\b[^>]*@click="sessionSecurity\.lock"[^>]*>/g) || []
+  assert.ok(lockButtons.length > 0)
+  for (const button of lockButtons) assert.match(button, /v-if="canLockSession"/)
   assert.match(
     sessionSecurity,
     /async function lock\(\) \{[\s\S]*!state\.value\.unlock_methods\.includes\('passkey'\)[\s\S]*return/,

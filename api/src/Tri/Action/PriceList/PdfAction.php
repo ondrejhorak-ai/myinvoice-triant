@@ -17,6 +17,7 @@ final class PdfAction
     public function __construct(
         private readonly PriceListPdfRenderer $renderer,
         private readonly PriceListRepository $repo,
+        private readonly \MyInvoice\Tri\Repository\PricingRepository $pricing,
     ) {}
 
     public function __invoke(Request $request, Response $response, array $args): Response
@@ -36,7 +37,16 @@ final class PdfAction
 
         ob_start();
         try {
-            $path = $this->renderer->render($id, $supplierId);
+            $snapshot = null;
+            if (!empty($q['release'])) {
+                $snapshot = $this->pricing->detail($supplierId, $id, (int)$q['release']);
+                $snapshot['name'] .= ' — ' . $snapshot['release']['sequence'] . ' (' . ($snapshot['release']['valid_from'] ?? 'koncept') . ')';
+                $snapshot['items'] = array_map(static fn(array $i): array => array_merge($i, ['designation'=>$i['code'], 'base_unit_price'=>$i['unit_price'], 'price_updated_at'=>$i['price_changed_at']]), $snapshot['items']);
+            }
+            $path = $this->renderer->render($id, $supplierId, $snapshot);
+        } catch (\OutOfBoundsException $e) {
+            ob_end_clean();
+            return Json::error($response, 'not_found', $e->getMessage(), 404);
         } catch (\RuntimeException $e) {
             ob_end_clean();
             $code = str_contains($e->getMessage(), 'položky') ? 'empty' : 'pdf_failed';

@@ -27,7 +27,7 @@ final class ListClientsAction
         }
         $filters = [
             'q'                   => isset($q['q']) ? trim((string) $q['q']) : '',
-            'archived'            => !empty($q['filter']['archived']),
+            'archived'            => ($q['filter']['archived'] ?? null) === 'all' ? 'all' : !empty($q['filter']['archived']),
             'role'                => $role,
             'expense_category_id' => isset($q['expense_category_id']) ? (int) $q['expense_category_id'] : 0,
             'tri_tag_id'          => isset($q['tri_tag_id']) ? (int) $q['tri_tag_id'] : 0,

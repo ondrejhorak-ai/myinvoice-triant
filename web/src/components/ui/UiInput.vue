@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useAttrs, useSlots } from 'vue'
+import { computed, useAttrs, useSlots, useId } from 'vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -26,7 +26,8 @@ const inputAttrs = computed(() => {
   return rest
 })
 
-const inputId = computed(() => props.id || (attrs.id as string | undefined))
+const generatedId = useId()
+const inputId = computed(() => props.id || (attrs.id as string | undefined) || generatedId)
 const describedBy = computed(() => {
   if (props.error) return inputId.value ? `${inputId.value}-error` : undefined
   if (props.hint) return inputId.value ? `${inputId.value}-hint` : undefined
@@ -35,13 +36,13 @@ const describedBy = computed(() => {
 
 const SIZE: Record<'sm' | 'md', string> = {
   sm: 'h-9 text-sm',
-  md: 'h-10 text-sm',
+  md: 'h-11 text-sm',
 }
 </script>
 
 <template>
   <div class="min-w-0" :class="classAttr">
-    <label v-if="label" class="block text-sm font-medium text-neutral-700 mb-1.5" :for="inputId">
+    <label v-if="label" class="block text-xs font-semibold text-neutral-600 mb-1" :for="inputId">
       {{ label }}
     </label>
     <div class="relative">
@@ -58,11 +59,11 @@ const SIZE: Record<'sm' | 'md', string> = {
         v-bind="inputAttrs"
         :aria-invalid="error ? true : undefined"
         :aria-describedby="describedBy"
-        class="w-full px-3 border rounded-md bg-surface shadow-xs outline-none focus-ring placeholder:text-neutral-400"
+        class="w-full px-3 border rounded-md bg-surface outline-none focus-ring placeholder:text-neutral-400"
         :class="[
           SIZE[size],
           slots.prefix ? 'pl-10' : '',
-          error ? 'border-danger-500' : 'border-neutral-300',
+          error ? 'border-danger-500' : 'border-neutral-200',
         ]"
       />
     </div>

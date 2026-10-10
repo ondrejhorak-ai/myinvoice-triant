@@ -133,7 +133,7 @@ final class TravelerRepository
     /**
      * @return array{created: int, operations_added: int, data: list<array<string, mixed>>}
      */
-    public function generateForJob(int $jobId, int $supplierId): array
+    public function generateForJob(int $jobId, int $supplierId, ?int $lineId = null): array
     {
         $job = $this->jobs->find($jobId, $supplierId);
         if ($job === null) {
@@ -151,7 +151,13 @@ final class TravelerRepository
         }
 
         $existing = $this->loadForJobWithOperations($jobId);
-        $plan = TravelerGenerator::plan($variant['line_items'] ?? [], $existing);
+        $lines = $variant['line_items'] ?? [];
+        if ($lineId !== null) {
+            $lines = array_values(array_filter($lines, fn(array $line): bool => (int)$line['id'] === $lineId && !empty($line['is_manufactured'])));
+            if (!$lines) throw new \RuntimeException('INVALID_LINE');
+            $existing = array_values(array_filter($existing, fn(array $traveler): bool => (int)($traveler['quote_line_item_id'] ?? 0) === $lineId));
+        }
+        $plan = TravelerGenerator::plan($lines, $existing);
         $created = $this->applyPlan($jobId, (string) $job['number'], $plan);
 
         $list = $this->listForSupplier($supplierId, $jobId);

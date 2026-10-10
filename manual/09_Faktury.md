@@ -148,3 +148,15 @@ Funguje fulltext česky i anglicky.
   klik na řádek a hned máš tlačítko **Upomínka**.
 - **Klik na číslo faktury** otevře [Detail faktury](11_Faktura_PDF.md).
 - **Klik na ikonu PDF** stáhne přímo PDF (bez otvírání detailu).
+
+
+### Použité filtry
+
+Tlačítko **Filtry** ukazuje počet použitých podmínek a při aktivním filtrování
+je modře zvýrazněné. Pod hledáním jsou konkrétní podmínky: křížek odstraní
+jednu, **Zrušit filtry** všechny. Hledaný text a řazení zůstanou zachované.
+Změny v panelu se projeví až po **Použít filtry**; zavření bez použití je zahodí.
+Počet nezahrnuje hledání ani řazení, datumový interval se počítá jako jedna
+podmínka. Při chybě načtení zůstávají filtry platné; opakujte načtení.
+
+Výchozí aktuální rok je viditelný mezi filtry. Po jeho zrušení lze procházet všechny roky. Rozsah Datum od–do nahrazuje filtr roku a měsíce.

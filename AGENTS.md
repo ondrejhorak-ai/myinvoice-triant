@@ -4,6 +4,13 @@ Pokyny pro práci s tímto repozitářem (Claude Code, Codex, Cursor, Copilot a 
 Platí pro celý repozitář. Obecný popis projektu je v [README.md](README.md),
 vývojářská spec v [`source/`](source/00-README.md).
 
+## Kontext UI a ceníků pro Cursor / Codex
+
+Před úpravou rozhraní nebo katalogu čti [předání implementace Figmy](source/21-figma-office-handoff.md)
+a [zdrojové požadavky a uzly](source/21-figma-office-reference.md). Pro vzhled Office
+mají přednost před staršími designovými a overnight-loop plány; architekturu
+MyÚčto splitu nemění. Po změně workflow doplň předávací kontext.
+
 ## ⚠️ Tento fork = Triant office (upstream merge ukončeny 2026-09-07)
 
 Tento repozitář je **soukromý fork pro Triant office** — samostatnou firemní

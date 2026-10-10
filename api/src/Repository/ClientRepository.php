@@ -68,10 +68,8 @@ final class ClientRepository
             $params[] = (int) $filters['supplier_id'];
         }
 
-        if (!empty($filters['archived'])) {
-            $where[] = 'c.archived_at IS NOT NULL';
-        } else {
-            $where[] = 'c.archived_at IS NULL';
+        if (($filters['archived'] ?? false) !== 'all') {
+            $where[] = !empty($filters['archived']) ? 'c.archived_at IS NOT NULL' : 'c.archived_at IS NULL';
         }
         // Role filter — backend-side aby paginace + total counter byly korektní.
         // Frontend dříve filtroval client-side, ale to dávalo špatné "X z Y" (vendors 15 z 15

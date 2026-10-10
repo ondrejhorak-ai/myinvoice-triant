@@ -44,7 +44,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/settings',         name: 'admin-settings', component: () => import('@/pages/admin/Settings.vue'),    meta: { adminOnly: true } },
       { path: 'admin/bank-accounts', name: 'admin-bank-accounts', redirect: '/tri/jobs' },
       { path: 'admin/bank-email-notices', name: 'admin-bank-email-notices', redirect: '/tri/jobs' },
-      { path: 'admin/tri-settings',     name: 'admin-tri-settings', component: () => import('@/pages/admin/TriSettings.vue'), meta: { adminOnly: true } },
+      { path: 'admin/tri-settings',     name: 'admin-tri-settings', redirect: '/admin/settings' },
       // /admin/suppliers byla samostatná stránka — Suppliers jsou nyní embedded jako první tab v Codebooks.
       // Redirect zachovává bookmarks / staré odkazy.
       { path: 'admin/suppliers',        name: 'admin-suppliers', redirect: '/admin/codebooks' },
@@ -74,7 +74,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'recurring/new', name: 'recurring-new', redirect: '/tri/invoices/new' },
       { path: 'recurring/:id(\\d+)', name: 'recurring-detail', redirect: '/tri/invoices' },
       { path: 'recurring/:id(\\d+)/edit', name: 'recurring-edit', redirect: '/tri/invoices' },
-      { path: 'admin/update',           name: 'admin-update',    component: () => import('@/pages/admin/Update.vue'),    meta: { adminOnly: true } },
+      { path: 'admin/update',           name: 'admin-update',    redirect: '/admin/settings' },
       // Přechodový nástroj MyInvoice→MyÚčto odstraněn — office je trvalá nadstavba, konverze DB by ji zničila.
       { path: 'admin/upgrade',          name: 'admin-myucto-upgrade', redirect: '/tri/admin/myucto' },
       // Staré profilové URL zůstávají funkční, ale UI je zobrazuje jako záložky

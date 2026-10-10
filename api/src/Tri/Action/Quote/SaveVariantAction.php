@@ -22,6 +22,8 @@ final class SaveVariantAction
         $body = (array) ($request->getParsedBody() ?? []);
         try {
             $variant = $this->repo->saveVariant((int) $args['id'], TriRequest::supplierId($request), $body);
+        } catch (\DomainException $e) {
+            return Json::error($response, 'validation_failed', $e->getMessage(), 422);
         } catch (\RuntimeException $e) {
             if ($e->getMessage() === 'LOCK_VERSION_CONFLICT') {
                 return Json::error($response, 'conflict', 'Varianta byla mezitím upravena jiným uživatelem.', 409);

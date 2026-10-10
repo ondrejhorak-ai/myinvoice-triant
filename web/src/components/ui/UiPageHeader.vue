@@ -6,10 +6,10 @@ defineProps<{
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between pb-5 mb-6 border-b border-neutral-200">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-7">
     <div class="min-w-0">
-      <h1 class="text-2xl font-semibold text-neutral-900 tracking-tight">{{ title }}</h1>
-      <p v-if="subtitle" class="mt-1 text-sm text-neutral-500">{{ subtitle }}</p>
+      <h1 class="text-[28px] leading-9 font-semibold text-neutral-900 ">{{ title }}</h1>
+      <p v-if="subtitle" class="mt-1 text-sm text-neutral-600">{{ subtitle }}</p>
       <slot name="below" />
     </div>
     <div v-if="$slots.actions" class="flex flex-wrap shrink-0 items-center gap-2 sm:gap-3">

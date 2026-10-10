@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import OfficeBreadcrumb from '@/components/tri/OfficeBreadcrumb.vue'
+import OfficeMenu from '@/components/tri/OfficeMenu.vue'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { invoicesApi, type Invoice, type InvoicePayload, type InvoiceItem, type InvoiceAttachment } from '@/api/invoices'
 import { triInvoicesApi } from '@/api/triInvoices'
 import { useHotkey } from '@/composables/useHotkey'
@@ -600,7 +602,12 @@ function insertFromCatalog(items: TriPriceListItem[]) {
   focusLastRow('[data-row-input="inv-item"]')
 }
 
+const itemKeys=new WeakMap<object,number>();let itemSequence=0
+function itemKey(item:InvoiceItem){if(!itemKeys.has(item))itemKeys.set(item,++itemSequence);return itemKeys.get(item)!}
+const dragIndex=ref<number|null>(null)
+function dropItem(to:number){if(dragIndex.value===null)return;const [item]=form.value.items.splice(dragIndex.value,1);form.value.items.splice(to,0,item);form.value.items.forEach((row,i)=>row.order_index=i);dragIndex.value=null}
 function removeItem(index: number) {
+  if(!confirm(t('office.delete_invoice_item')))return
   form.value.items.splice(index, 1)
   form.value.items.forEach((it, i) => (it.order_index = i))
 }
@@ -743,9 +750,9 @@ function itemTotal(item: InvoiceItem): number {
  */
 function setItemGross(item: InvoiceItem, raw: string): void {
   const gross = evalMath(raw)
-  if (gross === null) return
+  if (gross === null || !Number.isFinite(gross)) { toast.error(t('office.invalid_total')); return }
   const qty = Number(item.quantity) || 0
-  if (qty === 0) return
+  if (qty <= 0 || !Number.isFinite(qty)) { toast.error(t('office.invalid_total')); return }
   if (form.value.prices_include_vat && supplierIsVatPayer.value) {
     // unit_price_without_vat nese cenu S DPH → ulož gross jako jednotkovou cenu.
     item.unit_price_without_vat = round2(gross / qty)
@@ -958,8 +965,8 @@ async function deleteDraft() {
 <template>
   <CardSkeleton v-if="!loaded" :blocks="3" />
 
-  <div v-else class="max-w-5xl">
-    <RouterLink to="/tri/invoices" class="text-sm text-neutral-500 hover:text-neutral-900">{{ t('tri.invoices.back_to_list') }}</RouterLink>
+  <div v-else class="space-y-6">
+    <OfficeBreadcrumb :items="[{label:t('nav.invoices'),to:'/tri/invoices'},{label:editorTitle}]"/>
     <UiPageHeader :title="editorTitle">
       <template #below>
         <div class="mt-2">
@@ -987,18 +994,18 @@ async function deleteDraft() {
       </div>
     </div>
 
-    <form @submit.prevent="submit" class="space-y-4">
+    <form @submit.prevent="submit" class="space-y-6">
       <!-- Klient + zakázka + datumy -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">{{ t('invoice.client') }}</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-surface border border-neutral-200 rounded-lg p-5">
+          <h3 class="text-base font-semibold text-neutral-900 mb-4">{{ t('invoice.client') }}</h3>
           <div class="space-y-3">
             <div>
               <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.doc_type') }} *</label>
               <select v-model="form.invoice_type" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface">
                 <option value="invoice">{{ t('invoice.doc_invoice') }}</option>
                 <option value="proforma">{{ t('invoice.doc_proforma') }}</option>
-                <option value="credit_note">{{ t('invoice.doc_credit_note') }}</option>
+
               </select>
               <p v-if="form.invoice_type === 'credit_note'" class="text-xs text-warning-600 mt-1">
                 {{ t('invoice.credit_note_warning') }}
@@ -1112,7 +1119,7 @@ async function deleteDraft() {
           </div>
         </div>
 
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+        <div class="bg-surface border border-neutral-200 rounded-lg p-5">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.dates_section') }}</h3>
           <div class="space-y-3">
             <!-- Ruční override čísla faktury — jen u draftu; prázdné = vygeneruje se při Vystavení.
@@ -1172,9 +1179,14 @@ async function deleteDraft() {
       </div>
 
       <!-- Položky -->
-      <div class="bg-surface border border-neutral-200 rounded-lg shadow-xs">
+          <div class="bg-surface border border-neutral-200 rounded-lg p-5">
+            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_above') }}</label>
+            <textarea v-model="form.note_above_items" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
+          </div>
+
+      <div class="bg-surface border border-neutral-200 rounded-lg">
         <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-2">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('invoice.items') }}</h3>
+          <h3 class="text-base font-semibold text-neutral-900">{{ t('invoice.items') }}</h3>
           <div class="flex items-center gap-2">
             <UiButton type="button" variant="outline" size="sm" @click="catalogOpen = true">
               {{ t('tri.quote.insert_from_catalog') }}
@@ -1188,8 +1200,8 @@ async function deleteDraft() {
           {{ t('invoice.negative_item_hint') }}
         </div>
         <!-- Desktop: tabulka -->
-        <div class="hidden md:block overflow-x-auto">
-        <table class="w-full text-sm table-sticky-first">
+        <div class="overflow-x-auto">
+        <table class="w-full min-w-[950px] text-sm table-sticky-first">
           <thead class="bg-neutral-50 text-[12px] text-neutral-500 uppercase tracking-wide">
             <tr>
               <th class="px-3 py-2 text-left font-medium w-8"></th>
@@ -1203,31 +1215,30 @@ async function deleteDraft() {
             </tr>
           </thead>
           <tbody class="divide-y divide-neutral-200">
-            <tr v-for="(item, i) in form.items" :key="i" :class="itemHasBothNegative(item) ? 'bg-danger-50' : ''">
+            <tr v-for="(item, i) in form.items" :key="itemKey(item)" @dragover.prevent @drop.prevent="dropItem(i)" :class="itemHasBothNegative(item) ? 'bg-danger-50' : ''">
               <td class="px-2 py-2 text-center text-xs text-neutral-400">
-                <button type="button" @click="moveUp(i)" :disabled="i === 0" class="block w-5 h-4 hover:text-neutral-700 disabled:opacity-30">▲</button>
-                <button type="button" @click="moveDown(i)" :disabled="i === form.items.length - 1" class="block w-5 h-4 hover:text-neutral-700 disabled:opacity-30">▼</button>
+                <button type="button" draggable="true" @dragstart="dragIndex=i" @dragend="dragIndex=null" @keydown.alt.up.prevent="moveUp(i)" @keydown.alt.down.prevent="moveDown(i)" :aria-label="t('office.move_hint')" :title="t('office.move_hint')" class="w-8 h-9 cursor-grab">⠿</button>
               </td>
               <td class="px-3 py-2">
                 <textarea v-model="item.description" rows="1" data-row-input="inv-item" :placeholder="t('invoice.items_table.description')"
-                  class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm resize-y min-h-[36px] shadow-xs outline-none focus-ring"></textarea>
+                  class="w-full px-2 py-1.5 border border-neutral-300 rounded text-sm resize-y min-h-[36px] outline-none focus-ring"></textarea>
               </td>
               <td class="px-3 py-2">
-                <input v-model="item.quantity" v-math type="text" inputmode="decimal"
+                <input v-model="item.quantity" :aria-label="t('invoice.items_table.qty')" v-math type="text" inputmode="decimal"
                   :class="['w-full h-9 px-2 border rounded text-right font-mono text-sm', itemHasBothNegative(item) ? 'border-danger-400' : 'border-neutral-300']" />
               </td>
               <td class="px-3 py-2">
-                <select v-model="item.unit" class="w-full h-9 px-1 border border-neutral-300 rounded text-sm bg-surface">
+                <select v-model="item.unit" :aria-label="t('office.unit')" class="w-full h-9 px-1 border border-neutral-300 rounded text-sm bg-surface">
                   <option v-for="u in units" :key="u.id" :value="u.code">{{ u.code }}</option>
                   <option v-if="item.unit && !units.some(u => u.code === item.unit)" :value="item.unit">{{ item.unit }}</option>
                 </select>
               </td>
               <td class="px-3 py-2">
-                <input v-model="item.unit_price_without_vat" v-math type="text" inputmode="decimal"
+                <input v-model="item.unit_price_without_vat" :aria-label="unitPriceHeaderLabel" v-math type="text" inputmode="decimal"
                   :class="['w-full h-9 px-2 border rounded text-right font-mono text-sm', itemHasBothNegative(item) ? 'border-danger-400' : 'border-neutral-300']" />
               </td>
               <td v-if="supplierIsVatPayer" class="px-3 py-2">
-                <select v-model.number="item.vat_rate_id" class="w-full h-9 px-1 border border-neutral-300 rounded text-sm bg-surface">
+                <select v-model.number="item.vat_rate_id" :aria-label="t('invoice.totals.vat')" class="w-full h-9 px-1 border border-neutral-300 rounded text-sm bg-surface">
                   <option v-for="r in selectableVatRates" :key="r.id" :value="r.id">{{ vatRateLabel(r) }}</option>
                 </select>
               </td>
@@ -1237,7 +1248,7 @@ async function deleteDraft() {
                   class="w-full h-9 px-2 border border-neutral-300 rounded text-right font-mono text-sm" />
               </td>
               <td class="px-2 py-2 text-center">
-                <button type="button" @click="removeItem(i)" class="text-danger-500 hover:text-danger-600 text-lg leading-none">×</button>
+                <OfficeMenu><button type="button" class="text-danger-600" @click="removeItem(i)">{{t('common.delete')}}</button></OfficeMenu>
               </td>
             </tr>
             <tr v-if="form.items.length === 0">
@@ -1249,82 +1260,19 @@ async function deleteDraft() {
         </table>
         </div>
 
-        <!-- Mobile: stack karet (každé pole na vlastním řádku, čitelné inputy) -->
-        <div class="md:hidden divide-y divide-neutral-200">
-          <div v-if="form.items.length === 0" class="px-4 py-6 text-center text-neutral-400 text-sm">
-            {{ t('invoice.no_items') }} <button type="button" @click="addItem" class="text-primary-600 hover:underline">{{ t('invoice.add_first') }}</button>
-          </div>
-          <div v-for="(item, i) in form.items" :key="`m-${i}`" :class="['p-3 space-y-2', itemHasBothNegative(item) ? 'bg-danger-50' : '']">
-            <div class="flex items-center justify-between text-xs text-neutral-500">
-              <span class="font-mono">#{{ i + 1 }}</span>
-              <div class="flex items-center gap-2">
-                <button type="button" @click="moveUp(i)" :disabled="i === 0" class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-neutral-300 rounded hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed">▲</button>
-                <button type="button" @click="moveDown(i)" :disabled="i === form.items.length - 1" class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-neutral-300 rounded hover:bg-neutral-50 disabled:opacity-30 disabled:cursor-not-allowed">▼</button>
-                <button type="button" @click="removeItem(i)" class="cursor-pointer w-8 h-8 inline-flex items-center justify-center border border-danger-500/40 text-danger-500 hover:bg-danger-50 rounded text-lg leading-none">×</button>
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.items_table.description') }}</label>
-              <textarea v-model="item.description" rows="2" data-row-input="inv-item" :placeholder="t('invoice.items_table.description')"
-                class="w-full px-3 py-2 border border-neutral-300 rounded text-sm resize-y min-h-[44px] shadow-xs outline-none focus-ring"></textarea>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.items_table.qty') }}</label>
-                <input v-model="item.quantity" v-math type="text" inputmode="decimal"
-                  :class="['w-full h-10 px-3 border rounded text-right font-mono text-sm', itemHasBothNegative(item) ? 'border-danger-400' : 'border-neutral-300']" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.items_table.unit') }}</label>
-                <select v-model="item.unit" class="w-full h-10 px-2 border border-neutral-300 rounded text-sm bg-surface">
-                  <option v-for="u in units" :key="u.id" :value="u.code">{{ u.code }}</option>
-                  <option v-if="item.unit && !units.some(u => u.code === item.unit)" :value="item.unit">{{ item.unit }}</option>
-                </select>
-              </div>
-            </div>
-            <div :class="supplierIsVatPayer ? 'grid grid-cols-2 gap-2' : ''">
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">{{ unitPriceHeaderLabel }}</label>
-                <input v-model="item.unit_price_without_vat" v-math type="text" inputmode="decimal"
-                  :class="['w-full h-10 px-3 border rounded text-right font-mono text-sm', itemHasBothNegative(item) ? 'border-danger-400' : 'border-neutral-300']" />
-              </div>
-              <div v-if="supplierIsVatPayer">
-                <label class="block text-xs font-medium text-neutral-600 mb-1">{{ t('invoice.totals.vat') }}</label>
-                <select v-model.number="item.vat_rate_id" class="w-full h-10 px-2 border border-neutral-300 rounded text-sm bg-surface">
-                  <option v-for="r in selectableVatRates" :key="r.id" :value="r.id">{{ vatRateLabel(r) }}</option>
-                </select>
-              </div>
-            </div>
-            <div class="flex items-baseline justify-between pt-1 border-t border-neutral-200">
-              <span class="text-xs font-medium text-neutral-500 uppercase tracking-wide">{{ supplierIsVatPayer ? t('invoice.items_table.total_incl_vat') : t('invoice.totals.total') }}</span>
-              <input :value="itemTotal(item)" @change="setItemGross(item, ($event.target as HTMLInputElement).value)"
-                type="text" inputmode="decimal" :title="t('invoice.items_table.gross_edit_hint')"
-                class="w-32 h-9 px-2 border border-neutral-300 rounded text-right font-mono text-sm font-semibold" />
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Sumace + poznámky -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="md:col-span-2 space-y-4">
-          <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_above') }}</label>
-            <textarea v-model="form.note_above_items" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
-          </div>
-          <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_below') }}</label>
-            <textarea v-model="form.note_below_items" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
-          </div>
-        </div>
+      <div class="flex justify-end [&>div]:w-full [&>div]:md:w-[448px]">
 
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
+
+        <div class="bg-surface border border-neutral-200 rounded-lg p-5">
           <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.summary') }}</h3>
           <div class="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-neutral-100">
             <label for="discount_percent" class="text-sm text-neutral-700">{{ t('invoice.discount.label') }}</label>
             <div class="relative w-28">
               <input id="discount_percent" v-model.number="form.discount_percent" type="number" min="0" max="100" step="0.01"
-                class="w-full h-9 pl-2 pr-7 border border-neutral-300 rounded text-right font-mono text-sm shadow-xs outline-none focus-ring" />
+                class="w-full h-9 pl-2 pr-7 border border-neutral-300 rounded text-right font-mono text-sm outline-none focus-ring" />
               <span class="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 text-sm pointer-events-none">%</span>
             </div>
           </div>
@@ -1377,10 +1325,15 @@ async function deleteDraft() {
         </div>
       </div>
 
+          <div class="bg-surface border border-neutral-200 rounded-lg p-5">
+            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_below') }}</label>
+            <textarea v-model="form.note_below_items" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
+          </div>
+
       <!-- Přílohy — u nové faktury držené v prohlížeči (nahrají se po vytvoření),
            u existující faktury rovnou nahrávané / mazané -->
       <div v-if="attachmentsAllowed"
-           class="bg-surface border border-neutral-200 rounded-lg shadow-xs overflow-hidden">
+           class="bg-surface border border-neutral-200 rounded-lg overflow-hidden">
         <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
           <div>
             <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.attachments.title') }}</h3>
@@ -1442,7 +1395,7 @@ async function deleteDraft() {
       </div>
 
       <!-- Action bar -->
-      <div class="bg-surface border border-neutral-200 rounded-lg p-4 flex justify-between items-center shadow-xs">
+      <div class="office-save-bar p-4 flex justify-between items-center">
         <UiButton to="/tri/invoices" variant="ghost">{{ t('common.back') }}</UiButton>
         <UiButton type="submit" :loading="submitting" :disabled="submitting">
           {{ submitting ? t('common.saving') : (isEdit ? t('common.save') : t('common.create')) }}
@@ -1454,6 +1407,6 @@ async function deleteDraft() {
     <TriContactFormModal v-if="clientModalOpen"
       @created="onClientCreatedInModal"
       @close="clientModalOpen = false" />
-    <CatalogPickerModal v-model:open="catalogOpen" @insert="insertFromCatalog" />
+    <CatalogPickerModal v-model:open="catalogOpen" :currency="form.currency" @insert="insertFromCatalog" />
   </div>
 </template>

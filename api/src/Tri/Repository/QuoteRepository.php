@@ -103,8 +103,15 @@ final class QuoteRepository
 
         $sectionsInput = (array) ($payload['sections'] ?? []);
         $linesInput = (array) ($payload['line_items'] ?? []);
+        foreach ($linesInput as $line) {
+            $qty = $line['quantity'] ?? null; $price = $line['base_unit_price'] ?? null;
+            if (!is_numeric($qty) || !is_finite((float)$qty) || (float)$qty <= 0 || (float)$qty > 999999999 || !is_numeric($price) || !is_finite((float)$price) || (float)$price < 0 || (float)$price > 9999999999.99) throw new \DomainException('Množství musí být kladné a cena nezáporná.');
+        }
         $this->assertImagesBelongToSupplier($linesInput, $supplierId);
         $this->assertCatalogItemsBelongToSupplier($linesInput, $supplierId);
+        $releaseId = !empty($payload['price_release_id']) ? (int)$payload['price_release_id'] : ($existing['price_release_id'] ?? null);
+        $effectiveDate = $payload['price_effective_date'] ?? $existing['price_effective_date'] ?? null;
+        $this->assertReleaseSources($supplierId, $releaseId, $effectiveDate, $linesInput);
 
         $calcResult = $this->calculator->calculateVariant($sectionsInput, $linesInput, [
             'quote_discount_type'    => $payload['quote_discount_type'] ?? null,
@@ -118,8 +125,18 @@ final class QuoteRepository
         $pdo = $this->db->pdo();
         $pdo->beginTransaction();
         try {
+            $nameRaw = $payload['name'] ?? $existing['name'] ?? null;
+            $name = is_string($nameRaw) ? trim($nameRaw) : null;
+            if ($name === '') {
+                $name = null;
+            }
+            if ($name !== null && mb_strlen($name) > 120) {
+                $name = mb_substr($name, 0, 120);
+            }
+
             $stmt = $pdo->prepare(
                 'UPDATE tri_quote_variants SET
+                    name = ?, price_release_id = ?, price_effective_date = ?,
                     job_date = ?, valid_until = ?,
                     quote_discount_type = ?, quote_discount_value = ?,
                     quote_commission_type = ?, quote_commission_value = ?,
@@ -131,6 +148,9 @@ final class QuoteRepository
                  WHERE id = ? AND lock_version = ?'
             );
             $stmt->execute([
+                $name,
+                $releaseId,
+                $effectiveDate,
                 (string) ($payload['job_date'] ?? $existing['job_date']),
                 $payload['valid_until'] ?? null,
                 $payload['quote_discount_type'] ?? null,
@@ -190,12 +210,12 @@ final class QuoteRepository
 
             $lIns = $pdo->prepare(
                 'INSERT INTO tri_quote_line_items (
-                    quote_variant_id, quote_section_id, catalog_item_id, image_id, is_manufactured,
+                    quote_variant_id, quote_section_id, catalog_item_id, source_product_id, source_release_id, image_id, is_manufactured,
                     sort_order, designation, title, description,
                     quantity, unit, base_unit_price, vat_rate,
                     markup_type, markup_value, markup_amount,
                     line_discount_type, line_discount_value, line_total
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $lineCalcIndex = 0;
             foreach ($linesInput as $i => $line) {
@@ -216,6 +236,8 @@ final class QuoteRepository
                     $variantId,
                     $sectionId,
                     !empty($line['catalog_item_id']) ? (int) $line['catalog_item_id'] : null,
+                    !empty($line['source_product_id']) ? (int)$line['source_product_id'] : null,
+                    !empty($line['source_release_id']) ? (int)$line['source_release_id'] : null,
                     !empty($line['image_id']) ? (int) $line['image_id'] : null,
                     $this->lineIsManufactured($line),
                     isset($line['sort_order']) ? (int) $line['sort_order'] : $i,
@@ -261,6 +283,8 @@ final class QuoteRepository
         $payload = [
             'lock_version'         => 1,
             'job_date'             => $source['job_date'],
+            'price_release_id' => $source['price_release_id'],
+            'price_effective_date' => $source['price_effective_date'],
             'status'               => 'draft',
             'valid_until'          => $source['valid_until'],
             'quote_discount_type'    => $source['quote_discount_type'],
@@ -296,6 +320,8 @@ final class QuoteRepository
                     'line_discount_value'  => $l['line_discount_value'],
                     'image_id'             => $l['image_id'],
                     'catalog_item_id'      => $l['catalog_item_id'],
+                    'source_product_id' => $l['source_product_id'],
+                    'source_release_id' => $l['source_release_id'],
                     'is_manufactured'      => $l['is_manufactured'],
                 ];
             }, $source['line_items']),
@@ -412,6 +438,8 @@ final class QuoteRepository
             'id'                  => (int) $r['id'],
             'image_id'            => $r['image_id'] !== null ? (int) $r['image_id'] : null,
             'catalog_item_id'     => $r['catalog_item_id'] !== null ? (int) $r['catalog_item_id'] : null,
+            'source_product_id' => isset($r['source_product_id']) ? (int)$r['source_product_id'] : null,
+            'source_release_id' => isset($r['source_release_id']) ? (int)$r['source_release_id'] : null,
             'is_manufactured'     => (int) ($r['is_manufactured'] ?? 1) === 1,
             'quote_section_id'    => $r['quote_section_id'] !== null ? (int) $r['quote_section_id'] : null,
             'sort_order'          => (int) $r['sort_order'],
@@ -494,6 +522,23 @@ final class QuoteRepository
     }
 
     /** @param array<string, mixed> $line */
+    private function assertReleaseSources(int $sid, ?int $rid, ?string $date, array $lines): void
+    {
+        if ($rid) {
+            $stmt=$this->db->pdo()->prepare("SELECT r.id FROM tri_price_releases r JOIN tri_price_lists p ON p.id=r.price_list_id WHERE p.supplier_id=? AND p.currency='CZK' AND r.id=? AND r.status='published' AND r.valid_from<=?");
+            $stmt->execute([$sid,$rid,$date]);
+            // Historic references remain valid after the next release shortens valid_until.
+            if (!$stmt->fetchColumn()) throw new \RuntimeException('INVALID_CATALOG_ITEM');
+        }
+        foreach ($lines as $line) {
+            if (empty($line['source_product_id']) && empty($line['source_release_id'])) continue;
+            if (!$rid || (int)($line['source_release_id']??0)!==$rid) throw new \RuntimeException('INVALID_CATALOG_ITEM');
+            $stmt=$this->db->pdo()->prepare('SELECT 1 FROM tri_price_release_items WHERE release_id=? AND product_id=?');
+            $stmt->execute([$rid,(int)($line['source_product_id']??0)]);
+            if (!$stmt->fetchColumn()) throw new \RuntimeException('INVALID_CATALOG_ITEM');
+        }
+    }
+
     private function lineIsManufactured(array $line): int
     {
         if (!array_key_exists('is_manufactured', $line)) {
@@ -514,6 +559,8 @@ final class QuoteRepository
             'id'             => (int) $row['id'],
             'job_id'         => (int) $row['job_id'],
             'variant_code'   => (string) $row['variant_code'],
+            'name'           => isset($row['name']) && $row['name'] !== null && $row['name'] !== ''
+                ? (string) $row['name'] : null,
             'number'         => (string) $row['number'],
             'status'         => (string) $row['status'],
             'subtotal'       => (float) $row['subtotal'],
@@ -531,11 +578,15 @@ final class QuoteRepository
             'job_number'           => (string) $row['job_number'],
             'job_title'            => (string) $row['job_title'],
             'variant_code'         => (string) $row['variant_code'],
+            'name'                 => isset($row['name']) && $row['name'] !== null && $row['name'] !== ''
+                ? (string) $row['name'] : null,
             'number'               => (string) $row['number'],
             'job_date'             => (string) $row['job_date'],
             'status'               => (string) $row['status'],
             'customer_client_id'   => $row['customer_client_id'] !== null ? (int) $row['customer_client_id'] : null,
             'valid_until'          => $row['valid_until'],
+            'price_release_id' => isset($row['price_release_id']) ? (int)$row['price_release_id'] : null,
+            'price_effective_date' => $row['price_effective_date'] ?? null,
             'quote_discount_type'    => $row['quote_discount_type'],
             'quote_discount_value'   => $row['quote_discount_value'] !== null ? (float) $row['quote_discount_value'] : null,
             'quote_commission_type'  => $row['quote_commission_type'] ?? null,

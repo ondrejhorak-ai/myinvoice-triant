@@ -4,15 +4,16 @@ import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useSupplierStore } from '@/stores/supplier'
-import { updateApi, type PublicVersion } from '@/api/update'
+import { systemApi } from '@/api/client'
 import { settingsApi } from '@/api/settings'
-import { TRI_SETTINGS_MODULE_ID, normalizeHiddenSidebarModules } from '@/config/triSidebar'
+import { normalizeHiddenSidebarModules } from '@/config/triSidebar'
 import { SHOW_LOCALE_SWITCHER, SHOW_THEME_TOGGLE } from '@/config/triUi'
 import SupplierSwitcher from './SupplierSwitcher.vue'
 import GlobalSearch from './GlobalSearch.vue'
 import ThemeToggle from './ThemeToggle.vue'
 import TriTopbarNav from './tri/TriTopbarNav.vue'
 import TriLogo from './tri/TriLogo.vue'
+import OfficeNavIcon from '@/components/tri/OfficeNavIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { useSessionSecurityStore } from '@/stores/sessionSecurity'
 import { useToast } from '@/composables/useToast'
@@ -110,15 +111,22 @@ const ICONS = {
   approvals:  'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
   log:        'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6m-6 4h4',
   cron:       'M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
-  updates:    'M4 4v5h5M4 9a8 8 0 0 1 14.13-4.06M20 20v-5h-5M20 15a8 8 0 0 1-14.13 4.06',
   myucto_upgrade: 'M13 7l5 5m0 0l-5 5m5-5H6',
   api_tokens: 'M15 7a2 2 0 0 1 2 2m4 0a6 6 0 0 1-7.743 5.743L11 17H9v2H7v2H4a1 1 0 0 1-1-1v-2.586a1 1 0 0 1 .293-.707l5.964-5.964A6 6 0 1 1 21 9z',
-  help:       'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827V14m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   tri_jobs: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01',
   tri_price_lists: 'M4 6h16M4 10h16M4 14h10M4 18h6',
   tri_travelers: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   tri_calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
   tri_complaints: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
+}
+
+const navIconNames: Record<string, string> = {
+  'tri-overview': 'overview', 'tri-jobs': 'jobs', 'tri-invoices': 'invoices',
+  'tri-contacts': 'contacts', 'tri-price-lists': 'price-lists', settings: 'settings',
+  'tri-travelers': 'travelers', 'tri-calendar': 'calendar', 'tri-complaints': 'complaints',
+  codebooks: 'codebooks', users: 'users', emails: 'emails', 'activity-log': 'log',
+  'cron-jobs': 'cron', 'api-tokens': 'tokens', 'tri-tags': 'tags', 'tri-myucto': 'myucto',
+  'electronic-signatures': 'system',
 }
 
 const navSections = computed<NavSection[]>(() => {
@@ -151,9 +159,7 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'emails', to: '/admin/emails', label: t('nav.emails'), icon: ICONS.email },
         { moduleId: 'activity-log', to: '/admin/activity-log', label: t('nav.log'), icon: ICONS.log },
         { moduleId: 'cron-jobs', to: '/admin/cron-jobs', label: t('nav.cron_jobs'), icon: ICONS.cron },
-        { moduleId: 'updates', to: '/admin/update', label: t('nav.updates'), icon: ICONS.updates },
         { moduleId: 'api-tokens', to: '/profile/api-tokens', label: t('nav.api_tokens'), icon: ICONS.api_tokens },
-        { moduleId: TRI_SETTINGS_MODULE_ID, to: '/admin/tri-settings', label: t('nav.tri_settings'), icon: ICONS.settings },
         { moduleId: 'tri-tags', to: '/admin/tri-tags', label: t('nav.tri_tags'), icon: ICONS.clients },
         { moduleId: 'tri-myucto', to: '/tri/admin/myucto', label: t('nav.tri_myucto'), icon: ICONS.myucto_upgrade },
       ],
@@ -170,14 +176,11 @@ const navSections = computed<NavSection[]>(() => {
     })
   }
 
-  // Nápověda jako poslední (po Systému) — externí link na manuál v novém tabu.
-  sections.push({
-    items: [
-      { moduleId: 'help', to: '/manual', label: t('nav.help'), icon: ICONS.help, external: true },
-    ],
-  })
-
-  return sections
+  const mainOrder=['tri-overview','tri-jobs','tri-invoices','tri-contacts','tri-price-lists','settings']
+  const all=sections.flatMap(s=>s.items)
+  all.push({moduleId:'tri-overview',to:'/tri/overview',label:t('office.overview'),icon:ICONS.tri_jobs})
+  const main=mainOrder.flatMap(id=>all.filter(item=>item.moduleId===id))
+  return [{title:'',accent:'primary',items:main},...sections.map(section=>({...section,title:section.accent==='primary'?t('office.other_agendas'):section.title,items:section.items.filter(item=>!mainOrder.includes(item.moduleId))})).filter(section=>section.items.length)]
 })
 
 /** Rychlé zkratky v topbaru (desktop) — ikony navazují na menu (ICONS). */
@@ -202,7 +205,7 @@ const visibleNavSections = computed<NavSection[]>(() => {
   return navSections.value
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => item.moduleId === TRI_SETTINGS_MODULE_ID || !hidden.has(item.moduleId)),
+      items: section.items.filter((item) => !hidden.has(item.moduleId)),
     }))
     .filter((section) => section.items.length > 0)
 })
@@ -272,14 +275,14 @@ function isActive(item: NavItem): boolean {
 // Zavři mobile drawer + rychlé menu po navigaci
 watch(() => route.path, () => { mobileOpen.value = false; quickOpen.value = false })
 
-const versionInfo = ref<PublicVersion | null>(null)
+const versionInfo = ref<string | null>(null)
 onMounted(async () => {
   const [versionResult, sidebarResult] = await Promise.allSettled([
-    updateApi.publicVersion(),
+    systemApi.health(),
     settingsApi.getTriSidebarSettings(),
   ])
   if (versionResult.status === 'fulfilled') {
-    versionInfo.value = versionResult.value
+    versionInfo.value = versionResult.value.version
   }
   if (sidebarResult.status === 'fulfilled') {
     hiddenSidebarModules.value = normalizeHiddenSidebarModules(sidebarResult.value.hidden_modules)
@@ -291,19 +294,24 @@ onMounted(async () => {
   <div class="min-h-screen flex flex-col bg-neutral-50">
 
     <!-- ═════════════════════ TOPBAR ═════════════════════ -->
-    <header class="sticky top-0 z-30 bg-surface border-b border-neutral-200 shadow-xs">
+    <header class="sticky top-0 z-30 bg-surface border-b border-neutral-200 lg:hidden">
       <div class="h-14 px-4 sm:px-6 flex items-center justify-between gap-3">
-        <!-- Logo + přímé odkazy na TRI agendy -->
-        <div class="flex items-center gap-3 min-w-0">
+        <!-- Logo + přímé odkazy na agendy -->
+        <div class="flex items-center gap-3 min-w-0 shrink-0">
           <RouterLink to="/" class="flex items-center shrink-0 text-neutral-900" @click="mobileOpen = false">
-            <TriLogo class="h-7 w-auto" />
+            <TriLogo class="h-10 w-auto" />
           </RouterLink>
           <TriTopbarNav />
         </div>
 
+        <!-- Globální hledání (hlavní menu) -->
+        <div class="hidden sm:block flex-1 min-w-0 max-w-sm mx-2">
+          <GlobalSearch variant="topbar" :menu-items="flatNavItems" />
+        </div>
+
         <!-- Pravá strana topbaru -->
-        <div class="flex items-center gap-1.5 text-sm">
-          <!-- Rychlé vytvoření (desktop, jen pro zapisující) — jedno decentní tlačítko s menu -->
+        <div class="flex items-center gap-1.5 text-sm shrink-0">
+          <!-- Rychlé vytvoření (desktop, jen pro zapisující) -->
           <div v-if="auth.canWrite" class="relative hidden lg:block">
             <UiButton
               type="button"
@@ -340,17 +348,8 @@ onMounted(async () => {
             </transition>
             <div v-if="quickOpen" @click="quickOpen = false" class="fixed inset-0 z-10" aria-hidden="true"></div>
           </div>
-          <!-- Jemný předěl, aby „Vytvořit" nebylo nalepené na jméně uživatele -->
-          <span v-if="auth.canWrite" class="hidden lg:inline-block w-px h-5 bg-neutral-200 mx-1" aria-hidden="true"></span>
 
-          <!-- Jméno uživatele (desktop) — link na profil (heslo + 2FA v záložkách). -->
-          <RouterLink
-            to="/profile/password"
-            class="hidden lg:inline-flex items-center h-9 px-2.5 rounded-md text-sm text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-            :title="t('auth.profile_title')"
-          >{{ auth.user?.name }}</RouterLink>
-
-          <!-- Locale switcher (CZ / EN s SVG vlajkami) — TRIANT: skryto (viz config/triUi.ts) -->
+          <!-- Locale switcher (CZ / EN) — TRIANT: skryto (viz config/triUi.ts) -->
           <div v-if="SHOW_LOCALE_SWITCHER" class="hidden sm:inline-flex items-center border border-neutral-200 rounded-md overflow-hidden">
             <button
               @click="setLocale('cs')" title="Čeština" aria-label="Čeština"
@@ -379,40 +378,12 @@ onMounted(async () => {
             </button>
           </div>
 
-          <!-- Přepínač motivu (System / Light / Dark) — TRIANT: skryto (viz config/triUi.ts) -->
+          <!-- Přepínač motivu — TRIANT: skryto (viz config/triUi.ts) -->
           <div v-if="SHOW_THEME_TOGGLE" class="hidden sm:inline-flex">
             <ThemeToggle />
           </div>
 
-          <!-- Nápověda -->
-          <a
-            href="/manual" target="_blank" rel="noopener"
-            class="hidden sm:inline-flex w-9 h-9 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-            :title="t('nav.help')"
-            :aria-label="t('nav.help')"
-          >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" :d="ICONS.help" />
-            </svg>
-          </a>
-
-          <!-- Odhlásit (desktop) -->
-          <UiButton
-            v-if="canLockSession"
-            variant="ghost"
-            size="sm"
-            class="hidden sm:inline-flex"
-            @click="sessionSecurity.lock"
-          >{{ t('session_lock.lock_now') }}</UiButton>
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class="hidden sm:inline-flex"
-            :disabled="logoutBusy"
-            @click="logout"
-          >{{ t('nav.logout') }}</UiButton>
-
-          <!-- Hamburger — TRIANT: na všech šířkách (menu je vždy v draweru) -->
+          <!-- Hamburger — menu vždy v draweru -->
           <button
             type="button" @click="mobileOpen = !mobileOpen"
             :aria-expanded="mobileOpen" aria-label="Menu"
@@ -449,41 +420,40 @@ onMounted(async () => {
       <!-- Backdrop draweru — TRIANT: drawer na všech šířkách (dřív jen mobil, desktop měl trvalý sidebar) -->
       <div
         v-if="mobileOpen" @click="mobileOpen = false"
-        class="fixed inset-0 bg-black/50 z-20"
+        class="fixed inset-0 bg-black/50 z-20 lg:hidden"
         aria-hidden="true"
       ></div>
 
       <!-- ── SIDEBAR (drawer za hamburgerem) ── -->
       <aside
         :class="[
-          'fixed top-14 z-30',
-          'h-[calc(100vh-3.5rem)] w-64 shrink-0',
-          'bg-surface border-r border-neutral-200 shadow-xs',
+          'office-sidebar fixed top-14 lg:top-0 z-30',
+          'h-[calc(100dvh-3.5rem)] lg:h-dvh w-[248px] shrink-0',
+          'bg-surface border-r border-neutral-200',
           'flex flex-col',
-          'transition-transform duration-200 ease-in-out',
+          'transition-transform duration-200 ease-in-out lg:translate-x-0',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         ]"
       >
-        <nav class="flex-1 overflow-y-auto scrollbar-slim px-3 py-3">
-          <!-- Globální vyhledávač (před Přehled) — našeptává menu + hledá klienty/faktury -->
-          <GlobalSearch :menu-items="flatNavItems" @navigated="mobileOpen = false" />
+        <RouterLink to="/tri/jobs" class="hidden lg:block px-4 pt-5 pb-7"><img src="/assets/tri/logo.svg" alt="TRIANT" class="office-logo" /></RouterLink>
+          <div class="mx-4 mb-7 shrink-0">
+            <GlobalSearch :menu-items="flatNavItems" @navigated="mobileOpen = false" />
+          </div>
+        <nav class="flex-1 min-h-0 overflow-y-auto scrollbar-slim px-4 pb-4">
+          <component :is="si===0?'div':'details'" v-for="(section, si) in visibleNavSections" :key="si" :class="si > 0 ? 'office-nav-group' : 'mb-4'" :open="section.items.some(item=>isActive(item))">
+            <summary v-if="si>0" class="office-nav-link flex items-center gap-3 h-11 mb-1 pl-3 pr-2 cursor-pointer list-none text-neutral-600" :class="{ 'text-primary-700 font-semibold': section.items.some(item=>isActive(item)) }">
+              <OfficeNavIcon :name="section.accent === 'primary' ? 'other' : 'system'" class="w-5 h-5" />
+              <span class="flex-1">{{ section.title }}</span>
+              <span class="w-8 h-8 flex items-center justify-center"><OfficeNavIcon name="chevron" class="office-nav-chevron w-4 h-4" /></span>
+            </summary>
 
-          <template v-for="(section, si) in visibleNavSections" :key="si">
-            <!-- Section title — Untitled: jemný uppercase popisek, ne barevný pill -->
-            <div v-if="section.title" :class="si === 0 ? 'px-3 pt-2 pb-1' : 'px-3 pt-5 pb-1'">
-              <div class="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                {{ section.title }}
-              </div>
-            </div>
-
-            <!-- Items: external (např. Nápověda → /manual v novém tabu) vs internal route -->
             <template v-for="item in section.items" :key="item.to">
               <a
                 v-if="item.external"
                 :href="item.to"
                 target="_blank"
                 rel="noopener"
-                class="flex items-center gap-3 h-10 px-3 rounded-lg text-sm transition-colors leading-tight text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
+                class="flex items-center gap-3 h-10 px-3 text-sm transition-colors leading-tight text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100"
               >
                 <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
@@ -498,82 +468,54 @@ onMounted(async () => {
                   :to="item.to"
                   active-class=""
                   exact-active-class=""
-                  class="flex items-center gap-3 h-10 px-3 rounded-lg text-sm transition-colors leading-tight"
+                  class="office-nav-link flex items-center gap-3 mb-1 pr-2 text-sm transition-colors leading-tight"
                   :class="[
                     isActive(item)
-                      ? 'bg-primary-50 text-primary-700 font-medium'
+                      ? 'bg-primary-50 text-primary-700 font-semibold'
                       : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100',
-                    item.newTo && auth.canWrite ? 'pr-9' : '',
+                    si === 0 ? 'h-11 pl-3' : 'h-9 pl-8',
+                    item.newTo && auth.canWrite ? 'pr-12' : '',
                   ]"
                 >
-                  <svg class="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
-                  </svg>
+                  <OfficeNavIcon :name="navIconNames[item.moduleId] || 'system'" :class="si === 0 ? 'w-5 h-5' : 'w-4 h-4'" />
                   {{ item.label }}
                 </RouterLink>
-                <!-- Rychlé „+" (vytvořit nový) — skryté, odhalí se až při hoveru nad položkou -->
                 <RouterLink
                   v-if="item.newTo && auth.canWrite"
                   :to="item.newTo"
-                  :title="t('nav.quick_new')"
-                  :aria-label="t('nav.quick_new')"
-                  class="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-7 h-7 rounded-md text-neutral-400 hover:text-primary-700 hover:bg-primary-100 transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+                  :title="`${t('nav.quick_new')} — ${item.label}`"
+                  :aria-label="`${t('nav.quick_new')} — ${item.label}`"
+                  class="office-nav-link absolute right-2 top-[6px] inline-flex items-center justify-center w-8 h-8 text-neutral-500 hover:text-primary-700 hover:bg-primary-100"
+                  :class="{ 'text-primary-700': isActive(item) }"
                 >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m4-4H8M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
-                  </svg>
+                  <OfficeNavIcon name="plus" class="w-4 h-4" />
                 </RouterLink>
               </div>
             </template>
-          </template>
+          </component>
         </nav>
 
-        <!-- Verze (dole) -->
-        <div v-if="versionInfo" class="px-4 py-2.5 border-t border-neutral-100 flex items-center gap-2">
+        <!-- Verze (dole) — plain text, bez MyInvoice update -->
+        <div v-if="false" class="px-4 py-2.5 border-t border-neutral-100 flex items-center gap-2">
           <span class="text-xs text-neutral-500">Triant office</span>
-          <RouterLink
-            v-if="auth.user?.role === 'admin'"
-            to="/admin/update"
-            class="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
-            :title="t('updates.title')"
-          >
-            <span>v{{ versionInfo.current }}</span>
-            <span
-              v-if="versionInfo.has_update"
-              class="inline-flex items-center gap-1 rounded-full bg-primary-100 text-primary-700 px-1.5 py-0.5 text-[10px] font-semibold leading-none"
-            >
-              <svg class="w-2 h-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"/></svg>
-              v{{ versionInfo.latest }}
-            </span>
-          </RouterLink>
-          <span v-else class="text-xs text-neutral-400">v{{ versionInfo.current }}</span>
+          <span class="text-xs text-neutral-400">v{{ versionInfo }}</span>
         </div>
 
-        <!-- Mobile only: profil + ovládání relace (na dně sidebaru) -->
-        <div class="lg:hidden border-t border-neutral-200 px-4 py-3 bg-neutral-50 space-y-3">
-          <div class="flex items-center justify-between">
-            <RouterLink
-              to="/profile/password"
-              @click="mobileOpen = false"
-              class="group min-w-0 flex-1 rounded-md -ml-2 px-2 py-1.5 text-sm hover:bg-surface"
-              :title="t('auth.profile_title')"
-            >
-              <div class="truncate font-medium text-neutral-900 group-hover:text-primary-700 group-hover:underline">
-                {{ auth.user?.name }}
-              </div>
-              <div class="truncate text-xs text-neutral-500">{{ auth.user?.email }} · {{ auth.user?.role }}</div>
-            </RouterLink>
-            <a
-              href="/manual" target="_blank" rel="noopener"
-              class="inline-flex w-9 h-9 items-center justify-center rounded-md text-neutral-600 hover:bg-surface"
-              :title="t('nav.help')"
-            >
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" :d="ICONS.help" />
-              </svg>
-            </a>
-          </div>
-          <!-- Přepínač motivu (System / Light / Dark) — mobilní varianta — TRIANT: skryto (viz config/triUi.ts) -->
+        <!-- Profil + odhlášení (v hamburgeru na všech šířkách) -->
+        <details class="mx-4 mb-4 px-2.5 py-2 bg-neutral-100">
+          <summary class="flex gap-2.5 items-center cursor-pointer list-none"><span class="w-8 h-8 rounded-full bg-primary-600 shrink-0"/><span class="text-xs"><strong class="font-semibold">{{auth.user?.name}}</strong><span class="block text-[11px] text-neutral-500">TRIANT</span></span></summary>
+          <div class="space-y-2 pt-2">
+          <RouterLink
+            to="/profile/password"
+            @click="mobileOpen = false"
+            class="group block min-w-0 rounded-md -ml-2 px-2 py-1.5 text-sm hover:bg-surface"
+            :title="t('auth.profile_title')"
+          >
+            <div class="truncate font-medium text-neutral-900 group-hover:text-primary-700 group-hover:underline">
+              {{ auth.user?.name }}
+            </div>
+            <div class="truncate text-xs text-neutral-500">TRIANT</div>
+          </RouterLink>
           <div v-if="SHOW_THEME_TOGGLE" class="flex">
             <ThemeToggle />
           </div>
@@ -618,16 +560,17 @@ onMounted(async () => {
               class="cursor-pointer w-full px-2 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-surface disabled:opacity-60"
             >{{ t('nav.logout') }}</button>
           </div>
-        </div>
+          </div>
+        </details>
       </aside>
 
       <!-- ── HLAVNÍ OBSAH ── -->
-      <div class="flex-1 min-w-0 flex flex-col">
-        <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex-1 min-w-0 flex flex-col lg:ml-[248px]">
+        <main class="office-page flex-1 w-full max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-8 lg:py-10">
           <RouterView />
         </main>
 
-        <footer class="border-t border-neutral-200">
+        <footer class="hidden">
           <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 text-xs text-neutral-500 flex flex-wrap items-center gap-x-1.5 gap-y-1 leading-none">
             <span>Triant office</span>
           </div>

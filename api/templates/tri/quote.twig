@@ -19,7 +19,9 @@
     </td>
     <td class="quote-heading">
       <div class="quote-title">{{ t('CENOVÁ NABÍDKA', 'PRICE QUOTATION') }}</div>
-      <table class="variant-badge" align="right"><tr><td>{{ t('VARIANTA', 'OPTION') }} {{ variant.variant_code }}</td></tr></table>
+      <table class="variant-badge{% if variant.name %} variant-badge--named{% endif %}" align="right"><tr><td>
+        {{ t('VARIANTA', 'OPTION') }} {{ variant.variant_code }}{% if variant.name %}<br><span class="variant-badge-name">{{ variant.name }}</span>{% endif %}
+      </td></tr></table>
     </td>
   </tr>
 </table>

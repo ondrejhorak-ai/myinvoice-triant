@@ -8,21 +8,21 @@
   /* 4px spacing grid (Tailwind: p-1 = 4px, p-2 = 8px, …) */
   --spacing: 0.25rem;
 
-  /* ─── Primary — Triant petrolej (PDF nabídky #0B4F7C) ─── */
-  --color-primary-50:  #EAF1F5;
+  /* ─── Primary — Triant petrolej (PDF nabídky #204A6D) ─── */
+  --color-primary-50:  #F2F6F9;
   --color-primary-100: #D3E3EC;
   --color-primary-200: #B6D0DE;
   --color-primary-300: #86B0C8;
   --color-primary-400: #4A88A8;
   --color-primary-500: #2A6A90;
-  --color-primary-600: #155A86;   /* primary button */
-  --color-primary-700: #0B4F7C;   /* BRAND */
+  --color-primary-600: #265780;   /* primary button */
+  --color-primary-700: #204A6D;   /* BRAND */
   --color-primary-800: #083E61;
   --color-primary-900: #062C45;
 
   /* ─── Neutral — Untitled UI gray (chladnější, bez indigo nádechu) ─── */
   --color-neutral-50:  #F9FAFB;   /* page background */
-  --color-neutral-100: #F2F4F7;   /* subtle tint */
+  --color-neutral-100: #F4F4F4;   /* subtle tint */
   --color-neutral-200: #EAECF0;   /* borders */
   --color-neutral-300: #D0D5DD;
   --color-neutral-400: #98A2B3;
@@ -59,27 +59,27 @@
   --color-danger-600:  #B84545;
 
   /* ─── Status badges (faktury) — draft/cancelled mapované na novou neutral škálu ─── */
-  --color-status-draft-bg:     #F2F4F7;
+  --color-status-draft-bg:     #F4F4F4;
   --color-status-draft-fg:     #475467;
-  --color-status-issued-bg:    #EAF1F5;
-  --color-status-issued-fg:    #0B4F7C;
+  --color-status-issued-bg:    #F2F6F9;
+  --color-status-issued-fg:    #204A6D;
   --color-status-sent-bg:      #D7E8F6;
   --color-status-sent-fg:      #1F5E97;
   --color-status-paid-bg:      #ECF6F0;
   --color-status-paid-fg:      #2E7B53;
   --color-status-overdue-bg:   #FBEDED;
   --color-status-overdue-fg:   #B84545;
-  --color-status-cancelled-bg: #F2F4F7;
+  --color-status-cancelled-bg: #F4F4F4;
   --color-status-cancelled-fg: #98A2B3;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
   /* Untitled UI radius: 8 / 12 / 16 (sm zůstává 4px = spacing grid) */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
 
   /* Untitled UI stíny (šedá 900 @ nízká opacity) */
   --shadow-xs: 0 1px 2px 0 rgb(16 24 40 / 0.05);
@@ -100,7 +100,7 @@
  * Neutral škála se obrací (50 = nejtmavší pozadí … 900 = nejsvětlejší text),
  * takže ~3400 výskytů bg-neutral-50 / text-neutral-900 / border-neutral-200
  * se překlopí samo. bg-white se nahrazuje za bg-surface (viz převod komponent).
- * Neutral je chladná Untitled gray; primary Triant petrolej #0B4F7C.
+ * Neutral je chladná Untitled gray; primary Triant petrolej #204A6D.
  * How to apply: .dark třídu na <html> řídí composable useTheme. */
 .dark {
   /* Nativní ovládací prvky (kalendář u input[type=date], scrollbary, checkboxy…)
@@ -259,3 +259,57 @@ html, body {
     background-color: var(--color-neutral-400);
   }
 }
+
+/* TRIANT Office: Figma Office contract; see source/21-figma-office-reference.md. */
+@font-face { font-family: "Open Sans"; src: url('/assets/fonts/open-sans.ttf') format('truetype'); font-weight: 300 800; font-style: normal; font-display: swap; }
+:root { --color-role-customer-bg: #e5f2ff; --color-role-customer-fg: #204a6d; --color-role-architect-bg: #f2ebff; --color-role-architect-fg: #6638a3; }
+.dark { --color-role-customer-bg: #16344c; --color-role-customer-fg: #b6d0de; --color-role-architect-bg: #302044; --color-role-architect-fg: #d5b6fa; }
+.office-page { font-size: 14px; line-height: 20px; }
+.office-page .font-mono { font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
+.office-page :is(.rounded,.rounded-md,.rounded-lg,.rounded-xl,.rounded-2xl) { border-radius: 0; }
+.office-page :is(.shadow-xs,.shadow-sm) { box-shadow: none; }
+.office-page h1 { font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: 0; }
+.office-page h2, .office-page h3 { font-size: 16px; line-height: 24px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--color-neutral-900); }
+.office-page label { font-size: 12px; line-height: 18px; }
+.office-page :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select) { min-height: 44px; border-color: var(--color-neutral-200); border-radius: 0; }
+.office-page textarea { border-color: var(--color-neutral-200); border-radius: 0; }
+.office-page table { font-size: 13px; line-height: 19px; }
+.office-page thead { background: var(--color-neutral-100); color: var(--color-neutral-600); font-size: 11px; line-height: 16px; text-transform: none; letter-spacing: 0; }
+.office-page th { font-weight: 400; height: 56px; }
+.office-page tbody tr { border-color: var(--color-neutral-200); }
+.office-page td { height: 56px; }
+.office-page :is(td,th) { vertical-align: middle; }
+.office-page .office-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; }
+.office-page .office-error { border: 1px solid var(--color-danger-500); background: var(--color-danger-50); padding: 16px; margin-block: 16px; }
+.office-breadcrumb { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; line-height: 18px; margin-bottom: 24px; color: var(--color-neutral-600); }
+.office-breadcrumb a { color: var(--color-primary-700); }
+.office-breadcrumb a:hover { text-decoration: underline; }
+.office-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--color-neutral-200); margin-bottom: 24px; }
+.office-tabs > * { padding: 12px 0; border-bottom: 2px solid transparent; }
+.office-tabs > [aria-selected=true], .office-tabs > .router-link-exact-active { color: var(--color-primary-700); border-color: var(--color-primary-600); }
+.office-save-bar { position: sticky; bottom: 0; z-index: 10; background: var(--color-surface); border: 1px solid var(--color-neutral-200); padding: 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.office-role { display:inline-flex; font-size:11px; line-height:16px; border-radius:2px; padding:2px 6px; background:var(--color-role-customer-bg); color:var(--color-role-customer-fg); }
+.office-role[data-role=architect] { background:var(--color-role-architect-bg); color:var(--color-role-architect-fg); }
+.office-sidebar input { border-radius:0; min-height:40px; font-size:13px; }
+.office-sidebar .office-logo { width:145px; height:46px; object-fit:contain; }
+.dark .office-sidebar .office-logo { filter:invert(1); }
+.office-sidebar nav a, .office-sidebar nav summary { font-size:14px; line-height:20px; }
+.office-nav-link:hover { background-color:var(--color-neutral-100); }
+.office-nav-link:focus-visible { outline:2px solid var(--color-primary-600); outline-offset:-2px; }
+.office-nav-group > summary::-webkit-details-marker { display:none; }
+.office-nav-group[open] > summary .office-nav-chevron { transform:rotate(90deg); }
+.offer-row { display:grid; grid-template-columns:32px 80px minmax(180px,1fr) 64px 56px 104px 68px 76px 124px 36px; gap:8px; align-items:start; padding:12px 8px; min-width:1000px; border-bottom:1px solid var(--color-neutral-200); }
+.offer-table-head { align-items:center; min-height:44px; padding-block:8px; background:var(--color-neutral-100); font-size:11px; font-weight:600; color:var(--color-neutral-600); position:sticky; top:0; z-index:5; }
+.offer-row input, .offer-row select { font-size:13px; background:var(--color-surface); }
+.notion-ghost { opacity:.4; background:var(--color-primary-50); outline:2px solid var(--color-primary-600); }
+
+.office-page :is(td,th):not([class*="px-"]) { padding-inline:16px; }
+.office-sidebar input { box-shadow:none; background:var(--color-surface); }
+.office-page tbody .inline-flex.rounded-\[2px\] { min-width:96px; justify-content:center; font-weight:400; }
+
+.office-page .table-sticky-first thead th:first-child { background:var(--color-neutral-100); }
+.offer-blocks > [data-block-kind=section] { margin-block:20px; }
+.offer-blocks > [data-block-kind=item] + [data-block-kind=item] { border-top:0; }
+.offer-blocks > :first-child { margin-top:0; }
+
+.office-page :is(.office-filters, .office-filter-toolbar):has(+ .office-applied-filters) { margin-bottom: 12px; }

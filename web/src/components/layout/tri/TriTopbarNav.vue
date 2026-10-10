@@ -4,7 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 /**
- * Přímé odkazy na TRI agendy v horní liště (Kontakty / Zakázky / Faktury TRI).
+ * Přímé odkazy na agendy v horní liště (Kontakty / Zakázky / Faktury).
  * Na užších obrazovkách se schovají — položky zůstávají dostupné v draweru.
  */
 const { t } = useI18n()

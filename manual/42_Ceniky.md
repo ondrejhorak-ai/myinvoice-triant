@@ -1,68 +1,93 @@
-# 42. Ceníky
+# 42. Ceníky a katalog položek
 
-Ceník je katalog položek dodavatele (desky, kování, služby), ze kterého
-vkládáš řádky do **cenové nabídky** i do **faktury**. Najdeš ho v menu
-**TRIANT → Ceníky**.
+V menu **Ceníky** jsou dvě záložky: **Ceníky** a **Katalog položek**. Katalog
+obsahuje výrobky a služby, jejich popisy, jednotky, obrázky, kategorie a štítky.
+Cena patří konkrétnímu vydání ceníku. Každý ceník používá jednu měnu a ceny bez DPH.
+Data jsou oddělená podle dodavatele.
 
-Položka se do dokladu **zkopíruje** (snapshot). Pozdější úprava ceny v ceníku
-už vystavenou nabídku ani fakturu nemění — na dokladu můžeš částku i popis
-libovolně přepsat.
+## 42.1 Katalog položek
 
-> 💡 Ceníky jsou per dodavatel. Položky jednoho ceníku neuvidíš pod jinou
-> firmou.
+**Nová položka** potřebuje jedinečný kód, název a jednotku. Dále lze vyplnit
+výchozí množství, sazbu DPH, popis, parametry, kategorii, štítky oddělené čárkami
+a obrázek. Obrázky JPG, PNG, WebP a GIF mohou mít nejvýše 10 MiB; aplikace je
+optimalizuje. Uložení položky ještě nezakládá žádnou cenu.
 
-## 42.1 Seznam ceníků
+Kliknutí na název otevře detail s cenami a historií jednotlivých vydání.
+Kód a jednotku položky použité ve vydání nelze přepsat; pro odlišný výrobek
+založ samostatnou položku. Úprava popisu neovlivní historické nabídky ani
+publikovaná vydání. Nový koncept převezme aktuální katalogové popisy.
 
-Tabulka ukazuje název, dodavatele a počet položek. Kliknutím otevřeš editor.
-Prázdný seznam má tlačítko **Nový ceník**.
+## 42.2 Seznam a nový ceník
 
-## 42.2 Editor ceníku
+Seznam ukazuje měnu, počet položek, aktuální vydání, platnost a další vydání.
+Vyhledávej podle názvu; **Filtry** nabízejí měnu, stav a archivované ceníky.
+**Další** zobrazí další výsledky. Archivace v menu řádku zachová historii.
 
-| Pole | Význam |
-|---|---|
-| Název | Povinný — např. „Kování 2026", „Desky Egger" |
-| Poznámka | Interní text, na PDF se neobjeví |
-| Položky | Tabulka řádků (pořadí, fotka, označení, název, popis, množství, jednotka, cena, DPH) |
+**Nový ceník** potřebuje název a měnu; poznámka je volitelná. Vznikne prázdný
+koncept, do kterého vložíš položky přes **Přidat z katalogu** a doplníš ceny.
+Nulová cena je povolená. Prázdná cena znamená nedoplněnou cenu a blokuje publikaci.
 
-Každá položka má:
+Původní ceníky se při otevření nemění. **Upravit ceník** vytvoří první koncept
+a převezme původní položky do katalogu jako samostatné záznamy se suffixem
+`~L…`. Stejné původní označení se automaticky neslučuje. Původní ceníkové řádky
+a ceny již vytvořených nabídek zůstávají zachované.
 
-| Pole | Význam |
-|---|---|
-| Fotka | Stejná pravidla jako u nabídky: JPG / PNG / WebP / GIF, max 10 MiB, systém zmenší na JPEG |
-| Označení | Krátký kód (např. `D-18-W980`) |
-| Název | Povinný název položky |
-| Popis | Delší text, kopíruje se do nabídky |
-| Množství | Výchozí množství při vložení do dokladu |
-| Jednotka | Výchozí `ks` |
-| Cena bez DPH | Základní jednotková cena |
-| DPH | Výchozí 21 % |
-| Cena aktualizována | Datum se nastaví **jen při změně ceny**, ne při každém uložení |
+## 42.3 Koncept a publikování
 
-Položky ukládáš spolu s ceníkem. Pořadí měníš přetažením.
+Detail přednostně ukazuje právě platné vydání. **Upravit ceník** vytvoří koncept
+z posledního publikovaného vydání nebo otevře existující koncept. Opakované
+kliknutí nezakládá další kopie. **Historie vydání** otevře libovolné vydání;
+publikovaná data jsou pouze ke čtení.
 
-## 42.3 PDF ceníku
+**Uložit koncept** neovlivňuje ceny používané v nabídkách. Odchod s neuloženými
+změnami nabízí **Uložit**, **Zahodit změny** a **Pokračovat v úpravách**.
+Pokud mezitím koncept změnil jiný uživatel, aplikace odmítne přepsání.
 
-V editoru je tlačítko **PDF**. Vygeneruje přehled s hlavičkou dodavatele
-(jako na nabídce), fotkami, cenami, jednotkami a souhrnem DPH.
+**Publikovat vydání** vyžaduje datum začátku platnosti a všechny ceny. Konec
+platnosti je volitelný. Začátek nemůže být v minulosti. Nové vydání ukončí
+předchozí den před svým začátkem; kolize s publikovaným nebo naplánovaným
+vydáním publikaci zablokuje. Vydání od budoucího data je naplánované.
 
-## 42.4 Vložení do nabídky
+**Cena změněna** vyjadřuje skutečnou změnu částky. Prosté převzetí ceny do dalšího
+vydání ani změna popisu datum neposouvá. **PDF** exportuje právě otevřené vydání;
+před exportem koncept ulož.
 
-V editoru varianty zakázky je akce **Vložit z ceníku**. Otevře se vyhledávání
-napříč ceníky, vybereš jednu nebo více položek a vloží se jako nové řádky
-nabídky včetně fotky. Na řádku zůstane volitelný odkaz na položku ceníku,
-samotné údaje na dokladu už žijí samostatně.
+## 42.4 Hromadné změny a import
 
-Nový řádek z ceníku má ve výchozím stavu zaškrtnuté **Vyrábíme** — z takových
-řádků se později generují [průvodky](43_Pruvodky.md).
+Vyber položky zaškrtávátky a použij **Hromadná změna cen**. Zadej procentní změnu
+(záporná hodnota znamená snížení), zkontroluj původní a nové ceny a potvrď
+**Použít v konceptu**. Změny následně ulož. Prázdné ceny zůstávají prázdné.
 
-## 42.5 Vložení do faktury
+**Import XLS/XLSX** načítá první list souboru do 5 MB, nejvýše 10 000 řádků.
+První řádek má přesně sloupce `code`, `unit_price`, `unit`, `currency` v tomto
+pořadí. Ceny musí být číselné hodnoty, nikoli vzorce. Náhled upozorní na
+neznámé nebo duplicitní kódy, chybějící cenu a neshodnou měnu či jednotku.
+Dokud má některý řádek chybu, nelze import použít. Import nezakládá katalogové
+položky automaticky a mění pouze koncept.
 
-V editoru **Faktury TRI** je stejná akce **Vložit z ceníku**. Snapshot se
-zapíše do běžných položek faktury:
+## 42.5 Nabídky a faktury
 
-- popis = označení + název + popis z ceníku,
-- množství a jednotka z výchozích hodnot položky,
-- cena bez DPH a sazba DPH (mapuje se na sazbu v číselníku).
+**Vložit z ceníku** vybírá publikované vydání platné k zadanému datu. Nabídky
+používají CZK; faktury nabízejí ceníky v měně dokladu. Položka se zkopíruje se
+svým názvem, popisem, jednotkou, množstvím, cenou a sazbou DPH.
 
-Řádek je po vložení běžně editovatelný. Jádro faktur (DPH, KH, banka) se
-nemění — ceník jen předvyplní položky.
+Nabídka uchovává zdrojové vydání i datum cen. Další vložené položky používají
+stejné vydání. Pozdější změny ceníku nabídku samy nepřecení. **Přecenit nabídku**
+zobrazí rozdíly pro nové datum a vyžaduje potvrzení; chybějící položka nebo
+neshodná jednotka operaci zastaví. Slevy, množství a ruční řádky se zachovají.
+Přeceněnou nabídku je ještě potřeba uložit.
+
+Kopie varianty zachová původní vydání i snímky položek. Faktura má samostatný
+snímek položek a její finanční evidenci spravuje MyÚčto.
+
+
+### Použité filtry
+
+Tlačítko **Filtry** ukazuje počet použitých podmínek a při aktivním filtrování
+je modře zvýrazněné. Pod hledáním jsou konkrétní podmínky: křížek odstraní
+jednu, **Zrušit filtry** všechny. Hledaný text a řazení zůstanou zachované.
+Změny v panelu se projeví až po **Použít filtry**; zavření bez použití je zahodí.
+Počet nezahrnuje hledání ani řazení, datumový interval se počítá jako jedna
+podmínka. Při chybě načtení zůstávají filtry platné; opakujte načtení.
+
+Způsob ovládání je společný seznamu ceníků, katalogu i položkám vydání. Výchozí seznam ceníků omezuje archivace na nearchivované; po zrušení tohoto filtru zahrnuje i archivované ceníky.

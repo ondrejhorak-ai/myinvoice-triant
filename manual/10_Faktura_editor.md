@@ -6,13 +6,15 @@ nebo z detailu klienta / zakázky.
 
 ## 10.1 Editor — celkový přehled
 
-![Editor faktury](img/09_editor.webp)
+Hlavička má dvě části pro klienta a nastavení dokladu. Poznámka nad položkami
+je před tabulkou; poznámka pod položkami je pod souhrnem. Slevu celého dokladu
+nastavíš v souhrnu. Dole jsou přílohy a lišta uložení.
 
-Editor je rozdělený na tři bloky:
-
-1. **Hlavička** (vlevo nahoře) — typ, klient, zakázka, data
-2. **Položky** (střed) — řádky faktury
-3. **Sumář a akce** (vpravo nahoře + dole) — částky, sleva, tlačítka
+Řádky přesouváš úchytem vlevo; **Alt + šipka nahoru/dolů** funguje na úchytu
+z klávesnice. Menu **…** vpravo nabízí smazání s potvrzením. Tabulka se na
+užším displeji posouvá vodorovně. Faktura nemá výrobní přepínač ani sekce.
+Pole celkové částky dopočítá jednotkovou cenu, ale zachová přepínač cen s DPH
+i režim přenesené daňové povinnosti. Finální výpočet provede MyÚčto.
 
 ## 10.2 Hlavička
 
@@ -22,8 +24,9 @@ Editor je rozdělený na tři bloky:
 |---|---|---|
 | **Faktura** | Standardní daňový doklad | YYMMNNN — `2605001` |
 | **Zálohová (proforma)** | Před DUZP, není daňový doklad. Po zaplacení můžeš z ní vytvořit „Daňový doklad" se započtením zálohy. | `9` + YYMMNNN — `92605001` |
-| **Dobropis (opravný daňový doklad)** | Záporné částky, stornuje původní fakturu | `7` + YYMMNNN — `72605001` |
-| **Storno (interní)** | Pouze interní označení, nevystavuje se klientovi | (bez prefixu) |
+
+Dobropisy a účetní storna se vytvářejí v MyÚčtu. V Office lze již existující
+doklady zobrazovat podle oprávnění.
 
 ### 10.2.2 Klient + Zakázka
 

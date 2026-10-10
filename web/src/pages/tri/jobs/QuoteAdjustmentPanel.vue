@@ -33,26 +33,20 @@ const discountValueModel = computed({
   get: () => props.discountValue,
   set: (v: number | null) => emit('update:discountValue', v),
 })
-const commissionTypeModel = computed({
-  get: () => props.commissionType || 'percent',
-  set: (v: TriAdjustmentType | '') => emit('update:commissionType', v || 'percent'),
-})
-const commissionValueModel = computed({
-  get: () => props.commissionValue,
-  set: (v: number | null) => emit('update:commissionValue', v),
-})
+
+
 
 const inputClass =
-  'h-7 px-2 rounded-md text-xs bg-surface border border-neutral-300 shadow-xs outline-none focus-ring'
+  'h-11 px-3 rounded-md text-xs bg-surface border border-neutral-300 shadow-xs outline-none focus-ring'
 const selectClass = `${inputClass} w-14`
 const rowGridClass = 'grid grid-cols-[auto_96px_56px] items-center gap-1.5'
 const labelClass =
-  'text-[11px] font-semibold uppercase tracking-wider text-neutral-400 text-right pr-1 inline-flex items-center justify-end gap-1'
+  'text-xs font-semibold text-neutral-400 text-right pr-1 inline-flex items-center justify-end gap-1'
 </script>
 
 <template>
-  <div class="col-span-full border-t border-neutral-100 bg-neutral-50 px-3 py-2.5">
-    <div class="flex flex-col items-end gap-2">
+  <div class="col-span-full">
+    <div class="flex flex-col items-start gap-2">
       <div :class="rowGridClass">
         <span :class="labelClass">
           {{ t('tri.quote.discount') }}
@@ -76,39 +70,6 @@ const labelClass =
           <option value="absolute">{{ t('tri.quote.adjustment_amount') }}</option>
         </select>
       </div>
-
-      <div :class="rowGridClass">
-        <span :class="labelClass">
-          {{ t('tri.quote.commission') }}
-          <span
-            class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-neutral-300 text-[9px] font-bold text-neutral-400 cursor-help leading-none"
-            :title="t('tri.quote.commission_help')"
-            tabindex="0"
-            :aria-label="t('tri.quote.commission_help')"
-          >i</span>:
-        </span>
-        <input
-          v-model.number="commissionValueModel"
-          type="number"
-          step="0.01"
-          min="0"
-          :disabled="commissionOverridden"
-          :placeholder="commissionTypeModel === 'percent' ? '%' : 'Kč'"
-          :class="[inputClass, 'w-full text-right font-mono tabular-nums']"
-        />
-        <select
-          v-model="commissionTypeModel"
-          :class="selectClass"
-          :disabled="commissionOverridden"
-        >
-          <option value="percent">{{ t('tri.quote.adjustment_percent') }}</option>
-          <option value="absolute">{{ t('tri.quote.adjustment_amount') }}</option>
-        </select>
-      </div>
-
-      <p v-if="commissionOverridden" class="text-[11px] text-neutral-500 text-right max-w-xs">
-        {{ t('tri.quote.commission_overridden') }}
-      </p>
 
       <div
         v-if="finalAmount != null"

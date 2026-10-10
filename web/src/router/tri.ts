@@ -1,6 +1,8 @@
 import type { RouteRecordRaw } from 'vue-router'
 
 export const triRoutes: RouteRecordRaw[] = [
+  { path: 'tri/overview', name: 'tri-overview', component: () => import('@/pages/tri/jobs/Overview.vue') },
+  { path: 'tri/offers', name: 'tri-offers', component: () => import('@/pages/tri/jobs/OfferList.vue') },
   { path: 'tri/contacts', name: 'tri-contacts', component: () => import('@/pages/tri/contacts/ContactList.vue') },
   { path: 'tri/contacts/new', name: 'tri-contact-new', component: () => import('@/pages/tri/contacts/ContactForm.vue'), meta: { requiresWrite: true } },
   { path: 'tri/contacts/:id(\\d+)', name: 'tri-contact-detail', component: () => import('@/pages/tri/contacts/ContactDetail.vue') },
@@ -9,7 +11,8 @@ export const triRoutes: RouteRecordRaw[] = [
   { path: 'tri/jobs/new', name: 'tri-job-new', component: () => import('@/pages/tri/jobs/JobForm.vue'), meta: { requiresWrite: true } },
   { path: 'tri/jobs/:id(\\d+)', name: 'tri-job-detail', component: () => import('@/pages/tri/jobs/JobDetail.vue') },
   { path: 'tri/jobs/:id(\\d+)/edit', name: 'tri-job-edit', component: () => import('@/pages/tri/jobs/JobForm.vue'), meta: { requiresWrite: true } },
-  { path: 'tri/jobs/:jobId(\\d+)/variants/:variantId(\\d+)', name: 'tri-variant-edit', component: () => import('@/pages/tri/jobs/VariantEditor.vue'), meta: { requiresWrite: true } },
+  { path: 'tri/jobs/:jobId(\\d+)/variants/:variantId(\\d+)', name: 'tri-variant-edit', component: () => import('@/pages/tri/jobs/VariantEditor.vue') },
+  { path: 'tri/catalog', name: 'tri-catalog', component: () => import('@/pages/tri/price-lists/CatalogList.vue') },
   { path: 'tri/price-lists', name: 'tri-price-lists', component: () => import('@/pages/tri/price-lists/PriceListList.vue') },
   { path: 'tri/price-lists/new', name: 'tri-price-list-new', component: () => import('@/pages/tri/price-lists/PriceListEditor.vue'), meta: { requiresWrite: true } },
   { path: 'tri/price-lists/:id(\\d+)', name: 'tri-price-list-edit', component: () => import('@/pages/tri/price-lists/PriceListEditor.vue') },

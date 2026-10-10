@@ -64,6 +64,7 @@ export interface TriQuoteVariantSummary {
   id: number
   job_id: number
   variant_code: string
+  name: string | null
   number: string
   status: TriVariantStatus
   subtotal: number
@@ -90,6 +91,8 @@ export interface TriQuoteImage {
 }
 
 export interface TriQuoteLineItem {
+  source_product_id?: number | null
+  source_release_id?: number | null
   id?: number
   image_id?: number | null
   image?: TriQuoteImage | null
@@ -114,6 +117,8 @@ export interface TriQuoteLineItem {
 }
 
 export interface TriQuoteVariant extends TriQuoteVariantSummary {
+  price_release_id?: number | null
+  price_effective_date?: string | null
   job_number: string
   job_title: string
   customer_client_id: number | null
@@ -190,6 +195,8 @@ export interface TriJobActivityPage {
 }
 
 export interface TriPriceListItem {
+  source_product_id?: number | null
+  source_release_id?: number | null
   id?: number
   price_list_id?: number
   sort_order?: number
@@ -460,9 +467,9 @@ export const triApi = {
         status?: TriTravelerStatus
       },
     ) => api.put<TriTraveler>(`/tri/travelers/${id}/operations`, payload).then((r) => r.data),
-    generate: (jobId: number) =>
+    generate: (jobId: number, lineId?: number) =>
       api.post<{ created: number; operations_added: number; data: TriTraveler[] }>(
-        `/tri/jobs/${jobId}/travelers/generate`,
+        `/tri/jobs/${jobId}/travelers/generate`, { line_id: lineId },
       ).then((r) => r.data),
     pdfUrl: (id: number, download: boolean = false) => {
       const sid = localStorage.getItem('myinvoice.current_supplier_id')

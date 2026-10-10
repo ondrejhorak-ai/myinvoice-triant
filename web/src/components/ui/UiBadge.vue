@@ -23,9 +23,10 @@ const VARIANT: Record<string, string> = {
 
 <template>
   <span
-    class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap"
+    class="inline-flex items-center gap-1 px-2 py-1 rounded-[2px] text-[11px] leading-4 font-semibold whitespace-nowrap"
     :class="VARIANT[variant]"
   >
+    <span class="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden="true" />
     <slot />
   </span>
 </template>

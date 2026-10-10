@@ -1,5 +1,10 @@
 # MyInvoice.cz — Source dokumentace
 
+Pro aktuální **Triant office** začni [předáním UI a ceníků](21-figma-office-handoff.md),
+[zdrojovými návrhy Figmy](21-figma-office-reference.md) a
+[architekturou oddělení MyÚčta](18-myucto-split-architecture.md). Níže uvedené
+původní specifikace upstreamu nepřebíjejí pravidla forku.
+
 > Specifikace fakturačního systému pro doménu **myinvoice.cz** (prod) a **dev.myinvoice.cz** (vývoj).
 > Tato složka obsahuje **pouze dokumentaci** — žádné soubory odsud nejdou do produkce.
 

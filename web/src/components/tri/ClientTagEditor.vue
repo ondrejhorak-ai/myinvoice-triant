@@ -7,8 +7,10 @@ import { useToast } from '@/composables/useToast'
 const props = defineProps<{
   clientId?: number | null
   readonly?: boolean
+  saveLabel?: string
 }>()
 
+const emit=defineEmits<{saved:[]}>()
 const { t } = useI18n()
 const toast = useToast()
 
@@ -41,6 +43,7 @@ async function save() {
   try {
     await triApi.tags.setClient(props.clientId, selected.value)
     toast.success(t('tri.tags.saved'))
+    emit('saved')
   } catch {
     toast.error(t('common.error'))
   } finally {
@@ -81,6 +84,7 @@ defineExpose({ save, selected })
           : 'border-neutral-200 bg-surface text-neutral-700 hover:border-neutral-300'"
         :style="selected.includes(tag.id) ? { backgroundColor: tag.color } : {}"
         :disabled="readonly"
+        :aria-pressed="selected.includes(tag.id)"
         @click="toggle(tag.id)"
       >
         {{ tag.name }}
@@ -94,7 +98,7 @@ defineExpose({ save, selected })
       :disabled="saving"
       @click="save"
     >
-      {{ saving ? t('common.saving') : t('tri.tags.save') }}
+      {{ saving ? t('common.saving') : saveLabel || t('tri.tags.save') }}
     </button>
   </div>
 </template>

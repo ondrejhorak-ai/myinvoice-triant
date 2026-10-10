@@ -67,6 +67,21 @@ table { border-collapse: collapse; }
     text-align: center;
     white-space: nowrap;
 }
+.variant-badge--named td {
+    white-space: normal;
+    max-width: 55mm;
+    padding-top: 2mm;
+    padding-bottom: 2mm;
+}
+.variant-badge-name {
+    display: block;
+    margin-top: 0.8mm;
+    font-size: 8.5pt;
+    font-weight: normal;
+    letter-spacing: 0;
+    line-height: 1.25;
+    opacity: 0.95;
+}
 
 /* Zákazník, realizace a metadata */
 .quote-overview {

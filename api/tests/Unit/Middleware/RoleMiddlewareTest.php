@@ -148,7 +148,6 @@ final class RoleMiddlewareTest extends TestCase
                 '/api/admin/approvals',
                 '/api/admin/email-templates',
                 '/api/admin/email-templates/invoice_send/cs',
-                '/api/admin/update/status',
                 '/api/admin/smtp-log-analysis',
                 '/api/settings/email-branding/preview',
             ] as $path) {

@@ -27,9 +27,9 @@ final class PriceListPdfRenderer
         private readonly QuoteCalculator $calculator,
     ) {}
 
-    public function render(int $priceListId, int $supplierId): string
+    public function render(int $priceListId, int $supplierId, ?array $snapshot = null): string
     {
-        $list = $this->lists->find($priceListId, $supplierId);
+        $list = $snapshot ?? $this->lists->find($priceListId, $supplierId);
         if ($list === null) {
             throw new \RuntimeException("Ceník #{$priceListId} nenalezen");
         }
@@ -74,7 +74,7 @@ final class PriceListPdfRenderer
             'totals'         => $totals,
             'supplier'       => $supplier,
             'locale'         => $locale,
-            'currency'       => 'CZK',
+            'currency'       => $list['currency'] ?? 'CZK',
             'date_format'    => 'j. n. Y',
             'decimal_sep'    => ',',
             'thousand_sep'   => "\u{00A0}",

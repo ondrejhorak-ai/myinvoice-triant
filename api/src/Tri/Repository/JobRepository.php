@@ -21,16 +21,25 @@ final class JobRepository
     /** @return array{data: list<array>, meta: array<string, int>} */
     public function list(int $supplierId, array $filters, int $page, int $perPage): array
     {
-        $where = ['j.supplier_id = ?', 'j.archived_at IS NULL'];
+        $where = ['j.supplier_id = ?'];
+        if (($filters['archive'] ?? 'active') !== 'all') {
+            $where[] = ($filters['archive'] ?? 'active') === 'archived' ? 'j.archived_at IS NOT NULL' : 'j.archived_at IS NULL';
+        }
         $params = [$supplierId];
 
         if (!empty($filters['status'])) {
             $where[] = 'j.status = ?';
             $params[] = (string) $filters['status'];
         }
+        if (!empty($filters['client_id'])) {
+            $where[] = '(j.customer_client_id = ? OR EXISTS (SELECT 1 FROM tri_job_contacts jc WHERE jc.job_id = j.id AND jc.client_id = ?))';
+            $params[] = (int) $filters['client_id'];
+            $params[] = (int) $filters['client_id'];
+        }
         if (!empty($filters['q'])) {
             $q = addcslashes((string) $filters['q'], '%_\\');
-            $where[] = '(j.number LIKE ? OR j.title LIKE ?)';
+            $where[] = '(j.number LIKE ? OR j.title LIKE ? OR EXISTS (SELECT 1 FROM clients customer WHERE customer.id = j.customer_client_id AND customer.company_name LIKE ?))';
+            $params[] = '%' . $q . '%';
             $params[] = '%' . $q . '%';
             $params[] = '%' . $q . '%';
         }
@@ -50,7 +59,7 @@ final class JobRepository
                JOIN users u ON u.id = j.owner_user_id
           LEFT JOIN clients c ON c.id = j.customer_client_id
               WHERE $whereSql
-              ORDER BY j.updated_at DESC
+              ORDER BY j.updated_at DESC, j.id DESC
               LIMIT ? OFFSET ?"
         );
         $idx = 1;

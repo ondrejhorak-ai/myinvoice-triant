@@ -5,6 +5,19 @@ volitelný — u historických dokladů ho často neznáš. Pod klientem může�
 **zakázek** (viz [14. Zakázky](14_Zakazky.md)) — typicky 1 zakázka = 1 projekt
 nebo dlouhodobá spolupráce.
 
+## Kontakty v Triant office
+
+Menu **Kontakty** zobrazuje e-mail a telefon společně, role, počet zakázek,
+datum poslední zakázky a obrat. Obrat zde znamená součet cen schválených
+nabídek potvrzených a dokončených zakázek bez DPH, nikoli účetní tržby.
+E-mail a telefon lze otevřít bez přechodu do detailu. Filtry vybírají roli
+a archivované kontakty, **Další** přidá výsledky.
+
+Detail obsahuje kontaktní a fakturační údaje, související zakázky a faktury.
+Zakázky zahrnují zákazníka i další přiřazené kontakty. **Upravit role** umožňuje
+kombinovat role; změnu potvrzuje **Uložit role**. Archivace respektuje oprávnění.
+Úpravy kontaktu procházejí API MyÚčta, které je hlavním zdrojem kontaktních dat.
+
 ## 13.1 Seznam klientů
 
 V hlavním menu klikni **Klienti**.
@@ -181,3 +194,15 @@ zachována (faktury, statistiky). Archivovaného klienta najdeš ve filtru
 - Pokud klient nemá IČO (fyzická osoba), zadej alespoň jméno + adresu ručně.
 - Reverse charge se nastavuje **per klient**, ale lze přepsat per faktura
   v editoru.
+
+
+### Použité filtry
+
+Tlačítko **Filtry** ukazuje počet použitých podmínek a při aktivním filtrování
+je modře zvýrazněné. Pod hledáním jsou konkrétní podmínky: křížek odstraní
+jednu, **Zrušit filtry** všechny. Hledaný text a řazení zůstanou zachované.
+Změny v panelu se projeví až po **Použít filtry**; zavření bez použití je zahodí.
+Počet nezahrnuje hledání ani řazení, datumový interval se počítá jako jedna
+podmínka. Při chybě načtení zůstávají filtry platné; opakujte načtení.
+
+Výchozí filtr zobrazuje nearchivované kontakty. V panelu lze vybrat také pouze archivované nebo všechny kontakty.
