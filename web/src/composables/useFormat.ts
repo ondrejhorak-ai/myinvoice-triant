@@ -3,6 +3,7 @@
  */
 
 import { i18n } from '@/i18n'
+import { formatIsoDateCs } from '@/composables/czechDate'
 
 // Per-currency default decimals (ISO 4217). JPY/KRW/HUF = 0, BHD/JOD = 3, ostatní 2.
 // Volající může override přes parametr `decimals`.
@@ -33,9 +34,17 @@ export function formatMoney(value: number | null | undefined, currency: string =
 
 export function formatDate(date: string | null | undefined): string {
   if (!date) return '—'
+  if (i18n.global.locale.value !== 'en') {
+    const czech = formatIsoDateCs(date)
+    if (czech) return czech
+  }
   const d = new Date(date)
   if (Number.isNaN(d.getTime())) return date
-  return new Intl.DateTimeFormat(activeLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  return i18n.global.locale.value === 'en'
+    ? `${day}/${month}/${d.getFullYear()}`
+    : `${day}. ${month}. ${d.getFullYear()}`
 }
 
 export function formatMonth(yyyymm: string): string {

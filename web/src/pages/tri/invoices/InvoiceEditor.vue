@@ -16,7 +16,7 @@ const toast = useToast()
 useHotkey('ctrl+s', (e) => { e.preventDefault(); submit() })
 import { clientsApi, type Client, type ViesLookupResult } from '@/api/clients'
 import { type VatRate, type Currency, type Unit } from '@/api/codebooks'
-import { formatMoney, formatPercent } from '@/composables/useFormat'
+import { formatDate, formatMoney, formatPercent } from '@/composables/useFormat'
 import { evalMath } from '@/directives/vMath'
 import { apiErrorMessage } from '@/api/errors'
 import { useSupplierStore } from '@/stores/supplier'
@@ -24,6 +24,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import TriContactFormModal from '@/components/tri/TriContactFormModal.vue'
 import TriJobLinkField from '@/components/tri/TriJobLinkField.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
@@ -66,6 +67,8 @@ const editorTitle = computed(() => {
   const key = (isEdit.value ? 'invoice.edit_title' : 'invoice.new_title') + suffix
   return t(key)
 })
+const editorSubtitle = computed(() => isEdit.value ? t('invoice.edit_subtitle') : t('invoice.new_subtitle'))
+const moneyUnit = computed(() => form.value.currency === 'CZK' ? 'Kč' : (form.value.currency || 'Kč'))
 const varsymbolLabelKey = computed(() => {
   if (form.value.invoice_type === 'proforma') return 'invoice.varsymbol_label_proforma'
   if (form.value.invoice_type === 'credit_note') return 'invoice.varsymbol_label_credit_note'
@@ -695,6 +698,7 @@ const computed_totals = computed(() => {
   }
 
   return {
+    items_net: round2(totalBase + discountAmount),
     without_vat: totalBase,
     vat: totalVat,
     with_vat: round2(totalBase + totalVat),
@@ -969,16 +973,12 @@ async function deleteDraft() {
 
   <div v-else class="space-y-6">
     <OfficeBreadcrumb :items="[{label:t('nav.invoices'),to:'/tri/invoices'},{label:editorTitle}]"/>
-    <UiPageHeader :title="editorTitle">
-      <template #below>
-        <div class="mt-2">
-          <UiBadge v-if="form.invoice_type === 'proforma'" variant="sent">{{ t('type.proforma') }}</UiBadge>
-          <UiBadge v-else-if="form.invoice_type === 'credit_note'" variant="danger">{{ t('type.credit_note') }}</UiBadge>
-          <UiBadge v-else-if="editedStatus !== 'draft'" variant="warning">{{ t(`status.${editedStatus}`) }}</UiBadge>
-          <UiBadge v-else variant="draft">{{ t('status.draft') }}</UiBadge>
-        </div>
-      </template>
+    <UiPageHeader :title="editorTitle" :subtitle="editorSubtitle">
       <template #actions>
+        <UiBadge v-if="form.invoice_type === 'proforma'" variant="sent">{{ t('type.proforma') }}</UiBadge>
+        <UiBadge v-else-if="form.invoice_type === 'credit_note'" variant="danger">{{ t('type.credit_note') }}</UiBadge>
+        <UiBadge v-else-if="editedStatus !== 'draft'" variant="warning">{{ t(`status.${editedStatus}`) }}</UiBadge>
+        <UiBadge v-else variant="draft">{{ t('status.draft') }}</UiBadge>
         <UiButton v-if="isEdit && editedStatus === 'draft'" variant="danger" size="sm" @click="deleteDraft">
           {{ t('invoice.delete_draft_btn') }}
         </UiButton>
@@ -998,9 +998,9 @@ async function deleteDraft() {
 
     <form @submit.prevent="submit" class="space-y-6">
       <!-- Klient + zakázka + datumy -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5">
-          <h3 class="text-base font-semibold text-neutral-900 mb-4">{{ t('invoice.client') }}</h3>
+      <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,656fr)_minmax(0,432fr)]">
+        <div class="bg-surface border border-neutral-200 p-5">
+          <h3 class="mb-4">{{ t('invoice.section_client') }}</h3>
           <div class="space-y-3">
             <div>
               <UiSelect v-model="form.invoice_type" :label="`${t('invoice.doc_type')} *`">
@@ -1055,6 +1055,10 @@ async function deleteDraft() {
                 <template v-else-if="viesResult.status === 'no_dic'">
                   <span class="text-neutral-400">{{ t('invoice.vies.no_dic') }}</span>
                 </template>
+              </div>
+              <div v-if="form.client_id" class="border border-neutral-200 bg-neutral-50 px-3 py-3">
+                <p class="text-sm font-medium text-neutral-900">{{ t('invoice.myucto_linked') }}</p>
+                <p class="mt-1 text-xs text-neutral-500">{{ t('invoice.myucto_linked_hint') }}</p>
               </div>
             </div>
             <TriJobLinkField
@@ -1115,8 +1119,8 @@ async function deleteDraft() {
           </div>
         </div>
 
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.dates_section') }}</h3>
+        <div class="bg-surface border border-neutral-200 p-5">
+          <h3 class="mb-4">{{ t('invoice.section_dates') }}</h3>
           <div class="space-y-3">
             <!-- Ruční override čísla faktury — jen u draftu; prázdné = vygeneruje se při Vystavení.
                  Placeholder ukazuje, jaké číslo dostane fakturu při Issue (z preview API).
@@ -1138,21 +1142,14 @@ async function deleteDraft() {
               <span class="text-neutral-500">{{ t(varsymbolLabelKey) }}:</span>
               <code class="ml-2 font-mono font-semibold">{{ editedVarsymbol }}</code>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.issue_date') }} *</label>
-              <input v-model="form.issue_date" type="date" required class="w-full h-10 px-3 border border-neutral-300 rounded-md" />
-            </div>
+            <UiInput v-model="form.issue_date" type="date" required :label="`${t('invoice.issue_date')} *`" />
             <div v-if="form.invoice_type !== 'proforma'">
-              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.tax_date') }} *</label>
-              <input v-model="form.tax_date" type="date" required class="w-full h-10 px-3 border border-neutral-300 rounded-md" />
+              <UiInput v-model="form.tax_date" type="date" required :label="`${t('invoice.tax_date')} *`" />
             </div>
             <div v-else class="rounded-md bg-accent-50 border border-accent-100 p-3 text-sm text-accent-600">
               {{ t('invoice.proforma_no_tax_point') }}
             </div>
-            <div>
-              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.due_date') }} *</label>
-              <input v-model="form.due_date" type="date" required class="w-full h-10 px-3 border border-neutral-300 rounded-md" />
-            </div>
+            <UiInput v-model="form.due_date" type="date" required :label="`${t('invoice.due_date')} *`" />
             <div v-if="form.invoice_type !== 'credit_note' && remindersAvailable">
               <label class="flex items-center gap-2 text-sm text-neutral-700">
                 <input v-model="form.auto_send_reminders" type="checkbox" class="rounded border-neutral-300 text-primary-600" />
@@ -1174,23 +1171,12 @@ async function deleteDraft() {
         </div>
       </div>
 
-      <!-- Položky -->
-          <div class="bg-surface border border-neutral-200 rounded-lg p-5">
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_above') }}</label>
-            <textarea v-model="form.note_above_items" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
-          </div>
-
-      <div class="bg-surface border border-neutral-200 rounded-lg">
-        <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between gap-2">
-          <h3 class="text-base font-semibold text-neutral-900">{{ t('invoice.items') }}</h3>
-          <div class="flex items-center gap-2">
-            <UiButton type="button" variant="outline" size="sm" @click="catalogOpen = true">
-              {{ t('tri.quote.insert_from_catalog') }}
-            </UiButton>
-            <UiButton type="button" size="sm" @click="addItem">
-              {{ t('invoice.add_item') }}
-            </UiButton>
-          </div>
+      <div class="bg-surface border border-neutral-200">
+        <div class="px-5 py-4 border-b border-neutral-200 flex items-center justify-between gap-3">
+          <h3>{{ t('invoice.items_title') }}</h3>
+          <p class="text-xs text-neutral-500">
+            {{ form.prices_include_vat && supplierIsVatPayer ? t('invoice.items_price_incl', { currency: moneyUnit }) : t('invoice.items_price_excl', { currency: moneyUnit }) }}
+          </p>
         </div>
         <div v-if="requiresPositiveAmountToPay" class="px-5 py-3 border-b border-neutral-100 text-xs text-neutral-500">
           {{ t('invoice.negative_item_hint') }}
@@ -1198,7 +1184,7 @@ async function deleteDraft() {
         <!-- Desktop: tabulka -->
         <div class="overflow-x-auto">
         <table class="w-full min-w-[950px] text-sm table-sticky-first">
-          <thead class="bg-neutral-50 text-[12px] text-neutral-500 uppercase tracking-wide">
+          <thead class="bg-neutral-50 text-[12px] text-neutral-500">
             <tr>
               <th class="px-3 py-2 text-left font-medium w-8"></th>
               <th class="px-3 py-2 text-left font-medium">{{ t('invoice.items_table.description') }}</th>
@@ -1255,27 +1241,38 @@ async function deleteDraft() {
           </tbody>
         </table>
         </div>
-
+        <div class="flex flex-wrap gap-3 border-t border-neutral-200 px-5 py-4">
+          <UiButton type="button" size="sm" @click="addItem">
+            {{ t('invoice.add_item') }}
+          </UiButton>
+          <UiButton type="button" variant="outline" size="sm" @click="catalogOpen = true">
+            {{ t('tri.quote.insert_from_catalog') }}
+          </UiButton>
+        </div>
       </div>
 
-      <!-- Sumace + poznámky -->
-      <div class="flex justify-end [&>div]:w-full [&>div]:md:w-[448px]">
-
-
-        <div class="bg-surface border border-neutral-200 rounded-lg p-5">
-          <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.summary') }}</h3>
-          <div class="flex items-center justify-between gap-3 mb-3 pb-3 border-b border-neutral-100">
-            <label for="discount_percent" class="text-sm text-neutral-700">{{ t('invoice.discount.label') }}</label>
-            <div class="relative w-28">
-              <input id="discount_percent" v-model.number="form.discount_percent" type="number" min="0" max="100" step="0.01"
-                class="w-full h-9 pl-2 pr-7 border border-neutral-300 rounded text-right font-mono text-sm outline-none focus-ring" />
-              <span class="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 text-sm pointer-events-none">%</span>
+      <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,656fr)_minmax(0,432fr)]">
+        <div class="bg-surface border border-neutral-200 p-5">
+          <h3 class="mb-4">{{ t('invoice.section_discount') }}</h3>
+          <div class="flex flex-wrap items-end gap-4">
+            <UiInput id="discount_percent" v-model.number="form.discount_percent" type="number" min="0" max="100" step="0.01" class="w-44" :label="t('invoice.discount.label')" />
+            <div class="w-28">
+              <p class="mb-1 text-xs font-semibold text-neutral-600">{{ t('invoice.discount_unit') }}</p>
+              <div class="flex h-11 items-center border border-neutral-200 bg-neutral-50 px-3 text-sm">%</div>
             </div>
           </div>
-          <dl class="space-y-1.5 text-sm">
-            <div v-if="computed_totals.discount_amount > 0" class="flex justify-between text-warning-700 pb-1">
+          <p class="mt-3 text-xs text-neutral-500">{{ t('invoice.discount_applies') }}</p>
+        </div>
+        <div class="bg-surface border border-neutral-200 p-5">
+          <h3 class="mb-4">{{ t('invoice.section_summary') }}</h3>
+          <dl class="space-y-3 text-sm">
+            <div class="flex justify-between gap-4 text-neutral-700">
+              <dt>{{ t('invoice.items_net') }}</dt>
+              <dd class="tabular-nums">{{ formatMoney(computed_totals.items_net, form.currency) }}</dd>
+            </div>
+            <div v-if="computed_totals.discount_amount > 0" class="flex justify-between gap-4 text-neutral-700">
               <dt>{{ t('invoice.discount.applied') }} {{ formatPercent(computed_totals.discount_percent) }}</dt>
-              <dd class="font-mono">−{{ formatMoney(computed_totals.discount_amount, form.currency) }}</dd>
+              <dd class="tabular-nums">−{{ formatMoney(computed_totals.discount_amount, form.currency) }}</dd>
             </div>
             <template v-if="supplierIsVatPayer">
               <div v-for="b in computed_totals.breakdown" :key="b.rate" class="flex justify-between text-neutral-600">
@@ -1314,17 +1311,24 @@ async function deleteDraft() {
               {{ t('invoice.czk_recap.rate_info', {
                 rate: loadedRate.rate.toLocaleString(locale === 'cs' ? 'cs-CZ' : 'en-US', { minimumFractionDigits: 3, maximumFractionDigits: 4 }),
                 currency: loadedRate.currency,
-                date: new Date(loadedRate.date).toLocaleDateString(locale === 'cs' ? 'cs-CZ' : 'en-US'),
+                date: formatDate(loadedRate.date),
               }) }}
             </div>
           </dl>
         </div>
       </div>
 
-          <div class="bg-surface border border-neutral-200 rounded-lg p-5">
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_below') }}</label>
-            <textarea v-model="form.note_below_items" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm"></textarea>
-          </div>
+      <div class="bg-surface border border-neutral-200 p-5 space-y-4">
+        <h3>{{ t('invoice.section_notes') }}</h3>
+        <div>
+          <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_above') }}</label>
+          <textarea v-model="form.note_above_items" rows="3" class="w-full px-3 py-2 border border-neutral-200 text-sm"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.note_below') }}</label>
+          <textarea v-model="form.note_below_items" rows="3" class="w-full px-3 py-2 border border-neutral-200 text-sm"></textarea>
+        </div>
+      </div>
 
       <!-- Přílohy — u nové faktury držené v prohlížeči (nahrají se po vytvoření),
            u existující faktury rovnou nahrávané / mazané -->
@@ -1332,7 +1336,7 @@ async function deleteDraft() {
            class="bg-surface border border-neutral-200 rounded-lg overflow-hidden">
         <header class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
           <div>
-            <h3 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">{{ t('invoice.attachments.title') }}</h3>
+            <h3>{{ t('invoice.attachments.title') }}</h3>
             <p class="text-xs text-neutral-500 mt-0.5">{{ isEdit ? t('invoice.attachments.hint') : t('invoice.attachments.pending_hint') }}</p>
           </div>
           <span class="text-xs text-neutral-400">{{ attachments.length + pendingAttachments.length }}</span>
@@ -1394,7 +1398,7 @@ async function deleteDraft() {
 
       <!-- Action bar -->
       <div class="office-save-bar p-4 flex justify-between items-center">
-        <UiButton to="/tri/invoices" variant="ghost">{{ t('common.back') }}</UiButton>
+        <UiButton to="/tri/invoices" variant="ghost">{{ t('invoice.back_to_invoices') }}</UiButton>
         <UiButton type="submit" :loading="submitting" :disabled="submitting">
           {{ submitting ? t('common.saving') : (isEdit ? t('common.save') : t('common.create')) }}
         </UiButton>

@@ -10,7 +10,7 @@ import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 
 const props = defineProps<{ jobId: number }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const auth = useAuthStore()
 const toast = useToast()
 
@@ -34,23 +34,20 @@ const currentUserId = computed(() => auth.user?.id ?? null)
 function formatDateTime(value: string): string {
   const d = new Date(value.replace(' ', 'T'))
   if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleString('cs-CZ', {
-    day: 'numeric',
-    month: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function initials(name: string | null): string {
-  if (!name) return '?'
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]!.toUpperCase())
-    .join('')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mi = String(d.getMinutes()).padStart(2, '0')
+  const clock = `${hh}:${mi}`
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  const day = new Date(d)
+  day.setHours(0, 0, 0, 0)
+  const diff = Math.round((start.getTime() - day.getTime()) / 86400000)
+  if (diff === 0) return `${t('tri.activity.today')} ${clock}`
+  if (diff === 1) return `${t('tri.activity.yesterday')} ${clock}`
+  if (locale.value === 'en') {
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${clock}`
+  }
+  return `${String(d.getDate()).padStart(2, '0')}. ${String(d.getMonth() + 1).padStart(2, '0')}. ${d.getFullYear()} ${clock}`
 }
 
 const p = (item: TriJobActivityItem, key: string): string => String(item.payload?.[key] ?? '')
@@ -226,8 +223,9 @@ onUnmounted(() => {
 
 <template>
   <UiCard>
+    <h2 class="px-5 pt-5">{{ t('tri.activity.title') }}</h2>
     <TableSkeleton v-if="loading" :rows="5" :cols="2" />
-    <div v-else class="p-5 space-y-3">
+    <div v-else class="space-y-3 p-5">
       <div v-if="hasMore" class="text-center">
         <UiButton
           type="button"
@@ -255,14 +253,11 @@ onUnmounted(() => {
         </div>
 
         <!-- Komentář -->
-        <div v-else class="flex gap-3 group">
-          <div class="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
-            {{ initials(item.user_name) }}
-          </div>
+        <div v-else class="group border border-neutral-200 bg-neutral-50 px-3 py-2.5">
           <div class="min-w-0 flex-1">
             <div class="flex items-baseline gap-2">
-              <span class="text-sm font-semibold text-neutral-800">{{ item.user_name ?? t('tri.activity.system') }}</span>
-              <span class="text-xs text-neutral-400">{{ formatDateTime(item.created_at) }}</span>
+              <span class="text-xs font-medium text-neutral-800">{{ item.user_name ?? t('tri.activity.system') }}</span>
+              <span class="text-xs text-neutral-400">· {{ formatDateTime(item.created_at) }}</span>
               <span v-if="item.updated_at" class="text-xs text-neutral-400 italic">({{ t('tri.activity.edited') }})</span>
               <span class="ml-auto hidden group-hover:flex gap-2">
                 <button
@@ -306,36 +301,30 @@ onUnmounted(() => {
                 </UiButton>
               </div>
             </div>
-            <p v-else class="mt-0.5 text-sm text-neutral-700 whitespace-pre-wrap break-words">{{ item.body }}</p>
+            <p v-else class="mt-1 text-sm text-neutral-800 whitespace-pre-wrap break-words">{{ item.body }}</p>
           </div>
         </div>
       </template>
 
-      <!-- Nový komentář -->
-      <div v-if="auth.canWrite" class="flex gap-3 pt-2 border-t border-neutral-100">
-        <div class="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
-          {{ initials(auth.user?.name ?? null) }}
-        </div>
-        <div class="flex-1 space-y-2">
-          <textarea
-            v-model="newComment"
-            rows="2"
-            :placeholder="t('tri.activity.placeholder')"
-            class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm shadow-xs outline-none focus-ring resize-y"
-            @keydown.ctrl.enter.prevent="send"
-          ></textarea>
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-neutral-400">{{ t('tri.activity.send_hint') }}</span>
-            <UiButton
-              type="button"
-              size="sm"
-              :loading="sending"
-              :disabled="sending || !newComment.trim()"
-              @click="send"
-            >
-              {{ t('tri.activity.send') }}
-            </UiButton>
-          </div>
+      <div v-if="auth.canWrite" class="space-y-2 border-t border-neutral-200 pt-3">
+        <textarea
+          v-model="newComment"
+          rows="2"
+          :placeholder="t('tri.activity.placeholder')"
+          class="w-full border border-neutral-200 bg-surface px-3 py-2 text-sm outline-none focus-ring resize-y"
+          @keydown.ctrl.enter.prevent="send"
+        ></textarea>
+        <div class="flex items-center justify-end gap-3">
+          <span class="mr-auto text-xs text-neutral-400">{{ t('tri.activity.send_hint') }}</span>
+          <UiButton
+            type="button"
+            size="sm"
+            :loading="sending"
+            :disabled="sending || !newComment.trim()"
+            @click="send"
+          >
+            {{ t('tri.activity.send') }}
+          </UiButton>
         </div>
       </div>
     </div>

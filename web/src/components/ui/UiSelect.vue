@@ -52,17 +52,28 @@ const SIZE: Record<'sm' | 'md' | 'inline', string> = {
     <label v-if="label" class="block text-xs font-semibold text-neutral-600 mb-1" :for="selectId">
       {{ label }}
     </label>
-    <select
-      :id="selectId"
-      v-model="model"
-      v-bind="selectAttrs"
-      :aria-invalid="error ? true : undefined"
-      :aria-describedby="describedBy"
-      class="w-full border bg-surface outline-none focus-ring"
-      :class="[SIZE[size], size === 'inline' ? '' : 'px-3', error ? 'border-danger-500' : 'border-neutral-200']"
-    >
-      <slot />
-    </select>
+    <div class="relative min-w-0 w-full">
+      <select
+        :id="selectId"
+        v-model="model"
+        v-bind="selectAttrs"
+        :aria-invalid="error ? true : undefined"
+        :aria-describedby="describedBy"
+        class="ui-select w-full appearance-none border bg-surface bg-none outline-none focus-ring"
+        :class="[SIZE[size], size === 'inline' ? 'pr-6' : 'px-3 pr-9', error ? 'border-danger-500' : 'border-neutral-200']"
+      >
+        <slot />
+      </select>
+      <svg
+        class="pointer-events-none absolute top-1/2 -translate-y-1/2 text-neutral-500"
+        :class="size === 'inline' ? 'right-1 h-3 w-3' : 'right-3 h-4 w-4'"
+        viewBox="0 0 20 20"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="square" />
+      </svg>
+    </div>
     <p v-if="error" :id="`${selectId}-error`" class="mt-1.5 text-sm text-danger-600">{{ error }}</p>
     <p v-else-if="hint" :id="`${selectId}-hint`" class="mt-1.5 text-sm text-neutral-500">{{ hint }}</p>
   </div>

@@ -13,16 +13,17 @@ ukazují varianty napříč zakázkami a odkazují přímo do jejich editoru.
 
 ## 14.1 Detail zakázky
 
-Detail obsahuje základní údaje, kontakty a adresu realizace, varianty nabídky,
-nadcházející termíny, faktury, průvodky a reklamace. Vpravo je komunikace a
-historie událostí; na užší obrazovce se přesune pod ostatní obsah.
+V hlavičce je název zakázky, výběr stavu a **Upravit zakázku**. Stavy zůstávají
+**Aktivní**, **Potvrzená**, **Zamítnutá** a **Dokončená**. Detail obsahuje základní údaje,
+kontakty jako karty s rolí, adresu realizace, varianty nabídky jako karty s cenou a stavem,
+nadcházející termíny, faktury, průvodky a reklamace. Vpravo je komunikace: bubliny zpráv
+a pole pro novou zprávu. Na užší obrazovce se přesune pod ostatní obsah.
 
 Kontakty mohou mít více rolí. Zákazník má modrý štítek, architekt fialový.
 E-mail a telefon otevírají příslušnou aplikaci. **Mapy.cz** a **Google Maps**
 vyhledají adresu realizace; bez adresy nejsou odkazy aktivní.
 
-Stavy zakázky jsou **Aktivní**, **Potvrzená**, **Zamítnutá** a **Dokončená**.
-Úpravu základních údajů otevře **Upravit**. Archivace a smazání respektují
+Úpravu základních údajů otevře **Upravit zakázku**. Archivace a smazání respektují
 oprávnění a vazby stávající aplikace.
 
 ## 14.2 Varianty nabídky

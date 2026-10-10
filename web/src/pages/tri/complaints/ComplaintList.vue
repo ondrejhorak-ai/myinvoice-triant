@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { triApi, type TriComplaint, type TriJob } from '@/api/tri'
@@ -13,6 +13,7 @@ import UiTable from '@/components/ui/UiTable.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 import { useRowLink } from '@/composables/useRowLink'
 import ComplaintFormModal from './ComplaintFormModal.vue'
 
@@ -28,6 +29,14 @@ const loading = ref(false)
 const jobId = ref(typeof route.query.job_id === 'string' ? route.query.job_id : '')
 const status = ref(typeof route.query.status === 'string' ? route.query.status : '')
 const formOpen = ref(false)
+const query = ref('')
+const visible = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  if (!q) return items.value
+  return items.value.filter((row) =>
+    [row.title, row.job_number, row.job_title, row.description ?? ''].some((part) => part.toLowerCase().includes(q)),
+  )
+})
 
 async function loadJobs() {
   const r = await triApi.jobs.list({ per_page: 100 })
@@ -77,7 +86,8 @@ watch([jobId, status], () => load())
     </UiPageHeader>
 
     <UiCard>
-      <div class="px-4 py-3 border-b border-neutral-200 flex flex-wrap gap-3">
+      <div class="px-4 py-3 border-b border-neutral-200 flex flex-wrap items-end gap-3">
+        <UiInput v-model="query" class="min-w-[16rem] flex-1" :label="t('tri.complaints.search')" />
         <UiSelect v-model="jobId" size="sm" class="min-w-[12rem]" :label="t('tri.complaints.job')">
           <option value="">{{ t('tri.complaints.filter_job_all') }}</option>
           <option v-for="j in jobs" :key="j.id" :value="String(j.id)">{{ j.number }} — {{ j.title }}</option>
@@ -91,7 +101,7 @@ watch([jobId, status], () => load())
 
       <TableSkeleton v-if="loading" :rows="6" :cols="5" />
 
-      <EmptyState v-else-if="items.length === 0" :title="t('tri.complaints.no_data')">
+      <EmptyState v-else-if="visible.length === 0" :title="t('tri.complaints.no_data')">
         <UiButton v-if="auth.canWrite" size="sm" @click="formOpen = true">
           {{ t('tri.complaints.create_first') }}
         </UiButton>
@@ -102,20 +112,21 @@ watch([jobId, status], () => load())
           <template #head>
             <tr>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.complaints.title_label') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.complaints.job') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.complaints.status') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.complaints.created_col') }}</th>
             </tr>
           </template>
           <tr
-            v-for="row in items"
+            v-for="row in visible"
             :key="row.id"
             class="cursor-pointer"
             @click="openRow(row, $event)"
             @auxclick.prevent="openRow(row, $event)"
           >
-            <td class="px-4 py-3 font-medium text-neutral-900">{{ row.title }}</td>
-            <td class="px-4 py-3 text-neutral-600">{{ row.job_number }} — {{ row.job_title }}</td>
+            <td class="px-4 py-3">
+              <div class="font-medium text-neutral-900">{{ row.title }}</div>
+              <div class="text-xs text-neutral-500">{{ row.job_number }} — {{ row.job_title }}</div>
+            </td>
             <td class="px-4 py-3">
               <UiBadge :variant="row.status === 'closed' ? 'neutral' : 'warning'">
                 {{ t(`tri.complaints.status_${row.status}`) }}
@@ -126,9 +137,9 @@ watch([jobId, status], () => load())
         </UiTable>
       </div>
 
-      <div v-if="items.length" class="md:hidden divide-y divide-neutral-100">
+      <div v-if="visible.length" class="md:hidden divide-y divide-neutral-100">
         <div
-          v-for="row in items"
+          v-for="row in visible"
           :key="`m-${row.id}`"
           class="cursor-pointer hover:bg-neutral-50 px-4 py-3"
           @click="openRow(row, $event)"

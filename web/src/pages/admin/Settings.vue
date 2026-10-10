@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
+import UiInput from '@/components/ui/UiInput.vue'
 import { useI18n } from 'vue-i18n'
 import { settingsApi, type Supplier, type SelfCopyType, type SelfCopyMode, type NaceCode, type NaceResolved } from '@/api/settings'
 import { adminApi, type SampleDataStatus } from '@/api/admin'
@@ -859,14 +860,10 @@ async function removeLogo() {
                     class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm font-mono uppercase" />
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('settings.oss_valid_from') }}</label>
-                  <input v-model="(supplier as any).oss_valid_from" type="date"
-                    class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm font-mono" />
+                  <UiInput v-model="(supplier as any).oss_valid_from" type="date" size="sm" :label="t('settings.oss_valid_from')" />
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('settings.oss_valid_to') }}</label>
-                  <input v-model="(supplier as any).oss_valid_to" type="date"
-                    class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm font-mono" />
+                  <UiInput v-model="(supplier as any).oss_valid_to" type="date" size="sm" :label="t('settings.oss_valid_to')" />
                 </div>
               </div>
             </div>

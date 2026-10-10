@@ -6,9 +6,10 @@ nebo z detailu klienta / zakázky.
 
 ## 10.1 Editor — celkový přehled
 
-Hlavička má dvě části pro klienta a nastavení dokladu. Poznámka nad položkami
-je před tabulkou; poznámka pod položkami je pod souhrnem. Slevu celého dokladu
-nastavíš v souhrnu. Dole jsou přílohy a lišta uložení.
+Hlavička má vpravo stav dokladu (u nové faktury **Koncept**). Vlevo je **Klient a doklad**
+(typ, klient, propojení s MyÚčtem, zakázka, měna, jazyk, úhrada). Vpravo jsou **Data a číslování**.
+Datum se píše česky, například `21. 09. 2026`. Pod tím je tabulka **Položky faktury** na celou šířku,
+pak **Sleva z celé faktury** vedle **Souhrnu faktury**, **Poznámky**, přílohy a lišta uložení.
 
 Řádky přesouváš úchytem vlevo; **Alt + šipka nahoru/dolů** funguje na úchytu
 z klávesnice. Menu **…** vpravo nabízí smazání s potvrzením. Tabulka se na

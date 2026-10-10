@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed } from 'vue'
+import UiInput from '@/components/ui/UiInput.vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { settingsApi, type VatRate, type Country, type Unit } from '@/api/settings'
@@ -784,10 +785,8 @@ async function deleteCountry(c: Country) {
               <input v-model="vatDraft.label_en" type="text" class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm" /></div>
           </div>
           <div class="grid grid-cols-2 gap-3">
-            <div><label class="block text-sm font-medium mb-1">{{ t('codebooks.valid_from') }}</label>
-              <input v-model="vatDraft.valid_from" type="date" class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm" /></div>
-            <div><label class="block text-sm font-medium mb-1">{{ t('codebooks.valid_to') }}</label>
-              <input v-model="vatDraft.valid_to" type="date" class="w-full h-10 px-3 border border-neutral-300 rounded-md text-sm" /></div>
+            <UiInput v-model="vatDraft.valid_from" type="date" :label="t('codebooks.valid_from')" />
+            <UiInput v-model="vatDraft.valid_to" type="date" :label="t('codebooks.valid_to')" />
           </div>
           <label class="flex items-center gap-2 text-sm">
             <input v-model="vatDraft.is_default" type="checkbox" class="rounded border-neutral-300 text-primary-600" /> {{ t('codebooks.is_default_for_country') }}

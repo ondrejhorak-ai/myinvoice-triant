@@ -290,23 +290,18 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-w-2xl">
-    <UiPageHeader :title="isEdit ? t('tri.jobs.edit') : t('tri.jobs.new')">
-      <template #actions>
-        <UiButton
-          :to="isEdit && jobId ? { name: 'tri-job-detail', params: { id: jobId } } : '/tri/jobs'"
-          variant="ghost"
-          size="sm"
-        >
-          {{ t('tri.jobs.back_to_list') }}
-        </UiButton>
-      </template>
-    </UiPageHeader>
+  <div>
+    <UiPageHeader
+      :title="isEdit ? t('tri.jobs.edit') : t('tri.jobs.new')"
+      :subtitle="isEdit ? undefined : t('tri.jobs.new_subtitle')"
+    />
 
-    <form @submit.prevent="save">
+    <form @submit.prevent="save" class="space-y-6">
       <UiCard>
-      <div class="p-5 space-y-4">
-      <div class="flex gap-2 items-end">
+      <div class="space-y-4 p-5">
+      <h2>{{ t('office.basic_info') }}</h2>
+      <div class="grid items-end gap-4 lg:grid-cols-2">
+      <div class="flex items-end gap-2">
         <UiInput
           v-model="form.number"
           class="flex-1"
@@ -320,31 +315,16 @@ onMounted(async () => {
           {{ t('tri.jobs.suggest_number') }}
         </UiButton>
       </div>
-
-      <UiInput
-        v-model="form.title"
-        size="sm"
-        :label="t('tri.jobs.title_field')"
-        required
-      />
-
       <div>
-        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.jobs.assignees') }}</label>
-        <div v-if="selectedAssignees.length" class="flex flex-wrap gap-2 mb-2">
+        <label class="mb-1 block text-sm font-medium text-neutral-700">{{ t('tri.jobs.owners') }}</label>
+        <div v-if="selectedAssignees.length" class="mb-2 flex flex-wrap gap-2">
           <span
             v-for="u in selectedAssignees"
             :key="u.value"
-            class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs border bg-neutral-100 border-neutral-300"
+            class="inline-flex h-10 items-center gap-2 border border-neutral-200 px-3 text-sm"
           >
             {{ u.label }}
-            <button
-              type="button"
-              class="cursor-pointer text-neutral-500 hover:text-neutral-800 leading-none"
-              :title="t('common.remove')"
-              @click="removeAssignee(u.value)"
-            >
-              ×
-            </button>
+            <button type="button" class="cursor-pointer text-neutral-500" :title="t('common.remove')" @click="removeAssignee(u.value)">×</button>
           </span>
         </div>
         <SearchableSelect
@@ -355,10 +335,30 @@ onMounted(async () => {
           :clearable="true"
           @update:model-value="onAssigneePicked"
         />
+        <p class="mt-2 text-xs text-neutral-500">{{ t('tri.jobs.owners_hint') }}</p>
+      </div>
       </div>
 
+      <UiInput
+        v-model="form.title"
+        size="sm"
+        :label="t('tri.jobs.title_field')"
+        required
+      />
+
+      </div>
+      </UiCard>
+
+      <div class="grid items-start gap-6 lg:grid-cols-2">
+      <UiCard>
+      <div class="space-y-4 p-5">
+      <div class="flex items-center justify-between gap-3">
+        <h2>{{ t('tri.jobs.contacts_section') }}</h2>
+        <UiButton type="button" variant="outline" size="sm" @click="contactModalOpen = true">
+          {{ t('tri.contacts.new_title') }}
+        </UiButton>
+      </div>
       <div>
-        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.jobs.contacts') }}</label>
         <div v-if="selectedContacts.length" class="flex flex-wrap gap-2 mb-2">
           <span
             v-for="c in selectedContacts"
@@ -376,39 +376,25 @@ onMounted(async () => {
             </button>
           </span>
         </div>
-        <div class="flex gap-2">
-          <div class="flex-1 min-w-0">
-            <SearchableSelect
-              :model-value="contactPickerValue"
-              remote
-              :loading="contactsLoading"
-              :options="contactOptions"
-              :placeholder="t('tri.jobs.add_contact_placeholder')"
-              :clearable="true"
-              @search="onContactSearch"
-              @update:model-value="onContactPicked"
-            />
-          </div>
-          <UiButton
-            type="button"
-            variant="outline"
-            size="sm"
-            class="shrink-0"
-            :title="t('tri.contacts.new_title')"
-            @click="contactModalOpen = true"
-          >
-            <template #icon>
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-            </template>
-            <span class="hidden sm:inline">{{ t('tri.contacts.new_title') }}</span>
-          </UiButton>
-        </div>
+        <SearchableSelect
+          :model-value="contactPickerValue"
+          remote
+          :loading="contactsLoading"
+          :options="contactOptions"
+          :placeholder="t('tri.jobs.add_contact_placeholder')"
+          :clearable="true"
+          @search="onContactSearch"
+          @update:model-value="onContactPicked"
+        />
+        <p class="mt-2 text-xs text-neutral-500">{{ t('tri.jobs.contact_hint') }}</p>
       </div>
+      </div>
+      </UiCard>
 
+      <UiCard>
+      <div class="space-y-4 p-5">
+      <h2>{{ t('tri.quote.header_site_address') }}</h2>
       <div>
-        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.jobs.site_address') }}</label>
         <div class="mb-2">
           <SearchableSelect
             :model-value="siteAddressPickerValue"
@@ -438,19 +424,24 @@ onMounted(async () => {
             :placeholder="t('client.zip')"
           />
         </div>
+        <p class="text-xs text-neutral-500">{{ t('tri.jobs.address_hint') }}</p>
+      </div>
+      </div>
+      </UiCard>
       </div>
 
-      <div>
-        <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('tri.jobs.notes') }}</label>
+      <UiCard>
+      <div class="space-y-4 p-5">
+        <h2>{{ t('tri.jobs.notes') }}</h2>
         <textarea
           v-model="form.notes"
-          class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs outline-none focus-ring"
-          rows="3"
+          class="w-full border border-neutral-200 bg-surface px-3 py-2 text-sm outline-none focus-ring"
+          rows="4"
         />
       </div>
-      </div>
+      </UiCard>
 
-      <div class="px-5 py-3 border-t border-neutral-200 bg-neutral-50 flex justify-end gap-3 rounded-b-lg">
+      <div class="flex justify-end gap-3">
         <UiButton
           :to="isEdit && jobId ? { name: 'tri-job-detail', params: { id: jobId } } : '/tri/jobs'"
           variant="secondary"
@@ -461,7 +452,6 @@ onMounted(async () => {
           {{ t('common.save') }}
         </UiButton>
       </div>
-      </UiCard>
     </form>
 
     <TriContactFormModal

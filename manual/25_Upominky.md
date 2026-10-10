@@ -171,7 +171,7 @@ Automatické upomínky lze řídit na třech úrovních; cron pošle upomínku, 
 
 ### 25.7.1 Přepínač na faktuře
 
-V [editoru faktury](10_Faktura_editor.md) je v pravém boxu **Datumy**, hned pod
+V [editoru faktury](10_Faktura_editor.md) je v pravém boxu **Data a číslování**, hned pod
 polem *Splatnost*, přepínač **Posílat automatické upomínky** (výchozí: zapnuto).
 Když ho vypneš, cron tuto fakturu přeskočí, i kdyby měl dodavatel i klient
 upomínky zapnuté. **Ruční i hromadné** odeslání upomínky funguje vždy. U dobropisů

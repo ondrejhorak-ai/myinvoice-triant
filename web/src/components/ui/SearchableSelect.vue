@@ -175,7 +175,7 @@ onUnmounted(() => {
         :disabled="disabled"
         autocomplete="off"
         :class="[
-          'w-full h-10 pl-3 pr-16 border border-neutral-300 rounded-md text-sm bg-surface',
+          'w-full h-11 pl-3 pr-16 border border-neutral-200 text-sm bg-surface',
           'focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none',
           'disabled:bg-neutral-50 disabled:text-neutral-400',
         ]"
@@ -190,7 +190,9 @@ onUnmounted(() => {
         class="cursor-pointer absolute right-7 top-1/2 -translate-y-1/2 w-6 h-6 inline-flex items-center justify-center text-neutral-400 hover:text-neutral-700 text-lg leading-none"
         :aria-label="'Zrušit výběr'"
       >×</button>
-      <span class="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none text-xs">▼</span>
+      <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="square" />
+      </svg>
     </div>
     <div
       v-if="open"

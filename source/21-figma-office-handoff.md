@@ -245,3 +245,10 @@ s předchozí prací, žádný automatický commit ani migrace.
   nemění: pořád celá úhrada a zápis kontaktu přes API MyÚčta.
 - Tlačítko `lg` je 44 px. Události kalendáře používají `.office-event-*`,
   souhrn pokladny `.office-stat`.
+- Datum v polích je české `dd. mm. rrrr` (sdílený `UiInput` typu date, locale `cs`).
+  Výběr má vlastní šipku, ne nativní šipku prohlížeče. Nová faktura má vpravo
+  stav **Koncept**, sloupce **Klient a doklad** a **Data a číslování**, box
+  propojení s MyÚčtem a položky na celou šířku se slevou vedle souhrnu.
+  Detail zakázky má v hlavičce výběr stavu a **Upravit zakázku**, kontakty
+  a varianty jako karty a komunikaci jako bubliny se zprávou. Stavy zakázek
+  se nemění.

@@ -2,13 +2,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { triApi, type TriJob, type TriVariantStatus, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler, type TriCalendarEvent, type TriComplaint } from '@/api/tri'
+import { triApi, type TriJob, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler, type TriCalendarEvent, type TriComplaint } from '@/api/tri'
 import { triInvoicesApi } from '@/api/triInvoices'
 import type { InvoiceListItem } from '@/api/invoices'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { apiErrorMessage } from '@/api/errors'
-import { formatMoney, formatDate, statusLabel, typeLabel, statusBadgeVariant } from '@/composables/useFormat'
+import { formatMoney, formatDate, statusLabel, typeLabel } from '@/composables/useFormat'
 import JobHeaderInfo from './JobHeaderInfo.vue'
 import JobActivityFeed from './JobActivityFeed.vue'
 import OfficeBreadcrumb from '@/components/tri/OfficeBreadcrumb.vue'
@@ -18,14 +18,13 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import OfficeMenu from '@/components/tri/OfficeMenu.vue'
 import UiCard from '@/components/ui/UiCard.vue'
-import UiTable from '@/components/ui/UiTable.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ComplaintFormModal from '../complaints/ComplaintFormModal.vue'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -63,31 +62,8 @@ const canGenerateTravelers = computed(() =>
   && (job.value?.status === 'confirmed' || job.value?.status === 'completed'),
 )
 
-const hoursSummary = computed(() => {
-  const cents: Record<string, number> = {}
-  let total = 0
-  for (const row of travelers.value) {
-    for (const op of row.operations ?? []) {
-      if (op.hours == null) continue
-      const value = Math.round(op.hours * 100)
-      cents[op.station] = (cents[op.station] ?? 0) + value
-      total += value
-    }
-  }
-  const order = [
-    'konstrukce', 'narezove_centrum', 'cnc', 'olepovacka', 'dyhovani_brouseni',
-    'montaz', 'lakovna', 'brouseni', 'baleni',
-  ]
-  return {
-    total: total / 100,
-    by_station: order
-      .filter((station) => (cents[station] ?? 0) > 0)
-      .map((station) => ({ station, hours: (cents[station] ?? 0) / 100 })),
-  }
-})
-
 function formatHours(n: number) {
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  return n.toLocaleString(locale.value === 'en' ? 'en-GB' : 'cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 const statusOptions = ['active', 'confirmed', 'rejected', 'completed'] as const
@@ -100,12 +76,6 @@ const jobCreationDate = computed(() => {
   }
   return job.value.created_at?.slice(0, 10) ?? null
 })
-
-function variantBadgeVariant(status: TriVariantStatus): 'draft' | 'sent' | 'paid' {
-  if (status === 'approved') return 'paid'
-  if (status === 'sent') return 'sent'
-  return 'draft'
-}
 
 function jobStatusBadgeVariant(s: string): 'primary' | 'success' | 'danger' | 'neutral' {
   if (s === 'active') return 'primary'
@@ -293,6 +263,12 @@ async function linkInvoice(invoiceId: number) {
   }
 }
 
+function shortDay(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  if (!match) return ''
+  return `${Number(match[3])}. ${Number(match[2])}.`
+}
+
 function openInvoice(inv: TriJobInvoice) {
   if (inv.status === 'draft' && auth.canWrite) {
     router.push(`/tri/invoices/${inv.id}/edit`)
@@ -309,14 +285,19 @@ onMounted(() => load())
   <div v-else-if="job" class="space-y-6">
     <div>
       <OfficeBreadcrumb :items="[{label:t('tri.jobs.title'),to:'/tri/jobs'},{label:job.number}]" />
-      <UiPageHeader :title="t('tri.quote.header_job')+' '+job.number" :subtitle="job.title">
-        <template #below>
-
-        </template>
+      <UiPageHeader :title="job.title" :subtitle="job.number">
         <template #actions>
-          <UiBadge :variant="jobStatusBadgeVariant(job.status)">{{ t(`tri.jobs.status_${job.status}`) }}</UiBadge>
-          <UiButton v-if="auth.canWrite" :to="{ name: 'tri-job-edit', params: { id: job.id } }" variant="secondary" size="sm">
-            {{ t('common.edit') }}
+          <UiSelect
+            class="w-[220px]"
+            :label="t('tri.jobs.status')"
+            :model-value="job.status"
+            :disabled="!auth.canWrite"
+            @update:model-value="changeStatus(String($event ?? ''))"
+          >
+            <option v-for="status in statusOptions" :key="status" :value="status">{{ t(`tri.jobs.status_${status}`) }}</option>
+          </UiSelect>
+          <UiButton v-if="auth.canWrite" :to="{ name: 'tri-job-edit', params: { id: job.id } }" variant="secondary">
+            {{ t('tri.jobs.edit') }}
           </UiButton>
         </template>
       </UiPageHeader>
@@ -327,7 +308,29 @@ onMounted(() => load())
 
     <div class="space-y-6 min-w-0">
     <UiCard>
-      <div class="p-5"><h2 class="mb-4">{{ t('office.basic_info') }}</h2><dl class="space-y-4 text-[13px]"><div class="flex justify-between items-center gap-4"><dt class="text-neutral-500">{{ t('tri.jobs.status') }}</dt><dd><UiSelect :model-value="job.status" :disabled="!auth.canWrite" @update:model-value="changeStatus(String($event ?? ''))"><option v-for="status in statusOptions" :key="status" :value="status">{{ t(`tri.jobs.status_${status}`) }}</option></UiSelect></dd></div><div class="flex justify-between"><dt class="text-neutral-500">{{ t('tri.quote.created_date') }}</dt><dd>{{ formatDate(jobCreationDate) }}</dd></div><div class="flex justify-between"><dt class="text-neutral-500">{{ t('office.author') }}</dt><dd>{{ job.owner_name }}</dd></div></dl></div>
+      <div class="p-5">
+        <h2 class="mb-4">{{ t('office.basic_info') }}</h2>
+        <dl class="space-y-4 text-[13px]">
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-neutral-500">{{ t('tri.jobs.current_status') }}</dt>
+            <dd><UiBadge :variant="jobStatusBadgeVariant(job.status)">{{ t(`tri.jobs.status_${job.status}`) }}</UiBadge></dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-neutral-500">{{ t('tri.quote.created_date') }}</dt>
+            <dd>{{ formatDate(jobCreationDate) }}</dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-neutral-500">{{ t('office.author') }}</dt>
+            <dd>{{ job.owner_name }}</dd>
+          </div>
+          <div v-if="job.assignees?.length">
+            <dt class="mb-2 text-neutral-500">{{ t('tri.jobs.owners') }}</dt>
+            <dd class="flex flex-wrap gap-2">
+              <span v-for="person in job.assignees" :key="person.user_id" class="inline-flex h-10 items-center border border-neutral-200 px-3">{{ person.name }}</span>
+            </dd>
+          </div>
+        </dl>
+      </div>
     </UiCard>
 
     <UiCard>
@@ -347,67 +350,28 @@ onMounted(() => load())
         </UiButton>
       </div>
       <EmptyState v-if="!job.variants?.length" compact :title="t('common.no_data')" />
-      <div v-else>
-        <div class="hidden md:block">
-          <UiTable>
-            <template #head>
-              <tr>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.jobs.variant') }}</th>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.jobs.status') }}</th>
-                <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.quote.price_no_vat') }}</th>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.quote.created_col') }}</th>
-                <th class="px-4 py-2.5"></th>
-              </tr>
-            </template>
-            <tr
-              v-for="v in job.variants"
-              :key="v.id"
-              class="cursor-pointer"
-              @click="openVariant(v.id)"
-            >
-              <td class="px-4 py-3">
-                <RouterLink :to="`/tri/jobs/${job.id}/variants/${v.id}`" class="text-primary-600 font-semibold" @click.stop>{{v.variant_code}}</RouterLink>
-                <span v-if="v.name" class="mt-0.5 block text-sm text-neutral-600">{{ v.name }}</span>
-              </td>
-              <td class="px-4 py-3">
-                <UiBadge :variant="variantBadgeVariant(v.status)">{{ t(`tri.quote.status_${v.status}`) }}</UiBadge>
-              </td>
-              <td class="px-4 py-3 text-right font-mono">{{ formatMoney(v.subtotal, 'CZK') }}</td>
-              <td class="px-4 py-3 text-neutral-600">{{ formatDate(v.job_date) }}</td>
-              <td class="px-4 py-3 text-right" @click.stop>
-                <UiButton v-if="auth.canWrite" variant="ghost" size="sm" @click="duplicateVariant(v.id)">
-                  {{ t('tri.jobs.duplicate_variant') }}
-                </UiButton>
-              </td>
-            </tr>
-          </UiTable>
-        </div>
-        <div class="md:hidden divide-y divide-neutral-100">
-          <div
-            v-for="v in job.variants"
-            :key="`m-v-${v.id}`"
-            class="cursor-pointer hover:bg-neutral-50 px-4 py-3"
-            @click="openVariant(v.id)"
-          >
-            <div class="flex items-baseline justify-between gap-2">
-              <div class="min-w-0">
-                <RouterLink :to="`/tri/jobs/${job.id}/variants/${v.id}`" class="text-primary-600 font-semibold" @click.stop>{{v.variant_code}}</RouterLink>
-                <span v-if="v.name" class="mt-0.5 block text-sm text-neutral-600">{{ v.name }}</span>
-              </div>
-              <span class="font-mono text-sm font-semibold whitespace-nowrap">{{ formatMoney(v.subtotal, 'CZK') }}</span>
-            </div>
-            <div class="mt-2 flex items-center justify-between gap-2">
-              <UiBadge :variant="variantBadgeVariant(v.status)">{{ t(`tri.quote.status_${v.status}`) }}</UiBadge>
-              <span class="text-xs text-neutral-500">{{ formatDate(v.job_date) }}</span>
-            </div>
-            <div v-if="auth.canWrite" class="mt-2" @click.stop>
-              <UiButton variant="ghost" size="sm" @click="duplicateVariant(v.id)">
-                {{ t('tri.jobs.duplicate_variant') }}
-              </UiButton>
-            </div>
+      <ul v-else class="space-y-3 px-5 pb-5">
+        <li
+          v-for="v in job.variants"
+          :key="v.id"
+          class="flex cursor-pointer items-center justify-between gap-4 border border-neutral-200 px-4 py-3 hover:bg-neutral-50"
+          @click="openVariant(v.id)"
+        >
+          <div class="min-w-0">
+            <RouterLink :to="`/tri/jobs/${job.id}/variants/${v.id}`" class="font-medium text-neutral-900" @click.stop>{{ t('tri.jobs.variant') }} {{ v.variant_code }}</RouterLink>
+            <p v-if="v.name" class="mt-0.5 text-xs text-neutral-500">{{ v.name }}</p>
           </div>
-        </div>
-      </div>
+          <div class="flex shrink-0 items-start gap-3">
+            <div class="text-right">
+              <p class="tabular-nums font-medium">{{ formatMoney(v.total_with_vat || v.subtotal, 'CZK') }}</p>
+              <p class="text-[11px] text-neutral-500">{{ v.status === 'approved' ? t('tri.jobs.variant_active') : t(`tri.quote.status_${v.status}`) }}</p>
+            </div>
+            <OfficeMenu v-if="auth.canWrite" @click.stop>
+              <button type="button" @click="duplicateVariant(v.id)">{{ t('tri.jobs.duplicate_variant') }}</button>
+            </OfficeMenu>
+          </div>
+        </li>
+      </ul>
     </UiCard>
 
     <UiCard>
@@ -419,24 +383,19 @@ onMounted(() => load())
       </div>
       <TableSkeleton v-if="calendarLoading" :rows="3" :cols="3" />
       <EmptyState v-else-if="calendarEvents.length === 0" compact :title="t('tri.calendar.upcoming_empty')" />
-      <ul v-else class="divide-y divide-neutral-100">
-        <li v-for="ev in calendarEvents" :key="ev.id" class="px-5 py-3 flex items-start justify-between gap-3">
-          <div>
+      <ul v-else class="space-y-2 px-4 pb-4">
+        <li v-for="ev in calendarEvents" :key="ev.id" class="flex items-center gap-3">
+          <div class="flex h-9 w-12 shrink-0 items-center justify-center border border-neutral-200 text-xs">{{ shortDay(ev.starts_at) }}</div>
+          <div class="min-w-0">
             <div class="text-sm font-medium text-neutral-900">{{ ev.title }}</div>
             <div class="mt-0.5 text-xs text-neutral-500">
               {{ t(`tri.calendar.${ev.calendar}`) }}
               <span v-if="ev.station"> · {{ t(`tri.calendar.station_${ev.station}`) }}</span>
               <span v-if="ev.arrival_window"> · {{ ev.arrival_window }}</span>
               <span v-if="ev.crew"> · {{ ev.crew }}</span>
-              · {{ formatDate(ev.starts_at.slice(0, 10)) }}
+              · {{ t(`tri.calendar.status_${ev.status}`) }}
             </div>
           </div>
-          <UiBadge
-            class="shrink-0"
-            :variant="ev.status === 'done' ? 'neutral' : ev.status === 'confirmed' || ev.status === 'in_progress' ? 'success' : 'warning'"
-          >
-            {{ t(`tri.calendar.status_${ev.status}`) }}
-          </UiBadge>
         </li>
       </ul>
     </UiCard>
@@ -450,82 +409,31 @@ onMounted(() => load())
         </div>
       </div>
 
-      <div v-if="invoiceSummary" class="grid grid-cols-2 md:grid-cols-4 gap-3 p-5 border-b border-neutral-200">
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.invoices.summary_variant') }}</p>
-          <p class="font-semibold font-mono mt-1">{{ formatMoney(invoiceSummary.variant_total_with_vat, 'CZK') }}</p>
-        </div>
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.invoices.summary_advances') }}</p>
-          <p class="font-semibold font-mono mt-1">{{ formatMoney(invoiceSummary.paid_advances_total, 'CZK') }}</p>
-        </div>
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.invoices.summary_invoiced') }}</p>
-          <p class="font-semibold font-mono mt-1">{{ formatMoney(invoiceSummary.invoiced_total, 'CZK') }}</p>
-        </div>
-        <div>
-          <p class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.invoices.summary_remaining') }}</p>
-          <p class="font-semibold font-mono mt-1">{{ formatMoney(invoiceSummary.remaining_to_invoice, 'CZK') }}</p>
-        </div>
-      </div>
-
       <TableSkeleton v-if="invoicesLoading" :rows="4" :cols="6" />
       <EmptyState v-else-if="jobInvoices.length === 0" compact :title="t('tri.invoices.no_invoices')" />
-      <div v-else>
-        <div class="hidden md:block">
-          <UiTable>
-            <template #head>
-              <tr>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.varsymbol') }}</th>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.type') }}</th>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.status_label') }}</th>
-                <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.totals.total') }}</th>
-                <th class="text-right px-4 py-2.5 font-medium">{{ t('invoice.amount_to_pay') }}</th>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('invoice.issue_date') }}</th>
-              </tr>
-            </template>
-            <tr
-              v-for="inv in jobInvoices"
-              :key="inv.id"
-              class="cursor-pointer"
-              @click="openInvoice(inv)"
-            >
-              <td class="px-4 py-3 font-mono">{{ inv.varsymbol ?? '—' }}</td>
-              <td class="px-4 py-3 text-neutral-600">{{ typeLabel(inv.invoice_type) }}</td>
-              <td class="px-4 py-3">
-                <UiBadge :variant="statusBadgeVariant(inv.status)">
-                  {{ statusLabel(inv.status) }}
-                </UiBadge>
-              </td>
-              <td class="px-4 py-3 text-right font-mono">{{ formatMoney(inv.total_with_vat, 'CZK') }}</td>
-              <td class="px-4 py-3 text-right font-mono">{{ formatMoney(inv.amount_to_pay, 'CZK') }}</td>
-              <td class="px-4 py-3 text-neutral-600">{{ formatDate(inv.issue_date) }}</td>
-            </tr>
-          </UiTable>
-        </div>
-        <div class="md:hidden divide-y divide-neutral-100">
-          <div
-            v-for="inv in jobInvoices"
-            :key="`m-inv-${inv.id}`"
-            class="cursor-pointer hover:bg-neutral-50 px-4 py-3"
-            @click="openInvoice(inv)"
-          >
-            <div class="flex items-baseline justify-between gap-2">
-              <span class="font-mono font-medium text-neutral-900">{{ inv.varsymbol ?? `#${inv.id}` }}</span>
-              <span class="font-mono text-sm font-semibold whitespace-nowrap">{{ formatMoney(inv.amount_to_pay, 'CZK') }}</span>
-            </div>
-            <div class="mt-1 flex items-baseline justify-between gap-2 text-xs text-neutral-500">
-              <span>{{ typeLabel(inv.invoice_type) }}</span>
-              <span>{{ formatDate(inv.issue_date) }}</span>
-            </div>
-            <div class="mt-2">
-              <UiBadge :variant="statusBadgeVariant(inv.status)">
-                {{ statusLabel(inv.status) }}
-              </UiBadge>
-            </div>
+      <ul v-else class="space-y-3 px-5 pt-4">
+        <li
+          v-for="inv in jobInvoices"
+          :key="inv.id"
+          class="flex cursor-pointer items-center justify-between gap-4 border border-neutral-200 px-4 py-3 hover:bg-neutral-50"
+          @click="openInvoice(inv)"
+        >
+          <div class="min-w-0">
+            <p class="font-medium text-neutral-900">{{ inv.varsymbol ?? `#${inv.id}` }} · {{ typeLabel(inv.invoice_type) }}</p>
+            <p class="mt-0.5 text-xs text-neutral-500">{{ t('invoice.due_date') }} {{ formatDate(inv.due_date || inv.issue_date) }}</p>
           </div>
-        </div>
-      </div>
+          <div class="text-right">
+            <p class="tabular-nums font-medium">{{ formatMoney(inv.total_with_vat, 'CZK') }}</p>
+            <p class="text-[11px] text-neutral-500">{{ statusLabel(inv.status) }}</p>
+          </div>
+        </li>
+      </ul>
+      <dl v-if="invoiceSummary" class="space-y-3 border-t border-neutral-200 px-5 py-4 text-sm">
+        <div class="flex justify-between gap-4"><dt class="text-neutral-500">{{ t('tri.invoices.summary_variant') }}</dt><dd class="tabular-nums">{{ formatMoney(invoiceSummary.variant_total_with_vat, 'CZK') }}</dd></div>
+        <div class="flex justify-between gap-4"><dt class="text-neutral-500">{{ t('tri.invoices.summary_advances') }}</dt><dd class="tabular-nums">{{ formatMoney(invoiceSummary.paid_advances_total, 'CZK') }}</dd></div>
+        <div class="flex justify-between gap-4"><dt class="text-neutral-500">{{ t('tri.invoices.summary_invoiced') }}</dt><dd class="tabular-nums">{{ formatMoney(invoiceSummary.invoiced_total, 'CZK') }}</dd></div>
+        <div class="flex justify-between gap-4"><dt class="text-neutral-500">{{ t('tri.invoices.summary_remaining') }}</dt><dd class="tabular-nums font-medium">{{ formatMoney(invoiceSummary.remaining_to_invoice, 'CZK') }}</dd></div>
+      </dl>
     </UiCard>
 
     <UiCard>
@@ -556,78 +464,25 @@ onMounted(() => load())
       </div>
       <TableSkeleton v-if="travelersLoading" :rows="3" :cols="5" />
       <EmptyState v-else-if="travelers.length === 0" compact :title="t('tri.travelers.no_data')" />
-      <div v-else>
-        <div class="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
-          <div class="text-xs font-semibold uppercase tracking-wider text-neutral-400">{{ t('tri.travelers.hours_widget') }}</div>
-          <div class="mt-1 text-2xl font-semibold tabular-nums text-neutral-900">{{ formatHours(hoursSummary.total) }} h</div>
-          <p v-if="hoursSummary.by_station.length === 0" class="mt-1 text-sm text-neutral-500">{{ t('tri.travelers.hours_empty') }}</p>
-          <div v-else class="mt-2 flex flex-wrap gap-2">
-            <span
-              v-for="row in hoursSummary.by_station"
-              :key="row.station"
-              class="inline-flex items-center gap-1.5 rounded-full bg-surface border border-neutral-200 px-2.5 py-1 text-xs text-neutral-700"
-            >
-              {{ t(`tri.travelers.station_${row.station}`) }}
-              <span class="tabular-nums font-mono font-medium">{{ formatHours(row.hours) }}</span>
-            </span>
-          </div>
-        </div>
-        <div class="hidden md:block">
-          <UiTable>
-            <template #head>
-              <tr>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.number') }}</th>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.item') }}</th>
-                <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.quantity') }}</th>
-                <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.travelers.hours') }}</th>
-                <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.travelers.status') }}</th>
-              </tr>
-            </template>
-            <tr
-              v-for="row in travelers"
-              :key="row.id"
-              class="cursor-pointer"
-              @click="router.push({ name: 'tri-traveler-detail', params: { id: row.id } })"
-            >
-              <td class="px-4 py-3 font-mono">{{ row.number }}</td>
-              <td class="px-4 py-3">
-                <span v-if="row.designation" class="font-mono text-neutral-500 mr-1.5">{{ row.designation }}</span>
-                {{ row.title }}
-              </td>
-              <td class="px-4 py-3 text-right tabular-nums">{{ row.quantity }} {{ row.unit }}</td>
-              <td class="px-4 py-3 text-right tabular-nums font-mono">{{ formatHours(row.hours_total ?? 0) }}</td>
-              <td class="px-4 py-3">
-                <UiBadge :variant="row.status === 'done' ? 'success' : 'primary'">
-                  {{ t(`tri.travelers.status_${row.status}`) }}
-                </UiBadge>
-              </td>
-            </tr>
-          </UiTable>
-        </div>
-        <div class="md:hidden divide-y divide-neutral-100">
-          <div
-            v-for="row in travelers"
-            :key="`m-t-${row.id}`"
-            class="cursor-pointer hover:bg-neutral-50 px-4 py-3"
-            @click="router.push({ name: 'tri-traveler-detail', params: { id: row.id } })"
-          >
-            <div class="flex items-baseline justify-between gap-2">
-              <span class="font-mono font-medium text-neutral-900">{{ row.number }}</span>
-              <span class="tabular-nums font-mono text-sm font-semibold">{{ formatHours(row.hours_total ?? 0) }} h</span>
-            </div>
-            <div class="mt-1 text-sm text-neutral-700">
-              <span v-if="row.designation" class="font-mono text-neutral-500 mr-1.5">{{ row.designation }}</span>
-              {{ row.title }}
-            </div>
-            <div class="mt-2 flex items-center justify-between gap-2">
-              <UiBadge :variant="row.status === 'done' ? 'success' : 'primary'">
-                {{ t(`tri.travelers.status_${row.status}`) }}
-              </UiBadge>
-              <span class="text-xs text-neutral-500 tabular-nums">{{ row.quantity }} {{ row.unit }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ul v-else class="space-y-3 px-5 pb-5">
+        <li
+          v-for="row in travelers"
+          :key="row.id"
+          class="flex items-center justify-between gap-4 border border-neutral-200 px-4 py-3"
+        >
+          <button type="button" class="min-w-0 text-left" @click="router.push({ name: 'tri-traveler-detail', params: { id: row.id } })">
+            <p class="font-medium text-neutral-900">
+              <span v-if="row.designation">{{ row.designation }} · </span>{{ row.title }}
+            </p>
+            <p class="mt-0.5 text-xs text-neutral-500">
+              {{ t(`tri.travelers.status_${row.status}`) }} · {{ formatHours(row.hours_total ?? 0) }} h · {{ row.quantity }} {{ row.unit }}
+            </p>
+          </button>
+          <button type="button" class="shrink-0 text-sm text-primary-700" @click="router.push({ name: 'tri-traveler-detail', params: { id: row.id } })">
+            {{ t('common.view') }}
+          </button>
+        </li>
+      </ul>
     </UiCard>
 
     <UiCard>
@@ -663,11 +518,7 @@ onMounted(() => load())
     </UiCard>
     </div>
 
-    <!-- Komunikace (chat + log událostí) — pravý sloupec, na užších obrazovkách pod obsahem -->
-    <div class="space-y-4 min-w-0 bg-surface border border-neutral-200 p-5">
-      <h2 class="text-lg font-semibold text-neutral-900">{{ t('tri.activity.title') }}</h2>
-      <JobActivityFeed :job-id="jobId" />
-    </div>
+    <JobActivityFeed :job-id="jobId" />
 
     </div>
 
