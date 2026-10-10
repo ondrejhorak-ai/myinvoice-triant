@@ -18,7 +18,7 @@ Zakázky zahrnují zákazníka i další přiřazené kontakty. **Upravit role**
 kombinovat role; změnu potvrzuje **Uložit role**. Archivace respektuje oprávnění.
 Kontakt je **Firma** nebo **Osoba**. Seznam ukazuje obojí, u jména je značka druhu.
 Nový kontakt se otevírá jako osoba. Osoba má jméno, e-mail, telefon a volitelnou adresu
-a může patřit k firmě. Bez firmy je soukromý zákazník a do MyÚčta se odešle s prvním
+a volitelné pole Patří k firmě. Bez firmy je soukromý zákazník a do MyÚčta se odešle s prvním
 dokladem, jakmile má ulici, město a PSČ. S firmou je člověk té firmy a v MyÚčtu nevznikne.
 Firma se bez IČO neuloží; firma, která IČO ještě nemá, se dá otevřít a IČO se chce až
 při dalším uložení. Adresa firmy stačí až před dokladem. Jediné shodné IČO se spojí samo.

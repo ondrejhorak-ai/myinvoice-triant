@@ -443,7 +443,7 @@
       "kind_person": "Person",
       "kind_hint": "A person without a company is a private customer and is sent to MyÚčto with the first document, once the address is complete. A person at a company is never created there. A company needs a company ID; the address can wait until the first document.",
       "person_address_hint": "Address is optional. A person without a company needs it before the first document.",
-      "person_company": "Company",
+      "person_company": "Belongs to a company",
       "person_company_placeholder": "Search for a company…",
       "address_later": "You can add the address before invoicing.",
       "suggestions": "Similar contacts",
