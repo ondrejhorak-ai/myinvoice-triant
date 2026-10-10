@@ -88,10 +88,16 @@ final class JobNumberService
 
     private function reserveNext(PDO $pdo, int $supplierId, string $yearSuffix): string
     {
-        $pdo->beginTransaction();
+        // Zakázka už běží ve vlastní transakci. Vnořené BEGIN MariaDB odmítne
+        // a číslo by se navíc uložilo dřív, než se zakázka zapíše.
+        $own = !$pdo->inTransaction();
+        if ($own) {
+            $pdo->beginTransaction();
+        }
         try {
+            $lock = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? '' : ' FOR UPDATE';
             $stmt = $pdo->prepare(
-                'SELECT last_value FROM tri_number_seq WHERE supplier_id = ? AND scope_key = ? FOR UPDATE'
+                'SELECT last_value FROM tri_number_seq WHERE supplier_id = ? AND scope_key = ?' . $lock
             );
             $stmt->execute([$supplierId, $yearSuffix]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -108,9 +114,11 @@ final class JobNumberService
                 );
                 $upd->execute([$next, $supplierId, $yearSuffix]);
             }
-            $pdo->commit();
+            if ($own) {
+                $pdo->commit();
+            }
         } catch (\Throwable $e) {
-            if ($pdo->inTransaction()) {
+            if ($own && $pdo->inTransaction()) {
                 $pdo->rollBack();
             }
             throw $e;

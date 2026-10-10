@@ -177,6 +177,7 @@ final class OfficeContactStore
             $ic = $digits !== '' ? $digits : null;
         }
         $isPerson = $kind === ContactParty::PERSON;
+        $language = (string) ($body['language'] ?? 'cs');
 
         return [
             'company_name' => trim((string) ($body['company_name'] ?? '')),
@@ -191,7 +192,7 @@ final class OfficeContactStore
             'country_iso2' => strtoupper(substr((string) ($body['country_iso2'] ?? 'CZ'), 0, 2)) ?: 'CZ',
             'main_email' => ContactParty::blank($body['main_email'] ?? null),
             'phone' => ContactParty::blank($body['phone'] ?? null),
-            'language' => in_array(($body['language'] ?? 'cs'), ['cs', 'en'], true) ? $body['language'] : 'cs',
+            'language' => in_array($language, ['cs', 'en'], true) ? $language : 'cs',
             'currency_default_id' => isset($body['currency_default_id']) ? (int) $body['currency_default_id'] : null,
             'reverse_charge' => !empty($body['reverse_charge']),
             'is_vat_payer' => array_key_exists('is_vat_payer', $body) ? (bool) $body['is_vat_payer'] : true,
