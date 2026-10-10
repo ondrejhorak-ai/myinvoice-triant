@@ -46,6 +46,11 @@ function formatRate(rate: number): string {
 const route = useRoute()
 const router = useRouter()
 
+function jobCrumb(number: string, title?: string | null): string {
+  const name = title?.trim() ?? ''
+  return name ? `${number} ${name}` : number
+}
+
 const invoice = ref<Invoice | null>(null)
 const clientForWarnings = ref<Client | null>(null)
 const clientAddressMissing = computed(() =>
@@ -751,7 +756,7 @@ async function send() {
 
 const isDraft = computed(() => invoice.value?.status === 'draft')
 const isProforma = computed(() => invoice.value?.invoice_type === 'proforma')
-const canIssueFinal = computed(() => isProforma.value && invoice.value?.status === 'paid')
+const canIssueFinal = computed(() => isProforma.value && invoice.value?.status === 'paid' && !invoice.value?.final_invoice)
 const isIssued = computed(() => invoice.value && ['issued', 'sent', 'reminded'].includes(invoice.value.status))
 // Admin „force" edit už vystaveného dokladu — viz tlačítko „Upravit (admin)".
 const canAdminEdit = computed(() =>
@@ -891,9 +896,8 @@ async function sendReminder() {
             :to="{ name: 'tri-job-detail', params: { id: triJob.id } }"
             class="text-primary-700 hover:text-primary-800 hover:underline font-mono ml-1"
           >
-            {{ triJob.number }}
+            {{ jobCrumb(triJob.number, triJob.title) }}
           </RouterLink>
-          <span> — {{ triJob.title }}</span>
         </div>
         <div v-if="invoice.created_by_name" class="text-sm text-neutral-600">
           <span class="text-neutral-500">{{ t('tri.invoices.issued_by') }}:</span>

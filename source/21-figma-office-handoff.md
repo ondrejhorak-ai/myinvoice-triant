@@ -262,6 +262,10 @@ s předchozí prací, žádný automatický commit ani migrace.
   stav **Koncept**, sloupce **Klient a doklad** a **Data a číslování**, box
   propojení s MyÚčtem a položky na celou šířku se slevou vedle souhrnu.
   Detail zakázky má nadpis **Zakázka** a číslo, název jako podtitul, výběr
-  stavu a **Upravit zakázku**. Kontakty jsou vyplněné karty (`primary-50`),
+  stavu a **Upravit zakázku** na stejné výšce. Drobeček a podtitul varianty
+  nesou i název zakázky. Karty variant, faktur a průvodek mají vnitřní odstup.
+  Vlastníci zakázky jsou vlastní sloupec a neposouvají číslo ani název.
+  Tlačítko **Vystavit fakturu k záloze** zmizí, jakmile vyúčtování existuje.
+  Kontakty jsou vyplněné karty (`primary-50`),
   varianty karty a komunikace bubliny se zprávou. Stavy zakázek
   se nemění.

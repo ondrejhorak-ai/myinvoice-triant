@@ -360,7 +360,8 @@ Workflow:
 2. Klient zaplatí — banka spáruje (nebo manuálně označíš jako `paid`).
    Samotná úhrada daňový doklad k přijaté platbě nezaloží.
 3. Klikneš **Vystavit fakturu k záloze** (tlačítko v detailu zálohové).
-   Doklad převezme položky, částku a DPH zálohy.
+   Doklad převezme položky, částku a DPH zálohy. Jakmile vyúčtování existuje,
+   tlačítko zmizí, aby nevznikl druhý doklad.
 4. Vytvoří se **daňový doklad** typu „Faktura" s automatickým **odečtem
    zaplacené zálohy** (záporná položka „Odpočet zálohy 92605001").
 

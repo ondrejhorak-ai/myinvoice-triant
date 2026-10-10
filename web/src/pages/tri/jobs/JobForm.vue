@@ -400,30 +400,38 @@ onMounted(async () => {
       <UiCard>
       <div class="space-y-4 p-5">
       <h2>{{ t('office.basic_info') }}</h2>
-      <div class="grid items-end gap-4 lg:grid-cols-2">
-      <div class="flex items-end gap-2">
+      <div class="grid items-start gap-4 lg:grid-cols-2">
+      <div class="min-w-0 space-y-4">
+        <div class="flex items-end gap-2">
+          <UiInput
+            v-model="form.number"
+            class="min-w-0 flex-1"
+            size="sm"
+            :label="t('tri.jobs.number')"
+            required
+            :error="numberOk ? undefined : t('tri.jobs.number_taken')"
+            @blur="checkNumber"
+          />
+          <UiButton type="button" variant="outline" size="sm" class="shrink-0" @click="suggestNumber">
+            {{ t('tri.jobs.suggest_number') }}
+          </UiButton>
+        </div>
         <UiInput
-          v-model="form.number"
-          class="flex-1"
+          v-model="form.title"
           size="sm"
-          :label="t('tri.jobs.number')"
+          :label="t('tri.jobs.title_field')"
           required
-          :error="numberOk ? undefined : t('tri.jobs.number_taken')"
-          @blur="checkNumber"
         />
-        <UiButton type="button" variant="outline" size="sm" class="shrink-0" @click="suggestNumber">
-          {{ t('tri.jobs.suggest_number') }}
-        </UiButton>
       </div>
-      <div>
+      <div class="min-w-0">
         <label class="mb-1 block text-sm font-medium text-neutral-700">{{ t('tri.jobs.owners') }}</label>
         <div v-if="selectedAssignees.length" class="mb-2 flex flex-wrap gap-2">
           <span
             v-for="u in selectedAssignees"
             :key="u.value"
-            class="inline-flex h-10 items-center gap-2 border border-neutral-200 px-3 text-sm"
+            class="inline-flex h-10 max-w-full items-center gap-2 border border-neutral-200 px-3 text-sm"
           >
-            {{ u.label }}
+            <span class="truncate">{{ u.label }}</span>
             <button type="button" class="cursor-pointer text-neutral-500" :title="t('common.remove')" @click="removeAssignee(u.value)">×</button>
           </span>
         </div>
@@ -438,13 +446,6 @@ onMounted(async () => {
         <p class="mt-2 text-xs text-neutral-500">{{ t('tri.jobs.owners_hint') }}</p>
       </div>
       </div>
-
-      <UiInput
-        v-model="form.title"
-        size="sm"
-        :label="t('tri.jobs.title_field')"
-        required
-      />
 
       </div>
       </UiCard>

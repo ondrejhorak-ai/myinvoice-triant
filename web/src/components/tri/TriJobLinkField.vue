@@ -19,6 +19,11 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 
+function jobCrumb(number: string, title?: string | null): string {
+  const name = title?.trim() ?? ''
+  return name ? `${number} ${name}` : number
+}
+
 const jobs = ref<TriJob[]>([])
 const linkedJob = ref<TriJobLink | null>(null)
 const loading = ref(false)
@@ -99,9 +104,8 @@ watch(() => props.invoiceId, () => { void loadLinkedJob() })
           :to="{ name: 'tri-job-detail', params: { id: linkedJob.id } }"
           class="text-primary-700 hover:text-primary-800 hover:underline font-mono"
         >
-          {{ linkedJob.number }}
+          {{ jobCrumb(linkedJob.number, linkedJob.title) }}
         </RouterLink>
-        <span class="text-neutral-600"> — {{ linkedJob.title }}</span>
       </div>
       <p v-else class="text-sm text-neutral-500">{{ t('tri.invoices.no_job') }}</p>
     </template>

@@ -13,7 +13,7 @@ ukazují varianty napříč zakázkami a odkazují přímo do jejich editoru.
 
 ## 14.1 Detail zakázky
 
-V hlavičce je **Zakázka** a její číslo, pod tím název zakázky, výběr stavu a **Upravit zakázku**. Stavy zůstávají
+V hlavičce je **Zakázka** a její číslo, pod tím název zakázky. Drobeček nese číslo i název. Výběr stavu a **Upravit zakázku** jsou stejně vysoké a sedí na jedné lince; popisek **Stav** je jen nad výběrem. Stavy zůstávají
 **Aktivní**, **Potvrzená**, **Zamítnutá** a **Dokončená**. Detail obsahuje základní údaje,
 kontakty jako karty s rolí, adresu realizace, varianty nabídky jako karty s cenou a stavem,
 nadcházející termíny, faktury, průvodky a reklamace. Vpravo je komunikace: bubliny zpráv
@@ -30,6 +30,8 @@ vyhledají adresu realizace; bez adresy nejsou odkazy aktivní.
 oprávnění a vazby stávající aplikace.
 
 ## 14.2 Varianty nabídky
+
+Karta varianty, faktury i průvodky má odstup od okraje sekce, takže rámeček karty nesedí na dělicí čáře. V editoru varianty drobeček i podtitul nesou číslo a název zakázky (`Zakázka 260006 · Kuchyň na míru`).
 
 Zakázka může mít více variant označených písmeny. Každá má vlastní název,
 stav, datum, položky a ceny. Otevři písmeno varianty; **Nová varianta** vytvoří

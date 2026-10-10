@@ -33,6 +33,18 @@ const statusUpdating = ref(false)
 const jobId = computed(() => Number(route.params.jobId))
 const variantId = computed(() => Number(route.params.variantId))
 
+function jobCrumb(number: string, title?: string | null): string {
+  const name = title?.trim() ?? ''
+  return name ? `${number} ${name}` : number
+}
+
+function jobLine(number: string, title?: string | null): string {
+  const name = title?.trim() ?? ''
+  return name
+    ? t('tri.jobs.with_title', { number, title: name })
+    : `${t('tri.quote.header_job')} ${number}`
+}
+
 type Row = TriQuoteLineItem & { _uid: string }
 interface ItemBlock {
   kind: 'item'
@@ -649,8 +661,8 @@ onBeforeUnmount(() => {
   <CardSkeleton v-if="loading" :blocks="3" />
   <div v-else-if="variant" class="space-y-6">
     <div>
-      <OfficeBreadcrumb :items="[{label:t('tri.jobs.title'),to:'/tri/jobs'},{label:variant.job_number,to:{name:'tri-job-detail',params:{id:jobId}}},{label:t('tri.quote.variant_label')+' '+variant.variant_code}]" />
-      <UiPageHeader :title="t('tri.quote.variant_label')+' '+variant.variant_code" :subtitle="t('tri.quote.header_job')+' '+variant.job_number"><template #actions><UiButton v-if="hasLineItems" variant="secondary" :loading="saving" @click="downloadPdf">{{ t('invoice.download_pdf') }}</UiButton></template></UiPageHeader>
+      <OfficeBreadcrumb :items="[{label:t('tri.jobs.title'),to:'/tri/jobs'},{label:jobCrumb(variant.job_number, variant.job_title),to:{name:'tri-job-detail',params:{id:jobId}}},{label:t('tri.quote.variant_label')+' '+variant.variant_code}]" />
+      <UiPageHeader :title="t('tri.quote.variant_label')+' '+variant.variant_code" :subtitle="jobLine(variant.job_number, variant.job_title)"><template #actions><UiButton v-if="hasLineItems" variant="secondary" :loading="saving" @click="downloadPdf">{{ t('invoice.download_pdf') }}</UiButton></template></UiPageHeader>
     </div>
     <UiCard padding><h2 class="mb-4">{{ t('office.basic_info') }}</h2><div class="grid sm:grid-cols-[2fr_1fr_1fr] gap-5">
       <label class="grid gap-1">{{ t('tri.quote.variant_name') }}<input v-model="variant.name" :disabled="!auth.canWrite" maxlength="120" :placeholder="t('tri.quote.variant_name_placeholder')" class="w-full border px-3 bg-surface" /></label>

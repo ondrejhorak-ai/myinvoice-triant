@@ -126,6 +126,7 @@ final class InvoiceGateway
             throw $e;
         }
         $this->upsertRemote($remote);
+        $this->dropStrayTaxDrafts($remote);
 
         return $this->present($remote);
     }
@@ -750,6 +751,13 @@ final class InvoiceGateway
     public function issueFinal(int $id): array
     {
         $proforma = $this->requireRemote($id);
+        if (self::settlementId($proforma) > 0) {
+            throw new MyUctoApiException(
+                'final_exists',
+                'Daňový doklad k záloze už existuje.',
+                409,
+            );
+        }
         $dates = AdvanceSettlement::dates($proforma);
         $presented = $this->mutate($id, fn () => $this->api->issueFinal($id, $dates), false);
 
@@ -822,11 +830,7 @@ final class InvoiceGateway
         }, true);
         // MyÚčto umí k úhradě zálohy samo založit koncept daňového dokladu.
         // Tady se nezakládá: vzniká jen ručně přes „Vystavit fakturu k záloze“.
-        try {
-            $this->discardAutoTaxDocuments($id, $presented);
-        } catch (MyUctoApiException) {
-            // Úhrada už proběhla. Nezdařený úklid konceptu ji nesmí vrátit.
-        }
+        $this->dropStrayTaxDrafts($presented);
 
         return $presented;
     }
@@ -976,6 +980,42 @@ final class InvoiceGateway
             'due_date' => $presented['due_date'] ?? null,
             'advance_paid_amount' => (float) ($presented['advance_paid_amount'] ?? ($proforma['total_with_vat'] ?? 0)),
         ]);
+    }
+
+    /**
+     * Koncept daňového dokladu k přijaté platbě tu nemá zůstat.
+     * Vyúčtování (vystavená faktura k záloze) se nemaže.
+     *
+     * @param array<string, mixed> $remote
+     */
+    private function dropStrayTaxDrafts(array $remote): void
+    {
+        if ((string) ($remote['invoice_type'] ?? '') !== 'proforma') {
+            return;
+        }
+        if ((string) ($remote['status'] ?? '') !== 'paid') {
+            return;
+        }
+        $id = (int) ($remote['id'] ?? 0);
+        if ($id <= 0) {
+            return;
+        }
+        try {
+            $this->discardAutoTaxDocuments($id, $remote);
+        } catch (MyUctoApiException) {
+            // Úhrada ani zobrazení dokladu na tom nesmí spadnout.
+        }
+    }
+
+    /** @param array<string, mixed> $remote */
+    private static function settlementId(array $remote): int
+    {
+        $final = $remote['final_invoice'] ?? null;
+        if (!is_array($final)) {
+            return 0;
+        }
+
+        return (int) ($final['id'] ?? 0);
     }
 
     /** @param array<string, mixed> $proforma */

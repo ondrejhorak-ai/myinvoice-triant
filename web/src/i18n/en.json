@@ -493,6 +493,7 @@
       "variant_active": "Active variant",
       "detail": "Job detail",
       "record_title": "Job {number}",
+      "with_title": "Job {number} · {title}",
       "number": "Number",
       "title_field": "Title",
       "status": "Status",

@@ -106,10 +106,15 @@ final class InvoiceSync
             return;
         }
         $stmt = $this->pdo->prepare(
-            'SELECT updated_at, status, payment_status, paid_at, paid_total FROM mu_invoices WHERE id = ?'
+            'SELECT updated_at, status, payment_status, paid_at, paid_total, deleted_at FROM mu_invoices WHERE id = ?'
         );
         $stmt->execute([$row['id']]);
         $local = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (is_array($local) && self::isTombstone($local) && !$this->remoteStillExists((int) $row['id'])) {
+            // List občas ještě drží smazaný koncept. Tombstone v Office zůstane,
+            // dokud detail v MyÚčtu doklad opravdu nevrátí.
+            return;
+        }
         $localUpdatedStr = is_array($local) && $local['updated_at'] !== null ? (string) $local['updated_at'] : null;
 
         // List endpoint často vrací issued/unpaid i u zaplacené proformy.
@@ -140,6 +145,25 @@ final class InvoiceSync
         }
 
         $this->writer->upsert('mu_invoices', $row, array_values(array_diff(array_keys($row), ['id'])));
+    }
+
+    /** @param array<string, mixed> $row */
+    private static function isTombstone(array $row): bool
+    {
+        $deleted = $row['deleted_at'] ?? null;
+
+        return $deleted !== null && $deleted !== '';
+    }
+
+    private function remoteStillExists(int $id): bool
+    {
+        try {
+            $detail = ContactGateway::unwrap($this->api->getInvoice($id));
+        } catch (MyUctoApiException $e) {
+            return $e->httpStatus !== 404 && $e->httpStatus !== 410;
+        }
+
+        return is_array($detail) && (int) ($detail['id'] ?? 0) === $id;
     }
 
     /** @param array<string, mixed> $row */

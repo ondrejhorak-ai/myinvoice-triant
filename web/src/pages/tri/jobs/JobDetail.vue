@@ -269,6 +269,11 @@ async function linkInvoice(invoiceId: number) {
   }
 }
 
+function jobCrumb(number: string, title?: string | null): string {
+  const name = title?.trim() ?? ''
+  return name ? `${number} ${name}` : number
+}
+
 function shortDay(iso: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
   if (!match) return ''
@@ -290,21 +295,23 @@ onMounted(() => load())
   <CardSkeleton v-if="loading" :blocks="4" />
   <div v-else-if="job" class="space-y-6">
     <div>
-      <OfficeBreadcrumb :items="[{label:t('tri.jobs.title'),to:'/tri/jobs'},{label:job.number}]" />
+      <OfficeBreadcrumb :items="[{label:t('tri.jobs.title'),to:'/tri/jobs'},{label:jobCrumb(job.number, job.title)}]" />
       <UiPageHeader :title="t('tri.jobs.record_title', { number: job.number })" :subtitle="job.title" subtitle-strong>
         <template #actions>
-          <UiSelect
-            class="w-[220px]"
-            :label="t('tri.jobs.status')"
-            :model-value="job.status"
-            :disabled="!auth.canWrite"
-            @update:model-value="changeStatus(String($event ?? ''))"
-          >
-            <option v-for="status in statusOptions" :key="status" :value="status">{{ t(`tri.jobs.status_${status}`) }}</option>
-          </UiSelect>
-          <UiButton v-if="auth.canWrite" :to="{ name: 'tri-job-edit', params: { id: job.id } }" variant="secondary">
-            {{ t('tri.jobs.edit') }}
-          </UiButton>
+          <div class="flex items-end gap-3">
+            <UiSelect
+              class="w-[220px]"
+              :label="t('tri.jobs.status')"
+              :model-value="job.status"
+              :disabled="!auth.canWrite"
+              @update:model-value="changeStatus(String($event ?? ''))"
+            >
+              <option v-for="status in statusOptions" :key="status" :value="status">{{ t(`tri.jobs.status_${status}`) }}</option>
+            </UiSelect>
+            <UiButton v-if="auth.canWrite" size="lg" class="shrink-0" :to="{ name: 'tri-job-edit', params: { id: job.id } }" variant="secondary">
+              {{ t('tri.jobs.edit') }}
+            </UiButton>
+          </div>
         </template>
       </UiPageHeader>
     </div>
@@ -356,7 +363,7 @@ onMounted(() => load())
         </UiButton>
       </div>
       <EmptyState v-if="!job.variants?.length" compact :title="t('common.no_data')" />
-      <ul v-else class="space-y-3 px-5 pb-5">
+      <ul v-else class="space-y-3 p-5">
         <li
           v-for="v in job.variants"
           :key="v.id"
@@ -420,7 +427,7 @@ onMounted(() => load())
 
       <TableSkeleton v-if="invoicesLoading" :rows="4" :cols="6" />
       <EmptyState v-else-if="jobInvoices.length === 0" compact :title="t('tri.invoices.no_invoices')" />
-      <ul v-else class="space-y-3 px-5 pt-4">
+      <ul v-else class="space-y-3 p-5">
         <li
           v-for="inv in jobInvoices"
           :key="inv.id"
@@ -473,7 +480,7 @@ onMounted(() => load())
       </div>
       <TableSkeleton v-if="travelersLoading" :rows="3" :cols="5" />
       <EmptyState v-else-if="travelers.length === 0" compact :title="t('tri.travelers.no_data')" />
-      <ul v-else class="space-y-3 px-5 pb-5">
+      <ul v-else class="space-y-3 p-5">
         <li
           v-for="row in travelers"
           :key="row.id"

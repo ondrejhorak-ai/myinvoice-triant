@@ -299,6 +299,33 @@ final class InvoiceGatewayTest extends TestCase
         $this->assertSame(1, $mirrored);
     }
 
+    public function testIssueFinalRefusesWhenSettlementExists(): void
+    {
+        $pdo = $this->sqlite();
+        $proforma = [
+            'id' => 153,
+            'client_id' => 101,
+            'status' => 'paid',
+            'invoice_type' => 'proforma',
+            'currency' => 'CZK',
+            'final_invoice' => ['id' => 155, 'varsymbol' => '2610001', 'status' => 'paid'],
+            'items' => [],
+            'totals' => ['without_vat' => 1652.89, 'vat' => 347.11, 'with_vat' => 2000],
+            'updated_at' => '2026-10-10 18:40:00',
+        ];
+        $gw = new InvoiceGateway($this->api([
+            new Response(200, ['Content-Type' => 'application/json'], json_encode($proforma)),
+        ]), $pdo, 1);
+
+        try {
+            $gw->issueFinal(153);
+            $this->fail('expected exception');
+        } catch (MyUctoApiException $e) {
+            $this->assertSame('final_exists', $e->errorCode);
+            $this->assertSame(409, $e->httpStatus);
+        }
+    }
+
     public function testToInvoiceInputKeepsTaxDocumentType(): void
     {
         $pdo = $this->sqlite();
