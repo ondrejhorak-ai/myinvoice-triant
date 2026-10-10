@@ -19,7 +19,10 @@ kontakty jako karty s rolí, adresu realizace, varianty nabídky jako karty s ce
 nadcházející termíny, faktury, průvodky a reklamace. Vpravo je komunikace: bubliny zpráv
 a pole pro novou zprávu. Na užší obrazovce se přesune pod ostatní obsah.
 
-Kontakty mohou mít více rolí. Zákazník má modrý štítek, architekt fialový.
+Osoba na zakázce má roli **zákazník**, **architekt** nebo **kontakt**. Odběratel
+faktury je samostatná volba a při založení nemusí být vyplněný. Potvrzení zakázky
+projekt v MyÚčtu nezakládá. Projekt vznikne s prvním dokladem. Zákazník má modrý
+štítek, architekt fialový, kontakt šedý.
 E-mail a telefon otevírají příslušnou aplikaci. **Mapy.cz** a **Google Maps**
 vyhledají adresu realizace; bez adresy nejsou odkazy aktivní.
 

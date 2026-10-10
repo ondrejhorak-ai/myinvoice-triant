@@ -45,6 +45,8 @@ final class UpdateJobAction
             return Json::error($response, 'conflict', 'Toto číslo zakázky už existuje.', 409);
         } catch (JobNumberFormatException) {
             return Json::error($response, 'validation_failed', 'Neplatný formát čísla zakázky.', 400);
+        } catch (\InvalidArgumentException $e) {
+            return Json::error($response, 'validation_failed', $e->getMessage(), 422);
         }
 
         if ($job === null) {

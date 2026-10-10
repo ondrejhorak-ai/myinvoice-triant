@@ -8,7 +8,9 @@ export interface ClientEmailFields {
   main_email?: string | null
 }
 
-export type ClientCompletenessFields = ClientAddressFields & ClientEmailFields
+export type ClientCompletenessFields = ClientAddressFields & ClientEmailFields & {
+  party_kind?: string | null
+}
 
 function isBlank(value: string | null | undefined): boolean {
   return (value ?? '').trim() === ''
@@ -27,15 +29,13 @@ export function clientMissingAddress(c: ClientAddressFields): boolean {
 }
 
 export function clientIsIncomplete(c: ClientCompletenessFields): boolean {
-  return clientMissingEmail(c) || clientMissingAddress(c)
+  if (c.party_kind === 'person') return clientMissingEmail(c)
+  return false
 }
 
 export type ClientIncompleteKind = 'email' | 'address' | 'both'
 
 export function clientIncompleteKind(c: ClientCompletenessFields): ClientIncompleteKind | null {
-  const missingEmail = clientMissingEmail(c)
-  const missingAddress = clientMissingAddress(c)
-  if (!missingEmail && !missingAddress) return null
-  if (missingEmail && missingAddress) return 'both'
-  return missingEmail ? 'email' : 'address'
+  if (c.party_kind === 'person' && clientMissingEmail(c)) return 'email'
+  return null
 }

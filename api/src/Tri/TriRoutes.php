@@ -83,6 +83,7 @@ use MyInvoice\Tri\Action\Traveler\PdfAction as TravelerPdfAction;
 use MyInvoice\Tri\Action\Traveler\UpdateTravelerOperationsAction;
 use MyInvoice\Tri\Action\Contact\ArchiveContactAction;
 use MyInvoice\Tri\Action\Contact\CreateContactAction;
+use MyInvoice\Tri\Action\Contact\SuggestContactsAction;
 use MyInvoice\Tri\Action\Contact\LookupAresAction as TriLookupAresAction;
 use MyInvoice\Tri\Action\Contact\UpdateContactAction;
 use MyInvoice\Tri\Action\MyUcto\GetSyncStatusAction;
@@ -101,7 +102,8 @@ final class TriRoutes
         $app->get('/api/tri/clients/{id:[0-9]+}/tags', GetClientTagsAction::class);
         $app->put('/api/tri/clients/{id:[0-9]+}/tags', SetClientTagsAction::class);
 
-        // Contacts write-through → MyÚčto
+        // Kontakty žijí v Office. Do MyÚčta jde odběratel až s prvním dokladem.
+        $app->get('/api/tri/contacts/suggest', SuggestContactsAction::class);
         $app->post('/api/tri/contacts', CreateContactAction::class);
         $app->put('/api/tri/contacts/{id:[0-9]+}', UpdateContactAction::class);
         $app->post('/api/tri/contacts/{id:[0-9]+}/archive', ArchiveContactAction::class);

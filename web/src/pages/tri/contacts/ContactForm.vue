@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { clientsApi, type ClientPayload, type Client } from '@/api/clients'
@@ -15,6 +15,7 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
+import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 
 /**
  * V `embedded` módu komponenta nečte route pro edit, neredirektuje a vrací výsledek
@@ -87,6 +88,8 @@ const supplierDueLabel = computed(() => {
 
 const form = ref<ClientPayload>({
   company_name: '',
+  party_kind: 'company',
+  company_client_id: null,
   ic: null,
   dic: null,
   street: '',
@@ -163,6 +166,10 @@ onMounted(async () => {
   if (isEdit.value && clientId.value) {
     const loaded = await clientsApi.get(clientId.value)
     Object.assign(form.value, sanitize(loaded))
+    if (loaded.company_client_id) {
+      const company = await clientsApi.get(loaded.company_client_id).catch(() => null)
+      if (company) selectedCompany.value = { value: company.id, label: company.company_name }
+    }
     lockCustomer.value = (loaded.invoices_count ?? 0) > 0
     lockVendor.value = (loaded.purchase_invoices_count ?? 0) > 0
   }
@@ -171,13 +178,15 @@ onMounted(async () => {
 function sanitize(c: Client): Partial<ClientPayload> {
   return {
     company_name: c.company_name,
+    party_kind: c.party_kind ?? 'company',
+    company_client_id: c.company_client_id ?? null,
     first_name: c.first_name ?? null,
     last_name: c.last_name ?? null,
     ic: c.ic ?? null,
     dic: c.dic ?? null,
-    street: c.street,
-    city: c.city,
-    zip: c.zip,
+    street: c.street ?? '',
+    city: c.city ?? '',
+    zip: c.zip ?? '',
     country_iso2: c.country_iso2,
     main_email: c.main_email,
     phone: c.phone ?? null,
@@ -274,6 +283,74 @@ async function checkVies() {
   }
 }
 
+const suggestions = ref<Awaited<ReturnType<typeof triApi.contacts.suggest>>['data']>([])
+const companyOptions = ref<Array<{ value: number; label: string; secondary?: string }>>([])
+const companyLoading = ref(false)
+const selectedCompany = ref<{ value: number; label: string } | null>(null)
+let suggestTimer: ReturnType<typeof setTimeout> | null = null
+
+const isPerson = computed(() => form.value.party_kind === 'person')
+const isCompany = computed(() => (form.value.party_kind ?? 'company') === 'company')
+
+watch(
+  () => [form.value.company_name, form.value.main_email, form.value.phone, form.value.ic, form.value.party_kind],
+  () => {
+    if (suggestTimer) clearTimeout(suggestTimer)
+    suggestTimer = setTimeout(loadSuggestions, 300)
+  },
+)
+
+async function loadSuggestions() {
+  const q = (form.value.company_name || '').trim()
+  const email = (form.value.main_email || '').trim()
+  const phone = (form.value.phone || '').trim()
+  const ic = (form.value.ic || '').replace(/\D/g, '')
+  if (q.length < 2 && email === '' && phone === '' && ic.length < 8) {
+    suggestions.value = []
+    return
+  }
+  try {
+    const res = await triApi.contacts.suggest({
+      q: q.length >= 2 ? q : undefined,
+      email: email || undefined,
+      phone: phone || undefined,
+      ic: ic.length === 8 ? ic : undefined,
+      exclude_id: clientId.value ?? undefined,
+    })
+    suggestions.value = res.data
+  } catch {
+    suggestions.value = []
+  }
+}
+
+async function useSuggestion(id: number) {
+  const full = await clientsApi.get(id)
+  if (props.embedded) {
+    emit('created', full)
+    return
+  }
+  router.push(`/tri/contacts/${id}`)
+}
+
+async function onCompanySearch(q: string) {
+  companyLoading.value = true
+  try {
+    const res = await clientsApi.list({ q: q || undefined, per_page: 20 })
+    companyOptions.value = res.data
+      .filter((c) => (c.party_kind ?? 'company') === 'company')
+      .map((c) => ({ value: c.id, label: c.company_name, secondary: c.ic ?? undefined }))
+  } catch {
+    companyOptions.value = []
+  } finally {
+    companyLoading.value = false
+  }
+}
+
+function onCompanyPicked(id: number | null) {
+  form.value.company_client_id = id
+  selectedCompany.value = companyOptions.value.find((o) => o.value === id) ?? selectedCompany.value
+}
+
 async function submit() {
   submitting.value = true
   error.value = ''
@@ -318,8 +395,44 @@ async function submit() {
     <form @submit.prevent="submit" autocomplete="off">
       <UiCard>
       <div class="p-5 space-y-4">
+        <UiSelect v-model="form.party_kind" :label="t('tri.contacts.kind')">
+          <option value="company">{{ t('tri.contacts.kind_company') }}</option>
+          <option value="private">{{ t('tri.contacts.kind_private') }}</option>
+          <option value="person">{{ t('tri.contacts.kind_person') }}</option>
+        </UiSelect>
+        <p class="text-xs text-neutral-500">{{ t('tri.contacts.kind_hint') }}</p>
+
+        <div v-if="isPerson">
+          <label class="mb-1 block text-sm font-medium text-neutral-700">{{ t('tri.contacts.person_company') }}</label>
+          <SearchableSelect
+            :model-value="form.company_client_id ?? null"
+            remote
+            :loading="companyLoading"
+            :options="companyOptions"
+            :selected-option="selectedCompany"
+            :placeholder="t('tri.contacts.person_company_placeholder')"
+            :clearable="true"
+            @search="onCompanySearch"
+            @update:model-value="onCompanyPicked"
+          />
+        </div>
+
+        <div v-if="suggestions.length" class="border border-neutral-200 p-3">
+          <p class="text-xs font-semibold text-neutral-700 mb-2">{{ t('tri.contacts.suggestions') }}</p>
+          <ul class="space-y-2">
+            <li v-for="s in suggestions" :key="s.id" class="flex items-center justify-between gap-3 text-sm">
+              <span>
+                <span class="font-medium text-neutral-900">{{ s.company_name }}</span>
+                <span class="text-neutral-500"> · {{ t('tri.contacts.match_' + s.match) }}</span>
+                <span v-if="s.main_email" class="block text-xs text-neutral-500">{{ s.main_email }}</span>
+              </span>
+              <UiButton type="button" variant="outline" size="sm" @click="useSuggestion(s.id)">{{ t('tri.contacts.suggestion_use') }}</UiButton>
+            </li>
+          </ul>
+        </div>
+
         <!-- Lookup helpers -->
-        <div class="bg-primary-50 border border-primary-200 rounded-md p-3">
+        <div v-if="isCompany" class="bg-primary-50 border border-primary-200 rounded-md p-3">
           <div class="text-xs font-semibold text-primary-800 mb-2">{{ t('client.lookup_in_registries') }}</div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -398,7 +511,7 @@ async function submit() {
           </div>
         </div>
 
-        <UiInput v-model="form.company_name" :label="t('client.company_name') + ' *'" required :error="errors.company_name?.[0]" />
+        <UiInput v-model="form.company_name" :label="(isPerson ? t('tri.jobs.person_name') : t('client.company_name')) + ' *'" required :error="errors.company_name?.[0]" />
 
         <ClientTagEditor
           ref="tagEditorRef"
@@ -407,10 +520,11 @@ async function submit() {
         />
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <UiInput v-model="form.main_email" type="email" :label="t('client.main_email')" :hint="t('client.main_email_optional_hint')" :error="errors.main_email?.[0]" />
+          <UiInput v-model="form.main_email" type="email" :label="t('client.main_email')" :required="isPerson" :hint="isPerson ? undefined : t('client.main_email_optional_hint')" :error="errors.main_email?.[0]" />
           <UiInput v-model="form.phone" :label="t('client.phone')" />
         </div>
 
+        <p v-if="!isPerson" class="text-xs text-neutral-500">{{ t('tri.contacts.address_later') }}</p>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <UiInput class="sm:col-span-2" v-model="form.street" :label="t('client.street')" />
           <UiInput v-model="form.zip" :label="t('client.zip')" />
@@ -426,7 +540,7 @@ async function submit() {
         </div>
 
         <!-- Role flagy -->
-        <div class="pt-3 border-t border-neutral-100">
+        <div v-if="!isPerson" class="pt-3 border-t border-neutral-100">
           <p class="text-xs text-neutral-500 mb-2">{{ t('client.roles_hint') }}</p>
           <div class="flex flex-wrap gap-6">
             <label class="flex items-center gap-2 text-sm">

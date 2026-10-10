@@ -7,7 +7,8 @@ namespace MyInvoice\Tri\Action\Contact;
 use MyInvoice\Http\Json;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\ClientRepository;
-use MyInvoice\Tri\MyUcto\ContactGateway;
+use MyInvoice\Tri\Contact\ContactValidationException;
+use MyInvoice\Tri\Contact\OfficeContactStore;
 use MyInvoice\Tri\MyUcto\MyUctoApiException;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
 use MyInvoice\Tri\Support\TriRequest;
@@ -28,9 +29,13 @@ final class UpdateContactAction
         if ($supplierId === 0) {
             return Json::error($response, 'no_supplier', 'Chybí supplier kontext.', 400);
         }
-        $gw = new ContactGateway($this->api, $this->db->pdo(), $this->clients, $supplierId);
+        $store = new OfficeContactStore($this->db->pdo(), $this->clients, $supplierId, $this->api);
         try {
-            $row = $gw->update((int) ($args['id'] ?? 0), (array) ($request->getParsedBody() ?? []));
+            $row = $store->update((int) ($args['id'] ?? 0), (array) ($request->getParsedBody() ?? []));
+        } catch (ContactValidationException $e) {
+            $status = str_contains($e->getMessage(), 'nenalezen') ? 404 : 422;
+
+            return Json::error($response, $status === 404 ? 'not_found' : 'validation_failed', $e->getMessage(), $status, ['fields' => $e->fields]);
         } catch (MyUctoApiException $e) {
             return ContactError::fromException($response, $e);
         }

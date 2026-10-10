@@ -76,6 +76,7 @@ const varsymbolLabelKey = computed(() => {
 })
 
 const clients = ref<Client[]>([])  // akumulovaná cache (výsledky hledání + vybraný) — čtou z ní defaults/VIES
+const selectedBillingClient = computed(() => clients.value.find((c) => c.id === form.value.client_id) ?? null)
 // Server-side našeptávač klientů (zákazníků) — SearchableSelect v remote režimu.
 const clientOptions = ref<{ value: number; label: string; secondary?: string }[]>([])
 const clientsLoading = ref(false)
@@ -91,7 +92,7 @@ function mergeClients(list: Client[]) {
 async function onClientSearch(q: string) {
   clientsLoading.value = true
   try {
-    const res = await clientsApi.list({ q: q || undefined, role: 'customers', archived: false, per_page: 50 })
+    const res = await clientsApi.list({ q: q || undefined, role: 'customers', archived: false, per_page: 50, billable: true })
     mergeClients(res.data)
     clientOptions.value = res.data.map(clientToOption)
   } catch { /* ignore */ } finally {
@@ -1057,8 +1058,18 @@ async function deleteDraft() {
                 </template>
               </div>
               <div v-if="form.client_id" class="border border-neutral-200 bg-neutral-50 px-3 py-3">
-                <p class="text-sm font-medium text-neutral-900">{{ t('invoice.myucto_linked') }}</p>
-                <p class="mt-1 text-xs text-neutral-500">{{ t('invoice.myucto_linked_hint') }}</p>
+                <template v-if="selectedBillingClient?.party_kind === 'person'">
+                  <p class="text-sm font-medium text-neutral-900">{{ t('invoice.myucto_person') }}</p>
+                  <p class="mt-1 text-xs text-neutral-500">{{ t('invoice.myucto_person_hint') }}</p>
+                </template>
+                <template v-else-if="selectedBillingClient && !selectedBillingClient.myucto_id">
+                  <p class="text-sm font-medium text-neutral-900">{{ t('invoice.myucto_pending') }}</p>
+                  <p class="mt-1 text-xs text-neutral-500">{{ t('invoice.myucto_pending_hint') }}</p>
+                </template>
+                <template v-else>
+                  <p class="text-sm font-medium text-neutral-900">{{ t('invoice.myucto_linked') }}</p>
+                  <p class="mt-1 text-xs text-neutral-500">{{ t('invoice.myucto_linked_hint') }}</p>
+                </template>
               </div>
             </div>
             <TriJobLinkField

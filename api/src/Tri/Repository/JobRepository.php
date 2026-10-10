@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace MyInvoice\Tri\Repository;
 
 use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Tri\Contact\ContactParty;
+use MyInvoice\Tri\Contact\JobContacts;
 use MyInvoice\Tri\Service\JobNumberConflictException;
 use MyInvoice\Tri\Service\JobNumberFormatException;
 use MyInvoice\Tri\Service\JobNumberService;
@@ -141,7 +143,8 @@ final class JobRepository
                 $yearSuffix,
                 isset($data['number']) ? (string) $data['number'] : null,
             );
-            $customerId = $this->tags->findCustomerClientIdAmong($supplierId, $clientIds);
+            $contacts = $this->contactsFrom($data, $clientIds);
+            $customerId = $this->billingCustomerId($pdo, $supplierId, $data, $contacts);
 
             $stmt = $pdo->prepare(
                 'INSERT INTO tri_jobs (
@@ -163,7 +166,7 @@ final class JobRepository
                 $data['notes'] ?? null,
             ]);
             $jobId = (int) $pdo->lastInsertId();
-            $this->syncContacts($pdo, $jobId, $clientIds);
+            $this->syncContacts($pdo, $jobId, $contacts);
             $assignees = $assigneeUserIds !== [] ? $assigneeUserIds : [$ownerUserId];
             $this->syncAssignees($pdo, $jobId, $assignees);
 
@@ -215,7 +218,8 @@ final class JobRepository
                 $this->numbers->assign($pdo, $supplierId, $yearSuffix, $number);
             }
 
-            $customerId = $this->tags->findCustomerClientIdAmong($supplierId, $clientIds);
+            $contacts = $this->contactsFrom($data, $clientIds);
+            $customerId = $this->billingCustomerId($pdo, $supplierId, $data, $contacts);
 
             $stmt = $pdo->prepare(
                 'UPDATE tri_jobs SET
@@ -235,7 +239,7 @@ final class JobRepository
                 $id,
                 $supplierId,
             ]);
-            $this->syncContacts($pdo, $id, $clientIds);
+            $this->syncContacts($pdo, $id, $contacts);
 
             if ($assigneeUserIds !== null) {
                 $fallback = $assigneeUserIds !== [] ? $assigneeUserIds : [(int) $existing['owner_user_id']];
@@ -307,7 +311,8 @@ final class JobRepository
     private function loadContacts(int $jobId): array
     {
         $stmt = $this->db->pdo()->prepare(
-            'SELECT jc.sort_order, c.id, c.company_name, c.first_name, c.last_name,
+            'SELECT jc.sort_order, jc.role, c.id, c.company_name, c.party_kind, c.company_client_id,
+                    c.first_name, c.last_name,
                     c.main_email, c.phone, c.ic, c.street, c.city, c.zip,
                     co.iso2 AS country_iso2
                FROM tri_job_contacts jc
@@ -324,6 +329,10 @@ final class JobRepository
             $out[] = [
                 'client_id'    => $clientId,
                 'sort_order'   => (int) $row['sort_order'],
+                'role'         => (string) ($row['role'] ?? JobContacts::CONTACT),
+                'party_kind'   => (string) ($row['party_kind'] ?? ContactParty::COMPANY),
+                'company_client_id' => isset($row['company_client_id']) && $row['company_client_id'] !== null
+                    ? (int) $row['company_client_id'] : null,
                 'company_name' => (string) $row['company_name'],
                 'first_name'   => $row['first_name'] !== null ? (string) $row['first_name'] : null,
                 'last_name'    => $row['last_name'] !== null ? (string) $row['last_name'] : null,
@@ -375,19 +384,89 @@ final class JobRepository
         }
     }
 
-    /** @param list<int> $clientIds */
-    private function syncContacts(PDO $pdo, int $jobId, array $clientIds): void
+    /**
+     * Klíč `contacts` (i prázdný) má přednost před `client_ids`.
+     *
+     * @param array<string, mixed> $data
+     * @param list<int> $clientIds
+     * @return list<array{client_id: int, role: string}>
+     */
+    private function contactsFrom(array $data, array $clientIds): array
     {
-        $unique = array_values(array_unique(array_map('intval', $clientIds)));
+        if (array_key_exists('contacts', $data) && is_array($data['contacts'])) {
+            return JobContacts::normalize($data['contacts'], []);
+        }
+
+        return JobContacts::normalize([], $clientIds);
+    }
+
+    /** @param list<array{client_id: int, role: string}> $contacts */
+    private function syncContacts(PDO $pdo, int $jobId, array $contacts): void
+    {
         $pdo->prepare('DELETE FROM tri_job_contacts WHERE job_id = ?')->execute([$jobId]);
         $ins = $pdo->prepare(
-            'INSERT INTO tri_job_contacts (job_id, client_id, sort_order) VALUES (?, ?, ?)'
+            'INSERT INTO tri_job_contacts (job_id, client_id, role, sort_order) VALUES (?, ?, ?, ?)'
         );
-        foreach ($unique as $i => $clientId) {
-            if ($clientId > 0) {
-                $ins->execute([$jobId, $clientId, $i]);
+        foreach ($contacts as $i => $contact) {
+            $ins->execute([$jobId, $contact['client_id'], $contact['role'], $i]);
+        }
+    }
+
+    /**
+     * Odběratel faktury je samostatná volba. Kontaktní osoba jím není,
+     * ani když má na zakázce roli zákazník.
+     *
+     * @param array<string, mixed> $data
+     * @param list<array{client_id: int, role: string}> $contacts
+     */
+    private function billingCustomerId(PDO $pdo, int $supplierId, array $data, array $contacts): ?int
+    {
+        if (array_key_exists('customer_client_id', $data)) {
+            $raw = $data['customer_client_id'];
+            if ($raw === null || $raw === '' || (int) $raw <= 0) {
+                return null;
+            }
+
+            return $this->assertBillable($pdo, $supplierId, (int) $raw);
+        }
+        foreach ($contacts as $contact) {
+            if ($contact['role'] !== JobContacts::CUSTOMER) {
+                continue;
+            }
+            $kind = $this->partyKind($pdo, $supplierId, $contact['client_id']);
+            if (ContactParty::isBillable($kind)) {
+                return $contact['client_id'];
             }
         }
+        $ids = array_map(static fn (array $c) => $c['client_id'], $contacts);
+        $billable = [];
+        foreach ($ids as $id) {
+            $kind = $this->partyKind($pdo, $supplierId, $id);
+            if (ContactParty::isBillable($kind)) {
+                $billable[] = $id;
+            }
+        }
+
+        return $this->tags->findCustomerClientIdAmong($supplierId, $billable);
+    }
+
+    private function assertBillable(PDO $pdo, int $supplierId, int $clientId): int
+    {
+        $kind = $this->partyKind($pdo, $supplierId, $clientId);
+        if (!ContactParty::isBillable($kind)) {
+            throw new \InvalidArgumentException('Odběratelem faktury může být jen firma nebo soukromá osoba.');
+        }
+
+        return $clientId;
+    }
+
+    private function partyKind(PDO $pdo, int $supplierId, int $clientId): string
+    {
+        $stmt = $pdo->prepare('SELECT party_kind FROM clients WHERE id = ? AND supplier_id = ?');
+        $stmt->execute([$clientId, $supplierId]);
+        $kind = $stmt->fetchColumn();
+
+        return is_string($kind) && $kind !== '' ? $kind : '';
     }
 
     private function cascadeJobNumber(PDO $pdo, int $jobId, string $newNumber): void

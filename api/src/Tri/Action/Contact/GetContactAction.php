@@ -7,6 +7,8 @@ namespace MyInvoice\Tri\Action\Contact;
 use MyInvoice\Http\Json;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\ClientRepository;
+use MyInvoice\Tri\Contact\ContactParty;
+use MyInvoice\Tri\Contact\OfficeContactStore;
 use MyInvoice\Tri\Support\TriRequest;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -34,6 +36,20 @@ final class GetContactAction
         $client['tri_jobs_count'] = (int) $stats['tri_jobs_count'];
         $client['tri_revenue'] = (float) $stats['tri_revenue'];
         $client['tri_last_job_date'] = $stats['tri_last_job_date'];
+        $store = new OfficeContactStore($this->db->pdo(), $this->clients, $sid);
+        $kind = (string) ($client['party_kind'] ?? ContactParty::COMPANY);
+        $client['people'] = $kind === ContactParty::COMPANY ? $store->peopleOf($id) : [];
+        $companyId = (int) ($client['company_client_id'] ?? 0);
+        $client['company'] = null;
+        if ($kind === ContactParty::PERSON && $companyId > 0) {
+            $company = $this->clients->find($companyId);
+            if (is_array($company) && (int) ($company['supplier_id'] ?? 0) === $sid) {
+                $client['company'] = [
+                    'id' => (int) $company['id'],
+                    'company_name' => (string) $company['company_name'],
+                ];
+            }
+        }
         return Json::ok($response, $client);
     }
 }

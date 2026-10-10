@@ -8,6 +8,7 @@ use MyInvoice\Http\Json;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\IpMatcher;
+use MyInvoice\Tri\Contact\BillingContactPublisher;
 use MyInvoice\Tri\MyUcto\InvoiceGateway;
 use MyInvoice\Tri\MyUcto\MyUctoApiException;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
@@ -56,6 +57,10 @@ final class SetInvoiceJobAction
                 $job = $this->jobs->find((int) $jobId, $supplierId);
                 if ($job === null) {
                     return Json::error($response, 'not_found', 'Zakázka nenalezena.', 404);
+                }
+                $customerId = (int) ($job['customer_client_id'] ?? 0);
+                if ($customerId > 0) {
+                    (new BillingContactPublisher($this->api, $this->db->pdo(), $supplierId))->ensure($customerId);
                 }
                 $job = (new ProjectGateway($this->api, $this->db->pdo(), $supplierId))->ensureProjectForJob($job);
                 $projectId = (int) ($job['myucto_project_id'] ?? 0);

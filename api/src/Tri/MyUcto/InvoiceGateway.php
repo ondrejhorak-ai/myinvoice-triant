@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MyInvoice\Tri\MyUcto;
 
+use MyInvoice\Tri\Contact\BillingContactPublisher;
 use PDO;
 
 final class InvoiceGateway
@@ -274,7 +275,8 @@ final class InvoiceGateway
     {
         $clientRaw = $body['client_id'] ?? ($current['client_id'] ?? null);
         $out = [
-            'client_id' => $this->resolveClientMyuctoId((int) $clientRaw),
+            'client_id' => (new BillingContactPublisher($this->api, $this->pdo, $this->supplierId))
+                ->ensure((int) $clientRaw),
         ];
         $items = $body['items'] ?? ($current['items'] ?? []);
         if (!is_array($items) || $items === []) {

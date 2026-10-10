@@ -21,6 +21,10 @@ export interface ClientEmailContact {
 export interface Client {
   id: number
   company_name: string
+  party_kind?: 'company' | 'private' | 'person'
+  company_client_id?: number | null
+  people?: Array<{ id: number; company_name: string; main_email: string | null; phone: string | null }>
+  company?: { id: number; company_name: string } | null
   first_name?: string | null
   last_name?: string | null
   ic?: string | null
@@ -192,6 +196,8 @@ export const TAX_NUMBER_LABELS: Record<string, string> = {
 
 export interface ClientPayload {
   company_name: string
+  party_kind?: 'company' | 'private' | 'person'
+  company_client_id?: number | null
   first_name?: string | null
   last_name?: string | null
   ic?: string | null
@@ -248,7 +254,7 @@ export interface ClientListResponse {
 export type ClientRoleFilter = 'all' | 'customers' | 'vendors'
 
 export const clientsApi = {
-  list: (params?: { q?: string; page?: number; per_page?: number; archived?: boolean | 'all'; role?: ClientRoleFilter; sort?: 'name' | 'revenue' | 'last_activity'; expense_category_id?: number | null; tri_tag_id?: number | null; tri_stats?: boolean }) =>
+  list: (params?: { q?: string; page?: number; per_page?: number; archived?: boolean | 'all'; role?: ClientRoleFilter; sort?: 'name' | 'revenue' | 'last_activity'; expense_category_id?: number | null; tri_tag_id?: number | null; tri_stats?: boolean; billable?: boolean }) =>
     api
       .get<ClientListResponse>('/clients', {
         params: {
@@ -260,6 +266,7 @@ export const clientsApi = {
           expense_category_id: params?.expense_category_id || undefined,
           tri_tag_id: params?.tri_tag_id || undefined,
           tri_stats: params?.tri_stats ? 1 : undefined,
+          billable: params?.billable ? 1 : undefined,
           ...(params?.archived ? { 'filter[archived]': params.archived === 'all' ? 'all' : 1 } : {}),
         },
       })

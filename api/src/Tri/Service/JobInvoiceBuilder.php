@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MyInvoice\Tri\Service;
 
 use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Tri\Contact\BillingContactPublisher;
 use MyInvoice\Tri\MyUcto\InvoiceGateway;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
 use MyInvoice\Tri\MyUcto\ProjectGateway;
@@ -292,6 +293,8 @@ final class JobInvoiceBuilder
         if ($variant === null) {
             throw new \RuntimeException('Odsouhlasená varianta nenalezena.');
         }
+        (new BillingContactPublisher($this->api, $this->db->pdo(), $supplierId))
+            ->ensure((int) $job['customer_client_id']);
         $job = $this->projects($supplierId)->ensureProjectForJob($job);
         if ((int) ($job['myucto_project_id'] ?? 0) <= 0) {
             throw new \RuntimeException('Zakázku se nepodařilo napojit na projekt MyÚčta.');

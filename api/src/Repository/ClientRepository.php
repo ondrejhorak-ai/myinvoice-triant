@@ -84,10 +84,12 @@ final class ClientRepository
         if (!empty($filters['q'])) {
             // Escape % a _ wildcards aby uživatelský input nedělal slow-query DoS / nečekanou shodu
             $q = addcslashes((string) $filters['q'], '%_\\');
-            $where[] = '(c.company_name LIKE ? OR c.ic LIKE ? OR c.dic LIKE ?)';
+            $where[] = '(c.company_name LIKE ? OR c.ic LIKE ? OR c.dic LIKE ? OR c.main_email LIKE ? OR c.phone LIKE ?)';
             $params[] = '%' . $q . '%';
             $params[] = $q . '%';
             $params[] = $q . '%';
+            $params[] = '%' . $q . '%';
+            $params[] = '%' . $q . '%';
         }
         // Vendor-only filtr na výchozí kategorii nákladu. Aplikuje se na výpis + total,
         // NE na role_counts — tab badge má ukazovat plné součty rolí (jako u role filtru).
@@ -96,6 +98,9 @@ final class ClientRepository
         if (!empty($filters['expense_category_id'])) {
             $listWhere[] = 'c.default_expense_category_id = ?';
             $listParams[] = (int) $filters['expense_category_id'];
+        }
+        if (!empty($filters['billable'])) {
+            $listWhere[] = "c.party_kind IN ('company','private')";
         }
         if (!empty($filters['tri_tag_id'])) {
             $listWhere[] = 'EXISTS (SELECT 1 FROM tri_client_tags tct WHERE tct.client_id = c.id AND tct.tag_id = ?)';
@@ -299,9 +304,9 @@ final class ClientRepository
             // Národní daňové číslo (#120) — SK DIČ / DE Steuernummer / PL NIP / HU Adószám;
             // `dic` u takových klientů nese VAT ID s prefixem (u SK = IČ DPH).
             $this->nullable($data, 'tax_number'),
-            (string) $data['street'],
-            (string) $data['city'],
-            (string) $data['zip'],
+            $this->nullable($data, 'street'),
+            $this->nullable($data, 'city'),
+            $this->nullable($data, 'zip'),
             $countryId,
             $this->nullable($data, 'main_email'),
             $this->nullable($data, 'phone'),
@@ -488,9 +493,9 @@ final class ClientRepository
             $this->nullable($data, 'ic'),
             $this->nullable($data, 'dic'),
             $this->nullable($data, 'tax_number'),
-            (string) $data['street'],
-            (string) $data['city'],
-            (string) $data['zip'],
+            $this->nullable($data, 'street'),
+            $this->nullable($data, 'city'),
+            $this->nullable($data, 'zip'),
             $countryId,
             $this->nullable($data, 'main_email'),
             $this->nullable($data, 'phone'),
@@ -747,6 +752,12 @@ final class ClientRepository
         if (array_key_exists('tri_last_job_date', $row)) $row['tri_last_job_date'] = $row['tri_last_job_date'] ?: null;
         if (array_key_exists('myucto_id', $row)) {
             $row['myucto_id'] = $row['myucto_id'] !== null ? (int) $row['myucto_id'] : null;
+        }
+        if (array_key_exists('company_client_id', $row)) {
+            $row['company_client_id'] = $row['company_client_id'] !== null ? (int) $row['company_client_id'] : null;
+        }
+        if (array_key_exists('party_kind', $row) && ($row['party_kind'] === null || $row['party_kind'] === '')) {
+            $row['party_kind'] = 'company';
         }
         return $row;
     }

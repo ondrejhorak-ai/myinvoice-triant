@@ -292,6 +292,7 @@ html, body {
 .office-save-bar { position: sticky; bottom: 0; z-index: 10; background: var(--color-surface); border: 1px solid var(--color-neutral-200); padding: 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .office-role { display:inline-flex; font-size:11px; line-height:16px; border-radius:2px; padding:2px 6px; background:var(--color-role-customer-bg); color:var(--color-role-customer-fg); }
 .office-role[data-role=architect] { background:var(--color-role-architect-bg); color:var(--color-role-architect-fg); }
+.office-role[data-role=contact] { background:var(--color-neutral-100); color:var(--color-neutral-700); }
 .office-sidebar input { border-radius:0; min-height:40px; font-size:13px; }
 .office-sidebar .office-logo { width:145px; height:46px; object-fit:contain; }
 .dark .office-sidebar .office-logo { filter:invert(1); }

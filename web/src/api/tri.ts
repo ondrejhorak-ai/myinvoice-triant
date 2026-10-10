@@ -13,6 +13,9 @@ export interface TriTag {
 export interface TriJobContact {
   client_id: number
   sort_order: number
+  role?: 'customer' | 'architect' | 'contact'
+  party_kind?: 'company' | 'private' | 'person'
+  company_client_id?: number | null
   company_name: string
   first_name: string | null
   last_name: string | null
@@ -595,6 +598,8 @@ export const triApi = {
     unarchive: (id: number) => api.post(`/tri/contacts/${id}/unarchive`).then((r) => r.data),
     lookupAres: (ic: string) =>
       api.post('/tri/contacts/lookup-ares', { ic }).then((r) => r.data),
+    suggest: (params: { q?: string; email?: string; phone?: string; ic?: string; exclude_id?: number }) =>
+      api.get<{ data: Array<{ id: number; company_name: string; party_kind: string; main_email: string | null; phone: string | null; ic: string | null; match: 'ic' | 'email' | 'phone' | 'name' }> }>('/tri/contacts/suggest', { params }).then((r) => r.data),
   },
   myucto: {
     status: () => api.get<MyUctoSyncStatus>('/tri/admin/myucto').then((r) => r.data),

@@ -241,8 +241,12 @@ s předchozí prací, žádný automatický commit ani migrace.
   odvod `max(0, napočítáno − základ)`, rozdíl se uloží a kniha se nepřepíše.
   Číslo je ASCII `PR-RRRR-MM`. Opakovaný `client_token` vrátí existující řádek.
   Příloha je poznámka. Menu: Další agendy. Role readonly smí jen číst.
-- Částečná úhrada faktury a kontakt jen v Office do první faktury se
-  nemění: pořád celá úhrada a zápis kontaktu přes API MyÚčta.
+- Částečná úhrada faktury se nezadává. Kontakt žije v Office (migrace 9024):
+  odběratel je firma nebo soukromá osoba, kontaktní osoba je navázaná na firmu
+  a do MyÚčta se neposílá. Odběratel se do MyÚčta zapíše až s první zálohou nebo
+  fakturou. Potvrzení zakázky projekt nevyžaduje; projekt vznikne s dokladem.
+  Role osoby na zakázce jsou zákazník, architekt a kontakt. Jediné shodné IČO
+  se spojí samo, stejné jméno jen jako návrh.
 - Tlačítko `lg` je 44 px. Události kalendáře používají `.office-event-*`,
   souhrn pokladny `.office-stat`.
 - Datum v polích je české `dd. mm. rrrr` (sdílený `UiInput` typu date, locale `cs`).

@@ -44,13 +44,6 @@ final class UpdateJobStatusAction
         }
 
         $gw = new ProjectGateway($this->api, $this->db->pdo(), $supplierId);
-        if (in_array($status, ['confirmed', 'active'], true) && !empty($existing['customer_client_id'])) {
-            try {
-                $existing = $gw->ensureProjectForJob($existing);
-            } catch (MyUctoApiException $e) {
-                return \MyInvoice\Tri\Action\Invoice\InvoiceError::fromException($response, $e);
-            }
-        }
 
         if ((string) $existing['status'] !== $status) {
             if (!$this->repo->updateStatus($id, $supplierId, $status)) {

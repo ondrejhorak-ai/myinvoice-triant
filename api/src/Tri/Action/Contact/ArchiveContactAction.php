@@ -7,7 +7,8 @@ namespace MyInvoice\Tri\Action\Contact;
 use MyInvoice\Http\Json;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Repository\ClientRepository;
-use MyInvoice\Tri\MyUcto\ContactGateway;
+use MyInvoice\Tri\Contact\ContactValidationException;
+use MyInvoice\Tri\Contact\OfficeContactStore;
 use MyInvoice\Tri\MyUcto\MyUctoApiException;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
 use MyInvoice\Tri\Support\TriRequest;
@@ -28,12 +29,12 @@ final class ArchiveContactAction
         if ($supplierId === 0) {
             return Json::error($response, 'no_supplier', 'Chybí supplier kontext.', 400);
         }
-        $gw = new ContactGateway($this->api, $this->db->pdo(), $this->clients, $supplierId);
+        $store = new OfficeContactStore($this->db->pdo(), $this->clients, $supplierId, $this->api);
         $unarchive = str_ends_with($request->getUri()->getPath(), '/unarchive');
         try {
-            $row = $unarchive
-                ? $gw->unarchive((int) ($args['id'] ?? 0))
-                : $gw->archive((int) ($args['id'] ?? 0));
+            $row = $store->setArchived((int) ($args['id'] ?? 0), !$unarchive);
+        } catch (ContactValidationException $e) {
+            return Json::error($response, 'not_found', $e->getMessage(), 404);
         } catch (MyUctoApiException $e) {
             return ContactError::fromException($response, $e);
         }

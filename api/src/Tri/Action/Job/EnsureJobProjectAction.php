@@ -6,6 +6,7 @@ namespace MyInvoice\Tri\Action\Job;
 
 use MyInvoice\Http\Json;
 use MyInvoice\Infrastructure\Database\Connection;
+use MyInvoice\Tri\Contact\BillingContactPublisher;
 use MyInvoice\Tri\MyUcto\MyUctoApiException;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
 use MyInvoice\Tri\MyUcto\ProjectGateway;
@@ -33,6 +34,10 @@ final class EnsureJobProjectAction
             return Json::error($response, 'not_found', 'Zakázka nenalezena.', 404);
         }
         try {
+            $customerId = (int) ($job['customer_client_id'] ?? 0);
+            if ($customerId > 0) {
+                (new BillingContactPublisher($this->api, $this->db->pdo(), $supplierId))->ensure($customerId);
+            }
             $job = (new ProjectGateway($this->api, $this->db->pdo(), $supplierId))->ensureProjectForJob($job);
         } catch (MyUctoApiException $e) {
             return \MyInvoice\Tri\Action\Invoice\InvoiceError::fromException($response, $e);

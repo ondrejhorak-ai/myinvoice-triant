@@ -37,6 +37,7 @@ function contactSubtitle(c: TriJobContact): string | null {
         <li v-for="c in contacts" :key="c.client_id" class="flex flex-col gap-1 border border-neutral-200 p-4 text-[13px]">
           <div class="flex flex-wrap items-center gap-1.5">
             <span class="font-medium text-neutral-900">{{ contactName(c) }}</span>
+            <OfficeRoleTag :name="t('tri.jobs.role_' + (c.role || 'contact'))" :slug="c.role || 'contact'" />
             <OfficeRoleTag v-for="tag in c.tags" :key="tag.id" :name="tag.name" :slug="tag.slug" />
           </div>
           <span v-if="contactSubtitle(c)" class="text-xs text-neutral-500">{{ contactSubtitle(c) }}</span>

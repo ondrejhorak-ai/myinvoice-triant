@@ -156,7 +156,12 @@ final class ClientSync
         ]);
     }
 
-    /** @param list<int> $seenIds */
+    /**
+     * Archivuje jen karty, které už mají myucto_id. Lokální osoby a
+     * rozpracovaní odběratelé bez vazby zůstanou.
+     *
+     * @param list<int> $seenIds
+     */
     private function archiveMissing(array $seenIds): void
     {
         $local = $this->pdo->query('SELECT myucto_id FROM clients WHERE myucto_id IS NOT NULL AND archived_at IS NULL')
