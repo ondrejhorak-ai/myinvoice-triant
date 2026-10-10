@@ -118,12 +118,14 @@ const ICONS = {
   tri_travelers: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
   tri_calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
   tri_complaints: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z',
+  tri_cash: 'M3 7.5A2.5 2.5 0 0 1 5.5 5H16M3 7.5V16a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H5M16 13h2',
 }
 
 const navIconNames: Record<string, string> = {
   'tri-overview': 'overview', 'tri-jobs': 'jobs', 'tri-invoices': 'invoices',
   'tri-contacts': 'contacts', 'tri-price-lists': 'price-lists', settings: 'settings',
   'tri-travelers': 'travelers', 'tri-calendar': 'calendar', 'tri-complaints': 'complaints',
+  'tri-cash': 'cash',
   codebooks: 'codebooks', users: 'users', emails: 'emails', 'activity-log': 'log',
   'cron-jobs': 'cron', 'api-tokens': 'tokens', 'tri-tags': 'tags', 'tri-myucto': 'myucto',
   'electronic-signatures': 'system',
@@ -139,6 +141,7 @@ const navSections = computed<NavSection[]>(() => {
         { moduleId: 'tri-jobs', to: '/tri/jobs', label: t('nav.tri_jobs'), icon: ICONS.tri_jobs, newTo: '/tri/jobs/new' },
         { moduleId: 'tri-contacts', to: '/tri/contacts', label: t('nav.tri_contacts'), icon: ICONS.clients, newTo: '/tri/contacts/new' },
         { moduleId: 'tri-invoices', to: '/tri/invoices', label: t('nav.tri_invoices'), icon: ICONS.invoices, newTo: '/tri/invoices/new' },
+        { moduleId: 'tri-cash', to: '/tri/cash', label: t('nav.tri_cash'), icon: ICONS.tri_cash },
         { moduleId: 'tri-price-lists', to: '/tri/price-lists', label: t('nav.tri_price_lists'), icon: ICONS.tri_price_lists, newTo: '/tri/price-lists/new' },
         { moduleId: 'tri-travelers', to: '/tri/travelers', label: t('nav.tri_travelers'), icon: ICONS.tri_travelers },
         { moduleId: 'tri-calendar', to: '/tri/calendar', label: t('nav.tri_calendar'), icon: ICONS.tri_calendar },

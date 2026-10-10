@@ -21,6 +21,7 @@ final class TriSidebarSettingsAction
         'tri-jobs',
         'tri-price-lists',
         'tri-invoices',
+        'tri-cash',
         'tri-travelers',
         'tri-calendar',
         'tri-complaints',

@@ -81,6 +81,7 @@ nasazuje). Zbytek je psaný pro běžného uživatele — bez programátorského
 43. [Průvodky](43_Pruvodky.md)
 44. [Kalendář](44_Kalendar.md)
 45. [Reklamace](45_Reklamace.md)
+46. [Pokladna](46_Pokladna.md)
 
 ### Reference
 

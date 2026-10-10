@@ -219,3 +219,27 @@ synteticky podložené, kontakty/zakázky/faktury používají skutečné read-o
 Nasazeno 2026-09-22 přes up.sh, potvrzující běh exit 0, health status ok/db true.
 Manuál HTML i PDF regenerován. Změny zůstávají v pracovním stromu společně
 s předchozí prací, žádný automatický commit ani migrace.
+
+## Říjen 2026 — vrstvy, Prodejna, pokladna
+
+Živá Figma (stránky reorganizované 10. 10. 2026) je zdroj. Přepis ze
+21. 9. 2026 ho v těchto bodech nepřebíjí.
+
+- Kalendář načítá všechny vrstvy najednou (`calendar` může chybět). Vrstvy
+  se vypínají v liště. Týden kreslí vícedenní pruh, měsíc ukáže dvě události
+  a zbytek přes **Další**. Nová událost začíná výběrem vrstvy. Popisek
+  `shifts` je „Služby na prodejně“; nová služba z UI je celodenní. Více
+  pracovníků na jedné události a okno příjezdu ve schématu nejsou.
+- Prodejna je pohled na `/tri/invoices` (`view=counter`, `filter[prodejna]=1`):
+  zaplacená faktura bez zakázky. Záloha a dobropis v pohledu nejsou. Vstup
+  smaže filtr stavu, typu, nezaplaceno, po splatnosti a zakázky. Není to
+  nová databáze prodeje ani položka menu.
+- Pokladna je lokální kniha `tri_cash_movements` / `tri_cash_handovers`
+  (migrace 9022). Hotovost mění zásuvku, karta ne. Předání: základ 5 000 Kč,
+  odvod `max(0, napočítáno − základ)`, rozdíl se uloží a kniha se nepřepíše.
+  Číslo je ASCII `PR-RRRR-MM`. Opakovaný `client_token` vrátí existující řádek.
+  Příloha je poznámka. Menu: Další agendy. Role readonly smí jen číst.
+- Částečná úhrada faktury a kontakt jen v Office do první faktury se
+  nemění: pořád celá úhrada a zápis kontaktu přes API MyÚčta.
+- Tlačítko `lg` je 44 px. Události kalendáře používají `.office-event-*`,
+  souhrn pokladny `.office-stat`.
