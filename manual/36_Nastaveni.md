@@ -68,7 +68,7 @@ měny.
 | Decimals | Počet desetinných míst (2 typicky) |
 | Aktivní | Vypnutá měna nelze pro nové faktury |
 | Default pro kód | Pokud máš víc účtů per měna (např. 2× CZK), který je default |
-| **Účet** (CZK) | Číslo účtu (např. `1000000005`) + bank kód (`0100`) + název banky |
+| **Účet** (CZK) | Číslo účtu (např. `1000000005`) + bank kód (`0100`) + název banky. Doklad ho bere z nastavení měny, ne z pevného textu v šabloně. |
 | **Účet** (EUR) | IBAN + BIC + název banky |
 
 > ⚠️ Po **změně bankovního účtu** se **automaticky invaliduje PDF cache**

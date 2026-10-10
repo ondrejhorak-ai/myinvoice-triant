@@ -346,7 +346,7 @@ onBeforeUnmount(() => { if (searchTimeout) clearTimeout(searchTimeout) })
           <td class="px-4"><RouterLink v-if="inv.tri_job_id" :to="`/tri/jobs/${inv.tri_job_id}`" class="text-primary-700" @click.stop>{{ inv.tri_job_number }}</RouterLink><span v-else>—</span></td>
           <td class="px-4">{{ typeLabel(inv.invoice_type) }}</td><td class="px-4 whitespace-nowrap">{{ formatDate(inv.issue_date) }}</td><td class="px-4 whitespace-nowrap" :class="isOverdue(inv.due_date, inv.status) ? 'text-danger-600' : ''">{{ formatDate(inv.due_date) }}</td>
           <td class="px-4"><UiBadge :variant="inv.status === 'paid' ? 'paid' : inv.status === 'reminded' ? 'warning' : inv.status === 'cancelled' ? 'danger' : inv.status === 'draft' ? 'draft' : 'primary'">{{ statusLabel(inv.status) }}</UiBadge></td>
-          <td class="px-4 text-right font-semibold whitespace-nowrap">{{ formatMoney(inv.amount_to_pay ?? inv.total_with_vat, inv.currency) }}</td>
+          <td class="px-4 text-right font-semibold whitespace-nowrap">{{ formatMoney(inv.invoice_type === 'tax_document' ? inv.total_with_vat : (inv.amount_to_pay ?? inv.total_with_vat), inv.currency) }}</td>
         </tr></tbody>
       </table></div>
     </section>

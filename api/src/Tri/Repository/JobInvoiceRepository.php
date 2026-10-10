@@ -50,10 +50,17 @@ final class JobInvoiceRepository
     {
         $jobStmt = $this->db->pdo()->prepare(
             'SELECT j.approved_variant_id, j.myucto_project_id,
-                    v.total_with_vat AS variant_total_with_vat,
-                    v.subtotal AS variant_subtotal
+                    COALESCE(approved.total_with_vat, fallback.total_with_vat) AS variant_total_with_vat,
+                    COALESCE(approved.subtotal, fallback.subtotal) AS variant_subtotal
                FROM tri_jobs j
-          LEFT JOIN tri_quote_variants v ON v.id = j.approved_variant_id
+          LEFT JOIN tri_quote_variants approved ON approved.id = j.approved_variant_id
+          LEFT JOIN tri_quote_variants fallback ON fallback.id = (
+                    SELECT v2.id
+                      FROM tri_quote_variants v2
+                     WHERE v2.job_id = j.id
+                  ORDER BY v2.total_with_vat DESC, v2.id DESC
+                     LIMIT 1
+               )
               WHERE j.id = ? AND j.supplier_id = ?'
         );
         $jobStmt->execute([$jobId, $supplierId]);

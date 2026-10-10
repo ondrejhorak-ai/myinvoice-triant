@@ -249,6 +249,14 @@ s předchozí prací, žádný automatický commit ani migrace.
   se spojí samo, stejné jméno jen jako návrh.
 - Tlačítko `lg` je 44 px. Události kalendáře používají `.office-event-*`,
   souhrn pokladny `.office-stat`.
+- Úhrada zálohy sama nezakládá daňový doklad k přijaté platbě. Vznikne jen
+  tlačítkem **Vystavit fakturu k záloze** a nese částku a DPH zálohy. Prázdný
+  účet CZK v nastavení doplní migrace 9025 cvičným účtem; doklad ho čte odtud,
+  a když má MyÚčto vlastní snapshot, ukáže ten.
+- Osoba na zakázce s firemním odběratelem se nabídne k navázání (výchozí
+  zapnuto) a jde ji přidat z karty firmy. Pohyb pokladny se upraví nebo smaže,
+  dokud není v předání. Vypnutá záloha říká, že varianta není schválená.
+  Cena varianty bere i neschválenou variantu s cenou. Reklamaci jde smazat.
 - Datum v polích je české `dd. mm. rrrr` (sdílený `UiInput` typu date, locale `cs`).
   Výběr má vlastní šipku, ne nativní šipku prohlížeče. Nová faktura má vpravo
   stav **Koncept**, sloupce **Klient a doklad** a **Data a číslování**, box

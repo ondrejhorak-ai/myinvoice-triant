@@ -27,12 +27,19 @@ const lists = ref<PriceList[]>([]),
   loading = ref(false),
   error = ref(''),
   listId = ref('')
-const filtered = computed(
-  () =>
-    chosen.value?.items.filter((i) =>
-      `${i.code} ${i.title}`.toLowerCase().includes(q.value.toLowerCase()),
-    ) ?? [],
-)
+const filtered = computed(() => {
+  const seen = new Set<number>()
+  return (chosen.value?.items ?? []).filter((i) => {
+    const id = Number(i.product_id)
+    if (seen.has(id)) return false
+    seen.add(id)
+    return `${i.code} ${i.title}`.toLowerCase().includes(q.value.toLowerCase())
+  })
+})
+function listLabel(l: PriceList): string {
+  const same = lists.value.filter((item) => item.name === l.name).length
+  return same > 1 ? `${l.name} · #${l.id}` : `${l.name} · ${l.currency}`
+}
 async function choose() {
   if (!listId.value) return
   loading.value = true
@@ -123,7 +130,7 @@ function insert() {
         >
           <option value="">{{ t('common.select') }}</option>
           <option v-for="l in lists" :key="l.id" :value="l.id">
-            {{ l.name }} · {{ l.currency }}
+            {{ listLabel(l) }}
           </option>
         </UiSelect><UiInput
           v-model="date"

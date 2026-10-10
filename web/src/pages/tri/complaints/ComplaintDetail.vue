@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { triApi, type TriComplaint, type TriComplaintComment } from '@/api/tri'
 import { apiErrorMessage } from '@/api/errors'
@@ -15,12 +15,14 @@ import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const auth = useAuthStore()
 const id = computed(() => Number(route.params.id))
 const item = ref<TriComplaint | null>(null)
 const loading = ref(true)
 const saving = ref(false)
+const deleting = ref(false)
 const statusBusy = ref(false)
 const titleDraft = ref('')
 const descriptionDraft = ref('')
@@ -72,6 +74,21 @@ async function load() {
     toast.error(apiErrorMessage(e, t('common.error')))
   } finally {
     loading.value = false
+  }
+}
+
+async function removeComplaint() {
+  if (!item.value || deleting.value) return
+  if (!confirm(t('tri.complaints.delete_confirm'))) return
+  deleting.value = true
+  try {
+    await triApi.complaints.delete(item.value.id)
+    toast.success(t('tri.complaints.deleted'))
+    await router.push({ name: 'tri-job-detail', params: { id: item.value.job_id } })
+  } catch (e) {
+    toast.error(apiErrorMessage(e, t('common.error')))
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -215,6 +232,9 @@ onUnmounted(() => {
         </UiButton>
         <UiButton v-else-if="auth.canWrite" variant="outline" size="sm" :loading="statusBusy" @click="setStatus('open')">
           {{ t('tri.complaints.reopen') }}
+        </UiButton>
+        <UiButton v-if="auth.canWrite" variant="danger" size="sm" :loading="deleting" @click="removeComplaint">
+          {{ t('tri.complaints.delete') }}
         </UiButton>
         <UiButton variant="secondary" size="sm" :to="{ name: 'tri-complaints' }">
           {{ t('tri.complaints.back_to_list') }}

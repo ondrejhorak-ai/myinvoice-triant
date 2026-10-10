@@ -175,10 +175,14 @@ final class MyUctoClient
         return $this->json('POST', '/api/v1/invoices/' . $id . '/issue');
     }
 
-    /** Daňový doklad ze zaplacené zálohy (proforma → invoice, vrací NOVÝ doklad). */
-    public function issueFinal(int $id): array
+    /**
+     * Ruční vyúčtování zálohy. Tělo může nést tax_date a due_date.
+     *
+     * @param array<string, mixed> $body
+     */
+    public function issueFinal(int $id, array $body = []): array
     {
-        return $this->json('POST', '/api/v1/invoices/' . $id . '/issue-final');
+        return $this->json('POST', '/api/v1/invoices/' . $id . '/issue-final', $body === [] ? null : $body);
     }
 
     public function getRecipients(int $id): array

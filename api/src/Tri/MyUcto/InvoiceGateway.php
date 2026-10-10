@@ -310,7 +310,7 @@ final class InvoiceGateway
         $out['items'] = $mapped;
 
         $type = (string) ($body['invoice_type'] ?? ($current['invoice_type'] ?? 'invoice'));
-        if (!in_array($type, ['invoice', 'proforma', 'credit_note', 'payment_calendar'], true)) {
+        if (!in_array($type, ['invoice', 'proforma', 'credit_note', 'payment_calendar', 'tax_document'], true)) {
             $type = 'invoice';
         }
         $out['invoice_type'] = $type;
@@ -380,6 +380,7 @@ final class InvoiceGateway
         $job = $this->jobForProject((int) ($remote['project_id'] ?? 0), $id);
         $currencyCode = strtoupper((string) ($remote['currency'] ?? 'CZK'));
         $currencyId = $this->currencyIdByCode($currencyCode);
+        $bank = $this->bankDetails($remote, $currencyCode);
         $issueDate = $this->dateOnly($remote['issue_date'] ?? null) ?? date('Y-m-d');
 
         $presentedItems = [];
@@ -449,6 +450,11 @@ final class InvoiceGateway
             'advance_paid_amount' => (float) ($remote['advance_paid_amount'] ?? 0),
             'discount_percent' => 0,
             'payment_method' => 'bank_transfer',
+            'bank_account_number' => $bank['account_number'],
+            'bank_code' => $bank['bank_code'],
+            'bank_name' => $bank['bank_name'],
+            'bank_iban' => $bank['iban'],
+            'bank_bic' => $bank['bic'],
             'auto_send_reminders' => false,
             'amount_to_pay' => $amountToPay,
             'paid_total' => $paidTotal,
@@ -743,7 +749,11 @@ final class InvoiceGateway
      */
     public function issueFinal(int $id): array
     {
-        return $this->mutate($id, fn () => $this->api->issueFinal($id), false);
+        $proforma = $this->requireRemote($id);
+        $dates = AdvanceSettlement::dates($proforma);
+        $presented = $this->mutate($id, fn () => $this->api->issueFinal($id, $dates), false);
+
+        return $this->fillEmptyFinal($proforma, $presented);
     }
 
     /** @return array<string, mixed> */
@@ -805,11 +815,20 @@ final class InvoiceGateway
         }
         // Odpověď mark-paid bývá zkrácená; list-sync by pak mohl přepsat unpaid.
         // Vždy načti detail, ať mirror drží paid_at / payment_status.
-        return $this->mutate($id, function () use ($id, $payload) {
+        $presented = $this->mutate($id, function () use ($id, $payload) {
             $this->api->markPaid($id, $payload);
 
             return $this->api->getInvoice($id);
         }, true);
+        // MyÚčto umí k úhradě zálohy samo založit koncept daňového dokladu.
+        // Tady se nezakládá: vzniká jen ručně přes „Vystavit fakturu k záloze“.
+        try {
+            $this->discardAutoTaxDocuments($id, $presented);
+        } catch (MyUctoApiException) {
+            // Úhrada už proběhla. Nezdařený úklid konceptu ji nesmí vrátit.
+        }
+
+        return $presented;
     }
 
     public function unmarkPaid(int $id): array
@@ -923,5 +942,150 @@ final class InvoiceGateway
         if ($e->isUnavailable() || $e->errorCode === 'network') {
             throw new MyUctoApiException('network', 'MyÚčto nedostupné', 503, $e, $e->details);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $proforma
+     * @param array<string, mixed> $presented
+     * @return array<string, mixed>
+     */
+    private function fillEmptyFinal(array $proforma, array $presented): array
+    {
+        if (!AdvanceSettlement::needsAmountRepair($presented)) {
+            return $presented;
+        }
+        $lines = AdvanceSettlement::linesFromProforma($proforma);
+        if ($lines === []) {
+            return $presented;
+        }
+        $id = (int) ($presented['id'] ?? 0);
+        if ($id <= 0 || (string) ($presented['status'] ?? '') !== 'draft') {
+            return $presented;
+        }
+        $clientId = (int) ($presented['client_id'] ?? 0);
+        if ($clientId <= 0) {
+            return $presented;
+        }
+
+        return $this->updateDraft($id, [
+            'client_id' => $clientId,
+            'invoice_type' => 'invoice',
+            'items' => $lines,
+            'issue_date' => $presented['issue_date'] ?? null,
+            'tax_date' => $presented['tax_date'] ?? null,
+            'due_date' => $presented['due_date'] ?? null,
+            'advance_paid_amount' => (float) ($presented['advance_paid_amount'] ?? ($proforma['total_with_vat'] ?? 0)),
+        ]);
+    }
+
+    /** @param array<string, mixed> $proforma */
+    private function discardAutoTaxDocuments(int $proformaId, array $proforma): void
+    {
+        $filter = ['status' => 'draft', 'type' => 'tax_document'];
+        $projectId = (int) ($proforma['project_id'] ?? 0);
+        if ($projectId > 0) {
+            $filter['project_id'] = $projectId;
+        }
+        $payload = $this->api->listInvoices([
+            'per_page' => 50,
+            'page' => 1,
+            'filter' => $filter,
+        ]);
+        foreach (InvoiceSync::flattenGroups(ApiPage::items($payload)) as $row) {
+            if ((string) ($row['invoice_type'] ?? '') !== 'tax_document') {
+                continue;
+            }
+            if ((string) ($row['status'] ?? 'draft') !== 'draft') {
+                continue;
+            }
+            $childId = (int) ($row['id'] ?? 0);
+            if ($childId <= 0 || $childId === $proformaId) {
+                continue;
+            }
+            $parentId = isset($row['parent_invoice_id']) ? (int) $row['parent_invoice_id'] : 0;
+            if ($parentId === 0) {
+                $detail = ContactGateway::unwrap($this->api->getInvoice($childId));
+                if ((string) ($detail['status'] ?? '') !== 'draft') {
+                    continue;
+                }
+                if ((string) ($detail['invoice_type'] ?? '') !== 'tax_document') {
+                    continue;
+                }
+                $parentId = (int) ($detail['parent_invoice_id'] ?? 0);
+            }
+            if ($parentId !== $proformaId) {
+                continue;
+            }
+            $this->api->deleteInvoice($childId);
+            $now = (new MirrorWriter($this->pdo))->now();
+            $this->pdo->prepare('UPDATE mu_invoices SET deleted_at = ?, mu_synced_at = ? WHERE id = ?')
+                ->execute([$now, $now, $childId]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $remote
+     * @return array{account_number: ?string, bank_code: ?string, bank_name: ?string, iban: ?string, bic: ?string}
+     */
+    private function bankDetails(array $remote, string $currency): array
+    {
+        $remoteBank = [
+            'account_number' => self::textOrNull($remote['bank_account_number'] ?? null),
+            'bank_code' => self::textOrNull($remote['bank_code'] ?? null),
+            'bank_name' => self::textOrNull($remote['bank_name'] ?? null),
+            'iban' => self::textOrNull($remote['bank_iban'] ?? ($remote['iban'] ?? null)),
+            'bic' => self::textOrNull($remote['bank_bic'] ?? ($remote['bic'] ?? null)),
+        ];
+        if ($remoteBank['account_number'] !== null || $remoteBank['iban'] !== null) {
+            return $remoteBank;
+        }
+        $local = $this->officeBank($currency);
+
+        return $local ?? $remoteBank;
+    }
+
+    /**
+     * @return array{account_number: ?string, bank_code: ?string, bank_name: ?string, iban: ?string, bic: ?string}|null
+     */
+    private function officeBank(string $currency): ?array
+    {
+        try {
+            $stmt = $this->pdo->prepare(
+                'SELECT account_number, bank_code, bank_name, iban, bic
+                   FROM currencies
+                  WHERE code = ? AND supplier_id = ?
+                  LIMIT 1'
+            );
+            $stmt->execute([$currency, $this->supplierId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (\PDOException) {
+            return null;
+        }
+        if (!is_array($row)) {
+            return null;
+        }
+        $account = self::textOrNull($row['account_number'] ?? null);
+        $iban = self::textOrNull($row['iban'] ?? null);
+        if ($account === null && $iban === null) {
+            return null;
+        }
+
+        return [
+            'account_number' => $account,
+            'bank_code' => self::textOrNull($row['bank_code'] ?? null),
+            'bank_name' => self::textOrNull($row['bank_name'] ?? null),
+            'iban' => $iban,
+            'bic' => self::textOrNull($row['bic'] ?? null),
+        ];
+    }
+
+    private static function textOrNull(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $text = trim((string) $value);
+
+        return $text === '' ? null : $text;
     }
 }

@@ -57,6 +57,12 @@ const linkBusy = ref(false)
 const projectBusy = ref(false)
 
 const canInvoice = computed(() => !!job.value?.approved_variant_id && !!job.value?.customer_client_id)
+const invoiceBlockedReason = computed(() => {
+  if (!job.value || canInvoice.value) return ''
+  if (!job.value.approved_variant_id) return t('tri.invoices.need_approved_variant')
+  if (!job.value.customer_client_id) return t('tri.invoices.need_billing_customer')
+  return ''
+})
 const canGenerateTravelers = computed(() =>
   !!job.value?.approved_variant_id
   && (job.value?.status === 'confirmed' || job.value?.status === 'completed'),
@@ -403,8 +409,11 @@ onMounted(() => load())
     <UiCard>
       <div class="px-5 py-3 border-b border-neutral-200 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <h3 class="font-semibold text-neutral-900">{{ t('tri.invoices.section_title') }}</h3>
-        <div v-if="auth.canWrite" class="flex gap-2 items-center">
-          <UiButton size="sm" :disabled="!canInvoice" @click="openAdvanceModal">{{t('tri.invoices.create_advance')}}</UiButton>
+        <div v-if="auth.canWrite" class="flex flex-wrap gap-2 items-center">
+          <span :title="invoiceBlockedReason || undefined">
+            <UiButton size="sm" :disabled="!canInvoice" @click="openAdvanceModal">{{t('tri.invoices.create_advance')}}</UiButton>
+          </span>
+          <p v-if="invoiceBlockedReason" class="text-xs text-neutral-500">{{ invoiceBlockedReason }}</p>
           <OfficeMenu><button :disabled="!canInvoice" @click="createFinal">{{t('tri.invoices.create_final')}}</button><button :disabled="!canInvoice" @click="openLinkModal">{{t('tri.invoices.link_existing')}}</button><button :disabled="invoicesLoading" @click="refreshInvoices">{{t('tri.invoices.refresh_from_myucto')}}</button><button v-if="!job.myucto_project_id" :disabled="projectBusy" @click="ensureProject">{{t('tri.invoices.sync_project')}}</button></OfficeMenu>
         </div>
       </div>

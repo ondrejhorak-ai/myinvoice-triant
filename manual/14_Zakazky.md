@@ -67,8 +67,15 @@ Nadcházející expedice a výroba odkazují do [kalendáře](44_Kalendar.md).
 [Reklamace](45_Reklamace.md) mají samostatnou agendu i vazbu na zakázku.
 
 Sekce faktur ukazuje částky a doklady navázané přes MyÚčto. Další akce jsou
-v menu **…**. Nabídka musí být schválená, aby bylo možné vytvořit navazující
-zálohovou nebo konečnou fakturu. Účetní evidenci spravuje MyÚčto přes API.
+v menu **…**. Nabídka musí být schválená a zakázka musí mít odběratele, aby
+šlo vytvořit zálohovou nebo konečnou fakturu. Když tlačítko **Vystavit zálohovou
+fakturu** nejde stisknout, vedle něj je důvod (varianta není schválená, nebo
+chybí odběratel). **Cena varianty** bere schválenou variantu; dokud žádná
+schválená není, ukáže nejdražší rozpracovanou. Účetní evidenci spravuje MyÚčto
+přes API.
+
+Osoba přidaná na zakázce, jejíž odběratel je firma, se nabídne k navázání na
+tu firmu. Zaškrtnutí je zapnuté. Stejnou osobu jde přidat i z karty firmy.
 
 
 ### Použité filtry

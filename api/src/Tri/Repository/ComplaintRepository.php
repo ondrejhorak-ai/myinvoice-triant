@@ -94,6 +94,17 @@ final class ComplaintRepository
         return $this->find($id, $supplierId);
     }
 
+    public function delete(int $id, int $supplierId): bool
+    {
+        if ($this->find($id, $supplierId) === null) {
+            return false;
+        }
+        $stmt = $this->db->pdo()->prepare('DELETE FROM tri_complaints WHERE id = ?');
+        $stmt->execute([$id]);
+
+        return $stmt->rowCount() > 0;
+    }
+
     /**
      * @param array{status: string, closed_at: ?string} $data
      * @return array<string, mixed>|null

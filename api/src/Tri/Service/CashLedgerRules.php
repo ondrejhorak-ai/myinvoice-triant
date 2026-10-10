@@ -120,6 +120,13 @@ final class CashLedgerRules
         return $value;
     }
 
+    public static function assertMutable(?int $handoverId, string $kind): void
+    {
+        if ($handoverId !== null || $kind === 'remittance') {
+            throw new \InvalidArgumentException('HANDED_OVER');
+        }
+    }
+
     public static function token(mixed $value): ?string
     {
         $token = trim((string) ($value ?? ''));

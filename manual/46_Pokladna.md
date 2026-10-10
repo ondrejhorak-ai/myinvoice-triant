@@ -19,6 +19,9 @@ se nenahrává. Stejné uložení se nezdvojí, když ho prohlížeč pošle zno
 Seznam filtruješ podle druhu a podle toho, jestli už byl pohyb předaný.
 Další řádky načte **Další**.
 
+Pohyb, který ještě není v žádném předání, jde **upravit** nebo **smazat**.
+Po předání je řádek zamčený, včetně odvodu hotovosti.
+
 ## 46.2 Předání účetní
 
 **Předání účetní** spočítá hotovost v zásuvce a porovná ji s evidencí.

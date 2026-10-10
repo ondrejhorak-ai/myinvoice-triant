@@ -132,6 +132,54 @@ final class CashLedgerRepository
         return $this->findMovement((int) $this->db->pdo()->lastInsertId(), $supplierId) ?? [];
     }
 
+    /** @param array<string, mixed> $data */
+    public function updateMovement(int $id, int $supplierId, array $data): array
+    {
+        $current = $this->findMovement($id, $supplierId);
+        if ($current === null) {
+            throw new \InvalidArgumentException('NOT_FOUND');
+        }
+        CashLedgerRules::assertMutable($current['handover_id'], (string) $current['kind']);
+        $stmt = $this->db->pdo()->prepare(
+            'UPDATE tri_cash_movements
+                SET kind = ?, amount = ?, occurred_on = ?, description = ?, note = ?
+              WHERE id = ? AND supplier_id = ? AND handover_id IS NULL AND kind <> \'remittance\''
+        );
+        $stmt->execute([
+            $data['kind'],
+            $data['amount'],
+            $data['occurred_on'],
+            $data['description'],
+            $data['note'],
+            $id,
+            $supplierId,
+        ]);
+        $updated = $this->findMovement($id, $supplierId);
+        if ($updated === null) {
+            throw new \InvalidArgumentException('NOT_FOUND');
+        }
+        CashLedgerRules::assertMutable($updated['handover_id'], (string) $updated['kind']);
+
+        return $updated;
+    }
+
+    public function deleteMovement(int $id, int $supplierId): void
+    {
+        $current = $this->findMovement($id, $supplierId);
+        if ($current === null) {
+            throw new \InvalidArgumentException('NOT_FOUND');
+        }
+        CashLedgerRules::assertMutable($current['handover_id'], (string) $current['kind']);
+        $stmt = $this->db->pdo()->prepare(
+            'DELETE FROM tri_cash_movements
+              WHERE id = ? AND supplier_id = ? AND handover_id IS NULL AND kind <> \'remittance\''
+        );
+        $stmt->execute([$id, $supplierId]);
+        if ($stmt->rowCount() === 0 && $this->findMovement($id, $supplierId) !== null) {
+            throw new \InvalidArgumentException('HANDED_OVER');
+        }
+    }
+
     /** @param array<string, mixed> $input */
     public function previewHandover(int $supplierId, array $input): array
     {

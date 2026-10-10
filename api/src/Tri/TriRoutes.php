@@ -59,8 +59,10 @@ use MyInvoice\Tri\Action\PriceList\UpdatePriceListAction;
 use MyInvoice\Tri\Action\PriceList\UploadPriceListImageAction;
 use MyInvoice\Tri\Action\Cash\CreateCashHandoverAction;
 use MyInvoice\Tri\Action\Cash\CreateCashMovementAction;
+use MyInvoice\Tri\Action\Cash\DeleteCashMovementAction;
 use MyInvoice\Tri\Action\Cash\ListCashAction;
 use MyInvoice\Tri\Action\Cash\PreviewCashHandoverAction;
+use MyInvoice\Tri\Action\Cash\UpdateCashMovementAction;
 use MyInvoice\Tri\Action\Calendar\CreateCalendarEventAction;
 use MyInvoice\Tri\Action\Calendar\DeleteCalendarEventAction;
 use MyInvoice\Tri\Action\Calendar\GetCalendarEventAction;
@@ -69,6 +71,7 @@ use MyInvoice\Tri\Action\Calendar\ListJobCalendarEventsAction;
 use MyInvoice\Tri\Action\Calendar\UpdateCalendarEventAction;
 use MyInvoice\Tri\Action\Complaint\CreateComplaintAction;
 use MyInvoice\Tri\Action\Complaint\CreateComplaintCommentAction;
+use MyInvoice\Tri\Action\Complaint\DeleteComplaintAction;
 use MyInvoice\Tri\Action\Complaint\DeleteComplaintCommentAction;
 use MyInvoice\Tri\Action\Complaint\GetComplaintAction;
 use MyInvoice\Tri\Action\Complaint\ListComplaintsAction;
@@ -212,6 +215,8 @@ final class TriRoutes
         // Cash desk (Pokladna)
         $app->get('/api/tri/cash', ListCashAction::class);
         $app->post('/api/tri/cash/movements', CreateCashMovementAction::class);
+        $app->put('/api/tri/cash/movements/{id:[0-9]+}', UpdateCashMovementAction::class);
+        $app->delete('/api/tri/cash/movements/{id:[0-9]+}', DeleteCashMovementAction::class);
         $app->get('/api/tri/cash/handover-preview', PreviewCashHandoverAction::class);
         $app->post('/api/tri/cash/handovers', CreateCashHandoverAction::class);
 
@@ -228,6 +233,7 @@ final class TriRoutes
         $app->post('/api/tri/complaints', CreateComplaintAction::class);
         $app->get('/api/tri/complaints/{id:[0-9]+}', GetComplaintAction::class);
         $app->put('/api/tri/complaints/{id:[0-9]+}', UpdateComplaintAction::class);
+        $app->delete('/api/tri/complaints/{id:[0-9]+}', DeleteComplaintAction::class);
         $app->post('/api/tri/complaints/{id:[0-9]+}/status', UpdateComplaintStatusAction::class);
         $app->post('/api/tri/complaints/{id:[0-9]+}/comments', CreateComplaintCommentAction::class);
         $app->put('/api/tri/complaint-comments/{id:[0-9]+}', UpdateComplaintCommentAction::class);

@@ -17,7 +17,7 @@ Stejné založení je i z detailu zakázky (sekce Reklamace).
 
 Vlevo jsou název, popis a stav, vpravo **chat reklamace** (komentáře jen
 k této reklamaci). Komentář může autor upravit nebo smazat; administrátor
-může smazat i cizí.
+může smazat i cizí. Celou reklamaci smaže **Smazat reklamaci**.
 
 | Stav | Význam |
 |---|---|

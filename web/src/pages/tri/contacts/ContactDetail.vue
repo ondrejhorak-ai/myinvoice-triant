@@ -16,6 +16,7 @@ import ClientTagEditor from '@/components/tri/ClientTagEditor.vue'
 import ClientIncompleteBanner from '@/components/clients/ClientIncompleteBanner.vue'
 
 import UiButton from '@/components/ui/UiButton.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
@@ -51,6 +52,10 @@ const invoicesPage = ref(1)
 const invoicesPages = ref(1)
 
 const error = ref('')
+const personName = ref('')
+const personEmail = ref('')
+const personPhone = ref('')
+const personSaving = ref(false)
 const rolesOpen = ref(false)
 const tags = ref<TriTag[]>([])
 const { items: jobs, load: loadJobs, page: jobsPage, pages: jobsPages, loadingMore: jobsMore, error: jobsError } = usePagedRows<TriJob>(page => triApi.jobs.list({client_id: Number(route.params.id),page,per_page:25}))
@@ -132,6 +137,42 @@ async function unarchive() {
 }
 
 watch(() => route.params.id, () => load())
+
+async function addPerson() {
+  if (!client.value || client.value.party_kind !== 'company') return
+  const name = personName.value.trim()
+  const email = personEmail.value.trim()
+  if (!name || !email) {
+    error.value = t('tri.jobs.person_required')
+    return
+  }
+  personSaving.value = true
+  error.value = ''
+  try {
+    await triApi.contacts.create({
+      party_kind: 'person',
+      company_name: name,
+      main_email: email,
+      phone: personPhone.value.trim() || null,
+      company_client_id: client.value.id,
+      is_customer: false,
+      is_vendor: false,
+    })
+    personName.value = ''
+    personEmail.value = ''
+    personPhone.value = ''
+    await load()
+  } catch (e) {
+    error.value = apiErrorMessage(e, t('common.error'))
+  } finally {
+    personSaving.value = false
+  }
+}
+
+function listedAmount(inv: InvoiceListItem): number {
+  if (inv.invoice_type === 'tax_document') return inv.total_with_vat
+  return inv.amount_to_pay ?? inv.total_with_vat
+}
 </script>
 
 <template>
@@ -147,9 +188,26 @@ watch(() => route.params.id, () => load())
       </UiCard>
       <UiCard padding><h2 class="mb-5">{{ t('office.billing_settings') }}</h2><dl class="space-y-4"><div class="flex justify-between gap-4"><dt>{{ t('client.language_label') }}</dt><dd>{{ client.language?.toUpperCase() || '—' }}</dd></div><div class="flex justify-between gap-4"><dt>{{ t('common.currency') }}</dt><dd>{{ client.currency_default || '—' }}</dd></div><div class="flex justify-between gap-4"><dt>{{ t('client.due_label') }}</dt><dd>{{ formatPaymentDue(client) }}</dd></div><div class="flex justify-between gap-4"><dt>{{ t('client.rc_label') }}</dt><dd>{{ client.reverse_charge ? t('client.yes_short') : t('client.no_short') }}</dd></div></dl><UiButton v-if="myuctoHref" :href="myuctoHref" variant="secondary" target="_blank" rel="noopener" class="mt-5">{{ t('office.open_myucto') }}</UiButton></UiCard>
     </div>
-    <UiCard v-if="client.party_kind === 'company'"><h2 class="p-5">{{ t('tri.contacts.people') }}</h2><EmptyState v-if="!client.people?.length" compact :title="t('tri.contacts.no_people')" /><ul v-else class="divide-y divide-neutral-100"><li v-for="person in client.people" :key="person.id" class="px-5 py-3"><RouterLink :to="`/tri/contacts/${person.id}`" class="font-medium text-primary-700">{{ person.company_name }}</RouterLink><p class="text-sm text-neutral-600">{{ person.main_email || '—' }}<span v-if="person.phone"> · {{ person.phone }}</span></p></li></ul></UiCard>
+    <UiCard v-if="client.party_kind === 'company'">
+      <h2 class="p-5">{{ t('tri.contacts.people') }}</h2>
+      <EmptyState v-if="!client.people?.length" compact :title="t('tri.contacts.no_people')" />
+      <ul v-else class="divide-y divide-neutral-100">
+        <li v-for="person in client.people" :key="person.id" class="px-5 py-3">
+          <RouterLink :to="`/tri/contacts/${person.id}`" class="font-medium text-primary-700">{{ person.company_name }}</RouterLink>
+          <p class="text-sm text-neutral-600">{{ person.main_email || '—' }}<span v-if="person.phone"> · {{ person.phone }}</span></p>
+        </li>
+      </ul>
+      <form v-if="auth.canWrite" class="grid gap-2 border-t border-neutral-200 p-5" @submit.prevent="addPerson">
+        <UiInput v-model="personName" size="sm" :label="t('tri.jobs.person_name')" />
+        <UiInput v-model="personEmail" size="sm" type="email" :label="t('tri.jobs.person_email')" />
+        <UiInput v-model="personPhone" size="sm" :label="t('client.phone')" />
+        <div class="flex justify-end">
+          <UiButton type="submit" size="sm" variant="outline" :loading="personSaving">{{ t('tri.contacts.add_person') }}</UiButton>
+        </div>
+      </form>
+    </UiCard>
     <UiCard><h2 class="p-5">{{ t('tri.jobs.title') }}</h2><p v-if="jobsError" class="office-error">{{ jobsError }}</p><EmptyState v-else-if="!jobs.length" compact :title="t('tri.jobs.no_jobs')" /><UiTable v-else><template #head><tr><th class="px-4 text-left">{{ t('tri.jobs.number') }}</th><th class="px-4 text-left">{{ t('tri.jobs.title_field') }}</th><th class="px-4 text-left">{{ t('office.author') }}</th><th class="px-4 text-left">{{ t('tri.jobs.status') }}</th></tr></template><tr v-for="job in jobs" :key="job.id"><td class="px-4"><RouterLink :to="`/tri/jobs/${job.id}`" class="text-primary-700">{{ job.number }}</RouterLink></td><td class="px-4">{{ job.title }}</td><td class="px-4">{{ job.owner_name }}</td><td class="px-4"><UiBadge :variant="job.status==='confirmed'?'success':'primary'">{{ t(`tri.jobs.status_${job.status}`) }}</UiBadge></td></tr></UiTable><div v-if="jobsPage<jobsPages" class="flex justify-center p-4"><UiButton variant="secondary" :loading="jobsMore" @click="loadJobs(false)">{{ t('office.more') }}</UiButton></div></UiCard>
-    <UiCard><div class="p-5 flex justify-between items-center"><h2>{{ t('tri.invoices.title') }}</h2><UiButton v-if="auth.canWrite" :to="{path:'/tri/invoices/new',query:{client_id:client.id}}" variant="secondary">{{ t('tri.invoices.new') }}</UiButton></div><EmptyState v-if="!invoices.length" compact :title="t('common.no_data')" /><UiTable v-else><template #head><tr><th class="px-4 text-left">{{ t('invoice.varsymbol') }}</th><th class="px-4 text-left">{{ t('invoice.type') }}</th><th class="px-4 text-left">{{ t('invoice.issue_date') }}</th><th class="px-4 text-left">{{ t('invoice.due_date') }}</th><th class="px-4 text-left">{{ t('invoice.status_label') }}</th><th class="px-4 text-right">{{ t('invoice.amount_to_pay') }}</th></tr></template><tr v-for="inv in invoices" :key="inv.id"><td class="px-4"><RouterLink :to="`/tri/invoices/${inv.id}`" class="text-primary-700">{{ inv.varsymbol || `${t('status.draft')} #${inv.id}` }}</RouterLink></td><td class="px-4">{{ typeLabel(inv.invoice_type) }}</td><td class="px-4">{{ formatDate(inv.issue_date) }}</td><td class="px-4">{{ formatDate(inv.due_date) }}</td><td class="px-4"><UiBadge :variant="inv.status==='paid'?'success':inv.status==='draft'?'draft':'primary'">{{ statusLabel(inv.status) }}</UiBadge></td><td class="px-4 text-right font-semibold whitespace-nowrap">{{ formatMoney(inv.amount_to_pay ?? inv.total_with_vat, inv.currency) }}</td></tr></UiTable><div v-if="invoicesPage<invoicesPages" class="flex justify-center p-4"><UiButton variant="secondary" :loading="invoicesLoadingMore" @click="loadMoreInvoices">{{ t('office.more') }}</UiButton></div></UiCard>
+    <UiCard><div class="p-5 flex justify-between items-center"><h2>{{ t('tri.invoices.title') }}</h2><UiButton v-if="auth.canWrite" :to="{path:'/tri/invoices/new',query:{client_id:client.id}}" variant="secondary">{{ t('tri.invoices.new') }}</UiButton></div><EmptyState v-if="!invoices.length" compact :title="t('common.no_data')" /><UiTable v-else><template #head><tr><th class="px-4 text-left">{{ t('invoice.varsymbol') }}</th><th class="px-4 text-left">{{ t('invoice.type') }}</th><th class="px-4 text-left">{{ t('invoice.issue_date') }}</th><th class="px-4 text-left">{{ t('invoice.due_date') }}</th><th class="px-4 text-left">{{ t('invoice.status_label') }}</th><th class="px-4 text-right">{{ t('invoice.amount_to_pay') }}</th></tr></template><tr v-for="inv in invoices" :key="inv.id"><td class="px-4"><RouterLink :to="`/tri/invoices/${inv.id}`" class="text-primary-700">{{ inv.varsymbol || `${t('status.draft')} #${inv.id}` }}</RouterLink></td><td class="px-4">{{ typeLabel(inv.invoice_type) }}</td><td class="px-4">{{ formatDate(inv.issue_date) }}</td><td class="px-4">{{ formatDate(inv.due_date) }}</td><td class="px-4"><UiBadge :variant="inv.status==='paid'?'success':inv.status==='draft'?'draft':'primary'">{{ statusLabel(inv.status) }}</UiBadge></td><td class="px-4 text-right font-semibold whitespace-nowrap">{{ formatMoney(listedAmount(inv), inv.currency) }}</td></tr></UiTable><div v-if="invoicesPage<invoicesPages" class="flex justify-center p-4"><UiButton variant="secondary" :loading="invoicesLoadingMore" @click="loadMoreInvoices">{{ t('office.more') }}</UiButton></div></UiCard>
     <Modal v-if="rolesOpen" :title="t('office.edit_roles')" width-class="max-w-lg" @close="rolesOpen=false; refreshRoles()"><ClientTagEditor :client-id="client.id" :save-label="t('office.save_roles')" @saved="refreshRoles();rolesOpen=false" /></Modal>
   </div>
   <div v-else-if="error" class="office-error" role="alert">{{ error }}<UiButton @click="load">{{ t('office.retry') }}</UiButton></div>

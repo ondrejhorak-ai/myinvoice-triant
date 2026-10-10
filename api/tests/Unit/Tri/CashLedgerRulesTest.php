@@ -36,6 +36,14 @@ final class CashLedgerRulesTest extends TestCase
         $this->assertSame(420_000, $plan['remain_cents']);
     }
 
+    public function testHandedMovementCannotBeEdited(): void
+    {
+        CashLedgerRules::assertMutable(null, 'cash_in');
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('HANDED_OVER');
+        CashLedgerRules::assertMutable(4, 'cash_in');
+    }
+
     public function testMovementRejectsEmptyAmountAndCardIsManual(): void
     {
         $row = CashLedgerRules::normalizeMovement([

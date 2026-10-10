@@ -264,7 +264,26 @@ final class InvoiceGatewayTest extends TestCase
                 'updated_at' => '2026-09-07 12:00:00',
             ],
         ];
+        $proforma = [
+            'id' => 134,
+            'client_id' => 101,
+            'status' => 'paid',
+            'invoice_type' => 'proforma',
+            'paid_at' => '2026-09-07',
+            'issue_date' => '2026-09-01',
+            'due_date' => '2026-09-15',
+            'currency' => 'CZK',
+            'items' => [[
+                'description' => 'TRI-SCEN TEST',
+                'quantity' => 1,
+                'unit_price_without_vat' => 20520,
+                'vat_rate_id' => 3,
+            ]],
+            'totals' => ['without_vat' => 20520, 'vat' => 4309.2, 'with_vat' => 24829.2],
+            'updated_at' => '2026-09-07 12:00:00',
+        ];
         $gw = new InvoiceGateway($this->api([
+            new Response(200, ['Content-Type' => 'application/json'], json_encode($proforma)),
             new Response(201, ['Content-Type' => 'application/json'], json_encode($created)),
         ]), $pdo, 1);
 
@@ -278,6 +297,166 @@ final class InvoiceGatewayTest extends TestCase
         $this->assertSame(21.0, $out['items'][0]['vat_rate_snapshot']);
         $mirrored = (int) $pdo->query('SELECT COUNT(*) FROM mu_invoices WHERE id = 136')->fetchColumn();
         $this->assertSame(1, $mirrored);
+    }
+
+    public function testToInvoiceInputKeepsTaxDocumentType(): void
+    {
+        $pdo = $this->sqlite();
+        $gw = new InvoiceGateway($this->api([new Response(200, [], '{}')]), $pdo, 1);
+        $input = $gw->toInvoiceInput([
+            'client_id' => 10,
+            'invoice_type' => 'tax_document',
+            'items' => [[
+                'description' => 'Přijatá platba',
+                'quantity' => 1,
+                'unit_price_without_vat' => 1652.89,
+                'vat_rate_id' => 3,
+            ]],
+        ]);
+
+        $this->assertSame('tax_document', $input['invoice_type']);
+    }
+
+    public function testPresentUsesRemoteBankThenSettings(): void
+    {
+        $pdo = $this->sqlite();
+        $gw = new InvoiceGateway($this->api([new Response(200, [], '{}')]), $pdo, 1);
+        $remote = $gw->present([
+            'id' => 9,
+            'client_id' => 101,
+            'currency' => 'CZK',
+            'invoice_type' => 'proforma',
+            'status' => 'issued',
+            'bank_account_number' => '2562563349',
+            'bank_code' => '0800',
+            'bank_name' => 'Česká spořitelna',
+            'items' => [],
+            'totals' => ['without_vat' => 1, 'vat' => 0, 'with_vat' => 1],
+        ]);
+        $this->assertSame('2562563349', $remote['bank_account_number']);
+        $this->assertSame('0800', $remote['bank_code']);
+
+        $pdo->exec('CREATE TABLE currencies (
+            id INTEGER PRIMARY KEY,
+            supplier_id INTEGER,
+            code TEXT,
+            account_number TEXT,
+            bank_code TEXT,
+            bank_name TEXT,
+            iban TEXT,
+            bic TEXT
+        )');
+        $pdo->exec("INSERT INTO currencies (supplier_id, code, account_number, bank_code, bank_name)
+            VALUES (1, 'CZK', '0000000019', '0000', 'Testovací účet (cvičná data)')");
+        $fallback = $gw->present([
+            'id' => 10,
+            'client_id' => 101,
+            'currency' => 'CZK',
+            'invoice_type' => 'invoice',
+            'status' => 'draft',
+            'items' => [],
+            'totals' => ['without_vat' => 1, 'vat' => 0, 'with_vat' => 1],
+        ]);
+        $this->assertSame('0000000019', $fallback['bank_account_number']);
+        $this->assertSame('Testovací účet (cvičná data)', $fallback['bank_name']);
+    }
+
+    public function testMarkPaidDropsAutoCreatedTaxDocument(): void
+    {
+        $pdo = $this->sqlite();
+        $paid = [
+            'id' => 153,
+            'client_id' => 101,
+            'status' => 'paid',
+            'invoice_type' => 'proforma',
+            'project_id' => 44,
+            'currency' => 'CZK',
+            'items' => [],
+            'totals' => ['without_vat' => 1652.89, 'vat' => 347.11, 'with_vat' => 2000],
+            'updated_at' => '2026-10-10 16:20:00',
+        ];
+        $gw = new InvoiceGateway($this->api([
+            new Response(200, ['Content-Type' => 'application/json'], '{}'),
+            new Response(200, ['Content-Type' => 'application/json'], json_encode($paid)),
+            new Response(200, ['Content-Type' => 'application/json'], json_encode([
+                'data' => [[
+                    'id' => 154,
+                    'invoice_type' => 'tax_document',
+                    'status' => 'draft',
+                    'project_id' => 44,
+                ]],
+                'meta' => ['last_page' => 1],
+            ])),
+            new Response(200, ['Content-Type' => 'application/json'], json_encode([
+                'id' => 154,
+                'invoice_type' => 'tax_document',
+                'status' => 'draft',
+                'parent_invoice_id' => 153,
+                'items' => [],
+                'totals' => ['with_vat' => 2000],
+            ])),
+            new Response(204, [], ''),
+        ]), $pdo, 1);
+
+        $out = $gw->markPaid(153, ['paid_on' => '2026-10-10']);
+
+        $this->assertSame(153, $out['id']);
+        $this->assertSame('paid', $out['status']);
+    }
+
+    public function testIssueFinalRepairsEmptyAmount(): void
+    {
+        $pdo = $this->sqlite();
+        $proforma = [
+            'id' => 153,
+            'client_id' => 101,
+            'status' => 'paid',
+            'invoice_type' => 'proforma',
+            'paid_at' => '2026-10-10',
+            'issue_date' => '2026-10-10',
+            'due_date' => '2026-10-24',
+            'currency' => 'CZK',
+            'items' => [[
+                'description' => 'E2E záloha baseline',
+                'quantity' => 1,
+                'unit_price_without_vat' => 1652.89,
+                'vat_rate_id' => 3,
+                'unit' => 'ks',
+            ]],
+            'totals' => ['without_vat' => 1652.89, 'vat' => 347.11, 'with_vat' => 2000],
+            'updated_at' => '2026-10-10 16:16:00',
+        ];
+        $empty = [
+            'id' => 155,
+            'client_id' => 101,
+            'status' => 'draft',
+            'invoice_type' => 'invoice',
+            'parent_invoice_id' => 153,
+            'currency' => 'CZK',
+            'issue_date' => '2026-10-10',
+            'tax_date' => '2026-10-10',
+            'due_date' => '2026-10-24',
+            'items' => [],
+            'totals' => ['without_vat' => 0, 'vat' => 0, 'with_vat' => 0],
+            'advance_paid_amount' => 2000,
+            'updated_at' => '2026-10-10 16:30:00',
+        ];
+        $filled = $empty;
+        $filled['items'] = $proforma['items'];
+        $filled['totals'] = $proforma['totals'];
+        $filled['total_with_vat'] = 2000;
+        $gw = new InvoiceGateway($this->api([
+            new Response(200, ['Content-Type' => 'application/json'], json_encode($proforma)),
+            new Response(201, ['Content-Type' => 'application/json'], json_encode(['invoice' => $empty])),
+            new Response(200, ['Content-Type' => 'application/json'], json_encode($empty)),
+            new Response(200, ['Content-Type' => 'application/json'], json_encode($filled)),
+        ]), $pdo, 1);
+
+        $out = $gw->issueFinal(153);
+
+        $this->assertSame(155, $out['id']);
+        $this->assertSame(2000.0, $out['total_with_vat']);
+        $this->assertSame(1652.89, $out['items'][0]['unit_price_without_vat']);
     }
 
     private function sqlite(): PDO

@@ -26,7 +26,7 @@ const jobId = computed(() => (isEdit.value ? Number(route.params.id) : null))
 const saving = ref(false)
 const numberOk = ref(true)
 
-type ContactOption = { value: number; label: string; secondary?: string }
+type ContactOption = { value: number; label: string; secondary?: string; party_kind?: string }
 type UserOption = { value: number; label: string }
 
 const contactCache = ref(new Map<number, ContactOption>())
@@ -68,13 +68,17 @@ const personEmail = ref('')
 const personPhone = ref('')
 const personRole = ref<'customer' | 'architect' | 'contact'>('contact')
 const personSaving = ref(false)
+const linkPersonToCompany = ref(true)
+const billingKind = ref<string | null>(null)
 const billingOptions = ref<ContactOption[]>([])
 const billingLoading = ref(false)
 const selectedBilling = ref<ContactOption | null>(null)
 
-function clientToOption(c: { id: number; company_name: string; ic?: string | null }): ContactOption {
-  return { value: c.id, label: c.company_name, secondary: c.ic ?? undefined }
+function clientToOption(c: { id: number; company_name: string; ic?: string | null; party_kind?: string | null }): ContactOption {
+  return { value: c.id, label: c.company_name, secondary: c.ic ?? undefined, party_kind: c.party_kind ?? undefined }
 }
+
+const billingIsCompany = computed(() => billingKind.value === 'company' && form.value.customer_client_id != null)
 
 function cacheContact(c: { id: number; company_name: string; ic?: string | null }) {
   const opt = clientToOption(c)
@@ -207,8 +211,21 @@ async function onBillingSearch(q: string) {
 
 function onBillingPicked(id: number | null) {
   form.value.customer_client_id = id
-  selectedBilling.value = billingOptions.value.find((o) => o.value === id) ?? selectedBilling.value
+  linkPersonToCompany.value = true
+  const picked = id == null ? null : billingOptions.value.find((o) => o.value === id) ?? null
+  selectedBilling.value = picked ?? (id == null ? null : selectedBilling.value)
   if (id == null) selectedBilling.value = null
+  billingKind.value = picked?.party_kind ?? null
+  if (id != null && !picked?.party_kind) void rememberBillingKind(id)
+}
+
+async function rememberBillingKind(id: number) {
+  try {
+    const client = await clientsApi.get(id)
+    if (form.value.customer_client_id !== id) return
+    billingKind.value = client.party_kind ?? 'company'
+    selectedBilling.value = clientToOption(client)
+  } catch { /* druh zjistíme při dalším výběru */ }
 }
 
 async function addPerson() {
@@ -225,6 +242,7 @@ async function addPerson() {
       company_name: name,
       main_email: email,
       phone: personPhone.value.trim() || null,
+      company_client_id: billingIsCompany.value && linkPersonToCompany.value ? form.value.customer_client_id : null,
       is_customer: false,
       is_vendor: false,
     }) as Client
@@ -317,6 +335,7 @@ async function loadJob() {
       value: job.customer_client_id,
       label: job.customer_name ?? `#${job.customer_client_id}`,
     }
+    void rememberBillingKind(job.customer_client_id)
   }
 }
 
@@ -471,6 +490,10 @@ onMounted(async () => {
             <option value="architect">{{ t('tri.jobs.role_architect') }}</option>
             <option value="contact">{{ t('tri.jobs.role_contact') }}</option>
           </UiSelect>
+          <label v-if="billingIsCompany" class="flex items-center gap-2 text-sm text-neutral-800">
+            <input v-model="linkPersonToCompany" type="checkbox" class="size-4" />
+            {{ t('tri.jobs.link_person_company', { name: selectedBilling?.label ?? '' }) }}
+          </label>
           <UiButton type="button" variant="outline" size="sm" :loading="personSaving" @click="addPerson">{{ t('tri.jobs.add_person') }}</UiButton>
         </div>
         <div>

@@ -42,6 +42,7 @@ const formOpen = ref(false)
 const saving = ref(false)
 const formError = ref('')
 const form = ref({ kind: 'cash_in' as TriCashKind, amount: '', occurred_on: today(), description: '', note: '' })
+const editingId = ref<number | null>(null)
 let token = ''
 
 const kinds: TriCashKind[] = ['cash_in', 'cash_out', 'card']
@@ -113,9 +114,24 @@ function more() {
 }
 
 function openForm() {
+  editingId.value = null
   form.value = { kind: 'cash_in', amount: '', occurred_on: today(), description: '', note: '' }
   formError.value = ''
   token = crypto.randomUUID()
+  formOpen.value = true
+}
+
+function openEdit(row: TriCashMovement) {
+  if (row.handover_id || row.kind === 'remittance') return
+  editingId.value = row.id
+  form.value = {
+    kind: row.kind as TriCashKind,
+    amount: row.amount,
+    occurred_on: row.occurred_on.slice(0, 10),
+    description: row.description,
+    note: row.note ?? '',
+  }
+  formError.value = ''
   formOpen.value = true
 }
 
@@ -125,23 +141,41 @@ function explain(err: unknown): string {
   if (msg === 'INVALID_DESCRIPTION') return t('tri.cash.description')
   if (msg === 'INVALID_DATE') return t('tri.cash.date')
   if (msg === 'INVALID_KIND') return t('tri.cash.kind')
+  if (msg === 'HANDED_OVER' || msg.includes('předání')) return t('tri.cash.locked')
   return msg
+}
+
+async function remove(row: TriCashMovement) {
+  if (row.handover_id || row.kind === 'remittance') return
+  if (!confirm(t('tri.cash.delete_confirm'))) return
+  try {
+    await triApi.cash.deleteMovement(row.id)
+    toast.success(t('tri.cash.deleted'))
+    await load(true)
+  } catch (err) {
+    toast.error(explain(err))
+  }
 }
 
 async function save() {
   saving.value = true
   formError.value = ''
   try {
-    await triApi.cash.createMovement({
+    const payload = {
       kind: form.value.kind,
       amount: form.value.amount.replace(',', '.'),
       occurred_on: form.value.occurred_on,
       description: form.value.description,
       note: form.value.note,
-      client_token: token,
-    })
+    }
+    if (editingId.value) {
+      await triApi.cash.updateMovement(editingId.value, payload)
+      toast.success(t('tri.cash.updated'))
+    } else {
+      await triApi.cash.createMovement({ ...payload, client_token: token })
+      toast.success(t('tri.cash.saved'))
+    }
     formOpen.value = false
-    toast.success(t('tri.cash.saved'))
     await load(true)
   } catch (err) {
     formError.value = explain(err)
@@ -212,6 +246,7 @@ onMounted(() => void load(true))
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.kind') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.handed') }}</th>
               <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.cash.amount') }}</th>
+              <th v-if="auth.canWrite" class="px-4 py-2.5"></th>
             </tr>
           </template>
           <tr v-for="row in rows" :key="row.id">
@@ -227,6 +262,13 @@ onMounted(() => void load(true))
               </UiBadge>
             </td>
             <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">{{ signed(row) }}</td>
+            <td v-if="auth.canWrite" class="px-4 py-3 text-right whitespace-nowrap">
+              <template v-if="!row.handover_id && row.kind !== 'remittance'">
+                <button type="button" class="cursor-pointer text-sm text-primary-700" @click="openEdit(row)">{{ t('tri.cash.edit') }}</button>
+                <button type="button" class="ml-3 cursor-pointer text-sm text-danger-600" @click="remove(row)">{{ t('common.delete') }}</button>
+              </template>
+              <span v-else class="text-xs text-neutral-500" :title="t('tri.cash.locked')">{{ t('tri.cash.locked') }}</span>
+            </td>
           </tr>
         </UiTable>
       </div>
@@ -239,6 +281,13 @@ onMounted(() => void load(true))
           </div>
           <div class="mt-1 text-sm text-neutral-800">{{ row.description }}</div>
           <div class="mt-1 text-xs text-neutral-500">{{ formatDate(row.occurred_on) }} · {{ row.handover_number || t('tri.cash.handed_open') }}</div>
+          <div v-if="auth.canWrite" class="mt-2">
+            <template v-if="!row.handover_id && row.kind !== 'remittance'">
+              <button type="button" class="cursor-pointer text-sm text-primary-700" @click="openEdit(row)">{{ t('tri.cash.edit') }}</button>
+              <button type="button" class="ml-3 cursor-pointer text-sm text-danger-600" @click="remove(row)">{{ t('common.delete') }}</button>
+            </template>
+            <span v-else class="text-xs text-neutral-500">{{ t('tri.cash.locked') }}</span>
+          </div>
         </div>
       </div>
 
@@ -247,7 +296,7 @@ onMounted(() => void load(true))
       </div>
     </UiCard>
 
-    <Modal v-if="formOpen" :title="t('tri.cash.new_movement')" width-class="max-w-lg" @close="formOpen = false">
+    <Modal v-if="formOpen" :title="editingId ? t('tri.cash.edit') : t('tri.cash.new_movement')" width-class="max-w-lg" @close="formOpen = false">
       <form class="office-page grid gap-4" @submit.prevent="save">
         <UiSelect v-model="form.kind" :label="t('tri.cash.kind')">
           <option v-for="item in kinds" :key="item" :value="item">{{ kindLabel(item) }}</option>
