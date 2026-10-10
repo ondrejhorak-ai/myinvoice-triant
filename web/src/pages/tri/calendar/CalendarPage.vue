@@ -31,22 +31,16 @@ function nextStatusOf(calendar: TriCalendarKind, status: string): string | null 
   return null
 }
 
-function eventClass(ev: { calendar: TriCalendarKind; status: string }) {
-  if (ev.calendar === 'dispatch') {
-    return ev.status === 'confirmed'
-      ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-700'
-      : 'bg-transparent text-amber-900 border border-dashed border-amber-400 dark:text-amber-200 dark:border-amber-600'
-  }
-  if (ev.calendar === 'production') {
-    if (ev.status === 'done') return 'bg-neutral-100 text-neutral-500 border border-neutral-200'
-    if (ev.status === 'in_progress') return 'bg-emerald-100 text-emerald-800 border border-emerald-400 ring-1 ring-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-600 dark:ring-emerald-700'
-    return 'bg-transparent text-emerald-800 border border-dashed border-emerald-400 dark:text-emerald-300 dark:border-emerald-600'
-  }
-  return 'bg-primary-100 text-primary-800 border border-primary-200'
+function eventClass(ev: { calendar: TriCalendarKind }) {
+  return `office-event office-event-${ev.calendar}`
 }
 
-const kind = ref<TriCalendarKind>('production')
-const view = ref<'month' | 'week'>('month')
+const layers = ref<Record<TriCalendarKind, boolean>>({ shifts: true, dispatch: true, production: true })
+const view = ref<'month' | 'week'>('week')
+const chooserOpen = ref(false)
+const pendingDay = ref('')
+const overflowDay = ref<string | null>(null)
+const overflowEvents = computed(() => overflowDay.value ? eventsOn(overflowDay.value) : [])
 const cursor = ref(startOfDay(new Date()))
 const events = ref<TriCalendarEvent[]>([])
 const jobs = ref<TriJob[]>([])
@@ -105,18 +99,23 @@ const inMonth = computed(() => {
   }
 })
 
-function eventsOn(day: string) {
-  return events.value.filter((ev) => {
-    const start = ev.starts_at.slice(0, 10)
-    const end = (ev.ends_at ?? ev.starts_at).slice(0, 10)
-    return start <= day && end >= day
+const visibleEvents = computed(() => events.value.filter((ev) => layers.value[ev.calendar]))
+function eventStart(ev: TriCalendarEvent) { return ev.starts_at.slice(0, 10) }
+function eventEnd(ev: TriCalendarEvent) { return (ev.ends_at ?? ev.starts_at).slice(0, 10) }
+function spansDays(ev: TriCalendarEvent) { return eventEnd(ev) > eventStart(ev) }
+function eventsOn(day: string, spanned = false) {
+  return visibleEvents.value.filter((ev) => {
+    if (eventStart(ev) > day || eventEnd(ev) < day) return false
+    if (view.value === 'week' && spansDays(ev) !== spanned) return false
+    return true
   })
 }
+const spanEvents = computed(() => visibleEvents.value.filter(spansDays))
 
 async function load() {
   loading.value = true
   try {
-    const r = await triApi.calendar.list({ calendar: kind.value, from: rangeFrom.value, to: rangeTo.value })
+    const r = await triApi.calendar.list({ from: rangeFrom.value, to: rangeTo.value })
     events.value = r.data
   } catch (e) {
     toast.error(apiErrorMessage(e, t('common.error')))
@@ -147,8 +146,14 @@ function blankForm(calendar: TriCalendarKind, day: string) {
 }
 
 function openCreate(day: string) {
+  pendingDay.value = day
+  chooserOpen.value = true
+}
+function pickKind(calendar: TriCalendarKind) {
+  chooserOpen.value = false
   editing.value = null
-  form.value = blankForm(kind.value, day)
+  form.value = blankForm(calendar, pendingDay.value)
+  if (calendar === 'shifts') form.value.all_day = true
   modalOpen.value = true
 }
 
@@ -239,77 +244,90 @@ onMounted(async () => {
   await loadJobs()
   await load()
 })
-watch([kind, view, rangeFrom, rangeTo], () => load())
+watch([view, rangeFrom, rangeTo], () => load())
 </script>
 
 <template>
   <div>
-    <UiPageHeader :title="t('tri.calendar.title')" :subtitle="t('tri.calendar.subtitle')">
+    <UiPageHeader :title="t('tri.calendar.title')" :subtitle="heading">
       <template #actions>
-        <UiButton v-if="auth.canWrite" size="sm" @click="openCreate(isoDate(cursor))">
+        <UiButton v-if="auth.canWrite" @click="openCreate(isoDate(cursor))">
           {{ t('tri.calendar.new_event') }}
         </UiButton>
       </template>
     </UiPageHeader>
 
-    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center mb-4">
-      <div class="inline-flex flex-wrap rounded-md border border-neutral-200 p-0.5 bg-surface">
-        <button
-          v-for="k in KINDS"
-          :key="k"
-          type="button"
-          class="h-9 px-3 text-sm font-semibold rounded-md"
-          :class="kind === k ? 'bg-primary-50 text-primary-800' : 'text-neutral-600 hover:bg-neutral-50'"
-          @click="kind = k"
-        >
-          {{ t(`tri.calendar.${k}`) }}
-        </button>
-      </div>
-      <div class="inline-flex rounded-md border border-neutral-200 p-0.5 bg-surface">
-        <button type="button" class="h-9 px-3 text-sm font-semibold rounded-md" :class="view === 'month' ? 'bg-neutral-100' : 'text-neutral-600'" @click="view = 'month'">{{ t('tri.calendar.month') }}</button>
-        <button type="button" class="h-9 px-3 text-sm font-semibold rounded-md" :class="view === 'week' ? 'bg-neutral-100' : 'text-neutral-600'" @click="view = 'week'">{{ t('tri.calendar.week') }}</button>
-      </div>
-      <div class="flex items-center gap-1 sm:ml-auto">
-        <UiButton variant="ghost" size="sm" @click="shift(-1)">←</UiButton>
-        <UiButton variant="outline" size="sm" @click="cursor = startOfDay(new Date())">{{ t('tri.calendar.today') }}</UiButton>
-        <UiButton variant="ghost" size="sm" @click="shift(1)">→</UiButton>
-      </div>
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <UiButton variant="secondary" @click="cursor = startOfDay(new Date())">{{ t('tri.calendar.today') }}</UiButton>
+      <UiButton variant="secondary" aria-label="previous" @click="shift(-1)">←</UiButton>
+      <UiButton variant="secondary" aria-label="next" @click="shift(1)">→</UiButton>
+      <UiButton :variant="view === 'week' ? 'primary' : 'secondary'" @click="view = 'week'">{{ t('tri.calendar.week') }}</UiButton>
+      <UiButton :variant="view === 'month' ? 'primary' : 'secondary'" @click="view = 'month'">{{ t('tri.calendar.month') }}</UiButton>
+    </div>
+    <div class="flex flex-wrap gap-3 mb-4">
+      <button v-for="k in KINDS" :key="k" type="button" class="office-layer" :aria-pressed="layers[k]" @click="layers[k] = !layers[k]">
+        {{ layers[k] ? '✓' : '' }} {{ t(`tri.calendar.${k}`) }}
+      </button>
     </div>
 
-    <p class="text-sm font-medium text-neutral-700 mb-2 capitalize">{{ heading }}</p>
-
-    <div class="border border-neutral-200 rounded-lg overflow-hidden bg-surface shadow-xs">
+    <div class="border border-neutral-200 overflow-hidden bg-surface" :class="loading ? 'opacity-60' : ''">
       <div class="grid grid-cols-7 border-b border-neutral-200 bg-neutral-50">
-        <div v-for="n in 7" :key="n" class="px-0.5 sm:px-2 py-2 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-neutral-400 text-center truncate">
-          {{ t(`tri.calendar.weekday_${n}`) }}
+        <div v-for="(day, n) in days.slice(0, 7)" :key="day" class="px-2 py-2 text-xs text-neutral-600">
+          {{ t(`tri.calendar.weekday_${n + 1}`) }}<span v-if="view === 'week'"> {{ Number(day.slice(8, 10)) }}.</span>
         </div>
       </div>
-      <div class="grid grid-cols-7" :class="loading ? 'opacity-60' : ''">
+      <div v-if="view === 'week' && spanEvents.length" class="border-b border-neutral-200 p-2 grid gap-2">
+        <button v-for="ev in spanEvents" :key="ev.id" type="button" :class="eventClass(ev)" @click="openEdit(ev)">
+          {{ ev.title }}<span v-if="ev.job_number"> · {{ ev.job_number }}</span>
+        </button>
+      </div>
+      <div class="grid grid-cols-7">
         <div
-          v-for="day in days"
+          v-for="day in (view === 'week' ? days : days)"
           :key="day"
-          class="min-h-[4.5rem] sm:min-h-[6.5rem] border-r border-b border-neutral-100 p-1 sm:p-1.5 text-left align-top hover:bg-neutral-50 cursor-pointer"
-          :class="view === 'week' ? 'min-h-[10rem] sm:min-h-[14rem]' : ''"
+          class="min-h-28 border-r border-b border-neutral-200 p-1.5 text-left"
+          :class="view === 'week' ? 'min-h-48' : ''"
           @click="auth.canWrite ? openCreate(day) : undefined"
         >
-          <div class="text-xs tabular-nums mb-1" :class="inMonth(day) ? 'text-neutral-700 font-medium' : 'text-neutral-300'">
-            {{ Number(day.slice(8, 10)) }}
+          <div class="text-xs tabular-nums mb-1" :class="view === 'month' && !inMonth(day) ? 'text-neutral-400' : 'text-neutral-700'">
+            {{ view === 'month' ? Number(day.slice(8, 10)) : '' }}
           </div>
-          <div
-            v-for="ev in eventsOn(day)"
+          <button
+            v-for="ev in eventsOn(day).slice(0, view === 'month' ? 2 : 8)"
             :key="ev.id"
-            class="mb-1 w-full truncate rounded-md px-1.5 py-0.5 text-xs font-medium"
+            type="button"
+            class="mb-1"
             :class="eventClass(ev)"
-            :title="`${ev.title} — ${t(`tri.calendar.status_${ev.status}`)}`"
             @click.stop="openEdit(ev)"
           >
             {{ ev.title }}
-          </div>
+          </button>
+          <button
+            v-if="view === 'month' && eventsOn(day).length > 2"
+            type="button"
+            class="text-xs text-primary-700 px-1"
+            @click.stop="overflowDay = day"
+          >
+            {{ t('tri.calendar.more_events', { n: eventsOn(day).length - 2 }) }}
+          </button>
         </div>
       </div>
     </div>
     <EmptyState v-if="!loading && events.length === 0" compact :title="t('tri.calendar.empty')" />
 
+    <Modal v-if="chooserOpen" :title="t('tri.calendar.choose_calendar')" width-class="max-w-sm" @close="chooserOpen = false">
+      <div class="grid gap-2">
+        <UiButton v-for="k in KINDS" :key="k" variant="secondary" @click="pickKind(k)">{{ t(`tri.calendar.${k}`) }}</UiButton>
+      </div>
+    </Modal>
+    <Modal v-if="overflowDay" :title="overflowDay" width-class="max-w-lg" @close="overflowDay = null">
+      <p class="text-sm text-neutral-600 mb-3">{{ t('tri.calendar.day_events', { n: overflowEvents.length }) }}</p>
+      <div class="grid gap-2">
+        <button v-for="ev in overflowEvents" :key="ev.id" type="button" :class="eventClass(ev)" @click="overflowDay = null; openEdit(ev)">
+          {{ t(`tri.calendar.${ev.calendar}`) }} · {{ ev.title }}
+        </button>
+      </div>
+    </Modal>
     <Modal
       v-if="modalOpen"
       :title="editing ? t('tri.calendar.edit_event') : t('tri.calendar.new_event')"
@@ -344,7 +362,7 @@ watch([kind, view, rangeFrom, rangeTo], () => load())
         <UiInput v-model="form.note" :label="t('tri.calendar.note')" :disabled="!auth.canWrite" />
         <div v-if="form.calendar !== 'shifts'" class="flex flex-wrap items-center gap-2">
           <span class="text-sm font-medium text-neutral-700">{{ t('tri.calendar.status') }}</span>
-          <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="eventClass({ calendar: form.calendar, status: form.status })">
+          <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" :class="eventClass({ calendar: form.calendar })">
             {{ t(`tri.calendar.status_${form.status}`) }}
           </span>
           <UiButton

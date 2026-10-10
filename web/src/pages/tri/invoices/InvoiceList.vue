@@ -38,6 +38,8 @@ const router = useRouter()
 const route = useRoute()
 
 const groups = ref<MonthGroup[]>([])
+const invoiceView = ref<'all' | 'counter'>('all')
+const counterRows = computed(() => groups.value.flatMap((g) => g.invoices))
 const total = ref(0)
 const page = ref(1)
 const pages = ref(1)
@@ -143,6 +145,7 @@ async function load(reset = true) {
     if (currencyFilter.value) params['filter[currency]'] = currencyFilter.value
     if (overdueOnly.value) params['filter[overdue]'] = '1'
     if (unpaidOnly.value) params['filter[unpaid_only]'] = '1'
+    if (invoiceView.value === 'counter') params['filter[prodejna]'] = '1'
 
     const result = await triApi.invoices.list(params)
     if (seq !== request) return
@@ -194,6 +197,7 @@ function loadFiltersFromQuery(q: typeof route.query) {
   currencyFilter.value = typeof q.currency === 'string' ? q.currency : ''
   jobFilter.value = typeof q.tri_job_id === 'string' && q.tri_job_id !== '' ? Number(q.tri_job_id) : ''
   search.value       = typeof q.q === 'string' ? q.q : ''
+  invoiceView.value = q.view === 'counter' ? 'counter' : 'all'
 }
 
 let suppressUrlSync = false
@@ -213,7 +217,21 @@ function syncFiltersToUrl() {
   if (overdueOnly.value) q.overdue = '1'
   if (unpaidOnly.value) q.unpaid = '1'
   if (search.value) q.q = search.value
+  if (invoiceView.value === 'counter') q.view = 'counter'
   router.replace({ query: q })
+}
+
+function setInvoiceView(next: 'all' | 'counter') {
+  invoiceView.value = next
+  if (next === 'counter') {
+    statusFilter.value = ''
+    typeFilter.value = ''
+    unpaidOnly.value = false
+    overdueOnly.value = false
+    jobFilter.value = ''
+  }
+  syncFiltersToUrl()
+  void load(true)
 }
 
 watch([statusFilter, typeFilter, clientFilter, jobFilter, yearFilter, monthFilter, dateFrom, dateTo,
@@ -268,12 +286,40 @@ onBeforeUnmount(() => { if (searchTimeout) clearTimeout(searchTimeout) })
 
 <template>
 <div>
-  <UiPageHeader :title="t('tri.invoices.title')" :subtitle="t('office.invoices_subtitle')"><template #actions><UiButton v-if="auth.canWrite" to="/tri/invoices/new">{{ t('tri.invoices.new') }}</UiButton></template></UiPageHeader>
+  <UiPageHeader :title="t('tri.invoices.title')" :subtitle="invoiceView === 'counter' ? t('tri.invoices.counter_subtitle') : t('office.invoices_subtitle')"><template #actions><UiButton v-if="auth.canWrite" to="/tri/invoices/new">{{ t('tri.invoices.new') }}</UiButton></template></UiPageHeader>
+  <div class="flex flex-wrap gap-2 mb-4">
+    <UiButton :variant="invoiceView === 'all' ? 'primary' : 'secondary'" @click="setInvoiceView('all')">{{ t('tri.invoices.view_all') }}</UiButton>
+    <UiButton :variant="invoiceView === 'counter' ? 'primary' : 'secondary'" @click="setInvoiceView('counter')">{{ t('tri.invoices.view_counter') }}</UiButton>
+  </div>
+  <p v-if="invoiceView === 'counter'" class="mb-4 border border-neutral-200 bg-primary-50 px-4 py-3 text-sm text-neutral-700">{{ t('tri.invoices.counter_notice') }}</p>
   <div class="office-filters"><UiInput v-model="search" type="search" class="w-full sm:max-w-[520px]" :label="t('common.search')" :placeholder="t('invoice.search_placeholder')" /><OfficeFilterButton :count="conditions.length" :expanded="filtersOpen" @click="openFilters" /></div>
   <OfficeAppliedFilters :conditions="conditions" @remove="removeFilter" @clear="clearFilters" />
   <div v-if="error" class="office-error" role="alert">{{ error }} <UiButton variant="secondary" @click="load(true)">{{ t('office.retry') }}</UiButton></div>
   <TableSkeleton v-if="loading" :rows="8" :cols="8" />
   <EmptyState v-else-if="!groups.length && !error" :title="t('office.no_invoices')"><UiButton variant="secondary" @click="applyFilters(true)">{{ t('office.clear_filters') }}</UiButton></EmptyState>
+  <template v-else-if="!error && invoiceView === 'counter'">
+    <div class="border border-neutral-200 bg-surface overflow-x-auto">
+      <table class="w-full">
+        <thead><tr>
+          <th class="text-left px-4">{{ t('invoice.varsymbol') }}</th>
+          <th class="text-left px-4">{{ t('invoice.client') }}</th>
+          <th class="text-left px-4">{{ t('tri.invoices.paid_on') }}</th>
+          <th class="text-left px-4">{{ t('invoice.status_label') }}</th>
+          <th class="text-right px-4">{{ t('tri.invoices.total') }}</th>
+        </tr></thead>
+        <tbody class="divide-y divide-neutral-200">
+          <tr v-for="inv in counterRows" :key="inv.id" class="cursor-pointer hover:bg-neutral-50" @click="openInvoice(inv,$event)">
+            <td class="px-4"><RouterLink :to="`/tri/invoices/${inv.id}`" class="text-primary-700" @click.stop>{{ inv.varsymbol || `#${inv.id}` }}</RouterLink></td>
+            <td class="px-4">{{ inv.client_company_name || '—' }}</td>
+            <td class="px-4 whitespace-nowrap">{{ formatDate(inv.paid_at) }}</td>
+            <td class="px-4"><UiBadge variant="paid">{{ statusLabel(inv.status) }}</UiBadge></td>
+            <td class="px-4 text-right font-semibold whitespace-nowrap">{{ formatMoney(inv.total_with_vat, inv.currency) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div v-if="page < pages" class="flex justify-center py-4"><UiButton variant="secondary" :loading="loadingMore" @click="load(false)">{{ t('office.more') }}</UiButton></div>
+  </template>
   <template v-else-if="!error">
     <p class="text-xs text-neutral-500 mb-6">{{ t('office.loaded', { n: loadedCount, total }) }}</p>
     <section v-for="g in groups" :key="g.month" class="mb-6 border border-neutral-200 bg-surface">

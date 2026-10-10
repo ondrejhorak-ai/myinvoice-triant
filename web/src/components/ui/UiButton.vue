@@ -4,7 +4,7 @@ import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
 const props = withDefaults(defineProps<{
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
-  size?: 'sm' | 'md'
+  size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   disabled?: boolean
   type?: 'button' | 'submit' | 'reset'
@@ -29,6 +29,7 @@ const VARIANT: Record<NonNullable<typeof props.variant>, string> = {
 const SIZE: Record<NonNullable<typeof props.size>, string> = {
   sm: 'h-9 px-3 text-sm gap-1.5',
   md: 'h-10 px-4 text-sm gap-2',
+  lg: 'h-11 px-4 text-sm gap-2',
 }
 
 const classes = computed(() => [

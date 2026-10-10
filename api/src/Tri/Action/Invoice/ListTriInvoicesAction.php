@@ -36,6 +36,7 @@ final class ListTriInvoicesAction
             'currency' => $filter['currency'] ?? null,
             'unpaid_only' => !empty($filter['unpaid_only']),
             'overdue' => !empty($filter['overdue']),
+            'prodejna' => !empty($filter['prodejna']),
         ];
 
         foreach (['status', 'type'] as $f) {

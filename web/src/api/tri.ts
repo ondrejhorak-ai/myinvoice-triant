@@ -268,6 +268,52 @@ export interface TriTravelerHoursSummary {
   by_station: Array<{ station: TriTravelerStation; hours: number }>
 }
 
+export type TriCashKind = 'cash_in' | 'cash_out' | 'card' | 'remittance'
+export interface TriCashMovement {
+  id: number
+  kind: TriCashKind
+  amount: string
+  occurred_on: string
+  description: string
+  note: string | null
+  handover_id: number | null
+  handover_number: string | null
+  recorded_by_name: string | null
+}
+export interface TriCashHandover {
+  id: number
+  number: string
+  handed_on: string
+  book_amount: string
+  counted_amount: string
+  difference_amount: string
+  keep_amount: string
+  remitted_amount: string
+  note: string | null
+  handed_by_name: string | null
+}
+export interface TriCashSummary {
+  drawer: string
+  card_open: string
+  open_documents: number
+  float: string
+}
+export interface TriCashList {
+  summary: TriCashSummary
+  data: TriCashMovement[]
+  handovers: TriCashHandover[]
+  meta: { page: number; per_page: number; total: number; pages: number }
+}
+export interface TriCashHandoverPreview {
+  book: string
+  counted: string
+  keep: string
+  difference: string
+  remitted: string
+  remain: string
+  documents: Array<{ id: number; occurred_on: string; description: string; kind: TriCashKind; amount: string }>
+}
+
 export type TriCalendarKind = 'shifts' | 'dispatch' | 'production'
 export type TriCalendarStation = 'konstrukce' | 'vyroba' | 'kompletace' | 'lakovna' | 'expedice' | 'montaz'
 export type TriCalendarStatus = 'planned' | 'confirmed' | 'in_progress' | 'done'
@@ -489,7 +535,7 @@ export const triApi = {
     },
   },
   calendar: {
-    list: (params: { calendar: TriCalendarKind; from: string; to: string }) =>
+    list: (params: { calendar?: TriCalendarKind; from: string; to: string }) =>
       api.get<{ data: TriCalendarEvent[] }>('/tri/calendar', { params }).then((r) => r.data),
     listForJob: (jobId: number) =>
       api.get<{ data: TriCalendarEvent[] }>(`/tri/jobs/${jobId}/calendar`).then((r) => r.data),
@@ -499,6 +545,16 @@ export const triApi = {
     update: (id: number, payload: Record<string, unknown>) =>
       api.put<TriCalendarEvent>(`/tri/calendar/${id}`, payload).then((r) => r.data),
     delete: (id: number) => api.delete(`/tri/calendar/${id}`),
+  },
+  cash: {
+    list: (params?: Record<string, string | number>) =>
+      api.get<TriCashList>('/tri/cash', { params }).then((r) => r.data),
+    createMovement: (payload: Record<string, unknown>) =>
+      api.post<TriCashMovement>('/tri/cash/movements', payload).then((r) => r.data),
+    previewHandover: (params: { counted: string; keep: string; occurred_on?: string }) =>
+      api.get<TriCashHandoverPreview>('/tri/cash/handover-preview', { params }).then((r) => r.data),
+    createHandover: (payload: Record<string, unknown>) =>
+      api.post<TriCashHandover>('/tri/cash/handovers', payload).then((r) => r.data),
   },
   complaints: {
     list: (params?: Record<string, string | number>) =>

@@ -17,18 +17,24 @@ final class CalendarEventRepository
     /**
      * @return array{data: list<array<string, mixed>>}
      */
-    public function listInRange(int $supplierId, string $calendar, string $from, string $to): array
+    public function listInRange(int $supplierId, ?string $calendar, string $from, string $to): array
     {
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT e.*, j.number AS job_number, j.title AS job_title
+        $sql = 'SELECT e.*, j.number AS job_number, j.title AS job_title
                FROM tri_calendar_events e
           LEFT JOIN tri_jobs j ON j.id = e.job_id
-              WHERE e.supplier_id = ? AND e.calendar = ?
-                AND e.starts_at < ?
+              WHERE e.supplier_id = ?';
+        $params = [$supplierId];
+        if ($calendar !== null && $calendar !== '') {
+            $sql .= ' AND e.calendar = ?';
+            $params[] = $calendar;
+        }
+        $sql .= ' AND e.starts_at < ?
                 AND COALESCE(e.ends_at, e.starts_at) >= ?
-           ORDER BY e.starts_at, e.id'
-        );
-        $stmt->execute([$supplierId, $calendar, $to, $from]);
+           ORDER BY e.starts_at, e.id';
+        $params[] = $to;
+        $params[] = $from;
+        $stmt = $this->db->pdo()->prepare($sql);
+        $stmt->execute($params);
 
         return ['data' => array_map([$this, 'cast'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [])];
     }

@@ -22,8 +22,8 @@ final class ListCalendarEventsAction
             return Json::error($response, 'no_supplier', 'Chybí supplier kontext.', 400);
         }
         $q = $request->getQueryParams();
-        $calendar = (string) ($q['calendar'] ?? '');
-        if (!in_array($calendar, CalendarEventRules::CALENDARS, true)) {
+        $calendar = trim((string) ($q['calendar'] ?? ''));
+        if ($calendar !== '' && !in_array($calendar, CalendarEventRules::CALENDARS, true)) {
             return Json::error($response, 'validation_failed', 'Neplatný kalendář.', 400);
         }
         try {
@@ -33,6 +33,6 @@ final class ListCalendarEventsAction
             return Json::error($response, 'validation_failed', 'Rozsah from/to je povinný.', 400);
         }
 
-        return Json::ok($response, $this->repo->listInRange($supplierId, $calendar, $from, $to));
+        return Json::ok($response, $this->repo->listInRange($supplierId, $calendar !== '' ? $calendar : null, $from, $to));
     }
 }

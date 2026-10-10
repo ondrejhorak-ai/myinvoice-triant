@@ -265,6 +265,11 @@ final class JobInvoiceRepository
             $where[] = 'i.currency = ?';
             $params[] = strtoupper((string) $filters['currency']);
         }
+        if (!empty($filters['prodejna'])) {
+            $where[] = "i.status = 'paid'";
+            $where[] = "i.invoice_type = 'invoice'";
+            $where[] = 'COALESCE(tj.id, tj2.id) IS NULL';
+        }
         if (!empty($filters['unpaid_only'])) {
             $where[] = "i.status IN ('issued','sent','reminded')";
             $where[] = '(i.amount_to_pay - i.paid_total) > 0';
