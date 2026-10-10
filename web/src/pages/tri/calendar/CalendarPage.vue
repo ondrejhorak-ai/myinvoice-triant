@@ -15,6 +15,7 @@ import { useToast } from '@/composables/useToast'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import Modal from '@/components/ui/Modal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
@@ -336,19 +337,13 @@ watch([view, rangeFrom, rangeTo], () => load())
     >
       <div class="space-y-4">
         <UiInput v-model="form.title" :label="t('tri.calendar.title_label')" :disabled="!auth.canWrite" />
-        <label class="block text-sm font-medium text-neutral-700">
-          {{ t('tri.calendar.job') }}
-          <select v-model="form.job_id" class="mt-1.5 w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs" :disabled="!auth.canWrite">
-            <option value="">{{ t('tri.calendar.job_none') }}</option>
-            <option v-for="j in jobs" :key="j.id" :value="j.id">{{ j.number }} — {{ j.title }}</option>
-          </select>
-        </label>
-        <label v-if="form.calendar === 'production'" class="block text-sm font-medium text-neutral-700">
-          {{ t('tri.calendar.station') }}
-          <select v-model="form.station" class="mt-1.5 w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs" :disabled="!auth.canWrite">
-            <option v-for="s in STATIONS" :key="s" :value="s">{{ t(`tri.calendar.station_${s}`) }}</option>
-          </select>
-        </label>
+        <UiSelect v-model="form.job_id" :label="t('tri.calendar.job')" :disabled="!auth.canWrite">
+          <option value="">{{ t('tri.calendar.job_none') }}</option>
+          <option v-for="j in jobs" :key="j.id" :value="j.id">{{ j.number }} — {{ j.title }}</option>
+        </UiSelect>
+        <UiSelect v-if="form.calendar === 'production'" v-model="form.station" :label="t('tri.calendar.station')" :disabled="!auth.canWrite">
+          <option v-for="s in STATIONS" :key="s" :value="s">{{ t(`tri.calendar.station_${s}`) }}</option>
+        </UiSelect>
         <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
           <input v-model="form.all_day" type="checkbox" class="rounded border-neutral-300" :disabled="!auth.canWrite">
           {{ t('tri.calendar.all_day') }}

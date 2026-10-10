@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
@@ -97,8 +98,8 @@ watch(q, () => { clearTimeout(timer); timer = setTimeout(() => load(), 250) })
     </UiCard>
     <Modal v-if="filtersOpen" :title="t('office.filters')" @close="filtersOpen=false">
       <div class="office-page grid gap-4">
-        <label class="grid gap-1">{{ t('tri.jobs.status') }}<select v-model="draftStatus" class="border px-3 bg-surface"><option value="">{{ t('common.all') }}</option><option v-for="(label, key) in statusLabels" :key="key" :value="key">{{ t(label) }}</option></select></label>
-        <label class="grid gap-1">{{ t('office.archive_filter') }}<select v-model="draftArchive" class="border px-3 bg-surface"><option value="all">{{ t('common.all') }}</option><option value="active">{{ t('office.not_archived') }}</option><option value="archived">{{ t('office.archived_only') }}</option></select></label>
+        <UiSelect v-model="draftStatus" :label="t('tri.jobs.status')"><option value="">{{ t('common.all') }}</option><option v-for="(label, key) in statusLabels" :key="key" :value="key">{{ t(label) }}</option></UiSelect>
+        <UiSelect v-model="draftArchive" :label="t('office.archive_filter')"><option value="all">{{ t('common.all') }}</option><option value="active">{{ t('office.not_archived') }}</option><option value="archived">{{ t('office.archived_only') }}</option></UiSelect>
       </div>
       <template #footer><UiButton variant="secondary" @click="clearFilters(); filtersOpen=false">{{ t('office.clear_filters') }}</UiButton><UiButton @click="applyFilters">{{ t('office.apply_filters') }}</UiButton></template>
     </Modal>

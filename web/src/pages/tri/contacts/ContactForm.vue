@@ -13,6 +13,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 
 /**
  * V `embedded` módu komponenta nečte route pro edit, neredirektuje a vrací výsledek
@@ -417,11 +418,9 @@ async function submit() {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <UiInput v-model="form.city" :label="t('client.city')" />
           <div>
-            <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.country') }}</label>
-            <select v-model="form.country_iso2"
-              class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
+            <UiSelect v-model="form.country_iso2" :label="t('client.country')">
               <option v-for="c in countries" :key="c.iso2" :value="c.iso2">{{ locale === 'en' ? c.name_en : c.name_cs }}</option>
-            </select>
+            </UiSelect>
           </div>
         </div>
 
@@ -473,24 +472,20 @@ async function submit() {
           <div class="mt-3 space-y-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.language') }}</label>
-                <select v-model="form.language"
-                  class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
+                <UiSelect v-model="form.language" :label="t('client.language')">
                   <option value="cs">Čeština</option>
                   <option value="en">English</option>
-                </select>
+                </UiSelect>
               </div>
               <div>
-                <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.payment_due_label') }}</label>
-                <div class="flex gap-2 items-center">
-                  <select v-model="clientDuePreset"
-                    class="flex-1 min-w-0 h-10 px-2 border border-neutral-300 rounded-md text-sm bg-surface shadow-xs outline-none focus-ring">
+                <div class="flex gap-2 items-end">
+                  <UiSelect v-model="clientDuePreset" class="flex-1 min-w-0" :label="t('client.payment_due_label')">
                     <option value="inherit">{{ t('client.payment_due_inherit', { default: supplierDueLabel }) }}</option>
                     <option value="7">{{ t('client.payment_due_preset_7') }}</option>
                     <option value="14">{{ t('client.payment_due_preset_14') }}</option>
                     <option value="month">{{ t('client.payment_due_preset_month') }}</option>
                     <option value="custom">{{ t('client.payment_due_preset_custom') }}</option>
-                  </select>
+                  </UiSelect>
                   <div v-if="clientDuePreset === 'custom'" class="flex items-center gap-1.5 shrink-0">
                     <input autocomplete="off" v-model.number="form.payment_due_default" type="number" min="1" max="365"
                       class="w-20 h-10 px-2 border border-neutral-300 rounded-md text-sm font-mono shadow-xs outline-none focus-ring" />
@@ -503,11 +498,9 @@ async function submit() {
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.currency_default') }}</label>
-                <select v-model.number="form.currency_default_id"
-                  class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
+                <UiSelect v-model="form.currency_default_id" :label="t('client.currency_default')">
                   <option v-for="c in currencies" :key="c.id" :value="c.id">{{ c.label }}</option>
-                </select>
+                </UiSelect>
               </div>
               <div>
                 <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('client.hourly_rate') }}</label>
@@ -553,14 +546,12 @@ async function submit() {
                     class="w-full h-10 px-3 border border-neutral-300 rounded-md font-mono text-sm shadow-xs outline-none focus-ring" />
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-neutral-700 mb-1">{{ t('client.invoice_number_period') }}</label>
-                  <select v-model="form.invoice_number_period"
-                    class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring">
+                  <UiSelect v-model="form.invoice_number_period" :label="t('client.invoice_number_period')">
                     <option :value="null">{{ t('client.numbering_period_inherit') }}</option>
                     <option value="year">{{ t('client.numbering_period_year') }}</option>
                     <option value="month">{{ t('client.numbering_period_month') }}</option>
                     <option value="none">{{ t('client.numbering_period_none') }}</option>
-                  </select>
+                  </UiSelect>
                 </div>
               </div>
               <p class="text-xs text-neutral-500">{{ t('client.numbering_placeholders_hint') }}</p>

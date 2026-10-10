@@ -16,6 +16,7 @@ const toast = useToast()
 
 const counted = ref('')
 const keep = ref('5000.00')
+const book = ref('0.00')
 const note = ref('')
 const preview = ref<TriCashHandoverPreview | null>(null)
 const history = ref<TriCashHandover[]>([])
@@ -62,6 +63,7 @@ async function refreshPreview() {
 async function loadHistory() {
   const result = await triApi.cash.list({ page: 1, per_page: 1 })
   history.value = result.handovers
+  book.value = result.summary.drawer
 }
 
 async function confirm() {
@@ -100,57 +102,68 @@ onMounted(() => void loadHistory())
     <OfficeBreadcrumb :items="[{ label: t('tri.cash.title'), to: { name: 'tri-cash' } }, { label: t('tri.cash.handover_title') }]" />
     <UiPageHeader :title="t('tri.cash.handover_title')" :subtitle="t('tri.cash.handover_subtitle')" />
 
-    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div class="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
       <UiCard padding>
+        <h2 class="text-base font-semibold mb-4">{{ t('tri.cash.count') }}</h2>
         <div class="office-page grid gap-4">
+          <p class="flex justify-between text-sm"><span>{{ t('tri.cash.book') }}</span><strong>{{ money(preview?.book || book) }}</strong></p>
           <UiInput v-model="counted" inputmode="decimal" :label="t('tri.cash.count')" :hint="t('tri.cash.float_hint')" />
+          <p v-if="preview" class="flex justify-between text-sm"><span>{{ t('tri.cash.difference') }}</span><strong>{{ money(preview.difference) }}</strong></p>
+          <p class="flex justify-between text-sm"><span>{{ t('tri.cash.keep') }}</span><strong>{{ money(keep || '5000.00') }}</strong></p>
           <UiInput v-model="keep" inputmode="decimal" :label="t('tri.cash.keep')" />
           <UiInput v-model="note" :label="t('tri.cash.note')" />
           <p class="text-xs text-neutral-500">{{ t('tri.cash.paper') }}</p>
-          <p class="text-sm text-neutral-600">{{ t('tri.cash.not_posted') }}</p>
-          <p v-if="lowFloat" class="text-sm text-warning-600">{{ t('tri.cash.low_float') }}</p>
-          <p v-if="error" class="text-sm text-danger-600">{{ error }}</p>
-
-          <div v-if="preview">
-            <h2 class="text-sm font-semibold mb-2">{{ t('tri.cash.summary') }}</h2>
-            <dl class="grid grid-cols-2 gap-3 text-sm">
-              <div><dt class="text-neutral-500">{{ t('tri.cash.book') }}</dt><dd class="font-semibold">{{ money(preview.book) }}</dd></div>
-              <div><dt class="text-neutral-500">{{ t('tri.cash.difference') }}</dt><dd class="font-semibold">{{ money(preview.difference) }}</dd></div>
-              <div><dt class="text-neutral-500">{{ t('tri.cash.remit') }}</dt><dd class="font-semibold">{{ money(preview.remitted) }}</dd></div>
-              <div><dt class="text-neutral-500">{{ t('tri.cash.remain') }}</dt><dd class="font-semibold">{{ money(preview.remain) }}</dd></div>
-            </dl>
-            <h2 class="text-sm font-semibold mt-5 mb-2">{{ t('tri.cash.documents') }}</h2>
-            <p v-if="preview.documents.length === 0" class="text-sm text-neutral-500">{{ t('tri.cash.nothing') }}</p>
-            <ul v-else class="divide-y divide-neutral-100">
-              <li v-for="doc in preview.documents" :key="doc.id" class="py-2 flex justify-between gap-3 text-sm">
-                <span>{{ formatDate(doc.occurred_on) }} · {{ doc.description }}</span>
-                <span class="font-semibold whitespace-nowrap">{{ money(doc.amount) }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <div class="flex justify-end">
-            <UiButton :disabled="!canConfirm" :loading="saving" @click="confirm">{{ t('tri.cash.confirm') }}</UiButton>
-          </div>
         </div>
       </UiCard>
-
       <UiCard padding>
-        <h2 class="text-sm font-semibold mb-3">{{ t('tri.cash.history') }}</h2>
-        <p v-if="history.length === 0" class="text-sm text-neutral-500">{{ t('tri.cash.empty') }}</p>
-        <ul v-else class="divide-y divide-neutral-100">
-          <li v-for="row in history" :key="row.id" class="py-3 text-sm">
-            <div class="flex justify-between gap-2 font-semibold">
-              <span>{{ row.number }}</span>
-              <span>{{ money(row.remitted_amount) }}</span>
-            </div>
-            <div class="text-xs text-neutral-500 mt-1">
-              {{ formatDate(row.handed_on) }}
-              <span v-if="row.handed_by_name"> · {{ row.handed_by_name }}</span>
-            </div>
-          </li>
-        </ul>
+        <h2 class="text-base font-semibold mb-4">{{ t('tri.cash.summary') }}</h2>
+        <dl class="grid gap-3 text-sm">
+          <div class="flex justify-between gap-3"><dt>{{ t('tri.cash.documents') }}</dt><dd class="font-semibold">{{ preview?.documents.length ?? 0 }}</dd></div>
+          <div class="flex justify-between gap-3"><dt>{{ t('tri.cash.remit') }}</dt><dd class="font-semibold">{{ preview ? money(preview.remitted) : '—' }}</dd></div>
+          <div class="flex justify-between gap-3"><dt>{{ t('tri.cash.remain') }}</dt><dd class="font-semibold">{{ preview ? money(preview.remain) : '—' }}</dd></div>
+        </dl>
+        <p class="mt-4 text-sm text-neutral-600">{{ t('tri.cash.not_posted') }}</p>
+        <p v-if="lowFloat" class="mt-3 text-sm text-warning-600">{{ t('tri.cash.low_float') }}</p>
+        <p v-if="error" class="mt-3 text-sm text-danger-600">{{ error }}</p>
+        <UiButton class="mt-4" :disabled="!canConfirm" :loading="saving" @click="confirm">{{ t('tri.cash.confirm') }}</UiButton>
       </UiCard>
     </div>
+
+    <UiCard class="mt-4">
+      <h2 class="px-4 pt-4 text-base font-semibold">{{ t('tri.cash.documents') }}</h2>
+      <p v-if="!preview || preview.documents.length === 0" class="px-4 py-6 text-sm text-neutral-500">{{ t('tri.cash.nothing') }}</p>
+      <div v-else class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr>
+            <th class="text-left">{{ t('tri.cash.date') }}</th>
+            <th class="text-left">{{ t('tri.cash.link') }}</th>
+            <th class="text-left">{{ t('tri.cash.kind') }}</th>
+            <th class="text-right">{{ t('tri.cash.amount') }}</th>
+          </tr></thead>
+          <tbody>
+            <tr v-for="doc in preview.documents" :key="doc.id">
+              <td>{{ formatDate(doc.occurred_on) }}</td>
+              <td>{{ doc.description }}</td>
+              <td>{{ t(`tri.cash.kind_${doc.kind}`) }}</td>
+              <td class="text-right font-semibold">{{ money(doc.amount) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </UiCard>
+
+    <UiCard padding class="mt-4">
+      <h2 class="text-base font-semibold mb-3">{{ t('tri.cash.history') }}</h2>
+      <p v-if="history.length === 0" class="text-sm text-neutral-500">{{ t('tri.cash.empty') }}</p>
+      <ul v-else class="divide-y divide-neutral-100">
+        <li v-for="row in history" :key="row.id" class="py-3 text-sm">
+          <div class="flex justify-between gap-2 font-semibold">
+            <span>{{ row.number }} · {{ formatDate(row.handed_on) }}</span>
+            <span>{{ money(row.remitted_amount) }} / {{ money(row.keep_amount) }}</span>
+          </div>
+          <div v-if="row.handed_by_name" class="text-xs text-neutral-500 mt-1">{{ row.handed_by_name }}</div>
+        </li>
+      </ul>
+    </UiCard>
   </div>
 </template>

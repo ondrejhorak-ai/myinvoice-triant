@@ -6,6 +6,7 @@ import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTable from '@/components/ui/UiTable.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { useRowLink } from '@/composables/useRowLink'
@@ -54,15 +55,15 @@ watch([jobId, status], () => load())
 
     <UiCard>
       <div class="px-4 py-3 border-b border-neutral-200 flex flex-wrap gap-3">
-        <select v-model="jobId" class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface min-w-[12rem]">
+        <UiSelect v-model="jobId" size="sm" class="min-w-[12rem]" :label="t('tri.travelers.job')">
           <option value="">{{ t('tri.travelers.filter_job_all') }}</option>
           <option v-for="j in jobs" :key="j.id" :value="String(j.id)">{{ j.number }} — {{ j.title }}</option>
-        </select>
-        <select v-model="status" class="h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface">
+        </UiSelect>
+        <UiSelect v-model="status" size="sm" :label="t('tri.travelers.status')">
           <option value="">{{ t('tri.travelers.filter_status_all') }}</option>
           <option value="open">{{ t('tri.travelers.status_open') }}</option>
           <option value="done">{{ t('tri.travelers.status_done') }}</option>
-        </select>
+        </UiSelect>
       </div>
 
       <TableSkeleton v-if="loading" :rows="6" :cols="5" />

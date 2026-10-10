@@ -13,6 +13,7 @@ import JobHeaderInfo from './JobHeaderInfo.vue'
 import JobActivityFeed from './JobActivityFeed.vue'
 import OfficeBreadcrumb from '@/components/tri/OfficeBreadcrumb.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import OfficeMenu from '@/components/tri/OfficeMenu.vue'
@@ -326,7 +327,7 @@ onMounted(() => load())
 
     <div class="space-y-6 min-w-0">
     <UiCard>
-      <div class="p-5"><h2 class="mb-4">{{ t('office.basic_info') }}</h2><dl class="space-y-4 text-[13px]"><div class="flex justify-between items-center gap-4"><dt class="text-neutral-500">{{ t('tri.jobs.status') }}</dt><dd><select :value="job.status" :disabled="!auth.canWrite" @change="changeStatus(($event.target as HTMLSelectElement).value)" class="border px-3 bg-surface"><option v-for="status in statusOptions" :key="status" :value="status">{{ t(`tri.jobs.status_${status}`) }}</option></select></dd></div><div class="flex justify-between"><dt class="text-neutral-500">{{ t('tri.quote.created_date') }}</dt><dd>{{ formatDate(jobCreationDate) }}</dd></div><div class="flex justify-between"><dt class="text-neutral-500">{{ t('office.author') }}</dt><dd>{{ job.owner_name }}</dd></div></dl></div>
+      <div class="p-5"><h2 class="mb-4">{{ t('office.basic_info') }}</h2><dl class="space-y-4 text-[13px]"><div class="flex justify-between items-center gap-4"><dt class="text-neutral-500">{{ t('tri.jobs.status') }}</dt><dd><UiSelect :model-value="job.status" :disabled="!auth.canWrite" @update:model-value="changeStatus(String($event ?? ''))"><option v-for="status in statusOptions" :key="status" :value="status">{{ t(`tri.jobs.status_${status}`) }}</option></UiSelect></dd></div><div class="flex justify-between"><dt class="text-neutral-500">{{ t('tri.quote.created_date') }}</dt><dd>{{ formatDate(jobCreationDate) }}</dd></div><div class="flex justify-between"><dt class="text-neutral-500">{{ t('office.author') }}</dt><dd>{{ job.owner_name }}</dd></div></dl></div>
     </UiCard>
 
     <UiCard>

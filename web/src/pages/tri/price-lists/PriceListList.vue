@@ -12,6 +12,7 @@ import Modal from '@/components/ui/Modal.vue'
 import OfficeMenu from '@/components/tri/OfficeMenu.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiTable from '@/components/ui/UiTable.vue'
@@ -189,25 +190,22 @@ onMounted(load)
       :title="t('office.filters')"
       @close="filterOpen = false"
       ><div class="office-page space-y-4">
-        <label class="grid gap-1"
-          >{{ t('common.currency')
-          }}<select v-model="draft.currency" class="border px-3">
+        <UiSelect v-model="draft.currency" :label="t('common.currency')">
             <option value="">{{ t('common.all') }}</option>
             <option
               v-for="c in [...new Set(lists.map((l) => l.currency))]"
               :key="c"
+              :value="c"
             >
               {{ c }}
             </option>
-          </select></label
-        ><label class="grid gap-1"
-          >{{ t('common.status')
-          }}<select v-model="draft.status" class="border px-3">
+          </UiSelect
+        ><UiSelect v-model="draft.status" :label="t('common.status')">
             <option value="">{{ t('common.all') }}</option>
             <option value="draft">{{ t('office.draft') }}</option>
             <option value="published">{{ t('office.published') }}</option>
             <option value="none">{{ t('office.no_release') }}</option>
-          </select></label
+          </UiSelect
         ><label class="flex gap-2"
           ><input v-model="draft.archived" type="checkbox" />{{
             t('office.include_archived')

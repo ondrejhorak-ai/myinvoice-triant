@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast'
 import Modal from '@/components/ui/Modal.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 
 const props = defineProps<{
   jobId?: number
@@ -55,16 +56,10 @@ async function submit() {
 <template>
   <Modal :title="t('tri.complaints.new')" width-class="max-w-lg" @close="emit('close')">
     <div class="space-y-4">
-      <label v-if="!props.jobId" class="block text-sm font-medium text-neutral-700">
-        {{ t('tri.complaints.job') }}
-        <select
-          v-model="jobId"
-          class="mt-1.5 w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface shadow-xs outline-none focus-ring"
-        >
-          <option value="">{{ t('tri.complaints.job_required') }}</option>
-          <option v-for="j in jobs ?? []" :key="j.id" :value="j.id">{{ j.number }} — {{ j.title }}</option>
-        </select>
-      </label>
+      <UiSelect v-if="!props.jobId" v-model="jobId" :label="t('tri.complaints.job')">
+        <option value="">{{ t('tri.complaints.job_required') }}</option>
+        <option v-for="j in jobs ?? []" :key="j.id" :value="j.id">{{ j.number }} — {{ j.title }}</option>
+      </UiSelect>
       <UiInput v-model="title" :label="t('tri.complaints.title_label')" />
       <label class="block text-sm font-medium text-neutral-700">
         {{ t('tri.complaints.description') }}

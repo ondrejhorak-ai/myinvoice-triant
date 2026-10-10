@@ -17,6 +17,7 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTable from '@/components/ui/UiTable.vue'
 import Modal from '@/components/ui/Modal.vue'
 import OfficeRoleTag from '@/components/tri/OfficeRoleTag.vue'
@@ -118,7 +119,7 @@ function openContact(c: Client, e?: MouseEvent) {
   <div class="office-filters">
     <UiInput v-model="search" type="search" class="w-full sm:max-w-[520px]" :label="t('common.search')" :placeholder="t('office.contacts_search')" />
     <OfficeFilterButton :count="conditions.length" :expanded="filtersOpen" @click="openFilters" />
-    <label class="grid gap-1 sm:ml-auto w-[230px]">{{ t('common.sort_by') }}<select v-model="sort" class="px-3 border bg-surface"><option value="name">{{ t('common.sort_name') }}</option><option value="revenue">{{ t('common.sort_revenue') }}</option><option value="last_activity">{{ t('common.sort_last_activity') }}</option></select></label>
+    <UiSelect v-model="sort" class="sm:ml-auto w-full sm:w-[230px]" :label="t('common.sort_by')"><option value="name">{{ t('common.sort_name') }}</option><option value="revenue">{{ t('common.sort_revenue') }}</option><option value="last_activity">{{ t('common.sort_last_activity') }}</option></UiSelect>
   </div>
   <OfficeAppliedFilters :conditions="conditions" @remove="removeFilter" @clear="clearFilters" />
   <p class="text-xs text-neutral-500 mb-4">{{ t('office.loaded', {n:items.length,total}) }}</p>
@@ -138,6 +139,6 @@ function openContact(c: Client, e?: MouseEvent) {
     </UiTable>
   </UiCard>
   <div v-if="page < pages && !loading" class="flex justify-center p-6"><UiButton variant="secondary" :loading="loadingMore" @click="load(false)">{{ t('office.more') }}</UiButton></div>
-  <Modal v-if="filtersOpen" :title="t('office.filters')" width-class="max-w-lg" @close="filtersOpen=false"><div class="space-y-5"><label class="grid gap-1">{{ t('tri.tags.label') }}<select v-model="draftRole" class="h-11 border border-neutral-200 px-3 bg-surface"><option :value="null">{{ t('common.all') }}</option><option v-for="tag in triTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option></select></label><label class="grid gap-1">{{ t('office.archive_filter') }}<select v-model="draftArchived" class="h-11 border border-neutral-200 px-3 bg-surface"><option value="all">{{ t('common.all') }}</option><option :value="false">{{ t('office.not_archived') }}</option><option :value="true">{{ t('office.archived_only') }}</option></select></label></div><template #footer><UiButton variant="secondary" @click="clearFilters(); filtersOpen=false">{{ t('office.clear_filters') }}</UiButton><UiButton @click="applyFilters">{{ t('office.apply_filters') }}</UiButton></template></Modal>
+  <Modal v-if="filtersOpen" :title="t('office.filters')" width-class="max-w-lg" @close="filtersOpen=false"><div class="office-page grid gap-4"><UiSelect v-model="draftRole" :label="t('tri.tags.label')"><option :value="null">{{ t('common.all') }}</option><option v-for="tag in triTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option></UiSelect><UiSelect v-model="draftArchived" :label="t('office.archive_filter')"><option value="all">{{ t('common.all') }}</option><option :value="false">{{ t('office.not_archived') }}</option><option :value="true">{{ t('office.archived_only') }}</option></UiSelect></div><template #footer><UiButton variant="secondary" @click="clearFilters(); filtersOpen=false">{{ t('office.clear_filters') }}</UiButton><UiButton @click="applyFilters">{{ t('office.apply_filters') }}</UiButton></template></Modal>
 </div>
 </template>

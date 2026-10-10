@@ -13,9 +13,13 @@ import UiTable from '@/components/ui/UiTable.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import Modal from '@/components/ui/Modal.vue'
+import OfficeFilterButton from '@/components/tri/OfficeFilterButton.vue'
+import OfficeAppliedFilters from '@/components/tri/OfficeAppliedFilters.vue'
+import { useAppliedFilters } from '@/composables/tri/useAppliedFilters'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -31,6 +35,9 @@ const pages = ref(1)
 const search = ref('')
 const kind = ref('')
 const handed = ref('all')
+const filtersOpen = ref(false)
+const draftKind = ref('')
+const draftHanded = ref('all')
 const formOpen = ref(false)
 const saving = ref(false)
 const formError = ref('')
@@ -55,6 +62,27 @@ function signed(row: TriCashMovement): string {
 }
 
 const kindLabel = computed(() => (value: string) => t(`tri.cash.kind_${value}`))
+const { conditions, removeFilter, clearFilters } = useAppliedFilters([
+  { id: 'kind', active: () => kind.value !== '', label: () => kindLabel.value(kind.value), clear: () => { kind.value = '' } },
+  {
+    id: 'handed',
+    active: () => handed.value !== 'all',
+    label: () => handed.value === 'open' ? t('tri.cash.handed_open') : t('tri.cash.handed_done'),
+    clear: () => { handed.value = 'all' },
+  },
+])
+
+function openFilters() {
+  draftKind.value = kind.value
+  draftHanded.value = handed.value
+  filtersOpen.value = true
+}
+
+function applyCashFilters() {
+  kind.value = draftKind.value
+  handed.value = draftHanded.value
+  filtersOpen.value = false
+}
 
 async function load(reset = true) {
   if (reset) {
@@ -135,10 +163,7 @@ onMounted(() => void load(true))
   <div>
     <UiPageHeader :title="t('tri.cash.title')" :subtitle="t('tri.cash.subtitle')">
       <template #actions>
-        <UiButton v-if="auth.canWrite" variant="secondary" size="sm" @click="router.push({ name: 'tri-cash-handover' })">
-          {{ t('tri.cash.handover') }}
-        </UiButton>
-        <UiButton v-if="auth.canWrite" size="sm" @click="openForm">{{ t('tri.cash.new_movement') }}</UiButton>
+        <UiButton v-if="auth.canWrite" @click="openForm">{{ t('tri.cash.new_movement') }}</UiButton>
       </template>
     </UiPageHeader>
 
@@ -160,28 +185,18 @@ onMounted(() => void load(true))
       </div>
     </div>
 
+    <div v-if="auth.canWrite" class="flex flex-wrap gap-2 mb-6">
+      <UiButton @click="openForm">{{ t('tri.cash.new_movement') }}</UiButton>
+      <UiButton variant="secondary" @click="router.push({ name: 'tri-cash-handover' })">{{ t('tri.cash.handover') }}</UiButton>
+    </div>
+
+    <div class="office-filters">
+      <UiInput v-model="search" type="search" class="w-full sm:max-w-[520px]" :label="t('common.search')" />
+      <OfficeFilterButton :count="conditions.length" :expanded="filtersOpen" @click="openFilters" />
+    </div>
+    <OfficeAppliedFilters :conditions="conditions" @remove="removeFilter" @clear="clearFilters" />
+
     <UiCard>
-      <div class="px-4 py-3 border-b border-neutral-200 flex flex-wrap gap-3">
-        <UiInput v-model="search" type="search" size="sm" class="w-full sm:max-w-xs" :label="t('common.search')" />
-        <label class="text-sm">
-          <span class="block text-xs text-neutral-500 mb-1">{{ t('tri.cash.kind') }}</span>
-          <select v-model="kind" class="h-9 px-3 border border-neutral-300 text-sm bg-surface">
-            <option value="">{{ t('tri.cash.kind_all') }}</option>
-            <option value="cash_in">{{ t('tri.cash.kind_cash_in') }}</option>
-            <option value="cash_out">{{ t('tri.cash.kind_cash_out') }}</option>
-            <option value="card">{{ t('tri.cash.kind_card') }}</option>
-            <option value="remittance">{{ t('tri.cash.kind_remittance') }}</option>
-          </select>
-        </label>
-        <label class="text-sm">
-          <span class="block text-xs text-neutral-500 mb-1">{{ t('tri.cash.handed') }}</span>
-          <select v-model="handed" class="h-9 px-3 border border-neutral-300 text-sm bg-surface">
-            <option value="all">{{ t('tri.cash.handed_all') }}</option>
-            <option value="open">{{ t('tri.cash.handed_open') }}</option>
-            <option value="handed">{{ t('tri.cash.handed_done') }}</option>
-          </select>
-        </label>
-      </div>
 
       <TableSkeleton v-if="loading" :rows="6" :cols="5" />
       <EmptyState v-else-if="rows.length === 0" :title="t('tri.cash.empty')">
@@ -193,19 +208,19 @@ onMounted(() => void load(true))
           <template #head>
             <tr>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.date') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.link') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.kind') }}</th>
-              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.description') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.handed') }}</th>
               <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.cash.amount') }}</th>
             </tr>
           </template>
           <tr v-for="row in rows" :key="row.id">
             <td class="px-4 py-3 whitespace-nowrap">{{ formatDate(row.occurred_on) }}</td>
-            <td class="px-4 py-3">{{ kindLabel(row.kind) }}</td>
             <td class="px-4 py-3">
               <div class="font-medium text-neutral-900">{{ row.description }}</div>
               <div v-if="row.note" class="text-xs text-neutral-500">{{ row.note }}</div>
             </td>
+            <td class="px-4 py-3">{{ kindLabel(row.kind) }}</td>
             <td class="px-4 py-3">
               <UiBadge :variant="row.handover_id ? 'success' : 'warning'">
                 {{ row.handover_number || t('tri.cash.handed_open') }}
@@ -234,12 +249,9 @@ onMounted(() => void load(true))
 
     <Modal v-if="formOpen" :title="t('tri.cash.new_movement')" width-class="max-w-lg" @close="formOpen = false">
       <form class="office-page grid gap-4" @submit.prevent="save">
-        <label class="text-sm">
-          <span class="block mb-1">{{ t('tri.cash.kind') }}</span>
-          <select v-model="form.kind" class="h-11 w-full px-3 border border-neutral-300 text-sm bg-surface">
-            <option v-for="item in kinds" :key="item" :value="item">{{ kindLabel(item) }}</option>
-          </select>
-        </label>
+        <UiSelect v-model="form.kind" :label="t('tri.cash.kind')">
+          <option v-for="item in kinds" :key="item" :value="item">{{ kindLabel(item) }}</option>
+        </UiSelect>
         <UiInput v-model="form.amount" inputmode="decimal" :label="t('tri.cash.amount')" required />
         <UiInput v-model="form.occurred_on" type="date" :label="t('tri.cash.date')" required />
         <UiInput v-model="form.description" :label="t('tri.cash.description')" required />
@@ -251,6 +263,27 @@ onMounted(() => void load(true))
           <UiButton type="submit" :loading="saving">{{ t('common.save') }}</UiButton>
         </div>
       </form>
+    </Modal>
+
+    <Modal v-if="filtersOpen" :title="t('office.filters')" width-class="max-w-lg" @close="filtersOpen = false">
+      <div class="office-page grid gap-4">
+        <UiSelect v-model="draftKind" :label="t('tri.cash.kind')">
+          <option value="">{{ t('tri.cash.kind_all') }}</option>
+          <option value="cash_in">{{ t('tri.cash.kind_cash_in') }}</option>
+          <option value="cash_out">{{ t('tri.cash.kind_cash_out') }}</option>
+          <option value="card">{{ t('tri.cash.kind_card') }}</option>
+          <option value="remittance">{{ t('tri.cash.kind_remittance') }}</option>
+        </UiSelect>
+        <UiSelect v-model="draftHanded" :label="t('tri.cash.handed')">
+          <option value="all">{{ t('tri.cash.handed_all') }}</option>
+          <option value="open">{{ t('tri.cash.handed_open') }}</option>
+          <option value="handed">{{ t('tri.cash.handed_done') }}</option>
+        </UiSelect>
+      </div>
+      <template #footer>
+        <UiButton variant="secondary" @click="clearFilters(); filtersOpen = false">{{ t('office.clear_filters') }}</UiButton>
+        <UiButton @click="applyCashFilters">{{ t('office.apply_filters') }}</UiButton>
+      </template>
     </Modal>
   </div>
 </template>

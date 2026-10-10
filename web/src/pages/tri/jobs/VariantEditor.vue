@@ -17,6 +17,7 @@ import OfficeBreadcrumb from '@/components/tri/OfficeBreadcrumb.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import { unitPriceForTotal } from '@/composables/tri/priceInput'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 
@@ -652,7 +653,7 @@ onBeforeUnmount(() => {
     </div>
     <UiCard padding><h2 class="mb-4">{{ t('office.basic_info') }}</h2><div class="grid sm:grid-cols-[2fr_1fr_1fr] gap-5">
       <label class="grid gap-1">{{ t('tri.quote.variant_name') }}<input v-model="variant.name" :disabled="!auth.canWrite" maxlength="120" :placeholder="t('tri.quote.variant_name_placeholder')" class="w-full border px-3 bg-surface" /></label>
-      <label class="grid gap-1">{{ t('tri.quote.status_label') }}<select :value="variant.status" :disabled="!auth.canWrite || statusUpdating" @change="changeVariantStatus(($event.target as HTMLSelectElement).value as TriVariantStatus)" class="border px-3 bg-surface"><option v-for="status in variantStatusOptions" :key="status" :value="status">{{ t(`tri.quote.status_${status}`) }}</option></select></label>
+      <UiSelect :label="t('tri.quote.status_label')" :model-value="variant.status" :disabled="!auth.canWrite || statusUpdating" @update:model-value="changeVariantStatus(String($event ?? '') as TriVariantStatus)"><option v-for="status in variantStatusOptions" :key="status" :value="status">{{ t(`tri.quote.status_${status}`) }}</option></UiSelect>
       <label class="grid gap-1">{{ t('tri.quote.created_date') }}<input v-model="variant.job_date" :disabled="!auth.canWrite" type="date" class="border px-3 bg-surface" /></label>
     </div></UiCard>
     <UiCard><JobHeaderInfo v-if="job" :contacts="job.contacts ?? []" :site-street="job.site_street" :site-city="job.site_city" :site-zip="job.site_zip" /></UiCard>

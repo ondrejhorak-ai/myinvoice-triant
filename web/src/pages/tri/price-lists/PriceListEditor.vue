@@ -19,6 +19,7 @@ import { formatMoney, formatDate } from '@/composables/useFormat'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTable from '@/components/ui/UiTable.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import Modal from '@/components/ui/Modal.vue'
@@ -535,19 +536,18 @@ function remove(i: ReleaseItem) {
       :title="t('office.filters')"
       @close="filterOpen = false"
       ><div class="office-page space-y-4">
-        <label class="grid gap-1"
-          >{{ t('office.category')
-          }}<select v-model="draftFilters.category" class="border px-3">
+        <UiSelect v-model="draftFilters.category" :label="t('office.category')">
             <option value="">{{ t('common.all') }}</option>
             <option
               v-for="c in [
                 ...new Set(list?.items.map((i) => i.category).filter(Boolean)),
               ]"
-              :key="c"
+              :key="String(c)"
+              :value="c"
             >
               {{ c }}
             </option>
-          </select></label
+          </UiSelect
         ><UiInput v-model="draftFilters.tag" :label="t('office.tags')" /><label
           class="flex gap-2"
           ><input v-model="draftFilters.missing" type="checkbox" />{{

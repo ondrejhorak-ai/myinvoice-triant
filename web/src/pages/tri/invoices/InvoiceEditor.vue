@@ -24,6 +24,7 @@ import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 import TriContactFormModal from '@/components/tri/TriContactFormModal.vue'
 import TriJobLinkField from '@/components/tri/TriJobLinkField.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import CardSkeleton from '@/components/ui/CardSkeleton.vue'
@@ -1001,12 +1002,10 @@ async function deleteDraft() {
           <h3 class="text-base font-semibold text-neutral-900 mb-4">{{ t('invoice.client') }}</h3>
           <div class="space-y-3">
             <div>
-              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.doc_type') }} *</label>
-              <select v-model="form.invoice_type" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface">
+              <UiSelect v-model="form.invoice_type" :label="`${t('invoice.doc_type')} *`">
                 <option value="invoice">{{ t('invoice.doc_invoice') }}</option>
                 <option value="proforma">{{ t('invoice.doc_proforma') }}</option>
-
-              </select>
+              </UiSelect>
               <p v-if="form.invoice_type === 'credit_note'" class="text-xs text-warning-600 mt-1">
                 {{ t('invoice.credit_note_warning') }}
               </p>
@@ -1063,28 +1062,24 @@ async function deleteDraft() {
             />
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.currency') }}</label>
-                <select v-model.number="form.currency_id" @change="onCurrencyChange"
-                  class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface">
+                <UiSelect v-model="form.currency_id" :label="t('invoice.currency')" @change="onCurrencyChange">
                   <option v-for="c in currencies" :key="c.id" :value="c.id">{{ c.label }}</option>
-                </select>
+                </UiSelect>
               </div>
               <div>
-                <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('invoice.language') }}</label>
-                <select v-model="form.language" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface">
+                <UiSelect v-model="form.language" :label="t('invoice.language')">
                   <option value="cs">CZ</option>
                   <option value="en">EN</option>
-                </select>
+                </UiSelect>
               </div>
             </div>
             <div>
-              <label class="block text-sm font-medium text-neutral-700 mb-1">{{ t('payment_method.label') }}</label>
-              <select v-model="form.payment_method" class="w-full h-10 px-3 border border-neutral-300 rounded-md bg-surface">
+              <UiSelect v-model="form.payment_method" :label="t('payment_method.label')">
                 <option value="bank_transfer">{{ t('payment_method.bank_transfer') }}</option>
                 <option value="card">{{ t('payment_method.card') }}</option>
                 <option value="cash">{{ t('payment_method.cash') }}</option>
                 <option value="other">{{ t('payment_method.other') }}</option>
-              </select>
+              </UiSelect>
               <p v-if="form.payment_method !== 'bank_transfer'" class="text-xs text-warning-600 mt-1">
                 {{ t('payment_method.hint') }}
               </p>
@@ -1228,19 +1223,19 @@ async function deleteDraft() {
                   :class="['w-full h-9 px-2 border rounded text-right font-mono text-sm', itemHasBothNegative(item) ? 'border-danger-400' : 'border-neutral-300']" />
               </td>
               <td class="px-3 py-2">
-                <select v-model="item.unit" :aria-label="t('office.unit')" class="w-full h-9 px-1 border border-neutral-300 rounded text-sm bg-surface">
+                <UiSelect v-model="item.unit" size="sm" :aria-label="t('office.unit')">
                   <option v-for="u in units" :key="u.id" :value="u.code">{{ u.code }}</option>
                   <option v-if="item.unit && !units.some(u => u.code === item.unit)" :value="item.unit">{{ item.unit }}</option>
-                </select>
+                </UiSelect>
               </td>
               <td class="px-3 py-2">
                 <input v-model="item.unit_price_without_vat" :aria-label="unitPriceHeaderLabel" v-math type="text" inputmode="decimal"
                   :class="['w-full h-9 px-2 border rounded text-right font-mono text-sm', itemHasBothNegative(item) ? 'border-danger-400' : 'border-neutral-300']" />
               </td>
               <td v-if="supplierIsVatPayer" class="px-3 py-2">
-                <select v-model.number="item.vat_rate_id" :aria-label="t('invoice.totals.vat')" class="w-full h-9 px-1 border border-neutral-300 rounded text-sm bg-surface">
+                <UiSelect v-model="item.vat_rate_id" size="sm" :aria-label="t('invoice.totals.vat')">
                   <option v-for="r in selectableVatRates" :key="r.id" :value="r.id">{{ vatRateLabel(r) }}</option>
-                </select>
+                </UiSelect>
               </td>
               <td class="px-3 py-2">
                 <input :value="itemTotal(item)" @change="setItemGross(item, ($event.target as HTMLInputElement).value)"

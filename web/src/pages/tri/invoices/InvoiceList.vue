@@ -27,6 +27,7 @@ import Modal from '@/components/ui/Modal.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { apiErrorMessage } from '@/api/errors'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 
 const { t, tm, rt } = useI18n()
 
@@ -342,13 +343,13 @@ onBeforeUnmount(() => { if (searchTimeout) clearTimeout(searchTimeout) })
   </template>
   <Modal v-if="filtersOpen" :title="t('office.filters')" @close="filtersOpen=false">
     <div class="grid sm:grid-cols-2 gap-4 office-page">
-      <label class="grid gap-1">{{ t('invoice.status_label') }}<select v-model="draft.status" class="border px-3 bg-surface"><option value="">{{ t('common.all') }}</option><option v-for="v in ['draft','issued','sent','reminded','paid','cancelled']" :key="v" :value="v">{{ t(`status.${v}`) }}</option></select></label>
-      <label class="grid gap-1">{{ t('invoice.type') }}<select v-model="draft.type" class="border px-3 bg-surface"><option value="">{{ t('common.all') }}</option><option v-for="v in ['invoice','proforma','credit_note']" :key="v" :value="v">{{ typeLabel(v) }}</option></select></label>
+      <UiSelect v-model="draft.status" :label="t('invoice.status_label')"><option value="">{{ t('common.all') }}</option><option v-for="v in ['draft','issued','sent','reminded','paid','cancelled']" :key="v" :value="v">{{ t(`status.${v}`) }}</option></UiSelect>
+      <UiSelect v-model="draft.type" :label="t('invoice.type')"><option value="">{{ t('common.all') }}</option><option v-for="v in ['invoice','proforma','credit_note']" :key="v" :value="v">{{ typeLabel(v) }}</option></UiSelect>
       <label class="grid gap-1">{{ t('invoice.client') }}<SearchableSelect :model-value="draft.client || null" @update:model-value="draft.client = $event || ''" :options="clients.map(c=>({value:c.id,label:c.company_name}))" /></label>
       <label class="grid gap-1">{{ t('tri.invoices.job_label') }}<SearchableSelect :model-value="draft.job || null" @update:model-value="draft.job = $event || ''" :options="triJobs.map(j=>({value:j.id,label:j.number+' — '+j.title}))" /></label>
-      <label class="grid gap-1">{{ t('common.currency') }}<select v-model="draft.currency" class="border px-3 bg-surface"><option value="">{{ t('common.all') }}</option><option v-for="c in currencies" :key="c.code" :value="c.code">{{ c.code }}</option></select></label>
-      <label class="grid gap-1">{{ t('office.year') }}<select v-model="draft.year" :disabled="!!draft.from || !!draft.to" class="border px-3 bg-surface"><option value="">{{ t('common.all') }}</option><option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option></select></label>
-      <label class="grid gap-1">{{ t('invoice.month_filter') }}<select v-model="draft.month" :disabled="!!draft.from || !!draft.to || draft.year === ''" class="border px-3 bg-surface"><option value="">{{ t('common.all') }}</option><option v-for="(m,i) in monthOptions" :key="i" :value="i+1">{{ m }}</option></select></label>
+      <UiSelect v-model="draft.currency" :label="t('common.currency')"><option value="">{{ t('common.all') }}</option><option v-for="c in currencies" :key="c.code" :value="c.code">{{ c.code }}</option></UiSelect>
+      <UiSelect v-model="draft.year" :label="t('office.year')" :disabled="!!draft.from || !!draft.to"><option value="">{{ t('common.all') }}</option><option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option></UiSelect>
+      <UiSelect v-model="draft.month" :label="t('invoice.month_filter')" :disabled="!!draft.from || !!draft.to || draft.year === ''"><option value="">{{ t('common.all') }}</option><option v-for="(m,i) in monthOptions" :key="i" :value="i+1">{{ m }}</option></UiSelect>
       <UiInput v-model="draft.from" type="date" :label="t('office.date_from')" /><UiInput v-model="draft.to" type="date" :label="t('office.date_to')" />
       <label class="flex items-center gap-2"><input v-model="draft.overdue" type="checkbox" />{{ t('invoice.overdue_only') }}</label><label class="flex items-center gap-2"><input v-model="draft.unpaid" type="checkbox" />{{ t('invoice.unpaid_only') }}</label>
     </div>
