@@ -30,6 +30,9 @@ final class CreateCalendarEventAction
             if ($e->getMessage() === 'JOB_NOT_FOUND') {
                 return Json::error($response, 'not_found', 'Zakázka nenalezena.', 400);
             }
+            if ($e->getMessage() === 'USER_NOT_FOUND') {
+                return Json::error($response, 'not_found', 'Pracovník nenalezen.', 400);
+            }
             throw $e;
         }
 

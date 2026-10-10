@@ -5,6 +5,7 @@ import type { TriQuoteLineItem } from '@/api/tri'
 import OfficeMenu from '@/components/tri/OfficeMenu.vue'
 import Modal from '@/components/ui/Modal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import QuoteLineImageControl from './QuoteLineImageControl.vue'
 const props = defineProps<{
   row: TriQuoteLineItem & { _uid: string }
@@ -129,16 +130,17 @@ function escape(e: KeyboardEvent) {
       :aria-label="t('tri.quote.unit_price')"
       class="border px-2 text-right min-w-0 w-full"
     />
-    <select
+    <UiSelect
       v-model.number="row.vat_rate"
+      size="inline"
+      class="w-full self-center"
       :disabled="!canWrite"
       :aria-label="t('tri.quote.vat_rate')"
-      class="border px-1 bg-surface min-w-0 w-full"
     >
       <option :value="21">21</option>
       <option :value="12">12</option>
       <option :value="0">0</option>
-    </select>
+    </UiSelect>
     <label class="h-11 flex items-center justify-center"
       ><input
         v-model="row.is_manufactured"
@@ -186,12 +188,12 @@ function escape(e: KeyboardEvent) {
           step="0.01"
           class="border p-3 w-full"
           :aria-label="t('tri.quote.discount')"
-        /><select v-model="discountType" class="border p-3">
+        /><UiSelect v-model="discountType" size="inline" class="w-36 shrink-0" :aria-label="t('tri.quote.discount')">
           <option value="percent">%</option>
           <option value="absolute">
             {{ t('tri.quote.adjustment_amount') }}
           </option>
-        </select>
+        </UiSelect>
       </div>
       <template #footer
         ><UiButton @click="saveDiscount">{{

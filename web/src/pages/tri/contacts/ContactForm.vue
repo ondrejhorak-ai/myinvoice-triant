@@ -14,6 +14,7 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
 
 /**
  * V `embedded` módu komponenta nečte route pro edit, neredirektuje a vrací výsledek
@@ -380,9 +381,9 @@ async function submit() {
               <div v-else class="space-y-2 text-sm">
                 <div class="flex items-center gap-2">
                   <span class="text-neutral-500">{{ t('client.vat_payer_reliability') }}:</span>
-                  <span v-if="vatInfo.unreliable === true" class="px-2 py-0.5 rounded bg-danger-50 text-danger-600 font-medium">{{ t('client.vat_payer_unreliable') }}</span>
-                  <span v-else-if="vatInfo.unreliable === false" class="px-2 py-0.5 rounded bg-success-50 text-success-600 font-medium">{{ t('client.vat_payer_reliable') }}</span>
-                  <span v-else class="px-2 py-0.5 rounded bg-neutral-100 text-neutral-600">{{ t('client.vat_payer_unknown') }}</span>
+                  <UiBadge v-if="vatInfo.unreliable === true" variant="danger">{{ t('client.vat_payer_unreliable') }}</UiBadge>
+                  <UiBadge v-else-if="vatInfo.unreliable === false" variant="success">{{ t('client.vat_payer_reliable') }}</UiBadge>
+                  <UiBadge v-else variant="neutral">{{ t('client.vat_payer_unknown') }}</UiBadge>
                 </div>
                 <div>
                   <div class="text-neutral-500 mb-1">{{ t('client.vat_payer_accounts') }}:</div>

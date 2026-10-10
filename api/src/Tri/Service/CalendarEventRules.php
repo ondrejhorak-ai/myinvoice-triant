@@ -19,12 +19,15 @@ final class CalendarEventRules
      *   calendar: string,
      *   title: string,
      *   job_id: ?int,
+     *   user_id: ?int,
      *   station: ?string,
      *   starts_at: string,
      *   ends_at: ?string,
      *   all_day: int,
      *   status: string,
-     *   note: ?string
+     *   note: ?string,
+     *   arrival_window: ?string,
+     *   crew: ?string
      * }
      */
     public static function normalize(array $body): array
@@ -72,17 +75,47 @@ final class CalendarEventRules
 
         $note = isset($body['note']) ? trim((string) $body['note']) : '';
 
+        $userId = null;
+        $arrival = null;
+        $crew = null;
+        if ($calendar === 'shifts') {
+            $userRaw = $body['user_id'] ?? null;
+            if ($userRaw === '' || $userRaw === null || !is_numeric($userRaw) || (int) $userRaw <= 0) {
+                throw new \InvalidArgumentException('USER_REQUIRED');
+            }
+            $userId = (int) $userRaw;
+        } elseif ($calendar === 'dispatch') {
+            $arrival = self::optionalText($body['arrival_window'] ?? null, 80, 'ARRIVAL_TOO_LONG');
+            $crew = self::optionalText($body['crew'] ?? null, 255, 'CREW_TOO_LONG');
+        }
+
         return [
-            'calendar'  => $calendar,
-            'title'     => $title,
-            'job_id'    => $jobId,
-            'station'   => $station,
-            'starts_at' => $startsAt,
-            'ends_at'   => $endsAt,
-            'all_day'   => $allDay ? 1 : 0,
-            'status'    => $status,
-            'note'      => $note !== '' ? $note : null,
+            'calendar'       => $calendar,
+            'title'          => $title,
+            'job_id'         => $jobId,
+            'user_id'        => $userId,
+            'station'        => $station,
+            'starts_at'      => $startsAt,
+            'ends_at'        => $endsAt,
+            'all_day'        => $allDay ? 1 : 0,
+            'status'         => $status,
+            'note'           => $note !== '' ? $note : null,
+            'arrival_window' => $arrival,
+            'crew'           => $crew,
         ];
+    }
+
+    private static function optionalText(mixed $value, int $max, string $tooLong): ?string
+    {
+        $text = trim((string) ($value ?? ''));
+        if ($text === '') {
+            return null;
+        }
+        if (mb_strlen($text) > $max) {
+            throw new \InvalidArgumentException($tooLong);
+        }
+
+        return $text;
     }
 
     public static function overlapsRange(string $from, string $to, string $startsAt, ?string $endsAt): bool

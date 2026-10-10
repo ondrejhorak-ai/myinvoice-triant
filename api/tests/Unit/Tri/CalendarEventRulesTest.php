@@ -30,11 +30,17 @@ final class CalendarEventRulesTest extends TestCase
             'calendar'  => 'shifts',
             'title'     => 'Ranní',
             'station'   => 'vyroba',
+            'user_id'   => 4,
+            'arrival_window' => '8–10',
+            'crew'      => 'Novák',
             'starts_at' => '2026-08-17',
             'all_day'   => true,
         ]);
         $this->assertNull($row['station']);
         $this->assertSame('shifts', $row['calendar']);
+        $this->assertSame(4, $row['user_id']);
+        $this->assertNull($row['arrival_window']);
+        $this->assertNull($row['crew']);
     }
 
     public function testProductionWithoutStationFails(): void
@@ -105,6 +111,7 @@ final class CalendarEventRulesTest extends TestCase
         $row = CalendarEventRules::normalize([
             'calendar'  => 'shifts',
             'title'     => 'Ranní',
+            'user_id'   => 4,
             'starts_at' => '2026-08-17',
             'status'    => 'confirmed',
         ]);
@@ -164,6 +171,56 @@ final class CalendarEventRulesTest extends TestCase
         $this->assertSame('done', CalendarEventRules::nextStatus('production', 'in_progress'));
         $this->assertNull(CalendarEventRules::nextStatus('production', 'done'));
         $this->assertNull(CalendarEventRules::nextStatus('shifts', 'planned'));
+    }
+
+    public function testDispatchKeepsOptionalArrivalAndCrew(): void
+    {
+        $row = CalendarEventRules::normalize([
+            'calendar'       => 'dispatch',
+            'title'          => 'Brno',
+            'starts_at'      => '2026-08-17',
+            'arrival_window' => ' 8–10 ',
+            'crew'           => ' Novák, Svoboda ',
+        ]);
+        $this->assertSame('8–10', $row['arrival_window']);
+        $this->assertSame('Novák, Svoboda', $row['crew']);
+        $this->assertNull($row['user_id']);
+    }
+
+    public function testDispatchDropsBlankArrivalAndCrew(): void
+    {
+        $row = CalendarEventRules::normalize([
+            'calendar'       => 'dispatch',
+            'title'          => 'Brno',
+            'starts_at'      => '2026-08-17',
+            'arrival_window' => '   ',
+            'crew'           => '',
+        ]);
+        $this->assertNull($row['arrival_window']);
+        $this->assertNull($row['crew']);
+    }
+
+    public function testShiftRequiresUser(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('USER_REQUIRED');
+        CalendarEventRules::normalize([
+            'calendar'  => 'shifts',
+            'title'     => 'Ranní',
+            'starts_at' => '2026-08-17',
+        ]);
+    }
+
+    public function testArrivalTooLongFails(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('ARRIVAL_TOO_LONG');
+        CalendarEventRules::normalize([
+            'calendar'       => 'dispatch',
+            'title'          => 'Brno',
+            'starts_at'      => '2026-08-17',
+            'arrival_window' => str_repeat('a', 81),
+        ]);
     }
 
     public function testEndBeforeStartFails(): void

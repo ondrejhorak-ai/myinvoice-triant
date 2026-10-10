@@ -8,7 +8,7 @@ import type { InvoiceListItem } from '@/api/invoices'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { apiErrorMessage } from '@/api/errors'
-import { formatMoney, formatDate, statusLabel, typeLabel, statusBadgeClass } from '@/composables/useFormat'
+import { formatMoney, formatDate, statusLabel, typeLabel, statusBadgeVariant } from '@/composables/useFormat'
 import JobHeaderInfo from './JobHeaderInfo.vue'
 import JobActivityFeed from './JobActivityFeed.vue'
 import OfficeBreadcrumb from '@/components/tri/OfficeBreadcrumb.vue'
@@ -426,15 +426,17 @@ onMounted(() => load())
             <div class="mt-0.5 text-xs text-neutral-500">
               {{ t(`tri.calendar.${ev.calendar}`) }}
               <span v-if="ev.station"> · {{ t(`tri.calendar.station_${ev.station}`) }}</span>
+              <span v-if="ev.arrival_window"> · {{ ev.arrival_window }}</span>
+              <span v-if="ev.crew"> · {{ ev.crew }}</span>
               · {{ formatDate(ev.starts_at.slice(0, 10)) }}
             </div>
           </div>
-          <span
-            class="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-            :class="ev.status === 'done' ? 'bg-neutral-100 text-neutral-600' : ev.status === 'confirmed' || ev.status === 'in_progress' ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border border-dashed border-neutral-300 text-neutral-600'"
+          <UiBadge
+            class="shrink-0"
+            :variant="ev.status === 'done' ? 'neutral' : ev.status === 'confirmed' || ev.status === 'in_progress' ? 'success' : 'warning'"
           >
             {{ t(`tri.calendar.status_${ev.status}`) }}
-          </span>
+          </UiBadge>
         </li>
       </ul>
     </UiCard>
@@ -491,9 +493,9 @@ onMounted(() => load())
               <td class="px-4 py-3 font-mono">{{ inv.varsymbol ?? '—' }}</td>
               <td class="px-4 py-3 text-neutral-600">{{ typeLabel(inv.invoice_type) }}</td>
               <td class="px-4 py-3">
-                <span class="text-xs px-2 py-0.5 rounded" :class="statusBadgeClass(inv.status)">
+                <UiBadge :variant="statusBadgeVariant(inv.status)">
                   {{ statusLabel(inv.status) }}
-                </span>
+                </UiBadge>
               </td>
               <td class="px-4 py-3 text-right font-mono">{{ formatMoney(inv.total_with_vat, 'CZK') }}</td>
               <td class="px-4 py-3 text-right font-mono">{{ formatMoney(inv.amount_to_pay, 'CZK') }}</td>
@@ -517,9 +519,9 @@ onMounted(() => load())
               <span>{{ formatDate(inv.issue_date) }}</span>
             </div>
             <div class="mt-2">
-              <span class="text-xs px-2 py-0.5 rounded" :class="statusBadgeClass(inv.status)">
+              <UiBadge :variant="statusBadgeVariant(inv.status)">
                 {{ statusLabel(inv.status) }}
-              </span>
+              </UiBadge>
             </div>
           </div>
         </div>

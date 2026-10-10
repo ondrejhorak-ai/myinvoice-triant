@@ -11,14 +11,18 @@ můžeš navázat na zakázku — v okně i na kartě je odkaz do detailu.
 
 | Kalendář | K čemu je | Stav |
 |---|---|---|
-| **Služby na prodejně** | Kdo je na prodejně. Titulek je volný text (jméno), žádná evidence zaměstnanců. Nová služba je celý den | Jen **Plán** |
-| **Expedice** | Odvoz / předání zakázky | **Plán** ↔ **Potvrzeno** |
+| **Služby na prodejně** | Kdo je na prodejně. Každá služba má jednoho pracovníka z uživatelů Office. Nová služba je celý den | Jen **Plán** |
+| **Expedice** | Jedna událost = jedna destinace. Okno příjezdu a posádka jsou nepovinný text | **Plán** ↔ **Potvrzeno** |
 | **Výroba** | Hrubý plán dílny | **Plán** → **Probíhá** → **Hotovo** |
 
 ## 44.2 Expedice — plán a potvrzení
 
 Naplánovaná expedice je vizuálně **čárkovaná**. Tlačítkem **Potvrdit** se
 změní na plnou (stav `Potvrzeno`). Lze vrátit zpět na plán.
+
+Jedna expedice je jedna destinace. **Okno příjezdu** a **Posádka** jsou
+nepovinné texty (například „8–10“ a jména). Nejsou to další události ani
+výběr uživatelů.
 
 ## 44.3 Výroba — průběh
 
@@ -35,7 +39,8 @@ Postup stavů: **Plán** → tlačítko **Probíhá** → **Hotovo**.
 
 ## 44.4 Služby na prodejně
 
-Služba má titulek (kdo) a je celodenní. Stav se nepřepíná — zůstává v plánu.
+Služba má titulek a povinného **pracovníka** — uživatele Office, ne volný
+text. Stav se nepřepíná — zůstává v plánu. Nová služba je celodenní.
 Není to HR modul ani docházka. Více lidí na jedné službě se nezadává: každý
 člověk je samostatná událost.
 

@@ -18,6 +18,9 @@ final class CalendarError
             'INVALID_RANGE' => 'Konec musí být po začátku.',
             'STARTS_REQUIRED' => 'Začátek je povinný.',
             'INVALID_DATETIME' => 'Neplatné datum nebo čas.',
+            'USER_REQUIRED' => 'U služby na prodejně vyberte pracovníka.',
+            'ARRIVAL_TOO_LONG' => 'Okno příjezdu je příliš dlouhé.',
+            'CREW_TOO_LONG' => 'Posádka je příliš dlouhá.',
             default => 'Neplatná událost kalendáře.',
         };
     }

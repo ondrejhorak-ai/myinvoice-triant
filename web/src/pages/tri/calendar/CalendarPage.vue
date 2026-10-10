@@ -45,6 +45,7 @@ const overflowEvents = computed(() => overflowDay.value ? eventsOn(overflowDay.v
 const cursor = ref(startOfDay(new Date()))
 const events = ref<TriCalendarEvent[]>([])
 const jobs = ref<TriJob[]>([])
+const staff = ref<Array<{ id: number; name: string }>>([])
 const loading = ref(false)
 const saving = ref(false)
 const modalOpen = ref(false)
@@ -143,6 +144,9 @@ function blankForm(calendar: TriCalendarKind, day: string) {
     ends_time: '16:00',
     note: '',
     status: 'planned',
+    user_id: '' as string | number,
+    arrival_window: '',
+    crew: '',
   }
 }
 
@@ -174,6 +178,9 @@ function openEdit(ev: TriCalendarEvent) {
     ends_time: end.slice(11, 16) || '16:00',
     note: ev.note ?? '',
     status: ev.status,
+    user_id: ev.user_id ?? '',
+    arrival_window: ev.arrival_window ?? '',
+    crew: ev.crew ?? '',
   }
   modalOpen.value = true
 }
@@ -192,7 +199,17 @@ function payload() {
       : null,
     note: form.value.note,
     status: form.value.status,
+    user_id: form.value.calendar === 'shifts' && form.value.user_id !== '' ? Number(form.value.user_id) : null,
+    arrival_window: form.value.calendar === 'dispatch' ? form.value.arrival_window : null,
+    crew: form.value.calendar === 'dispatch' ? form.value.crew : null,
   }
+}
+
+function eventLabel(ev: TriCalendarEvent) {
+  if (ev.calendar === 'shifts' && ev.user_name) {
+    return ev.title && ev.title !== ev.user_name ? `${ev.user_name} · ${ev.title}` : ev.user_name
+  }
+  return ev.title
 }
 
 async function save() {
@@ -243,6 +260,7 @@ function shift(dir: number) {
 
 onMounted(async () => {
   await loadJobs()
+  triApi.jobs.listUsers().then((rows) => { staff.value = rows }).catch(() => {})
   await load()
 })
 watch([view, rangeFrom, rangeTo], () => load())
@@ -279,7 +297,7 @@ watch([view, rangeFrom, rangeTo], () => load())
       </div>
       <div v-if="view === 'week' && spanEvents.length" class="border-b border-neutral-200 p-2 grid gap-2">
         <button v-for="ev in spanEvents" :key="ev.id" type="button" :class="eventClass(ev)" @click="openEdit(ev)">
-          {{ ev.title }}<span v-if="ev.job_number"> · {{ ev.job_number }}</span>
+          {{ eventLabel(ev) }}<span v-if="ev.job_number"> · {{ ev.job_number }}</span>
         </button>
       </div>
       <div class="grid grid-cols-7">
@@ -301,7 +319,7 @@ watch([view, rangeFrom, rangeTo], () => load())
             :class="eventClass(ev)"
             @click.stop="openEdit(ev)"
           >
-            {{ ev.title }}
+            {{ eventLabel(ev) }}
           </button>
           <button
             v-if="view === 'month' && eventsOn(day).length > 2"
@@ -325,7 +343,7 @@ watch([view, rangeFrom, rangeTo], () => load())
       <p class="text-sm text-neutral-600 mb-3">{{ t('tri.calendar.day_events', { n: overflowEvents.length }) }}</p>
       <div class="grid gap-2">
         <button v-for="ev in overflowEvents" :key="ev.id" type="button" :class="eventClass(ev)" @click="overflowDay = null; openEdit(ev)">
-          {{ t(`tri.calendar.${ev.calendar}`) }} · {{ ev.title }}
+          {{ t(`tri.calendar.${ev.calendar}`) }} · {{ eventLabel(ev) }}
         </button>
       </div>
     </Modal>
@@ -344,6 +362,14 @@ watch([view, rangeFrom, rangeTo], () => load())
         <UiSelect v-if="form.calendar === 'production'" v-model="form.station" :label="t('tri.calendar.station')" :disabled="!auth.canWrite">
           <option v-for="s in STATIONS" :key="s" :value="s">{{ t(`tri.calendar.station_${s}`) }}</option>
         </UiSelect>
+        <UiSelect v-if="form.calendar === 'shifts'" v-model="form.user_id" :label="t('tri.calendar.assignee')" :disabled="!auth.canWrite">
+          <option value="">{{ t('common.select') }}</option>
+          <option v-for="u in staff" :key="u.id" :value="u.id">{{ u.name }}</option>
+        </UiSelect>
+        <template v-if="form.calendar === 'dispatch'">
+          <UiInput v-model="form.arrival_window" :label="t('tri.calendar.arrival_window')" :hint="t('tri.calendar.arrival_window_hint')" :disabled="!auth.canWrite" maxlength="80" />
+          <UiInput v-model="form.crew" :label="t('tri.calendar.crew')" :hint="t('tri.calendar.crew_hint')" :disabled="!auth.canWrite" maxlength="255" />
+        </template>
         <label class="inline-flex items-center gap-2 text-sm text-neutral-700">
           <input v-model="form.all_day" type="checkbox" class="rounded border-neutral-300" :disabled="!auth.canWrite">
           {{ t('tri.calendar.all_day') }}

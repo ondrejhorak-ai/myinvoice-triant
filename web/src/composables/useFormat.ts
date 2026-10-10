@@ -68,6 +68,13 @@ export function typeLabel(type: string): string {
 /**
  * Vrací class objekt pro status badge.
  */
+export function statusBadgeVariant(status: string): 'draft' | 'issued' | 'sent' | 'paid' | 'cancelled' | 'warning' | 'primary' | 'neutral' {
+  if (status === 'reminded' || status === 'partially_paid') return 'warning'
+  if (status === 'overpaid') return 'primary'
+  if (status === 'draft' || status === 'issued' || status === 'sent' || status === 'paid' || status === 'cancelled') return status
+  return 'neutral'
+}
+
 export function statusBadgeClass(status: string): string {
   const classes: Record<string, string> = {
     draft:     'bg-neutral-100 text-neutral-600',

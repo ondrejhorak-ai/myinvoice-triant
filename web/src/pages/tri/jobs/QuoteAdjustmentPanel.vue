@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatMoney } from '@/composables/useFormat'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import type { TriAdjustmentType } from '@/composables/useTriQuotePricing'
 
 const props = defineProps<{
@@ -38,7 +39,6 @@ const discountValueModel = computed({
 
 const inputClass =
   'h-11 px-3 rounded-md text-xs bg-surface border border-neutral-300 shadow-xs outline-none focus-ring'
-const selectClass = `${inputClass} w-14`
 const rowGridClass = 'grid grid-cols-[auto_96px_56px] items-center gap-1.5'
 const labelClass =
   'text-xs font-semibold text-neutral-400 text-right pr-1 inline-flex items-center justify-end gap-1'
@@ -65,10 +65,10 @@ const labelClass =
           :placeholder="discountTypeModel === 'percent' ? '%' : 'Kč'"
           :class="[inputClass, 'w-full text-right font-mono tabular-nums']"
         />
-        <select v-model="discountTypeModel" :class="selectClass">
+        <UiSelect v-model="discountTypeModel" size="inline" class="w-14" :aria-label="t('tri.quote.discount')">
           <option value="percent">{{ t('tri.quote.adjustment_percent') }}</option>
           <option value="absolute">{{ t('tri.quote.adjustment_amount') }}</option>
-        </select>
+        </UiSelect>
       </div>
 
       <div

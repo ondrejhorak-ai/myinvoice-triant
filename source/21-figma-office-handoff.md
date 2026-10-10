@@ -228,8 +228,10 @@ s předchozí prací, žádný automatický commit ani migrace.
 - Kalendář načítá všechny vrstvy najednou (`calendar` může chybět). Vrstvy
   se vypínají v liště. Týden kreslí vícedenní pruh, měsíc ukáže dvě události
   a zbytek přes **Další**. Nová událost začíná výběrem vrstvy. Popisek
-  `shifts` je „Služby na prodejně“; nová služba z UI je celodenní. Více
-  pracovníků na jedné události a okno příjezdu ve schématu nejsou.
+  `shifts` je „Služby na prodejně“; nová služba z UI je celodenní.
+  Expedice je jedna událost na destinaci. Okno příjezdu a posádka jsou
+  nepovinné texty (migrace 9023). Služba na prodejně má jednoho uživatele
+  Office, ne volný text.
 - Prodejna je pohled na `/tri/invoices` (`view=counter`, `filter[prodejna]=1`):
   zaplacená faktura bez zakázky. Záloha a dobropis v pohledu nejsou. Vstup
   smaže filtr stavu, typu, nezaplaceno, po splatnosti a zakázky. Není to

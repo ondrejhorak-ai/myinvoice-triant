@@ -17,6 +17,7 @@ import { useAuthStore } from '@/stores/auth'
 import { clientsApi, type Client } from '@/api/clients'
 import { codebooksApi, type Currency } from '@/api/codebooks'
 import { useYearOptions } from '@/composables/useYearOptions'
+import { resolveInvoiceListYear } from '@/composables/invoiceListYear'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
@@ -50,7 +51,9 @@ const search = ref('')
 const statusFilter = ref<string>('')
 const typeFilter = ref<string>('')
 const clientFilter = ref<number | ''>('')
-const yearFilter = ref<number | ''>(new Date().getFullYear())
+const calendarYear = new Date().getFullYear()
+const preferredYear = ref<number | ''>(calendarYear)
+const yearFilter = ref<number | ''>(calendarYear)
 const monthFilter = ref<number | ''>('')
 const dateFrom = ref<string>('')
 const dateTo = ref<string>('')
@@ -169,9 +172,17 @@ async function load(reset = true) {
 
 // Sync filtrů s URL query (stejný pattern jako PurchaseInvoiceList) — detekuje menu
 // link click přes route.query change z !empty na empty → reset.
-const DEFAULT_YEAR = new Date().getFullYear()
+async function ensurePreferredYear() {
+  try {
+    const years = await codebooksApi.years()
+    preferredYear.value = resolveInvoiceListYear(years.invoices, calendarYear)
+  } catch {
+    preferredYear.value = ''
+  }
+}
 
 onMounted(async () => {
+  await ensurePreferredYear()
   loadFiltersFromQuery(route.query)
   // Načti seznam klientů + měn pro select (paralelně s prvním load)
   clientsApi.list({ archived: false, per_page: 200, role: 'customers' }).then(r => { clients.value = r.data }).catch(() => {})
@@ -191,7 +202,7 @@ function loadFiltersFromQuery(q: typeof route.query) {
   unpaidOnly.value   = q.unpaid === '1' || q.unpaid === 'true'
   yearFilter.value   = typeof q.year === 'string' && q.year !== ''
     ? (q.year === 'all' ? '' : Number(q.year))
-    : ((overdueOnly.value || unpaidOnly.value) ? '' : DEFAULT_YEAR)
+    : ((overdueOnly.value || unpaidOnly.value) ? '' : preferredYear.value)
   monthFilter.value  = typeof q.month === 'string' && q.month !== '' ? Number(q.month) : ''
   dateFrom.value     = typeof q.from === 'string' ? q.from : ''
   dateTo.value       = typeof q.to === 'string' ? q.to : ''
@@ -209,7 +220,7 @@ function syncFiltersToUrl() {
   if (typeFilter.value) q.type = typeFilter.value
   if (clientFilter.value !== '') q.client_id = String(clientFilter.value)
   if (yearFilter.value === '') q.year = 'all'
-  else if (yearFilter.value !== DEFAULT_YEAR) q.year = String(yearFilter.value)
+  else if (yearFilter.value !== preferredYear.value) q.year = String(yearFilter.value)
   if (monthFilter.value !== '') q.month = String(monthFilter.value)
   if (dateFrom.value) q.from = dateFrom.value
   if (dateTo.value) q.to = dateTo.value
@@ -255,7 +266,7 @@ watch(() => route.query, (newQ) => {
     statusFilter.value = ''
     typeFilter.value = ''
     clientFilter.value = ''
-    yearFilter.value = DEFAULT_YEAR
+    yearFilter.value = preferredYear.value
     monthFilter.value = ''
     dateFrom.value = ''
     dateTo.value = ''

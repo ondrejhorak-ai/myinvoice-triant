@@ -19,9 +19,10 @@ final class CalendarEventRepository
      */
     public function listInRange(int $supplierId, ?string $calendar, string $from, string $to): array
     {
-        $sql = 'SELECT e.*, j.number AS job_number, j.title AS job_title
+        $sql = 'SELECT e.*, j.number AS job_number, j.title AS job_title, u.name AS user_name
                FROM tri_calendar_events e
           LEFT JOIN tri_jobs j ON j.id = e.job_id
+          LEFT JOIN users u ON u.id = e.user_id
               WHERE e.supplier_id = ?';
         $params = [$supplierId];
         if ($calendar !== null && $calendar !== '') {
@@ -47,9 +48,10 @@ final class CalendarEventRepository
     public function listUpcomingForJob(int $supplierId, int $jobId, string $from): array
     {
         $stmt = $this->db->pdo()->prepare(
-            "SELECT e.*, j.number AS job_number, j.title AS job_title
+            "SELECT e.*, j.number AS job_number, j.title AS job_title, u.name AS user_name
                FROM tri_calendar_events e
           LEFT JOIN tri_jobs j ON j.id = e.job_id
+          LEFT JOIN users u ON u.id = e.user_id
               WHERE e.supplier_id = ? AND e.job_id = ?
                 AND e.calendar IN ('dispatch', 'production')
                 AND COALESCE(e.ends_at, e.starts_at) >= ?
@@ -65,9 +67,10 @@ final class CalendarEventRepository
     public function find(int $id, int $supplierId): ?array
     {
         $stmt = $this->db->pdo()->prepare(
-            'SELECT e.*, j.number AS job_number, j.title AS job_title
+            'SELECT e.*, j.number AS job_number, j.title AS job_title, u.name AS user_name
                FROM tri_calendar_events e
           LEFT JOIN tri_jobs j ON j.id = e.job_id
+          LEFT JOIN users u ON u.id = e.user_id
               WHERE e.id = ? AND e.supplier_id = ?'
         );
         $stmt->execute([$id, $supplierId]);
@@ -80,15 +83,17 @@ final class CalendarEventRepository
     public function create(int $supplierId, array $data): array
     {
         $this->assertJob($data['job_id'], $supplierId);
+        $this->assertUser($data['user_id']);
         $stmt = $this->db->pdo()->prepare(
             'INSERT INTO tri_calendar_events
-                (supplier_id, calendar, job_id, title, station, starts_at, ends_at, all_day, status, note)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                (supplier_id, calendar, job_id, user_id, title, station, starts_at, ends_at, all_day, status, note, arrival_window, crew)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $supplierId,
             $data['calendar'],
             $data['job_id'],
+            $data['user_id'],
             $data['title'],
             $data['station'],
             $data['starts_at'],
@@ -96,6 +101,8 @@ final class CalendarEventRepository
             $data['all_day'],
             $data['status'],
             $data['note'],
+            $data['arrival_window'],
+            $data['crew'],
         ]);
 
         return $this->find((int) $this->db->pdo()->lastInsertId(), $supplierId) ?? [];
@@ -108,15 +115,17 @@ final class CalendarEventRepository
             return null;
         }
         $this->assertJob($data['job_id'], $supplierId);
+        $this->assertUser($data['user_id']);
         $stmt = $this->db->pdo()->prepare(
             'UPDATE tri_calendar_events
-                SET calendar = ?, job_id = ?, title = ?, station = ?, starts_at = ?, ends_at = ?,
-                    all_day = ?, status = ?, note = ?
+                SET calendar = ?, job_id = ?, user_id = ?, title = ?, station = ?, starts_at = ?, ends_at = ?,
+                    all_day = ?, status = ?, note = ?, arrival_window = ?, crew = ?
               WHERE id = ? AND supplier_id = ?'
         );
         $stmt->execute([
             $data['calendar'],
             $data['job_id'],
+            $data['user_id'],
             $data['title'],
             $data['station'],
             $data['starts_at'],
@@ -124,6 +133,8 @@ final class CalendarEventRepository
             $data['all_day'],
             $data['status'],
             $data['note'],
+            $data['arrival_window'],
+            $data['crew'],
             $id,
             $supplierId,
         ]);
@@ -151,6 +162,18 @@ final class CalendarEventRepository
         }
     }
 
+    private function assertUser(?int $userId): void
+    {
+        if ($userId === null) {
+            return;
+        }
+        $stmt = $this->db->pdo()->prepare('SELECT id FROM users WHERE id = ? AND is_active = 1');
+        $stmt->execute([$userId]);
+        if ($stmt->fetchColumn() === false) {
+            throw new \RuntimeException('USER_NOT_FOUND');
+        }
+    }
+
     /** @param array<string, mixed> $row */
     private function cast(array $row): array
     {
@@ -161,6 +184,8 @@ final class CalendarEventRepository
             'job_id'     => $row['job_id'] !== null ? (int) $row['job_id'] : null,
             'job_number' => $row['job_number'] !== null ? (string) $row['job_number'] : null,
             'job_title'  => $row['job_title'] !== null ? (string) $row['job_title'] : null,
+            'user_id'    => isset($row['user_id']) && $row['user_id'] !== null ? (int) $row['user_id'] : null,
+            'user_name'  => isset($row['user_name']) && $row['user_name'] !== null ? (string) $row['user_name'] : null,
             'title'      => (string) $row['title'],
             'station'    => $row['station'] !== null ? (string) $row['station'] : null,
             'starts_at'  => (string) $row['starts_at'],
@@ -168,6 +193,8 @@ final class CalendarEventRepository
             'all_day'    => (int) $row['all_day'] === 1,
             'status'     => (string) $row['status'],
             'note'       => $row['note'] !== null ? (string) $row['note'] : null,
+            'arrival_window' => isset($row['arrival_window']) && $row['arrival_window'] !== null ? (string) $row['arrival_window'] : null,
+            'crew'       => isset($row['crew']) && $row['crew'] !== null ? (string) $row['crew'] : null,
             'created_at' => (string) $row['created_at'],
             'updated_at' => (string) $row['updated_at'],
         ];

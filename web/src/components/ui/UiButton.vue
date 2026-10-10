@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
 
 const props = withDefaults(defineProps<{
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success' | 'warning'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   disabled?: boolean
@@ -24,6 +24,8 @@ const VARIANT: Record<NonNullable<typeof props.variant>, string> = {
   outline:   'bg-transparent border border-neutral-200 text-primary-700 hover:bg-neutral-50',
   ghost:     'bg-transparent text-neutral-700 hover:bg-neutral-100',
   danger:    'bg-danger-600 hover:bg-danger-600/90 text-white',
+  success:   'bg-success-600 hover:bg-success-600/90 text-white',
+  warning:   'bg-warning-500 hover:bg-warning-600 text-white',
 }
 
 const SIZE: Record<NonNullable<typeof props.size>, string> = {

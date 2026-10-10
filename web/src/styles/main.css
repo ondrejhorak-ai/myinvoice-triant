@@ -272,6 +272,7 @@ html, body {
 .office-page h2, .office-page h3 { font-size: 16px; line-height: 24px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--color-neutral-900); }
 .office-page label { font-size: 12px; line-height: 18px; }
 .office-page :is(input:not([type=checkbox]):not([type=radio]):not([type=file]), select) { min-height: 44px; border-color: var(--color-neutral-200); border-radius: 0; }
+.office-page select.ui-select-inline { min-height: 2.25rem; height: 2.25rem; }
 .office-page textarea { border-color: var(--color-neutral-200); border-radius: 0; }
 .office-page table { font-size: 13px; line-height: 19px; }
 .office-page thead { background: var(--color-neutral-100); color: var(--color-neutral-600); font-size: 11px; line-height: 16px; text-transform: none; letter-spacing: 0; }

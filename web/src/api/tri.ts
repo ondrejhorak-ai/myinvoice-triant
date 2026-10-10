@@ -325,12 +325,16 @@ export interface TriCalendarEvent {
   job_number: string | null
   job_title: string | null
   title: string
+  user_id: number | null
+  user_name: string | null
   station: TriCalendarStation | null
   starts_at: string
   ends_at: string | null
   all_day: boolean
   status: TriCalendarStatus
   note: string | null
+  arrival_window: string | null
+  crew: string | null
 }
 
 export type TriComplaintStatus = 'open' | 'closed'

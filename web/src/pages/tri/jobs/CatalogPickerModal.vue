@@ -8,6 +8,7 @@ import { formatMoney } from '@/composables/useFormat'
 import Modal from '@/components/ui/Modal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 const props = defineProps<{
   releaseId?: number | null
   effectiveDate?: string | null
@@ -115,19 +116,16 @@ function insert() {
     @close="open = false"
     ><div class="office-page space-y-4">
       <div v-if="!releaseId" class="grid grid-cols-2 gap-4">
-        <label
-          >{{ t('tri.price_lists.title')
-          }}<select
-            v-model="listId"
-            class="border border-neutral-200 p-3 w-full mt-2"
-            @change="choose"
-          >
-            <option value="">{{ t('common.select') }}</option>
-            <option v-for="l in lists" :key="l.id" :value="l.id">
-              {{ l.name }} · {{ l.currency }}
-            </option>
-          </select></label
-        ><UiInput
+        <UiSelect
+          v-model="listId"
+          :label="t('tri.price_lists.title')"
+          @change="choose"
+        >
+          <option value="">{{ t('common.select') }}</option>
+          <option v-for="l in lists" :key="l.id" :value="l.id">
+            {{ l.name }} · {{ l.currency }}
+          </option>
+        </UiSelect><UiInput
           v-model="date"
           type="date"
           :label="t('office.effective_date')"

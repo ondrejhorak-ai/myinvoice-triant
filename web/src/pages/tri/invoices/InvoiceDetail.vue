@@ -14,13 +14,14 @@ import {
   type SigningProfile,
 } from '@/api/settings'
 import { apiErrorMessage } from '@/api/errors'
-import { formatMoney, formatDate, formatPercent, statusLabel, typeLabel, statusBadgeClass } from '@/composables/useFormat'
+import { formatMoney, formatDate, formatPercent, statusLabel, typeLabel, statusBadgeVariant } from '@/composables/useFormat'
 import { useAuthStore } from '@/stores/auth'
 import { useSupplierStore } from '@/stores/supplier'
 import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
 import { triApi, type TriJobLink } from '@/api/tri'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import CardSkeleton from '@/components/ui/CardSkeleton.vue'
@@ -322,15 +323,15 @@ function actionLabel(a: string): string {
   return map[a] ? (t(map[a]) as string) : a
 }
 
-function actionColor(a: string): string {
-  if (a.includes('reminder')) return 'bg-warning-50 text-warning-600'
-  if (a.includes('approval_approved')) return 'bg-success-50 text-success-600'
-  if (a.includes('approval_rejected')) return 'bg-danger-50 text-danger-500'
-  if (a.includes('approval')) return 'bg-primary-100 text-primary-700'
-  if (a.includes('issued') || a.includes('paid') || a.includes('sent')) return 'bg-success-50 text-success-600'
-  if (a.includes('cancelled') || a.includes('force')) return 'bg-warning-50 text-warning-600'
-  if (a.includes('credit_note') || a.includes('cloned')) return 'bg-primary-100 text-primary-700'
-  return 'bg-neutral-100 text-neutral-600'
+function actionBadge(a: string): 'warning' | 'success' | 'danger' | 'primary' | 'neutral' {
+  if (a.includes('reminder')) return 'warning'
+  if (a.includes('approval_approved')) return 'success'
+  if (a.includes('approval_rejected')) return 'danger'
+  if (a.includes('approval')) return 'primary'
+  if (a.includes('issued') || a.includes('paid') || a.includes('sent')) return 'success'
+  if (a.includes('cancelled') || a.includes('force')) return 'warning'
+  if (a.includes('credit_note') || a.includes('cloned')) return 'primary'
+  return 'neutral'
 }
 
 function payloadText(payload: any): string {
@@ -831,15 +832,13 @@ async function sendReminder() {
     <UiPageHeader :title="invoice.varsymbol || t('invoice.draft_id', { id: invoice.id })">
       <template #below>
         <div class="mt-2 flex flex-wrap items-center gap-2">
-          <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="statusBadgeClass(invoice.status)">
+          <UiBadge :variant="statusBadgeVariant(invoice.status)">
             {{ statusLabel(invoice.status) }}
-          </span>
+          </UiBadge>
           <UiBadge variant="neutral">{{ typeLabel(invoice.invoice_type) }}</UiBadge>
-          <span v-if="invoice.income_tax_exempt"
-            class="text-xs px-2 py-0.5 rounded-full font-medium bg-warning-50 text-warning-700"
-            :title="invoice.income_tax_exempt_reason || ''">
+          <UiBadge v-if="invoice.income_tax_exempt" variant="warning" :title="invoice.income_tax_exempt_reason || ''">
             {{ t('invoice.income_tax_exempt_badge') }}
-          </span>
+          </UiBadge>
         </div>
       </template>
       <template #actions>
@@ -934,11 +933,10 @@ async function sendReminder() {
           </span>
         </label>
         <div class="flex justify-end gap-2">
-          <button @click="markPaidOpen = false" class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50">{{ t('common.cancel') }}</button>
-          <button @click="markPaid" :disabled="busy !== null"
-            class="cursor-pointer px-4 h-9 text-sm bg-success-500 hover:bg-success-600 disabled:bg-neutral-300 text-white font-medium rounded-md">
-            {{ busy === 'paid' ? '…' : t('common.confirm') }}
-          </button>
+          <UiButton variant="secondary" size="sm" @click="markPaidOpen = false">{{ t('common.cancel') }}</UiButton>
+          <UiButton variant="success" size="sm" :disabled="busy !== null" :loading="busy === 'paid'" @click="markPaid">
+            {{ t('common.confirm') }}
+          </UiButton>
         </div>
       </div>
     </div>
@@ -981,16 +979,10 @@ async function sendReminder() {
           <textarea v-model="cancelReason" rows="2" class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm mb-4"></textarea>
         </template>
         <div class="flex justify-end gap-2">
-          <button @click="cancelOpen = false" class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50">{{ t('common.cancel') }}</button>
-          <button @click="cancel" :disabled="busy !== null"
-            :class="[
-              'cursor-pointer px-4 h-9 text-sm disabled:bg-neutral-300 text-white font-medium rounded-md',
-              cancelMode === 'delete'
-                ? 'bg-danger-500 hover:bg-danger-600'
-                : 'bg-warning-500 hover:bg-warning-600',
-            ]">
-            {{ busy === 'cancel' || busy === 'delete' ? '…' : t('common.confirm') }}
-          </button>
+          <UiButton variant="secondary" size="sm" @click="cancelOpen = false">{{ t('common.cancel') }}</UiButton>
+          <UiButton :variant="cancelMode === 'delete' ? 'danger' : 'warning'" size="sm" :disabled="busy !== null" :loading="busy === 'cancel' || busy === 'delete'" @click="cancel">
+            {{ t('common.confirm') }}
+          </UiButton>
         </div>
       </div>
     </div>
@@ -1009,11 +1001,10 @@ async function sendReminder() {
           class="w-full px-3 py-2 border border-neutral-300 rounded-md mb-2 text-sm font-sans resize-y"></textarea>
         <p class="text-xs text-neutral-500 mb-4">{{ t('invoice.modals.send_note_hint') }}</p>
         <div class="flex justify-end gap-2">
-          <button @click="sendOpen = false" class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50">{{ t('common.cancel') }}</button>
-          <button @click="send" :disabled="busy !== null"
-            class="cursor-pointer px-4 h-9 text-sm bg-primary-600 hover:bg-primary-700 disabled:bg-neutral-300 text-white font-medium rounded-md">
-            {{ busy === 'send' ? '…' : t('common.send') }}
-          </button>
+          <UiButton variant="secondary" size="sm" @click="sendOpen = false">{{ t('common.cancel') }}</UiButton>
+          <UiButton size="sm" :disabled="busy !== null" :loading="busy === 'send'" @click="send">
+            {{ t('common.send') }}
+          </UiButton>
         </div>
       </div>
     </div>
@@ -1035,11 +1026,10 @@ async function sendReminder() {
           {{ t('invoice.reminder_at', { count: invoice.reminder_count, date: formatDate(invoice.last_reminder_at) }) }}
         </div>
         <div class="flex justify-end gap-2">
-          <button @click="reminderOpen = false" class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 rounded-md text-neutral-700 hover:bg-neutral-50">{{ t('common.cancel') }}</button>
-          <button @click="sendReminder" :disabled="busy !== null"
-            class="cursor-pointer px-4 h-9 text-sm bg-warning-500 hover:bg-warning-600 disabled:bg-neutral-300 text-white font-medium rounded-md">
-            {{ busy === 'reminder' ? '…' : t('invoice.send_reminder') }}
-          </button>
+          <UiButton variant="secondary" size="sm" @click="reminderOpen = false">{{ t('common.cancel') }}</UiButton>
+          <UiButton variant="warning" size="sm" :disabled="busy !== null" :loading="busy === 'reminder'" @click="sendReminder">
+            {{ t('invoice.send_reminder') }}
+          </UiButton>
         </div>
       </div>
     </div>
@@ -1346,26 +1336,30 @@ async function sendReminder() {
             <tr v-for="row in signatureSelectionRows" :key="row.entityType">
               <td class="px-5 py-2 font-medium text-neutral-800">{{ row.label }}</td>
               <td class="px-3 py-2">
-                <select
-                  :value="signatureSelection(row.entityType)?.selection_source || 'inherit'"
-                  @change="setSignatureSelectionSource(row.entityType, ($event.target as HTMLSelectElement).value as PdfSignatureDocumentSelectionSource)"
-                  class="h-8 w-48 px-2 border border-neutral-300 rounded-md text-xs">
+                <UiSelect
+                  size="inline"
+                  class="w-48"
+                  :model-value="signatureSelection(row.entityType)?.selection_source || 'inherit'"
+                  :aria-label="t('settings.signing_output_selection_source')"
+                  @update:model-value="setSignatureSelectionSource(row.entityType, String($event) as PdfSignatureDocumentSelectionSource)">
                   <option value="inherit">{{ t('invoice.signing.source_inherit') }}</option>
                   <option value="logged_in_user">{{ t('settings.signing_output_source_logged_in_user') }}</option>
                   <option value="admin_profile_settings">{{ t('settings.signing_output_source_admin_profile_settings') }}</option>
-                </select>
+                </UiSelect>
               </td>
               <td class="px-3 py-2">
-                <select
+                <UiSelect
                   v-if="isAdmin && signatureSelection(row.entityType)?.selection_source === 'admin_profile_settings'"
-                  :value="signatureSelection(row.entityType)?.admin_profile_id || ''"
-                  @change="setSignatureAdminProfile(row.entityType, ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
-                  class="h-8 w-48 px-2 border border-neutral-300 rounded-md text-xs">
+                  size="inline"
+                  class="w-48"
+                  :model-value="signatureSelection(row.entityType)?.admin_profile_id || ''"
+                  :aria-label="t('settings.signing_output_profile')"
+                  @update:model-value="setSignatureAdminProfile(row.entityType, $event === '' || $event == null ? null : Number($event))">
                   <option value="">{{ t('invoice.signing.admin_profile_inherited') }}</option>
                   <option v-for="profile in adminSigningProfiles" :key="profile.id" :value="profile.id">
                     {{ profile.name }} ({{ profile.code }})
                   </option>
-                </select>
+                </UiSelect>
                 <span v-else class="text-neutral-500">
                   {{ signatureSelection(row.entityType)?.selection_source === 'admin_profile_settings'
                     ? t('invoice.signing.admin_profile_inherited')
@@ -1382,11 +1376,11 @@ async function sendReminder() {
                 </template>
               </td>
               <td class="px-5 py-2 text-right">
-                <button @click="saveSignatureSelection(row.entityType)" type="button"
+                <UiButton variant="ghost" size="sm" @click="saveSignatureSelection(row.entityType)"
                   :disabled="signatureSelectionSaving === row.entityType || !signatureSelection(row.entityType)"
-                  class="cursor-pointer text-primary-600 hover:text-primary-700 disabled:opacity-50">
-                  {{ signatureSelectionSaving === row.entityType ? t('common.loading') : t('common.save') }}
-                </button>
+                  :loading="signatureSelectionSaving === row.entityType">
+                  {{ t('common.save') }}
+                </UiButton>
               </td>
             </tr>
           </tbody>
@@ -1451,18 +1445,20 @@ async function sendReminder() {
            @dragover.prevent="attachmentsDragOver = true"
            @dragleave.prevent="attachmentsDragOver = false"
            @drop="onAttachmentDrop">
-        <label class="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3 cursor-pointer">
+        <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3">
           <input ref="attachmentInput" type="file" multiple
                  class="hidden"
                  @change="onAttachmentInputChange" />
-          <span class="inline-flex items-center justify-center px-3 h-9 text-sm border border-primary-300 rounded-md text-primary-600 hover:bg-primary-50">
-            <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-            </svg>
-            {{ attachmentsBusy ? t('invoice.attachments.uploading') : t('invoice.attachments.add') }}
-          </span>
+          <UiButton variant="outline" size="sm" type="button" :disabled="attachmentsBusy" :loading="attachmentsBusy" @click="attachmentInput?.click()">
+            <template #icon>
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+              </svg>
+            </template>
+            {{ t('invoice.attachments.add') }}
+          </UiButton>
           <span class="text-xs text-neutral-500">{{ t('invoice.attachments.drop_here') }}</span>
-        </label>
+        </div>
       </div>
     </div>
 
@@ -1484,11 +1480,8 @@ async function sendReminder() {
             class="px-4 sm:px-5 py-2.5 text-sm flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">
           <!-- Badge + název souboru -->
           <div class="flex items-center gap-2 min-w-0 md:flex-1">
-            <span v-if="p.was_sent" class="shrink-0 text-xs px-2 py-0.5 rounded font-medium bg-success-50 text-success-600 inline-flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/></svg>
-              {{ t('invoice.pdf_history.sent') }}
-            </span>
-            <span v-else class="shrink-0 text-xs px-2 py-0.5 rounded font-medium bg-neutral-100 text-neutral-600">{{ pdfReasonLabel(p.reason) }}</span>
+            <UiBadge v-if="p.was_sent" variant="success" class="shrink-0">{{ t('invoice.pdf_history.sent') }}</UiBadge>
+            <UiBadge v-else variant="neutral" class="shrink-0">{{ pdfReasonLabel(p.reason) }}</UiBadge>
             <span class="text-neutral-700 text-xs min-w-0 break-all md:truncate" :title="p.filename">{{ p.filename }}</span>
           </div>
           <!-- Meta: velikost · datum · příjemci -->
@@ -1534,7 +1527,7 @@ async function sendReminder() {
             <tbody class="divide-y divide-neutral-100">
               <tr v-for="a in activity" :key="a.id" class="hover:bg-neutral-50 align-top">
                 <td class="px-5 py-2 whitespace-nowrap">
-                  <span class="text-xs px-2 py-0.5 rounded font-medium" :class="actionColor(a.action)">{{ actionLabel(a.action) }}</span>
+                  <UiBadge :variant="actionBadge(a.action)">{{ actionLabel(a.action) }}</UiBadge>
                 </td>
                 <td class="px-3 py-2 text-xs text-neutral-500 whitespace-nowrap">{{ a.user_name || a.user_email || '—' }}</td>
                 <td class="px-3 py-2 font-mono text-xs text-neutral-400 whitespace-nowrap">{{ a.created_at.replace('T', ' ').slice(0, 19) }}</td>
@@ -1547,7 +1540,7 @@ async function sendReminder() {
         <ul class="md:hidden divide-y divide-neutral-100">
           <li v-for="a in activity" :key="`m-${a.id}`" class="px-4 py-3 space-y-1.5">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs px-2 py-0.5 rounded font-medium" :class="actionColor(a.action)">{{ actionLabel(a.action) }}</span>
+              <UiBadge :variant="actionBadge(a.action)">{{ actionLabel(a.action) }}</UiBadge>
               <span class="font-mono text-xs text-neutral-400 whitespace-nowrap">{{ a.created_at.replace('T', ' ').slice(0, 19) }}</span>
             </div>
             <div class="text-xs text-neutral-500">{{ a.user_name || a.user_email || '—' }}</div>
@@ -1563,51 +1556,44 @@ async function sendReminder() {
     <div v-if="invoice" class="bg-surface border border-neutral-200 rounded-lg p-5 shadow-xs">
       <h3 class="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-3">{{ t('invoice.more_actions') }}</h3>
       <div class="flex flex-wrap gap-2">
-        <RouterLink :to="`/tri/contacts/${invoice.client_id}`"
-          class="cursor-pointer px-3 h-9 text-sm border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z"/></svg>
+        <UiButton variant="secondary" size="sm" :to="`/tri/contacts/${invoice.client_id}`">
+          <template #icon><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z"/></svg></template>
           {{ t('invoice.client_detail') }}
-        </RouterLink>
+        </UiButton>
 
-        <button v-if="canSendTest" @click="sendTest" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-primary-300 rounded-md text-primary-600 hover:bg-primary-50 disabled:opacity-50 inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-          {{ busy === 'send-test' ? '…' : t('invoice.send_test') }}
-        </button>
+        <UiButton v-if="canSendTest" variant="outline" size="sm" :disabled="busy !== null" :loading="busy === 'send-test'" @click="sendTest">
+          <template #icon><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></template>
+          {{ t('invoice.send_test') }}
+        </UiButton>
 
-        <button v-if="canSendTestReminder" @click="sendTestReminder" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-warning-500/40 rounded-md text-warning-600 hover:bg-warning-50 disabled:opacity-50 inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-warning-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
-          {{ busy === 'send-test-reminder' ? '…' : t('invoice.send_test_reminder') }}
-        </button>
+        <UiButton v-if="canSendTestReminder" variant="outline" size="sm" :disabled="busy !== null" :loading="busy === 'send-test-reminder'" @click="sendTestReminder">
+          <template #icon><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg></template>
+          {{ t('invoice.send_test_reminder') }}
+        </UiButton>
 
-        <button v-if="canAdminEdit" @click="editIssued" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-warning-500/50 text-warning-600 hover:bg-warning-50 rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+        <UiButton v-if="canAdminEdit" variant="outline" size="sm" :disabled="busy !== null" @click="editIssued">
+          <template #icon><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 0 0-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg></template>
           {{ t('invoice.edit_admin') }}
-        </button>
+        </UiButton>
 
-        <button v-if="isAdmin && invoice.status === 'paid'" @click="unmarkPaid" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-warning-500/50 text-warning-600 hover:bg-warning-50 rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 4l8 16"/></svg>
-          {{ busy === 'unmark-paid' ? '…' : t('invoice.unmark_paid') }}
-        </button>
+        <UiButton v-if="isAdmin && invoice.status === 'paid'" variant="outline" size="sm" :disabled="busy !== null" :loading="busy === 'unmark-paid'" @click="unmarkPaid">
+          <template #icon><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18"/><path stroke-linecap="round" stroke-linejoin="round" d="M8 4l8 16"/></svg></template>
+          {{ t('invoice.unmark_paid') }}
+        </UiButton>
 
-        <button v-if="canCancel" @click="openCancelModal" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-danger-500/50 text-danger-500 hover:bg-danger-50 rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-danger-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6m1 5H9a2 2 0 0 1-2-2V7h10v13a2 2 0 0 1-2 2zM5 7h14l-1-3H6L5 7z"/></svg>
+        <UiButton v-if="canCancel" variant="danger" size="sm" :disabled="busy !== null" @click="openCancelModal">
+          <template #icon><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6m1 5H9a2 2 0 0 1-2-2V7h10v13a2 2 0 0 1-2 2zM5 7h14l-1-3H6L5 7z"/></svg></template>
           {{ isCreditNoteSource ? t('invoice.cancel_credit_note') : t('invoice.cancel_or_credit') }}
-        </button>
+        </UiButton>
 
-        <button v-if="isAdmin && (
+        <UiButton v-if="isAdmin && (
             invoice.status === 'cancelled'
             || (invoice.invoice_type === 'cancellation' && invoice.parent_invoice_id)
           )"
-          @click="deleteInvoice" :disabled="busy !== null"
-          class="cursor-pointer px-3 h-9 text-sm border border-danger-500/50 text-danger-500 hover:bg-danger-50 rounded-md inline-flex items-center gap-1.5">
-          <svg class="w-4 h-4 text-danger-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6m1 5H9a2 2 0 0 1-2-2V7h10v13a2 2 0 0 1-2 2zM5 7h14l-1-3H6L5 7z"/></svg>
-          {{ busy === 'delete' ? '…' : t('invoice.delete_cancelled') }}
-        </button>
+          variant="danger" size="sm" :disabled="busy !== null" :loading="busy === 'delete'" @click="deleteInvoice">
+          <template #icon><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 11v6m4-6v6m1 5H9a2 2 0 0 1-2-2V7h10v13a2 2 0 0 1-2 2zM5 7h14l-1-3H6L5 7z"/></svg></template>
+          {{ t('invoice.delete_cancelled') }}
+        </UiButton>
 
       </div>
     </div>

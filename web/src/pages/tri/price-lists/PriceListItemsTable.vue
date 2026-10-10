@@ -4,6 +4,7 @@ import draggable from 'vuedraggable'
 import type { TriPriceListItem, TriQuoteImage } from '@/api/tri'
 import QuoteLineImageControl from '@/pages/tri/jobs/QuoteLineImageControl.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import { formatDate } from '@/composables/useFormat'
 
 export type PriceListRow = TriPriceListItem & { _uid: string }
@@ -207,15 +208,17 @@ const vAutosize = {
               />
             </div>
             <div class="border-r border-neutral-200">
-              <select
+              <UiSelect
                 v-model.number="row.vat_rate"
+                size="inline"
+                class="w-full"
                 :disabled="!canWrite"
-                class="w-full h-full min-h-9 px-1 text-sm font-mono tabular-nums text-right bg-transparent outline-none focus-ring"
+                :aria-label="t('tri.quote.vat_rate')"
               >
                 <option :value="21">21</option>
                 <option :value="12">12</option>
                 <option :value="0">0</option>
-              </select>
+              </UiSelect>
             </div>
             <div
               class="border-r border-neutral-200 px-2 py-1.5 text-[11px] text-neutral-500 flex items-center"

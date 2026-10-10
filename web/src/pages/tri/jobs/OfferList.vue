@@ -8,6 +8,7 @@ import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiTable from '@/components/ui/UiTable.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 interface Offer {
   id: number
@@ -51,12 +52,7 @@ onMounted(() => load())
         type="search"
         :label="t('common.search')"
         class="w-96"
-      /><label class="grid gap-1"
-        >{{ t('common.status')
-        }}<select
-          v-model="status"
-          class="border border-neutral-200 px-3 min-w-48"
-        >
+      /><UiSelect v-model="status" :label="t('common.status')" class="min-w-48">
           <option value="">{{ t('common.all') }}</option>
           <option
             v-for="s in ['draft', 'sent', 'approved', 'rejected']"
@@ -65,8 +61,7 @@ onMounted(() => load())
           >
             {{ t(`tri.quote.status_${s}`) }}
           </option>
-        </select></label
-      >
+        </UiSelect>
     </div>
     <p v-if="error" role="alert">{{ error }}</p>
     <div class="border border-neutral-200 overflow-x-auto">

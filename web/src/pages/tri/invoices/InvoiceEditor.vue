@@ -784,6 +784,7 @@ const ATTACH_MAX_TOTAL = 20 * 1024 * 1024  // 20 MiB celkem
 const pendingAttachments = ref<File[]>([])          // staging u nové faktury
 const attachments = ref<InvoiceAttachment[]>([])     // existující (edit mód)
 const attachmentsBusy = ref(false)
+const attachmentInput = ref<HTMLInputElement | null>(null)
 const attachmentDragOver = ref(false)
 const attachmentsAllowed = computed(() =>
   ['invoice', 'proforma', 'credit_note'].includes(form.value.invoice_type))
@@ -1372,16 +1373,18 @@ async function deleteDraft() {
              @dragover.prevent="attachmentDragOver = true"
              @dragleave.prevent="attachmentDragOver = false"
              @drop="onAttachmentDrop">
-          <label class="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3 cursor-pointer">
-            <input type="file" multiple class="hidden" @change="onAttachmentInputChange" />
-            <span class="inline-flex items-center justify-center px-3 h-9 text-sm border border-primary-300 rounded-md text-primary-600 hover:bg-primary-50">
-              <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
-              </svg>
-              {{ attachmentsBusy ? t('invoice.attachments.uploading') : t('invoice.attachments.add') }}
-            </span>
+          <div class="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-3">
+            <input ref="attachmentInput" type="file" multiple class="hidden" @change="onAttachmentInputChange" />
+            <UiButton variant="outline" size="sm" type="button" :disabled="attachmentsBusy" :loading="attachmentsBusy" @click="attachmentInput?.click()">
+              <template #icon>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+              </template>
+              {{ t('invoice.attachments.add') }}
+            </UiButton>
             <span class="text-xs text-neutral-500">{{ t('invoice.attachments.drop_here') }}</span>
-          </label>
+          </div>
         </div>
       </div>
 

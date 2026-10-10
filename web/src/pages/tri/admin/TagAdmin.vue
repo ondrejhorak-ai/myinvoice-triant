@@ -5,6 +5,8 @@ import { triApi, type TriTag } from '@/api/tri'
 import { useToast } from '@/composables/useToast'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiInput from '@/components/ui/UiInput.vue'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -61,28 +63,19 @@ onMounted(() => load())
 
     <form class="bg-surface border border-neutral-200 rounded-lg shadow-xs p-4 mb-6 space-y-3" @submit.prevent="save">
       <h2 class="font-medium">{{ editing ? t('common.edit') : t('tri.tags.new') }}</h2>
-      <input
-        v-model="form.name"
-        class="w-full h-9 px-3 border border-neutral-300 rounded-md text-sm bg-surface focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none"
-        :placeholder="t('tri.tags.name')"
-        required
-      />
+      <UiInput v-model="form.name" :placeholder="t('tri.tags.name')" required />
       <input v-model="form.color" type="color" class="h-10 w-20" />
       <div class="flex gap-2">
-        <button
-          type="submit"
-          class="cursor-pointer inline-flex items-center gap-1.5 h-9 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-md"
-        >
-          {{ t('common.save') }}
-        </button>
-        <button
+        <UiButton type="submit" size="sm">{{ t('common.save') }}</UiButton>
+        <UiButton
           v-if="editing"
           type="button"
-          class="cursor-pointer inline-flex items-center gap-1.5 px-3 h-9 text-sm border border-neutral-300 text-neutral-700 hover:bg-neutral-50 rounded-md"
+          variant="secondary"
+          size="sm"
           @click="editing = null; form = { name: '', color: '#6366f1' }"
         >
           {{ t('common.cancel') }}
-        </button>
+        </UiButton>
       </div>
     </form>
 
@@ -96,8 +89,8 @@ onMounted(() => load())
       >
         <span class="px-2 py-1 rounded text-white text-sm" :style="{ backgroundColor: tag.color }">{{ tag.name }}</span>
         <div class="flex gap-2">
-          <button type="button" class="text-sm text-primary-600 hover:text-primary-700" @click="startEdit(tag)">{{ t('common.edit') }}</button>
-          <button type="button" class="text-sm text-danger-500 hover:text-danger-600" @click="remove(tag)">{{ t('common.delete') }}</button>
+          <UiButton type="button" variant="ghost" size="sm" @click="startEdit(tag)">{{ t('common.edit') }}</UiButton>
+          <UiButton type="button" variant="danger" size="sm" @click="remove(tag)">{{ t('common.delete') }}</UiButton>
         </div>
       </li>
     </ul>
