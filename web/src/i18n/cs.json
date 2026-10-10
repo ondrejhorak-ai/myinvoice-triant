@@ -490,6 +490,7 @@
       "owners": "Vlastníci zakázky",
       "variant_active": "Aktivní varianta",
       "detail": "Detail zakázky",
+      "record_title": "Zakázka {number}",
       "number": "Číslo",
       "title_field": "Název",
       "status": "Stav",

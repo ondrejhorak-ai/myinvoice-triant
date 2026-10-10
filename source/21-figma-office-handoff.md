@@ -253,6 +253,7 @@ s předchozí prací, žádný automatický commit ani migrace.
   Výběr má vlastní šipku, ne nativní šipku prohlížeče. Nová faktura má vpravo
   stav **Koncept**, sloupce **Klient a doklad** a **Data a číslování**, box
   propojení s MyÚčtem a položky na celou šířku se slevou vedle souhrnu.
-  Detail zakázky má v hlavičce výběr stavu a **Upravit zakázku**, kontakty
-  a varianty jako karty a komunikaci jako bubliny se zprávou. Stavy zakázek
+  Detail zakázky má nadpis **Zakázka** a číslo, název jako podtitul, výběr
+  stavu a **Upravit zakázku**. Kontakty jsou vyplněné karty (`primary-50`),
+  varianty karty a komunikace bubliny se zprávou. Stavy zakázek
   se nemění.

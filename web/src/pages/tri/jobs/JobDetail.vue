@@ -285,7 +285,7 @@ onMounted(() => load())
   <div v-else-if="job" class="space-y-6">
     <div>
       <OfficeBreadcrumb :items="[{label:t('tri.jobs.title'),to:'/tri/jobs'},{label:job.number}]" />
-      <UiPageHeader :title="job.title" :subtitle="job.number">
+      <UiPageHeader :title="t('tri.jobs.record_title', { number: job.number })" :subtitle="job.title" subtitle-strong>
         <template #actions>
           <UiSelect
             class="w-[220px]"

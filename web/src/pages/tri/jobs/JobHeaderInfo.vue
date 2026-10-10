@@ -34,9 +34,9 @@ function contactSubtitle(c: TriJobContact): string | null {
     <div class="min-w-0">
       <h2 class="text-base font-semibold text-neutral-900 mb-4">{{ t('tri.quote.header_contacts') }}</h2>
       <ul v-if="contacts.length" class="space-y-3 text-sm">
-        <li v-for="c in contacts" :key="c.client_id" class="flex flex-col gap-1 border border-neutral-200 p-4 text-[13px]">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <span class="font-medium text-neutral-900">{{ contactName(c) }}</span>
+        <li v-for="c in contacts" :key="c.client_id" class="flex flex-col gap-1 border border-neutral-200 bg-primary-50 p-4 text-[13px]">
+          <div class="flex flex-wrap items-center gap-2.5">
+            <span class="text-sm font-semibold leading-5 text-neutral-900">{{ contactName(c) }}</span>
             <OfficeRoleTag :name="t('tri.jobs.role_' + (c.role || 'contact'))" :slug="c.role || 'contact'" />
             <OfficeRoleTag v-for="tag in c.tags" :key="tag.id" :name="tag.name" :slug="tag.slug" />
           </div>

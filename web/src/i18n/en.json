@@ -490,6 +490,7 @@
       "owners": "Job owners",
       "variant_active": "Active variant",
       "detail": "Job detail",
+      "record_title": "Job {number}",
       "number": "Number",
       "title_field": "Title",
       "status": "Status",

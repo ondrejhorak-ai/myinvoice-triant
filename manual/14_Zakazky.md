@@ -13,7 +13,7 @@ ukazují varianty napříč zakázkami a odkazují přímo do jejich editoru.
 
 ## 14.1 Detail zakázky
 
-V hlavičce je název zakázky, výběr stavu a **Upravit zakázku**. Stavy zůstávají
+V hlavičce je **Zakázka** a její číslo, pod tím název zakázky, výběr stavu a **Upravit zakázku**. Stavy zůstávají
 **Aktivní**, **Potvrzená**, **Zamítnutá** a **Dokončená**. Detail obsahuje základní údaje,
 kontakty jako karty s rolí, adresu realizace, varianty nabídky jako karty s cenou a stavem,
 nadcházející termíny, faktury, průvodky a reklamace. Vpravo je komunikace: bubliny zpráv
