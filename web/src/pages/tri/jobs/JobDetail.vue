@@ -56,11 +56,10 @@ const linkCandidates = ref<InvoiceListItem[]>([])
 const linkBusy = ref(false)
 const projectBusy = ref(false)
 
-const canInvoice = computed(() => !!job.value?.approved_variant_id && !!job.value?.customer_client_id)
+const canInvoice = computed(() => !!job.value?.approved_variant_id)
 const invoiceBlockedReason = computed(() => {
   if (!job.value || canInvoice.value) return ''
   if (!job.value.approved_variant_id) return t('tri.invoices.need_approved_variant')
-  if (!job.value.customer_client_id) return t('tri.invoices.need_billing_customer')
   return ''
 })
 const canGenerateTravelers = computed(() =>
@@ -205,7 +204,15 @@ function openVariant(id: number) {
   router.push({ name: 'tri-variant-edit', params: { jobId: jobId.value, variantId: id } })
 }
 
+function openInvoiceDraft(type: 'proforma' | 'invoice') {
+  router.push({ name: 'tri-invoice-new', query: { tri_job_id: String(jobId.value), type } })
+}
+
 function openAdvanceModal() {
+  if (!job.value?.customer_client_id) {
+    openInvoiceDraft('proforma')
+    return
+  }
   advancePercent.value = 50
   advanceAmount.value = ''
   advanceText.value = job.value ? `Záloha na objednávku č.${job.value.number}` : ''
@@ -234,6 +241,10 @@ async function createAdvance() {
 
 async function createFinal() {
   if (!job.value) return
+  if (!job.value.customer_client_id) {
+    openInvoiceDraft('invoice')
+    return
+  }
   try {
     const r = await triApi.jobInvoices.createFinal(jobId.value)
     router.push(`/tri/invoices/${r.invoice_id}/edit`)
@@ -421,7 +432,7 @@ onMounted(() => load())
             <UiButton size="sm" :disabled="!canInvoice" @click="openAdvanceModal">{{t('tri.invoices.create_advance')}}</UiButton>
           </span>
           <p v-if="invoiceBlockedReason" class="text-xs text-neutral-500">{{ invoiceBlockedReason }}</p>
-          <OfficeMenu><button :disabled="!canInvoice" @click="createFinal">{{t('tri.invoices.create_final')}}</button><button :disabled="!canInvoice" @click="openLinkModal">{{t('tri.invoices.link_existing')}}</button><button :disabled="invoicesLoading" @click="refreshInvoices">{{t('tri.invoices.refresh_from_myucto')}}</button><button v-if="!job.myucto_project_id" :disabled="projectBusy" @click="ensureProject">{{t('tri.invoices.sync_project')}}</button></OfficeMenu>
+          <OfficeMenu><button :disabled="!canInvoice" @click="createFinal">{{t('tri.invoices.create_final')}}</button><button :disabled="!job.customer_client_id" @click="openLinkModal">{{t('tri.invoices.link_existing')}}</button><button :disabled="invoicesLoading" @click="refreshInvoices">{{t('tri.invoices.refresh_from_myucto')}}</button><button v-if="!job.myucto_project_id" :disabled="projectBusy" @click="ensureProject">{{t('tri.invoices.sync_project')}}</button></OfficeMenu>
         </div>
       </div>
 

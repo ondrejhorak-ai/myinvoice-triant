@@ -15,14 +15,15 @@ ukazují varianty napříč zakázkami a odkazují přímo do jejich editoru.
 
 V hlavičce je **Zakázka** a její číslo, pod tím název zakázky. Drobeček nese číslo i název. Výběr stavu a **Upravit zakázku** jsou stejně vysoké a sedí na jedné lince; popisek **Stav** je jen nad výběrem. Stavy zůstávají
 **Aktivní**, **Potvrzená**, **Zamítnutá** a **Dokončená**. Detail obsahuje základní údaje,
-kontakty jako karty s rolí, adresu realizace, varianty nabídky jako karty s cenou a stavem,
+kontakty jako karty se štítky kontaktu, adresu realizace, varianty nabídky jako karty s cenou a stavem,
 nadcházející termíny, faktury, průvodky a reklamace. Vpravo je komunikace: bubliny zpráv
 a pole pro novou zprávu. Na užší obrazovce se přesune pod ostatní obsah.
 
-Osoba na zakázce má roli **zákazník**, **architekt** nebo **kontakt**. Odběratel
-faktury je samostatná volba a při založení nemusí být vyplněný. Potvrzení zakázky
-projekt v MyÚčtu nezakládá. Projekt vznikne s prvním dokladem. Zákazník má modrý
-štítek, architekt fialový, kontakt šedý.
+Na zakázce se vybírá existující kontakt. Nová osoba se zakládá jako kontakt,
+ne v políčku na zakázce. Štítky (zákazník, architekt a další) se upravují na
+kontaktu. Vlastníci se přidávají výběrem; vybrané osoby jsou štítky pod ním,
+takže se výběr neposouvá. Odběratel faktury se na zakázce nevyplňuje. Potvrzení zakázky
+projekt v MyÚčtu nezakládá. Projekt vznikne s prvním dokladem.
 E-mail a telefon otevírají příslušnou aplikaci. **Mapy.cz** a **Google Maps**
 vyhledají adresu realizace; bez adresy nejsou odkazy aktivní.
 
@@ -34,8 +35,8 @@ oprávnění a vazby stávající aplikace.
 Karta varianty, faktury i průvodky má odstup od okraje sekce, takže rámeček karty nesedí na dělicí čáře. V editoru varianty drobeček i podtitul nesou číslo a název zakázky (`Zakázka 260006 · Kuchyň na míru`).
 
 Zakázka může mít více variant označených písmeny. Každá má vlastní název,
-stav, datum, položky a ceny. Otevři písmeno varianty; **Nová varianta** vytvoří
-prázdnou variantu a **Duplikovat** převezme obsah existující varianty.
+stav, datum, položky a ceny. Otevři písmeno varianty; **Nová varianta** otevře
+editor s jedním prázdným řádkem a **Duplikovat** převezme obsah existující varianty.
 
 Položky lze přidávat ručně nebo [z ceníku](42_Ceniky.md). Sekce seskupují
 související řádky a mají vlastní slevu. Úchyt vlevo umožňuje přetažení;
@@ -44,8 +45,9 @@ Sekce lze sbalit.
 
 Řádek obsahuje označení, název, množství, jednotku, jednotkovou cenu, DPH,
 **Vyrábíme** a cenu po položkové slevě. Zadání částky **Celkem** dopočítá
-jednotkovou cenu se zachováním množství a slevy. Množství musí být kladné,
-cena nezáporná. Při stoprocentní slevě nelze jednotkovou cenu z celku určit.
+jednotkovou cenu se zachováním množství a slevy. Množství je celé kladné číslo
+(krok 1), cena nezáporná a bez šipek. Dlouhý název se zalamuje a řádek povyroste.
+Sleva položky jde po celých procentech a nerozbije sloupec DPH. Při stoprocentní slevě nelze jednotkovou cenu z celku určit.
 
 Menu **…** na pravém okraji nabízí slevu položky, vytvoření průvodky, obrázek
 a smazání. Menu sekce nabízí slevu a smazání sekce. Smazání vyžaduje potvrzení;
@@ -69,15 +71,15 @@ Nadcházející expedice a výroba odkazují do [kalendáře](44_Kalendar.md).
 [Reklamace](45_Reklamace.md) mají samostatnou agendu i vazbu na zakázku.
 
 Sekce faktur ukazuje částky a doklady navázané přes MyÚčto. Další akce jsou
-v menu **…**. Nabídka musí být schválená a zakázka musí mít odběratele, aby
-šlo vytvořit zálohovou nebo konečnou fakturu. Když tlačítko **Vystavit zálohovou
-fakturu** nejde stisknout, vedle něj je důvod (varianta není schválená, nebo
-chybí odběratel). **Cena varianty** bere schválenou variantu; dokud žádná
+v menu **…**. Nabídka musí být schválená, aby šlo vytvořit zálohovou nebo
+konečnou fakturu. Když tlačítko **Vystavit zálohovou fakturu** nejde stisknout,
+vedle něj je důvod (varianta není schválená). Zakázka, která už odběratele má,
+založí doklad rovnou. Bez odběratele se otevře editor faktury a v seznamu
+klientů jsou nejdřív kontakty z této zakázky. **Cena varianty** bere schválenou variantu; dokud žádná
 schválená není, ukáže nejdražší rozpracovanou. Účetní evidenci spravuje MyÚčto
 přes API.
 
-Osoba přidaná na zakázce, jejíž odběratel je firma, se nabídne k navázání na
-tu firmu. Zaškrtnutí je zapnuté. Stejnou osobu jde přidat i z karty firmy.
+Novou osobu jde přidat z karty firmy. Na zakázce se jen vybírá existující kontakt.
 
 
 ### Použité filtry

@@ -32,7 +32,14 @@ const discountTypeModel = computed({
 })
 const discountValueModel = computed({
   get: () => props.discountValue,
-  set: (v: number | null) => emit('update:discountValue', v),
+  set: (v: number | null | string) => {
+    if (v === '' || v == null) {
+      emit('update:discountValue', null)
+      return
+    }
+    const n = typeof v === 'number' ? v : Number(v)
+    emit('update:discountValue', Number.isFinite(n) ? n : null)
+  },
 })
 
 

@@ -475,7 +475,7 @@
       "new": "New job",
       "new_subtitle": "Add the basics and contacts now. Other documents can wait.",
       "owners_hint": "Choose one or more owners.",
-      "contact_hint": "A contact person does not have to be the invoice customer.",
+      "contact_hint": "Pick an existing contact. Create a new person with New contact. The invoice customer is chosen on the invoice.",
       "role": "Role",
       "role_customer": "Customer",
       "role_architect": "Architect",

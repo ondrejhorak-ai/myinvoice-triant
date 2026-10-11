@@ -271,3 +271,8 @@ s předchozí prací, žádný automatický commit ani migrace.
   Kontakty jsou vyplněné karty (`primary-50`),
   varianty karty a komunikace bubliny se zprávou. Stavy zakázek
   se nemění.
+- Zakázka nemá výběr role, políčko Přidat osobu ani odběratele faktury.
+  Vlastníci jsou štítky pod výběrem. Role se upravuje na kontaktu. Nová
+  varianta má jeden prázdný řádek, množství je celé číslo, cena bez šipek,
+  sleva položky po 1 %. Prázdná sleva nabídky se ukládá jako null, ne jako
+  prázdný řetězec do DECIMAL. Dlouhý název s × se zalamuje.

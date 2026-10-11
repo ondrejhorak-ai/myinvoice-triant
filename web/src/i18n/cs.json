@@ -475,7 +475,7 @@
       "new": "Nová zakázka",
       "new_subtitle": "Základní údaje a kontakty doplníte nyní, další podklady můžete přidat později.",
       "owners_hint": "Vyberte jednoho nebo více vlastníků.",
-      "contact_hint": "Kontaktní osoba nemusí být odběratelem faktury.",
+      "contact_hint": "Vyberte existující kontakt. Novou osobu založte tlačítkem Nový kontakt. Odběratele zvolíte na faktuře.",
       "role": "Role",
       "role_customer": "Zákazník",
       "role_architect": "Architekt",

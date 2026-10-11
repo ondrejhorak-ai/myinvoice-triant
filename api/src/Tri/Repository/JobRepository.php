@@ -144,7 +144,7 @@ final class JobRepository
                 isset($data['number']) ? (string) $data['number'] : null,
             );
             $contacts = $this->contactsFrom($data, $clientIds);
-            $customerId = $this->billingCustomerId($pdo, $supplierId, $data, $contacts);
+            $customerId = $this->billingCustomerId($pdo, $supplierId, $data);
 
             $stmt = $pdo->prepare(
                 'INSERT INTO tri_jobs (
@@ -219,7 +219,8 @@ final class JobRepository
             }
 
             $contacts = $this->contactsFrom($data, $clientIds);
-            $customerId = $this->billingCustomerId($pdo, $supplierId, $data, $contacts);
+            $existingCustomer = $existing['customer_client_id'] !== null ? (int) $existing['customer_client_id'] : null;
+            $customerId = $this->billingCustomerId($pdo, $supplierId, $data, $existingCustomer);
 
             $stmt = $pdo->prepare(
                 'UPDATE tri_jobs SET
@@ -413,13 +414,12 @@ final class JobRepository
     }
 
     /**
-     * Odběratel faktury je samostatná volba. Osoba navázaná na firmu jím není,
-     * ani když má na zakázce roli zákazník.
+     * Odběratel se volí na faktuře. Formulář zakázky pole neposílá: založení
+     * nechá null, úprava ponechá uložené id. Explicitní hodnota se dál ověří.
      *
      * @param array<string, mixed> $data
-     * @param list<array{client_id: int, role: string}> $contacts
      */
-    private function billingCustomerId(PDO $pdo, int $supplierId, array $data, array $contacts): ?int
+    private function billingCustomerId(PDO $pdo, int $supplierId, array $data, ?int $keepWhenAbsent = null): ?int
     {
         if (array_key_exists('customer_client_id', $data)) {
             $raw = $data['customer_client_id'];
@@ -429,25 +429,8 @@ final class JobRepository
 
             return $this->assertBillable($pdo, $supplierId, (int) $raw);
         }
-        foreach ($contacts as $contact) {
-            if ($contact['role'] !== JobContacts::CUSTOMER) {
-                continue;
-            }
-            $party = $this->partyRow($pdo, $supplierId, $contact['client_id']);
-            if (ContactParty::isBillable($party['kind'], $party['company_id'])) {
-                return $contact['client_id'];
-            }
-        }
-        $ids = array_map(static fn (array $c) => $c['client_id'], $contacts);
-        $billable = [];
-        foreach ($ids as $id) {
-            $party = $this->partyRow($pdo, $supplierId, $id);
-            if (ContactParty::isBillable($party['kind'], $party['company_id'])) {
-                $billable[] = $id;
-            }
-        }
 
-        return $this->tags->findCustomerClientIdAmong($supplierId, $billable);
+        return $keepWhenAbsent;
     }
 
     private function assertBillable(PDO $pdo, int $supplierId, int $clientId): int

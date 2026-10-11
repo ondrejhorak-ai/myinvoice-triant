@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { TriQuoteLineItem } from '@/api/tri'
 import OfficeMenu from '@/components/tri/OfficeMenu.vue'
@@ -41,25 +41,40 @@ function saveDiscount() {
   props.row.line_discount_value = discountValue.value
   discountOpen.value = false
 }
+const titleEl = ref<HTMLTextAreaElement | null>(null)
 const beforeEdit = new WeakMap<EventTarget, string>()
+function autosizeTitle(event?: Event) {
+  const el = event?.target instanceof HTMLTextAreaElement ? event.target : titleEl.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+}
+function commitQuantity() {
+  const n = Math.round(Number(props.row.quantity))
+  props.row.quantity = Number.isFinite(n) && n >= 1 ? n : 1
+}
 function focus(e: FocusEvent) {
-  const el = e.target as HTMLInputElement
+  const el = e.target
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return
   beforeEdit.set(el, el.value)
 }
 function finishEdit(e: KeyboardEvent) {
+  if (e.target instanceof HTMLTextAreaElement) return
   if (e.target instanceof HTMLInputElement) {
     e.preventDefault()
     e.target.blur()
   }
 }
 function escape(e: KeyboardEvent) {
-  const el = e.target as HTMLInputElement
+  const el = e.target
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return
   if (beforeEdit.has(el)) {
     el.value = beforeEdit.get(el)!
     el.dispatchEvent(new Event('input', { bubbles: true }))
   }
   el.blur()
 }
+onMounted(() => autosizeTitle())
 </script>
 <template>
   <div
@@ -86,13 +101,16 @@ function escape(e: KeyboardEvent) {
       class="border px-2 min-w-0 w-full"
     />
     <div class="min-w-0">
-      <input
+      <textarea
+        ref="titleEl"
         v-model="row.title"
+        rows="1"
         :disabled="!canWrite"
         :aria-label="t('tri.quote.title')"
-        class="border px-2 min-w-0 w-full"
+        class="offer-title border px-2 min-w-0 w-full resize-none"
+        @input="autosizeTitle"
       />
-      <p v-if="discount > 0" class="text-[11px] mt-1 text-warning-600">
+      <p v-if="discount > 0" class="text-[11px] mt-1 text-warning-600 break-words">
         {{ t('tri.quote.discount') }} {{ row.line_discount_value }}
         {{ row.line_discount_type === 'percent' ? '%' : '' }} · −{{
           discount.toFixed(2)
@@ -109,11 +127,12 @@ function escape(e: KeyboardEvent) {
       v-model.number="row.quantity"
       :disabled="!canWrite"
       type="number"
-      step="0.001"
-      min="0.001"
+      step="1"
+      min="1"
       :aria-label="t('tri.quote.quantity')"
-      :aria-invalid="!(row.quantity > 0)"
+      :aria-invalid="!(row.quantity >= 1)"
       class="border px-2 text-right min-w-0 w-full"
+      @change="commitQuantity"
     />
     <input
       v-model="row.unit"
@@ -128,7 +147,7 @@ function escape(e: KeyboardEvent) {
       step="0.01"
       min="0"
       :aria-label="t('tri.quote.unit_price')"
-      class="border px-2 text-right min-w-0 w-full"
+      class="offer-price border px-2 text-right min-w-0 w-full"
     />
     <UiSelect
       v-model.number="row.vat_rate"
@@ -185,7 +204,7 @@ function escape(e: KeyboardEvent) {
           type="number"
           min="0"
           :max="discountType === 'percent' ? 100 : undefined"
-          step="0.01"
+          step="1"
           class="border p-3 w-full"
           :aria-label="t('tri.quote.discount')"
         /><UiSelect v-model="discountType" size="inline" class="w-36 shrink-0" :aria-label="t('tri.quote.discount')">

@@ -76,6 +76,7 @@ const varsymbolLabelKey = computed(() => {
 })
 
 const clients = ref<Client[]>([])  // akumulovaná cache (výsledky hledání + vybraný) — čtou z ní defaults/VIES
+const jobBillableClients = ref<Client[]>([])
 const selectedBillingClient = computed(() => clients.value.find((c) => c.id === form.value.client_id) ?? null)
 // Server-side našeptávač klientů (zákazníků) — SearchableSelect v remote režimu.
 const clientOptions = ref<{ value: number; label: string; secondary?: string }[]>([])
@@ -89,12 +90,22 @@ function mergeClients(list: Client[]) {
   for (const c of list) byId.set(c.id, c)
   clients.value = Array.from(byId.values())
 }
+function contactIsBillable(c: { party_kind?: string | null; company_client_id?: number | null }): boolean {
+  return !((c.party_kind === 'person' || c.party_kind === 'private') && (c.company_client_id ?? 0) > 0)
+}
 async function onClientSearch(q: string) {
   clientsLoading.value = true
   try {
     const res = await clientsApi.list({ q: q || undefined, role: 'customers', archived: false, per_page: 50, billable: true })
-    mergeClients(res.data)
-    clientOptions.value = res.data.map(clientToOption)
+    const needle = (q || '').trim().toLowerCase()
+    const preferred = jobBillableClients.value.filter((c) => {
+      if (!needle) return true
+      return c.company_name.toLowerCase().includes(needle) || (c.ic ?? '').toLowerCase().includes(needle)
+    })
+    const preferredIds = new Set(preferred.map((c) => c.id))
+    const ordered = [...preferred, ...res.data.filter((c) => !preferredIds.has(c.id))]
+    mergeClients(ordered)
+    clientOptions.value = ordered.map(clientToOption)
   } catch { /* ignore */ } finally {
     clientsLoading.value = false
   }
@@ -489,6 +500,27 @@ onMounted(async () => {
 // Inline client creation přes modal — UX zlepšení, žádné opouštění editoru.
 const clientModalOpen = ref(false)
 const triJobId = ref<number | null>(null)
+
+async function loadJobBillableContacts(jobId: number) {
+  try {
+    const job = await triApi.jobs.get(jobId)
+    const ids = (job.contacts ?? []).filter(contactIsBillable).map((c) => c.client_id)
+    const loaded = (await Promise.all(ids.map((id) => clientsApi.get(id).catch(() => null))))
+      .filter((c): c is Client => c != null && contactIsBillable(c))
+    if (triJobId.value !== jobId) return
+    jobBillableClients.value = loaded
+    mergeClients(loaded)
+    clientOptions.value = loaded.map(clientToOption)
+  } catch { /* hledání dál nabídne ostatní kontakty */ }
+}
+
+watch(triJobId, (id) => {
+  if (!id || id <= 0) {
+    jobBillableClients.value = []
+    return
+  }
+  void loadJobBillableContacts(id)
+})
 
 async function onClientCreatedInModal(client: Client) {
   // Čerstvě přidaný klient → do cache + rovnou vybrat (defaults/projects/VIES v onClientChange).

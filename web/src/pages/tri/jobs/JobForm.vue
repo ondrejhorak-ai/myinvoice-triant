@@ -12,7 +12,6 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiPageHeader from '@/components/ui/UiPageHeader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
-import UiSelect from '@/components/ui/UiSelect.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -59,26 +58,12 @@ const form = ref({
   site_zip: '',
   site_country: 'CZ',
   contacts: [] as Array<{ client_id: number; role: 'customer' | 'architect' | 'contact' }>,
-  customer_client_id: null as number | null,
   assignee_user_ids: [] as number[],
 })
-
-const personName = ref('')
-const personEmail = ref('')
-const personPhone = ref('')
-const personRole = ref<'customer' | 'architect' | 'contact'>('contact')
-const personSaving = ref(false)
-const linkPersonToCompany = ref(true)
-const billingKind = ref<string | null>(null)
-const billingOptions = ref<ContactOption[]>([])
-const billingLoading = ref(false)
-const selectedBilling = ref<ContactOption | null>(null)
 
 function clientToOption(c: { id: number; company_name: string; ic?: string | null; party_kind?: string | null }): ContactOption {
   return { value: c.id, label: c.company_name, secondary: c.ic ?? undefined, party_kind: c.party_kind ?? undefined }
 }
-
-const billingIsCompany = computed(() => billingKind.value === 'company' && form.value.customer_client_id != null)
 
 function cacheContact(c: { id: number; company_name: string; ic?: string | null }) {
   const opt = clientToOption(c)
@@ -195,71 +180,6 @@ function removeContact(id: number) {
   form.value.contacts = form.value.contacts.filter((c) => c.client_id !== id)
 }
 
-function setContactRole(id: number, role: 'customer' | 'architect' | 'contact') {
-  form.value.contacts = form.value.contacts.map((c) => c.client_id === id ? { ...c, role } : c)
-}
-
-async function onBillingSearch(q: string) {
-  billingLoading.value = true
-  try {
-    const res = await clientsApi.list({ q: q || undefined, archived: false, per_page: 20, billable: true })
-    billingOptions.value = res.data.map(clientToOption)
-  } catch { /* ignore */ } finally {
-    billingLoading.value = false
-  }
-}
-
-function onBillingPicked(id: number | null) {
-  form.value.customer_client_id = id
-  linkPersonToCompany.value = true
-  const picked = id == null ? null : billingOptions.value.find((o) => o.value === id) ?? null
-  selectedBilling.value = picked ?? (id == null ? null : selectedBilling.value)
-  if (id == null) selectedBilling.value = null
-  billingKind.value = picked?.party_kind ?? null
-  if (id != null && !picked?.party_kind) void rememberBillingKind(id)
-}
-
-async function rememberBillingKind(id: number) {
-  try {
-    const client = await clientsApi.get(id)
-    if (form.value.customer_client_id !== id) return
-    billingKind.value = client.party_kind ?? 'company'
-    selectedBilling.value = clientToOption(client)
-  } catch { /* druh zjistíme při dalším výběru */ }
-}
-
-async function addPerson() {
-  const name = personName.value.trim()
-  const email = personEmail.value.trim()
-  if (!name || !email) {
-    toast.error(t('tri.jobs.person_required'))
-    return
-  }
-  personSaving.value = true
-  try {
-    const created = await triApi.contacts.create({
-      party_kind: 'person',
-      company_name: name,
-      main_email: email,
-      phone: personPhone.value.trim() || null,
-      company_client_id: billingIsCompany.value && linkPersonToCompany.value ? form.value.customer_client_id : null,
-      is_customer: false,
-      is_vendor: false,
-    }) as Client
-    cacheContact(created)
-    if (!form.value.contacts.some((c) => c.client_id === created.id)) {
-      form.value.contacts = [...form.value.contacts, { client_id: created.id, role: personRole.value }]
-    }
-    personName.value = ''
-    personEmail.value = ''
-    personPhone.value = ''
-  } catch {
-    toast.error(t('common.error'))
-  } finally {
-    personSaving.value = false
-  }
-}
-
 async function loadUsers() {
   usersLoading.value = true
   try {
@@ -286,13 +206,7 @@ function onContactCreated(client: Client) {
   cacheContact(client)
   cacheContactAddress(client.id, client.company_name, client)
   if (!form.value.contacts.some((c) => c.client_id === client.id)) {
-    const linkedPerson = client.party_kind === 'person' && client.company_client_id != null
-    const role = linkedPerson ? 'contact' : 'customer'
-    form.value.contacts = [...form.value.contacts, { client_id: client.id, role: role as 'customer' | 'architect' | 'contact' }]
-    if (!linkedPerson && form.value.customer_client_id == null) {
-      form.value.customer_client_id = client.id
-      selectedBilling.value = clientToOption(client)
-    }
+    form.value.contacts = [...form.value.contacts, { client_id: client.id, role: 'contact' }]
   }
   contactModalOpen.value = false
 }
@@ -328,15 +242,7 @@ async function loadJob() {
       client_id: c.client_id,
       role: c.role ?? 'contact',
     })),
-    customer_client_id: job.customer_client_id,
     assignee_user_ids: (job.assignees ?? []).map((a) => a.user_id),
-  }
-  if (job.customer_client_id) {
-    selectedBilling.value = {
-      value: job.customer_client_id,
-      label: job.customer_name ?? `#${job.customer_client_id}`,
-    }
-    void rememberBillingKind(job.customer_client_id)
   }
 }
 
@@ -426,7 +332,15 @@ onMounted(async () => {
       </div>
       <div class="min-w-0">
         <label class="mb-1 block text-sm font-medium text-neutral-700">{{ t('tri.jobs.owners') }}</label>
-        <div v-if="selectedAssignees.length" class="mb-2 flex flex-wrap gap-2">
+        <SearchableSelect
+          :model-value="assigneePickerValue"
+          :loading="usersLoading"
+          :options="userOptions.filter((u) => !form.assignee_user_ids.includes(u.value))"
+          :placeholder="t('tri.jobs.add_assignee_placeholder')"
+          :clearable="true"
+          @update:model-value="onAssigneePicked"
+        />
+        <div v-if="selectedAssignees.length" class="mt-2 flex flex-wrap gap-2">
           <span
             v-for="u in selectedAssignees"
             :key="u.value"
@@ -436,14 +350,6 @@ onMounted(async () => {
             <button type="button" class="cursor-pointer text-neutral-500" :title="t('common.remove')" @click="removeAssignee(u.value)">×</button>
           </span>
         </div>
-        <SearchableSelect
-          :model-value="assigneePickerValue"
-          :loading="usersLoading"
-          :options="userOptions.filter((u) => !form.assignee_user_ids.includes(u.value))"
-          :placeholder="t('tri.jobs.add_assignee_placeholder')"
-          :clearable="true"
-          @update:model-value="onAssigneePicked"
-        />
         <p class="mt-2 text-xs text-neutral-500">{{ t('tri.jobs.owners_hint') }}</p>
       </div>
       </div>
@@ -461,15 +367,8 @@ onMounted(async () => {
         </UiButton>
       </div>
       <div class="space-y-3">
-        <div v-for="c in selectedContacts" :key="c.value" class="flex items-end gap-2 border border-neutral-200 p-3">
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium text-neutral-900">{{ c.label }}</p>
-            <UiSelect :model-value="c.role" size="sm" :label="t('tri.jobs.role')" @update:model-value="setContactRole(c.value, $event as 'customer' | 'architect' | 'contact')">
-              <option value="customer">{{ t('tri.jobs.role_customer') }}</option>
-              <option value="architect">{{ t('tri.jobs.role_architect') }}</option>
-              <option value="contact">{{ t('tri.jobs.role_contact') }}</option>
-            </UiSelect>
-          </div>
+        <div v-for="c in selectedContacts" :key="c.value" class="flex items-center gap-2 border border-neutral-200 p-3">
+          <p class="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900">{{ c.label }}</p>
           <UiButton type="button" variant="outline" size="sm" @click="removeContact(c.value)">{{ t('common.remove') }}</UiButton>
         </div>
         <SearchableSelect
@@ -482,37 +381,6 @@ onMounted(async () => {
           @search="onContactSearch"
           @update:model-value="onContactPicked"
         />
-        <div class="grid gap-2 border border-neutral-200 p-3">
-          <p class="text-sm font-medium text-neutral-900">{{ t('tri.jobs.add_person') }}</p>
-          <UiInput v-model="personName" size="sm" :label="t('tri.jobs.person_name')" />
-          <UiInput v-model="personEmail" size="sm" type="email" :label="t('tri.jobs.person_email')" />
-          <UiInput v-model="personPhone" size="sm" :label="t('client.phone')" />
-          <UiSelect v-model="personRole" size="sm" :label="t('tri.jobs.role')">
-            <option value="customer">{{ t('tri.jobs.role_customer') }}</option>
-            <option value="architect">{{ t('tri.jobs.role_architect') }}</option>
-            <option value="contact">{{ t('tri.jobs.role_contact') }}</option>
-          </UiSelect>
-          <label v-if="billingIsCompany" class="flex items-center gap-2 text-sm text-neutral-800">
-            <input v-model="linkPersonToCompany" type="checkbox" class="size-4" />
-            {{ t('tri.jobs.link_person_company', { name: selectedBilling?.label ?? '' }) }}
-          </label>
-          <UiButton type="button" variant="outline" size="sm" :loading="personSaving" @click="addPerson">{{ t('tri.jobs.add_person') }}</UiButton>
-        </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-neutral-700">{{ t('tri.jobs.billing_customer') }}</label>
-          <SearchableSelect
-            :model-value="form.customer_client_id"
-            remote
-            :loading="billingLoading"
-            :options="billingOptions"
-            :selected-option="selectedBilling"
-            :placeholder="t('tri.jobs.billing_customer')"
-            :clearable="true"
-            @search="onBillingSearch"
-            @update:model-value="onBillingPicked"
-          />
-          <p class="mt-2 text-xs text-neutral-500">{{ t('tri.jobs.billing_hint') }}</p>
-        </div>
         <p class="text-xs text-neutral-500">{{ t('tri.jobs.contact_hint') }}</p>
       </div>
       </div>

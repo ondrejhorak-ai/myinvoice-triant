@@ -104,9 +104,36 @@ final class QuoteRepository
         $sectionsInput = (array) ($payload['sections'] ?? []);
         $linesInput = (array) ($payload['line_items'] ?? []);
         foreach ($linesInput as $line) {
-            $qty = $line['quantity'] ?? null; $price = $line['base_unit_price'] ?? null;
-            if (!is_numeric($qty) || !is_finite((float)$qty) || (float)$qty <= 0 || (float)$qty > 999999999 || !is_numeric($price) || !is_finite((float)$price) || (float)$price < 0 || (float)$price > 9999999999.99) throw new \DomainException('Množství musí být kladné a cena nezáporná.');
+            if (!is_array($line)) {
+                continue;
+            }
+            $qty = $line['quantity'] ?? null;
+            $price = $line['base_unit_price'] ?? null;
+            $qtyF = is_numeric($qty) ? (float) $qty : NAN;
+            $priceF = is_numeric($price) ? (float) $price : NAN;
+            $whole = is_finite($qtyF) && abs($qtyF - round($qtyF)) <= 0.0000001;
+            if (!$whole || $qtyF < 1 || $qtyF > 999999999 || !is_finite($priceF) || $priceF < 0 || $priceF > 9999999999.99) {
+                throw new \DomainException('Množství musí být celé kladné číslo a cena nezáporná.');
+            }
         }
+        $quoteDiscountValue = $this->decimalOrNull($payload['quote_discount_value'] ?? null);
+        $quoteCommissionValue = $this->decimalOrNull($payload['quote_commission_value'] ?? null);
+        foreach ($sectionsInput as &$section) {
+            if (!is_array($section)) {
+                continue;
+            }
+            $section['discount_value'] = $this->decimalOrNull($section['discount_value'] ?? null);
+            $section['commission_value'] = $this->decimalOrNull($section['commission_value'] ?? null);
+        }
+        unset($section);
+        foreach ($linesInput as &$line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            $line['markup_value'] = $this->decimalOrNull($line['markup_value'] ?? null);
+            $line['line_discount_value'] = $this->decimalOrNull($line['line_discount_value'] ?? null);
+        }
+        unset($line);
         $this->assertImagesBelongToSupplier($linesInput, $supplierId);
         $this->assertCatalogItemsBelongToSupplier($linesInput, $supplierId);
         $releaseId = !empty($payload['price_release_id']) ? (int)$payload['price_release_id'] : ($existing['price_release_id'] ?? null);
@@ -115,9 +142,9 @@ final class QuoteRepository
 
         $calcResult = $this->calculator->calculateVariant($sectionsInput, $linesInput, [
             'quote_discount_type'    => $payload['quote_discount_type'] ?? null,
-            'quote_discount_value'   => $payload['quote_discount_value'] ?? null,
+            'quote_discount_value'   => $quoteDiscountValue,
             'quote_commission_type'  => $payload['quote_commission_type'] ?? null,
-            'quote_commission_value' => $payload['quote_commission_value'] ?? null,
+            'quote_commission_value' => $quoteCommissionValue,
         ]);
         $totals = $calcResult;
         $pricedByIndex = $calcResult['lines'];
@@ -154,9 +181,9 @@ final class QuoteRepository
                 (string) ($payload['job_date'] ?? $existing['job_date']),
                 $payload['valid_until'] ?? null,
                 $payload['quote_discount_type'] ?? null,
-                $payload['quote_discount_value'] ?? null,
+                $quoteDiscountValue,
                 $payload['quote_commission_type'] ?? null,
-                $payload['quote_commission_value'] ?? null,
+                $quoteCommissionValue,
                 $totals['subtotal'],
                 $totals['vat_base_21'],
                 $totals['vat_amount_21'],
@@ -180,7 +207,7 @@ final class QuoteRepository
             $pdo->prepare('DELETE FROM tri_quote_line_items WHERE quote_variant_id = ?')->execute([$variantId]);
 
             $sectionIdMap = [];
-            foreach ((array) ($payload['sections'] ?? []) as $i => $section) {
+            foreach ($sectionsInput as $i => $section) {
                 if (!is_array($section)) {
                     continue;
                 }
@@ -550,6 +577,28 @@ final class QuoteRepository
         }
 
         return ((int) $value) ? 1 : 0;
+    }
+
+    /**
+     * A cleared number input is sent as "". MariaDB STRICT rejects that for DECIMAL (22007).
+     */
+    private function decimalOrNull(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === false) {
+            return null;
+        }
+        if (is_string($value)) {
+            $value = str_replace(',', '.', trim($value));
+        }
+        if (!is_numeric($value)) {
+            return null;
+        }
+        $number = (float) $value;
+        if (!is_finite($number)) {
+            return null;
+        }
+
+        return number_format($number, 2, '.', '');
     }
 
     /** @param array<string, mixed> $row */

@@ -457,6 +457,10 @@ function buildBlocks(v: TriQuoteVariant) {
       topLevel.push({ sort: l.sort_order ?? 0, block: { kind: 'item', row: wrapRow(l) } })
     }
   }
+  if (sections.length === 0 && lines.length === 0) {
+    blocks.value = [{ kind: 'item', row: newRow() }]
+    return
+  }
   topLevel.sort((a, b) => a.sort - b.sort)
   blocks.value = topLevel.map((t) => t.block)
 }
@@ -564,7 +568,11 @@ async function downloadPdf() {
 async function save() {
   if (!variant.value) return
   normalizeBlocksInPlace()
-  if(catalogLines.value.some(row=>!Number.isFinite(Number(row.quantity))||Number(row.quantity)<=0||!Number.isFinite(Number(row.base_unit_price))||Number(row.base_unit_price)<0)){toast.error(t('office.invalid_total'));return}
+  if (catalogLines.value.some((row) => {
+    const qty = Number(row.quantity)
+    const price = Number(row.base_unit_price)
+    return !Number.isFinite(qty) || qty < 1 || Math.abs(qty - Math.round(qty)) > 1e-6 || !Number.isFinite(price) || price < 0
+  })) { toast.error(t('office.invalid_total')); return }
   saving.value = true
   try {
     const sectionsPayload: Record<string, unknown>[] = []

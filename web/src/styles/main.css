@@ -301,9 +301,14 @@ html, body {
 .office-nav-link:focus-visible { outline:2px solid var(--color-primary-600); outline-offset:-2px; }
 .office-nav-group > summary::-webkit-details-marker { display:none; }
 .office-nav-group[open] > summary .office-nav-chevron { transform:rotate(90deg); }
-.offer-row { display:grid; grid-template-columns:32px 80px minmax(180px,1fr) 64px 56px 104px 68px 76px 124px 36px; gap:8px; align-items:start; padding:12px 8px; min-width:1000px; border-bottom:1px solid var(--color-neutral-200); }
+.offer-row { display:grid; grid-template-columns:32px 80px minmax(180px,1fr) 64px 56px 104px 96px 76px 124px 36px; gap:8px; align-items:start; padding:12px 8px; min-width:1000px; border-bottom:1px solid var(--color-neutral-200); }
+.offer-row > * { min-width: 0; }
 .offer-table-head { align-items:center; min-height:44px; padding-block:8px; background:var(--color-neutral-100); font-size:11px; font-weight:600; color:var(--color-neutral-600); position:sticky; top:0; z-index:5; }
-.offer-row input, .offer-row select { font-size:13px; background:var(--color-surface); }
+.offer-row input, .offer-row select, .offer-row textarea { font-size:13px; background:var(--color-surface); }
+.offer-title { field-sizing: content; min-height: 2.75rem; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.35; padding-block: 0.5rem; }
+.offer-row p { overflow-wrap: anywhere; }
+.offer-price { -moz-appearance: textfield; appearance: textfield; }
+.offer-price::-webkit-outer-spin-button, .offer-price::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .notion-ghost { opacity:.4; background:var(--color-primary-50); outline:2px solid var(--color-primary-600); }
 
 .office-page :is(td,th):not([class*="px-"]) { padding-inline:16px; }
