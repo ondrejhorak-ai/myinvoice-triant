@@ -91,6 +91,18 @@ test('non-GET requests are never cached', async () => {
   assert.equal(worker.cacheOpenCount, 0)
 })
 
+test('PDF requests stay outside the service worker so the browser viewer can open them', () => {
+  const worker = createWorker(source)
+  for (const url of [
+    'https://invoice.test/api/tri/variants/17/pdf?supplier_id=1',
+    'https://invoice.test/api/tri/invoices/156/pdf',
+  ]) {
+    const result = worker.dispatchFetch({ url, method: 'GET', destination: 'document' })
+    assert.equal(result, undefined)
+  }
+  assert.equal(worker.fetchCalls.length, 0)
+})
+
 test('HTML navigation stays on the network without service-worker caching', () => {
   const worker = createWorker(source)
   const result = worker.dispatchFetch({

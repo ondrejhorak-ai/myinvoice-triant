@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Modal from '@/components/ui/Modal.vue'
 import ContactForm from '@/pages/tri/contacts/ContactForm.vue'
 import type { Client } from '@/api/clients'
+
+const props = defineProps<{ clientId?: number | null }>()
 
 const emit = defineEmits<{
   (e: 'created', client: Client): void
@@ -10,6 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const title = computed(() => ((props.clientId ?? 0) > 0 ? t('client.edit_title') : t('tri.contacts.new_title')))
 
 function onCreated(client: Client) {
   emit('created', client)
@@ -17,7 +21,7 @@ function onCreated(client: Client) {
 </script>
 
 <template>
-  <Modal :title="t('tri.contacts.new_title')" width-class="max-w-3xl" @close="emit('close')">
-    <ContactForm embedded @created="onCreated" @cancel="emit('close')" />
+  <Modal :title="title" width-class="max-w-3xl" @close="emit('close')">
+    <ContactForm embedded :client-id="clientId ?? null" @created="onCreated" @cancel="emit('close')" />
   </Modal>
 </template>

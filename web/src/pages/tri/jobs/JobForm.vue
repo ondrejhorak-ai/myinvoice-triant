@@ -33,6 +33,7 @@ const contactOptions = ref<ContactOption[]>([])
 const contactsLoading = ref(false)
 const contactPickerValue = ref<number | null>(null)
 const contactModalOpen = ref(false)
+const editingContactId = ref<number | null>(null)
 
 const userOptions = ref<UserOption[]>([])
 const usersLoading = ref(false)
@@ -202,13 +203,28 @@ function removeAssignee(id: number) {
   form.value.assignee_user_ids = form.value.assignee_user_ids.filter((x) => x !== id)
 }
 
+function openNewContact() {
+  editingContactId.value = null
+  contactModalOpen.value = true
+}
+
+function openEditContact(id: number) {
+  editingContactId.value = id
+  contactModalOpen.value = true
+}
+
+function closeContactModal() {
+  contactModalOpen.value = false
+  editingContactId.value = null
+}
+
 function onContactCreated(client: Client) {
   cacheContact(client)
   cacheContactAddress(client.id, client.company_name, client)
   if (!form.value.contacts.some((c) => c.client_id === client.id)) {
     form.value.contacts = [...form.value.contacts, { client_id: client.id, role: 'contact' }]
   }
-  contactModalOpen.value = false
+  closeContactModal()
 }
 
 async function suggestNumber() {
@@ -362,13 +378,14 @@ onMounted(async () => {
       <div class="space-y-4 p-5">
       <div class="flex items-center justify-between gap-3">
         <h2>{{ t('tri.jobs.contacts_section') }}</h2>
-        <UiButton type="button" variant="outline" size="sm" @click="contactModalOpen = true">
+        <UiButton type="button" variant="outline" size="sm" @click="openNewContact">
           {{ t('tri.contacts.new_title') }}
         </UiButton>
       </div>
       <div class="space-y-3">
         <div v-for="c in selectedContacts" :key="c.value" class="flex items-center gap-2 border border-neutral-200 p-3">
           <p class="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900">{{ c.label }}</p>
+          <UiButton type="button" variant="outline" size="sm" @click="openEditContact(c.value)">{{ t('common.edit') }}</UiButton>
           <UiButton type="button" variant="outline" size="sm" @click="removeContact(c.value)">{{ t('common.remove') }}</UiButton>
         </div>
         <SearchableSelect
@@ -451,8 +468,9 @@ onMounted(async () => {
 
     <TriContactFormModal
       v-if="contactModalOpen"
+      :client-id="editingContactId"
       @created="onContactCreated"
-      @close="contactModalOpen = false"
+      @close="closeContactModal"
     />
   </div>
 </template>

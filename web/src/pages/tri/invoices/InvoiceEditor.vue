@@ -497,9 +497,21 @@ onMounted(async () => {
   }
 })
 
-// Inline client creation přes modal — UX zlepšení, žádné opouštění editoru.
+// Stejný formulář kontaktu: nový klient, nebo úprava vybraného, bez odchodu z faktury.
 const clientModalOpen = ref(false)
+const editingClientId = ref<number | null>(null)
 const triJobId = ref<number | null>(null)
+
+function openNewClient() {
+  editingClientId.value = null
+  clientModalOpen.value = true
+}
+
+function openEditClient() {
+  if (!form.value.client_id) return
+  editingClientId.value = form.value.client_id
+  clientModalOpen.value = true
+}
 
 async function loadJobBillableContacts(jobId: number) {
   try {
@@ -523,11 +535,18 @@ watch(triJobId, (id) => {
 })
 
 async function onClientCreatedInModal(client: Client) {
-  // Čerstvě přidaný klient → do cache + rovnou vybrat (defaults/projects/VIES v onClientChange).
+  const sameClient = form.value.client_id === client.id
   mergeClients([client])
+  const inJob = jobBillableClients.value.findIndex((c) => c.id === client.id)
+  if (inJob >= 0) jobBillableClients.value.splice(inJob, 1, client)
   selectedClientOption.value = clientToOption(client)
   form.value.client_id = client.id
   clientModalOpen.value = false
+  editingClientId.value = null
+  if (sameClient) {
+    await verifyClientVies(client.id)
+    return
+  }
   await onClientChange()
 }
 
@@ -1060,7 +1079,10 @@ async function deleteDraft() {
                     :clearable="false"
                   />
                 </div>
-                <UiButton type="button" variant="outline" size="sm" class="shrink-0" :title="t('client.new_title')" @click="clientModalOpen = true">
+                <UiButton v-if="form.client_id" type="button" variant="outline" size="sm" class="shrink-0" :title="t('client.edit_title')" @click="openEditClient">
+                  {{ t('common.edit') }}
+                </UiButton>
+                <UiButton type="button" variant="outline" size="sm" class="shrink-0" :title="t('client.new_title')" @click="openNewClient">
                   <template #icon>
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -1450,8 +1472,9 @@ async function deleteDraft() {
 
     <!-- Inline create modaly — neopouštějí editor, po save se entita auto-vybere -->
     <TriContactFormModal v-if="clientModalOpen"
+      :client-id="editingClientId"
       @created="onClientCreatedInModal"
-      @close="clientModalOpen = false" />
+      @close="clientModalOpen = false; editingClientId = null" />
     <CatalogPickerModal v-model:open="catalogOpen" :currency="form.currency" @insert="insertFromCatalog" />
   </div>
 </template>

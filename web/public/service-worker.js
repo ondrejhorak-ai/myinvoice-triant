@@ -81,6 +81,8 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return
 
   if (isApiRequest(url)) {
+    // PDF se otevírá novým oknem. Když ho worker převezme, prohlížeč dokument nenačte.
+    if (/\/pdf(?:\/|$)/.test(url.pathname)) return
     event.respondWith(fetch(request, { cache: 'no-store' }))
     return
   }

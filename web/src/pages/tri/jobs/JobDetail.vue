@@ -23,6 +23,8 @@ import CardSkeleton from '@/components/ui/CardSkeleton.vue'
 import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ComplaintFormModal from '../complaints/ComplaintFormModal.vue'
+import TriContactFormModal from '@/components/tri/TriContactFormModal.vue'
+import type { Client } from '@/api/clients'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -48,6 +50,9 @@ const complaintFormOpen = ref(false)
 const advanceModalOpen = ref(false)
 const advancePercent = ref(50)
 const advanceAmount = ref<number | ''>('')
+const contactModalOpen = ref(false)
+const editingContactId = ref<number | null>(null)
+const retryAdvanceAfterContact = ref(false)
 const advanceText = ref('')
 const advanceBusy = ref(false)
 
@@ -232,11 +237,34 @@ async function createAdvance() {
     const r = await triApi.jobInvoices.createAdvance(jobId.value, payload)
     advanceModalOpen.value = false
     router.push(`/tri/invoices/${r.invoice_id}/edit`)
-  } catch {
-    toast.error(t('common.error'))
+  } catch (e) {
+    const code = (e as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code
+    toast.error(apiErrorMessage(e, t('common.error')))
+    if (code === 'billing_incomplete' && job.value?.customer_client_id) {
+      editingContactId.value = job.value.customer_client_id
+      retryAdvanceAfterContact.value = true
+      contactModalOpen.value = true
+    }
   } finally {
     advanceBusy.value = false
   }
+}
+
+function closeContactModal() {
+  contactModalOpen.value = false
+  editingContactId.value = null
+  retryAdvanceAfterContact.value = false
+}
+
+async function onBillingContactSaved(client: Client) {
+  const retry = retryAdvanceAfterContact.value
+  contactModalOpen.value = false
+  editingContactId.value = null
+  retryAdvanceAfterContact.value = false
+  if (job.value && client.id === job.value.customer_client_id) {
+    job.value.customer_name = client.company_name
+  }
+  if (retry) await createAdvance()
 }
 
 async function createFinal() {
@@ -248,8 +276,8 @@ async function createFinal() {
   try {
     const r = await triApi.jobInvoices.createFinal(jobId.value)
     router.push(`/tri/invoices/${r.invoice_id}/edit`)
-  } catch {
-    toast.error(t('common.error'))
+  } catch (e) {
+    toast.error(apiErrorMessage(e, t('common.error')))
   }
 }
 
@@ -273,8 +301,8 @@ async function linkInvoice(invoiceId: number) {
     linkModalOpen.value = false
     toast.success(t('tri.invoices.linked'))
     await loadInvoices()
-  } catch {
-    toast.error(t('common.error'))
+  } catch (e) {
+    toast.error(apiErrorMessage(e, t('common.error')))
   } finally {
     linkBusy.value = false
   }
@@ -406,7 +434,7 @@ onMounted(() => load())
         </UiButton>
       </div>
       <TableSkeleton v-if="calendarLoading" :rows="3" :cols="3" />
-      <EmptyState v-else-if="calendarEvents.length === 0" compact :title="t('tri.calendar.upcoming_empty')" />
+      <p v-else-if="calendarEvents.length === 0" class="px-5 py-6 text-sm text-neutral-400">{{ t('tri.calendar.upcoming_empty') }}</p>
       <ul v-else class="space-y-2 px-4 pb-4">
         <li v-for="ev in calendarEvents" :key="ev.id" class="flex items-center gap-3">
           <div class="flex h-9 w-12 shrink-0 items-center justify-center border border-neutral-200 text-xs">{{ shortDay(ev.starts_at) }}</div>
@@ -588,6 +616,13 @@ onMounted(() => load())
         </div>
       </div>
     </div>
+
+    <TriContactFormModal
+      v-if="contactModalOpen"
+      :client-id="editingContactId"
+      @created="onBillingContactSaved"
+      @close="closeContactModal"
+    />
 
     <ComplaintFormModal
       v-if="complaintFormOpen"

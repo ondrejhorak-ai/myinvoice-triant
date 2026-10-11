@@ -18,11 +18,12 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 
 /**
- * V `embedded` módu komponenta nečte route pro edit, neredirektuje a vrací výsledek
- * přes `@created` event. Používá se v modal okně (JobForm…).
+ * V `embedded` módu komponenta nečte route, neredirektuje a vrací výsledek
+ * přes `@created`. S `clientId` upraví existující kontakt, jinak zakládá nový.
  */
-const props = withDefaults(defineProps<{ embedded?: boolean }>(), {
+const props = withDefaults(defineProps<{ embedded?: boolean; clientId?: number | null }>(), {
   embedded: false,
+  clientId: null,
 })
 const emit = defineEmits<{
   (e: 'created', client: Client): void
@@ -37,10 +38,14 @@ const supplierStore = useSupplierStore()
 const route = useRoute()
 const router = useRouter()
 
-const isEdit = computed(() =>
-  !props.embedded && route.params.id !== undefined && route.params.id !== 'new'
-)
-const clientId = computed(() => (isEdit.value ? Number(route.params.id) : null))
+const isEdit = computed(() => {
+  if (props.embedded) return (props.clientId ?? 0) > 0
+  return route.params.id !== undefined && route.params.id !== 'new'
+})
+const clientId = computed(() => {
+  if (props.embedded) return (props.clientId ?? 0) > 0 ? Number(props.clientId) : null
+  return isEdit.value ? Number(route.params.id) : null
+})
 
 type ClientDuePreset = 'inherit' | '7' | '14' | 'month' | 'custom'
 const dueCustom = ref(false)
@@ -366,6 +371,10 @@ async function submit() {
       const revBackfilled = updated.revenue_category_backfilled ?? 0
       if (revBackfilled > 0) {
         toast.success(t('client.default_revenue_category_backfilled', { count: revBackfilled }))
+      }
+      if (props.embedded) {
+        emit('created', updated as Client)
+        return
       }
       router.push(`/tri/contacts/${clientId.value}`)
     } else {
