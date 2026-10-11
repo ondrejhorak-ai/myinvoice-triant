@@ -739,6 +739,12 @@ final class InvoiceGateway
 
     public function issue(int $id): array
     {
+        $detail = $this->getDetail($id);
+        $clientId = (int) ($detail['client_id'] ?? 0);
+        if ($clientId > 0) {
+            (new BillingContactPublisher($this->api, $this->pdo, $this->supplierId))->ensure($clientId);
+        }
+
         return $this->mutate($id, fn () => $this->api->issueInvoice($id), true);
     }
 

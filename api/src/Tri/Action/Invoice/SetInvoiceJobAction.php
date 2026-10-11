@@ -9,6 +9,7 @@ use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Service\ActivityLogger;
 use MyInvoice\Service\IpMatcher;
 use MyInvoice\Tri\Contact\BillingContactPublisher;
+use MyInvoice\Tri\Invoice\JobInvoiceClient;
 use MyInvoice\Tri\MyUcto\InvoiceGateway;
 use MyInvoice\Tri\MyUcto\MyUctoApiException;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
@@ -58,19 +59,31 @@ final class SetInvoiceJobAction
                 if ($job === null) {
                     return Json::error($response, 'not_found', 'Zakázka nenalezena.', 404);
                 }
-                $customerId = (int) ($job['customer_client_id'] ?? 0);
-                if ($customerId > 0) {
-                    (new BillingContactPublisher($this->api, $this->db->pdo(), $supplierId))->ensure($customerId);
+                $billingId = JobInvoiceClient::id($job, $detail);
+                $billing = $billingId > 0 ? $this->clientRow($supplierId, $billingId) : null;
+                if ($billing !== null && (int) ($job['customer_client_id'] ?? 0) > 0 && $billing['myucto_id'] <= 0) {
+                    (new BillingContactPublisher($this->api, $this->db->pdo(), $supplierId))->ensure($billing['id']);
+                    $billing = $this->clientRow($supplierId, $billing['id']) ?? $billing;
                 }
-                $job = (new ProjectGateway($this->api, $this->db->pdo(), $supplierId))->ensureProjectForJob($job);
                 $projectId = (int) ($job['myucto_project_id'] ?? 0);
+                if ($projectId <= 0 && $billing !== null && $billing['myucto_id'] > 0) {
+                    $forProject = $job;
+                    $forProject['customer_client_id'] = $billing['id'];
+                    try {
+                        $job = (new ProjectGateway($this->api, $this->db->pdo(), $supplierId))->ensureProjectForJob($forProject);
+                        $projectId = (int) ($job['myucto_project_id'] ?? 0);
+                    } catch (MyUctoApiException $e) {
+                        if ($e->errorCode !== 'not_linked') {
+                            throw $e;
+                        }
+                    }
+                }
+                $this->jobInvoices->link($invoiceId, (int) $jobId, $supplierId);
                 if ($isDraft && $projectId > 0) {
                     $gw->updateDraft($invoiceId, array_merge($detail, [
                         'project_id' => $projectId,
                         'items' => $detail['items'] ?? [],
                     ]));
-                } else {
-                    $this->jobInvoices->link($invoiceId, (int) $jobId, $supplierId);
                 }
             }
         } catch (MyUctoApiException $e) {
@@ -104,5 +117,26 @@ final class SetInvoiceJobAction
         $job = $this->jobInvoices->jobForInvoiceScoped($invoiceId, $supplierId);
 
         return Json::ok($response, ['job' => $job]);
+    }
+
+    /** @return array{id: int, myucto_id: int}|null */
+    private function clientRow(int $supplierId, int $clientId): ?array
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT id, myucto_id FROM clients
+              WHERE supplier_id = ? AND (id = ? OR myucto_id = ?)
+              ORDER BY (id = ?) DESC
+              LIMIT 1'
+        );
+        $stmt->execute([$supplierId, $clientId, $clientId, $clientId]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $row['id'],
+            'myucto_id' => $row['myucto_id'] !== null && $row['myucto_id'] !== '' ? (int) $row['myucto_id'] : 0,
+        ];
     }
 }

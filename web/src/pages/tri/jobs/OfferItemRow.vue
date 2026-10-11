@@ -49,9 +49,39 @@ function autosizeTitle(event?: Event) {
   el.style.height = 'auto'
   el.style.height = `${el.scrollHeight}px`
 }
-function commitQuantity() {
-  const n = Math.round(Number(props.row.quantity))
-  props.row.quantity = Number.isFinite(n) && n >= 1 ? n : 1
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, '')
+}
+function applyQuantity(el: HTMLInputElement, digits: string) {
+  if (el.value !== digits) el.value = digits
+  const n = digits === '' ? 0 : Number(digits)
+  props.row.quantity = n
+}
+function blockQuantityKey(e: KeyboardEvent) {
+  if (e.key === '.' || e.key === ',' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+    e.preventDefault()
+  }
+}
+function blockQuantityBefore(e: InputEvent) {
+  if (e.data == null || !/[.,eE+\-]/.test(e.data)) return
+  e.preventDefault()
+  const extra = digitsOnly(e.data)
+  if (extra === '' || !(e.target instanceof HTMLInputElement)) return
+  const el = e.target
+  const start = el.selectionStart ?? el.value.length
+  const end = el.selectionEnd ?? start
+  applyQuantity(el, digitsOnly(el.value.slice(0, start) + extra + el.value.slice(end)))
+}
+function onQuantityInput(e: Event) {
+  if (!(e.target instanceof HTMLInputElement)) return
+  applyQuantity(e.target, digitsOnly(e.target.value))
+}
+function commitQuantity(e: Event) {
+  if (!(e.target instanceof HTMLInputElement)) return
+  const n = Number(digitsOnly(e.target.value))
+  const whole = Number.isFinite(n) && n >= 1 ? Math.trunc(n) : 1
+  props.row.quantity = whole
+  e.target.value = String(whole)
 }
 function focus(e: FocusEvent) {
   const el = e.target
@@ -124,14 +154,18 @@ onMounted(() => autosizeTitle())
       /></a>
     </div>
     <input
-      v-model.number="row.quantity"
+      :value="Number.isFinite(Number(row.quantity)) && Number(row.quantity) > 0 ? String(Math.trunc(Number(row.quantity))) : ''"
       :disabled="!canWrite"
       type="number"
       step="1"
       min="1"
+      inputmode="numeric"
       :aria-label="t('tri.quote.quantity')"
-      :aria-invalid="!(row.quantity >= 1)"
+      :aria-invalid="!(Number.isInteger(Number(row.quantity)) && Number(row.quantity) >= 1)"
       class="border px-2 text-right min-w-0 w-full"
+      @keydown="blockQuantityKey"
+      @beforeinput="blockQuantityBefore"
+      @input="onQuantityInput"
       @change="commitQuantity"
     />
     <input

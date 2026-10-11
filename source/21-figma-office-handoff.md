@@ -276,3 +276,5 @@ s předchozí prací, žádný automatický commit ani migrace.
   varianta má jeden prázdný řádek, množství je celé číslo, cena bez šipek,
   sleva položky po 1 %. Prázdná sleva nabídky se ukládá jako null, ne jako
   prázdný řetězec do DECIMAL. Dlouhý název s × se zalamuje.
+  Množství nepřijme tečku ani čárku. Faktura se na zakázku naváže podle
+  klienta na dokladu, i když zakázka odběratele nemá.

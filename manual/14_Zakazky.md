@@ -46,7 +46,7 @@ Sekce lze sbalit.
 Řádek obsahuje označení, název, množství, jednotku, jednotkovou cenu, DPH,
 **Vyrábíme** a cenu po položkové slevě. Zadání částky **Celkem** dopočítá
 jednotkovou cenu se zachováním množství a slevy. Množství je celé kladné číslo
-(krok 1), cena nezáporná a bez šipek. Dlouhý název se zalamuje a řádek povyroste.
+(krok 1). Tečka a čárka se do pole nezapíšou, zůstanou jen číslice. Cena je nezáporná a bez šipek. Dlouhý název se zalamuje a řádek povyroste.
 Sleva položky jde po celých procentech a nerozbije sloupec DPH. Při stoprocentní slevě nelze jednotkovou cenu z celku určit.
 
 Menu **…** na pravém okraji nabízí slevu položky, vytvoření průvodky, obrázek
@@ -75,7 +75,9 @@ v menu **…**. Nabídka musí být schválená, aby šlo vytvořit zálohovou n
 konečnou fakturu. Když tlačítko **Vystavit zálohovou fakturu** nejde stisknout,
 vedle něj je důvod (varianta není schválená). Zakázka, která už odběratele má,
 založí doklad rovnou. Bez odběratele se otevře editor faktury a v seznamu
-klientů jsou nejdřív kontakty z této zakázky. **Cena varianty** bere schválenou variantu; dokud žádná
+klientů jsou nejdřív kontakty z této zakázky. Klient zvolený na faktuře
+stačí k navázání dokladu na zakázku. Do MyÚčta se odešle při vystavení,
+pokud tam ještě není. **Cena varianty** bere schválenou variantu; dokud žádná
 schválená není, ukáže nejdražší rozpracovanou. Účetní evidenci spravuje MyÚčto
 přes API.
 
