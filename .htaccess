@@ -49,6 +49,11 @@ Options -Indexes -MultiViews
     RewriteRule ^manual/?$ manual/index.php [L,QSA]
 
     # 3) /api/* → api/public/index.php
+    # PDF jde vlastní pravidlem, aby env přežil interní redirect (REDIRECT_PDF_INLINE).
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{THE_REQUEST} \s/[^\s?]*/pdf[\s?]
+    RewriteRule ^api/(.*)$ api/public/index.php [E=PDF_INLINE:1,L,QSA]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^api/(.*)$ api/public/index.php [L,QSA]
@@ -106,10 +111,11 @@ Options -Indexes -MultiViews
 # a PWA soubory a Header Cache-Control podle ní pošleme.
 <IfModule mod_rewrite.c>
     # PDF v prohlížeči: no-store a CORP nechají vestavěný prohlížeč prázdný.
-    RewriteCond %{REQUEST_URI} /pdf(\?|$)
+    # REQUEST_URI po front-controlleru už je index.php, proto se díváme na THE_REQUEST.
+    RewriteCond %{THE_REQUEST} \s/[^\s?]*/pdf[\s?]
     RewriteRule ^ - [E=PDF_INLINE:1]
     RewriteCond %{REQUEST_URI} ^/api/
-    RewriteCond %{REQUEST_URI} !/pdf(\?|$)
+    RewriteCond %{THE_REQUEST} !\s/[^\s?]*/pdf[\s?]
     RewriteRule ^ - [E=NOCACHE:1]
 </IfModule>
 <IfModule mod_headers.c>
@@ -118,6 +124,10 @@ Options -Indexes -MultiViews
     Header always unset Cross-Origin-Opener-Policy env=PDF_INLINE
     Header always unset X-Frame-Options env=PDF_INLINE
     Header set Cache-Control "private, max-age=60" env=PDF_INLINE
+    Header always unset Cross-Origin-Resource-Policy env=REDIRECT_PDF_INLINE
+    Header always unset Cross-Origin-Opener-Policy env=REDIRECT_PDF_INLINE
+    Header always unset X-Frame-Options env=REDIRECT_PDF_INLINE
+    Header set Cache-Control "private, max-age=60" env=REDIRECT_PDF_INLINE
 </IfModule>
 
 # Blokovat citlivé soubory.
