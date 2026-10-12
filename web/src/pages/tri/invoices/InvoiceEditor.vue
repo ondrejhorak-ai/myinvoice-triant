@@ -90,21 +90,16 @@ function mergeClients(list: Client[]) {
   for (const c of list) byId.set(c.id, c)
   clients.value = Array.from(byId.values())
 }
-function contactIsBillable(c: { party_kind?: string | null; company_client_id?: number | null }): boolean {
-  return !((c.party_kind === 'person' || c.party_kind === 'private') && (c.company_client_id ?? 0) > 0)
-}
 function jobBillingClientId(job: {
   customer_client_id: number | null
-  contacts?: Array<{ client_id: number; role?: string; party_kind?: string; company_client_id?: number | null }>
+  contacts?: Array<{ client_id: number; party_kind?: string | null }>
 }): number | null {
-  if (job.customer_client_id) return job.customer_client_id
   const contacts = job.contacts ?? []
-  const billable = contacts.filter(contactIsBillable)
-  const customer = billable.find((c) => c.role === 'customer')
-  if (customer) return customer.client_id
-  if (billable[0]) return billable[0].client_id
-  const linked = contacts.find((c) => (c.company_client_id ?? 0) > 0)
-  return linked?.company_client_id ?? null
+  const company = contacts.find((c) => c.party_kind === 'company')
+  if (company) return company.client_id
+  const person = contacts.find((c) => c.party_kind === 'person' || c.party_kind === 'private')
+  if (person) return person.client_id
+  return job.customer_client_id || null
 }
 async function onClientSearch(q: string) {
   clientsLoading.value = true
@@ -530,9 +525,16 @@ function openEditClient() {
 async function loadJobBillableContacts(jobId: number) {
   try {
     const job = await triApi.jobs.get(jobId)
-    const ids = (job.contacts ?? []).filter(contactIsBillable).map((c) => c.client_id)
-    const loaded = (await Promise.all(ids.map((id) => clientsApi.get(id).catch(() => null))))
-      .filter((c): c is Client => c != null && contactIsBillable(c))
+    const ids = (job.contacts ?? []).map((c) => c.client_id)
+    const loadedById = new Map(
+      (await Promise.all(ids.map((id) => clientsApi.get(id).catch(() => null))))
+        .filter((c): c is Client => c != null)
+        .map((c) => [c.id, c]),
+    )
+    const loaded = ids.flatMap((id) => {
+      const client = loadedById.get(id)
+      return client ? [client] : []
+    })
     if (triJobId.value !== jobId) return
     jobBillableClients.value = loaded
     mergeClients(loaded)

@@ -473,10 +473,10 @@ export const triApi = {
   jobInvoices: {
     list: (jobId: number) =>
       api.get<{ invoices: TriJobInvoice[]; summary: TriJobInvoiceSummary }>(`/tri/jobs/${jobId}/invoices`).then((r) => r.data),
-    createAdvance: (jobId: number, payload?: { percent?: number; amount?: number; text?: string }) =>
+    createAdvance: (jobId: number, payload?: { percent?: number; amount?: number; text?: string; client_id?: number }) =>
       api.post<{ invoice_id: number; edit_url: string }>(`/tri/jobs/${jobId}/invoices/advance`, payload ?? {}).then((r) => r.data),
-    createFinal: (jobId: number) =>
-      api.post<{ invoice_id: number; edit_url: string }>(`/tri/jobs/${jobId}/invoices/final`).then((r) => r.data),
+    createFinal: (jobId: number, payload?: { client_id?: number }) =>
+      api.post<{ invoice_id: number; edit_url: string }>(`/tri/jobs/${jobId}/invoices/final`, payload ?? {}).then((r) => r.data),
     refresh: (jobId: number) =>
       api.post<{ invoices: TriJobInvoice[]; summary: TriJobInvoiceSummary }>(`/tri/jobs/${jobId}/invoices/refresh`).then((r) => r.data),
   },

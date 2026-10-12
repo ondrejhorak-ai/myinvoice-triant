@@ -10,6 +10,7 @@ use MyInvoice\Infrastructure\Config\RuntimePaths;
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Service\Pdf\MpdfFontConfig;
 use MyInvoice\Service\Pdf\PdfBranding;
+use MyInvoice\Tri\Contact\JobContactOrder;
 use MyInvoice\Tri\Repository\JobRepository;
 use MyInvoice\Tri\Repository\TravelerRepository;
 use Twig\Environment;
@@ -277,8 +278,12 @@ final class TravelerPdfRenderer
     /** @param array<string, mixed> $job */
     private function resolveClient(array $job): array
     {
-        $clientId = $job['customer_client_id'] ?? null;
-        if ($clientId === null) {
+        $contacts = is_array($job['contacts'] ?? null) ? $job['contacts'] : [];
+        $clientId = JobContactOrder::billingClientId($contacts);
+        if ($clientId <= 0) {
+            $clientId = (int) ($job['customer_client_id'] ?? 0);
+        }
+        if ($clientId <= 0) {
             return [];
         }
 
@@ -288,10 +293,19 @@ final class TravelerPdfRenderer
                JOIN countries co ON co.id = c.country_id
               WHERE c.id = ?'
         );
-        $stmt->execute([(int) $clientId]);
+        $stmt->execute([$clientId]);
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return [];
+        }
+        $label = JobContactOrder::label($contacts);
+        if ($label !== null && $label !== '') {
+            $row['company_name'] = $label;
+            $row['first_name'] = null;
+            $row['last_name'] = null;
+        }
 
-        return is_array($row) ? $row : [];
+        return $row;
     }
 
     private function getSupplierData(int $supplierId): array

@@ -6,6 +6,7 @@ namespace MyInvoice\Tri\Repository;
 
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Tri\Contact\ContactParty;
+use MyInvoice\Tri\Contact\JobContactOrder;
 use MyInvoice\Tri\Contact\JobContacts;
 use MyInvoice\Tri\Service\JobNumberConflictException;
 use MyInvoice\Tri\Service\JobNumberFormatException;
@@ -40,10 +41,11 @@ final class JobRepository
         }
         if (!empty($filters['q'])) {
             $q = addcslashes((string) $filters['q'], '%_\\');
-            $where[] = '(j.number LIKE ? OR j.title LIKE ? OR EXISTS (SELECT 1 FROM clients customer WHERE customer.id = j.customer_client_id AND customer.company_name LIKE ?))';
-            $params[] = '%' . $q . '%';
-            $params[] = '%' . $q . '%';
-            $params[] = '%' . $q . '%';
+            $like = '%' . $q . '%';
+            $where[] = '(j.number LIKE ? OR j.title LIKE ? OR ' . JobContactOrder::columnMatchSql('j') . ')';
+            $params[] = $like;
+            $params[] = $like;
+            array_push($params, ...JobContactOrder::columnMatchParams($like));
         }
 
         $whereSql = implode(' AND ', $where);
@@ -55,11 +57,9 @@ final class JobRepository
 
         $offset = max(0, ($page - 1) * $perPage);
         $stmt = $pdo->prepare(
-            "SELECT j.*, u.name AS owner_name,
-                    c.company_name AS customer_name
+            "SELECT j.*, u.name AS owner_name
                FROM tri_jobs j
                JOIN users u ON u.id = j.owner_user_id
-          LEFT JOIN clients c ON c.id = j.customer_client_id
               WHERE $whereSql
               ORDER BY j.updated_at DESC, j.id DESC
               LIMIT ? OFFSET ?"
@@ -72,9 +72,11 @@ final class JobRepository
         $stmt->bindValue($idx++, $offset, PDO::PARAM_INT);
         $stmt->execute();
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $labels = JobContactOrder::labelsForJobs($pdo, array_column($rows, 'id'));
 
         return [
-            'data' => array_map(function (array $r) {
+            'data' => array_map(function (array $r) use ($labels) {
+                $r['customer_name'] = $labels[(int) $r['id']] ?? null;
                 $summary = $this->castSummary($r);
                 $summary['assignees'] = $this->loadAssignees((int) $r['id']);
 
@@ -107,6 +109,7 @@ final class JobRepository
 
         $job = $this->castFull($row);
         $job['contacts'] = $this->loadContacts($id);
+        $job['customer_name'] = JobContactOrder::label($job['contacts']);
         $job['assignees'] = $this->loadAssignees($id);
 
         return $job;
@@ -292,6 +295,67 @@ final class JobRepository
         $stmt->execute([$id, $supplierId]);
 
         return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Přidá kontakt na konec seznamu. Existující pořadí, customer_client_id
+     * ani projekt MyÚčta se nepřepisují. Když už na zakázce je, nic se nemění.
+     */
+    public function appendContact(int $jobId, int $supplierId, int $clientId): void
+    {
+        if ($clientId <= 0) {
+            throw new \InvalidArgumentException('Vyberte odběratele.');
+        }
+        $pdo = $this->db->pdo();
+        $job = $pdo->prepare('SELECT id FROM tri_jobs WHERE id = ? AND supplier_id = ?');
+        $job->execute([$jobId, $supplierId]);
+        if ($job->fetchColumn() === false) {
+            throw new \RuntimeException('Zakázka nenalezena.');
+        }
+        $client = $pdo->prepare('SELECT id FROM clients WHERE id = ? AND supplier_id = ?');
+        $client->execute([$clientId, $supplierId]);
+        if ($client->fetchColumn() === false) {
+            throw new \RuntimeException('Kontakt nenalezen.');
+        }
+
+        $pdo->beginTransaction();
+        try {
+            $exists = $pdo->prepare(
+                'SELECT 1 FROM tri_job_contacts WHERE job_id = ? AND client_id = ? FOR UPDATE'
+            );
+            $exists->execute([$jobId, $clientId]);
+            if ($exists->fetchColumn() !== false) {
+                $pdo->commit();
+
+                return;
+            }
+            $next = $pdo->prepare(
+                'SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tri_job_contacts WHERE job_id = ?'
+            );
+            $next->execute([$jobId]);
+            $sort = (int) $next->fetchColumn();
+            $pdo->prepare(
+                'INSERT INTO tri_job_contacts (job_id, client_id, role, sort_order) VALUES (?, ?, ?, ?)'
+            )->execute([$jobId, $clientId, JobContacts::CONTACT, $sort]);
+            $pdo->commit();
+        } catch (\PDOException $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                $check = $pdo->prepare('SELECT 1 FROM tri_job_contacts WHERE job_id = ? AND client_id = ?');
+                $check->execute([$jobId, $clientId]);
+                if ($check->fetchColumn() !== false) {
+                    return;
+                }
+            }
+            throw new \RuntimeException('Kontakt se k zakázce nepodařilo přidat.');
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 
     public function isNumberAvailable(int $supplierId, string $number, ?int $excludeJobId = null): bool

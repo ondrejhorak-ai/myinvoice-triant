@@ -31,14 +31,15 @@ final class CreateAdvanceInvoiceAction
 
         try {
             $result = $this->builder->buildAdvanceDraft($jobId, $supplierId, $userId, [
-                'percent' => $body['percent'] ?? null,
-                'amount'  => $body['amount'] ?? null,
-                'text'    => $body['text'] ?? null,
+                'percent'   => $body['percent'] ?? null,
+                'amount'    => $body['amount'] ?? null,
+                'text'      => $body['text'] ?? null,
+                'client_id' => $body['client_id'] ?? null,
             ]);
         } catch (\MyInvoice\Tri\MyUcto\MyUctoApiException $e) {
-            return InvoiceError::fromException($response, $e);
+            return InvoiceError::fromException($response, $e, true);
         } catch (\Throwable $e) {
-            return Json::error($response, 'create_failed', $e->getMessage(), 409);
+            return Json::error($response, 'create_failed', InvoiceError::withoutRecordIds($e->getMessage()), 409);
         }
 
         $invoiceId = $result['invoice_id'];

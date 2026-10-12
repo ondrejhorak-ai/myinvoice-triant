@@ -2,7 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { triApi, type TriJob, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler, type TriCalendarEvent, type TriComplaint } from '@/api/tri'
+import { triApi, type TriJob, type TriJobContact, type TriJobInvoice, type TriJobInvoiceSummary, type TriTraveler, type TriCalendarEvent, type TriComplaint } from '@/api/tri'
+import { clientsApi, type Client } from '@/api/clients'
 import { triInvoicesApi } from '@/api/triInvoices'
 import type { InvoiceListItem } from '@/api/invoices'
 import { useAuthStore } from '@/stores/auth'
@@ -24,7 +25,7 @@ import TableSkeleton from '@/components/ui/TableSkeleton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ComplaintFormModal from '../complaints/ComplaintFormModal.vue'
 import TriContactFormModal from '@/components/tri/TriContactFormModal.vue'
-import type { Client } from '@/api/clients'
+import SearchableSelect from '@/components/ui/SearchableSelect.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -47,14 +48,24 @@ const complaints = ref<TriComplaint[]>([])
 const complaintsLoading = ref(false)
 const complaintFormOpen = ref(false)
 
-const advanceModalOpen = ref(false)
+type BillingChoice = { client_id: number; label: string; party_kind?: string }
+
+const invoiceModalOpen = ref(false)
+const invoiceMode = ref<'advance' | 'final'>('advance')
 const advancePercent = ref(50)
 const advanceAmount = ref<number | ''>('')
 const contactModalOpen = ref(false)
 const editingContactId = ref<number | null>(null)
 const retryAdvanceAfterContact = ref(false)
+const contactModalPurpose = ref<'create' | 'address' | null>(null)
 const advanceText = ref('')
 const advanceBusy = ref(false)
+const billingChoices = ref<BillingChoice[]>([])
+const billingClientId = ref<number | null>(null)
+const billingSearchValue = ref<number | null>(null)
+const billingSearchOptions = ref<Array<{ value: number; label: string; secondary?: string }>>([])
+const billingSearchMeta = ref(new Map<number, { label: string; party_kind?: string }>())
+const billingSearchLoading = ref(false)
 
 const linkModalOpen = ref(false)
 const linkCandidates = ref<InvoiceListItem[]>([])
@@ -209,35 +220,131 @@ function openVariant(id: number) {
   router.push({ name: 'tri-variant-edit', params: { jobId: jobId.value, variantId: id } })
 }
 
-function openInvoiceDraft(type: 'proforma' | 'invoice') {
-  router.push({ name: 'tri-invoice-new', query: { tri_job_id: String(jobId.value), type } })
+function contactDisplayName(c: {
+  party_kind?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  company_name?: string | null
+}): string {
+  const kind = c.party_kind === 'private' ? 'person' : c.party_kind
+  if (kind === 'person') {
+    const person = `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim()
+    if (person) return person
+  }
+  const company = (c.company_name ?? '').trim()
+  return company || t('tri.invoices.billing_unnamed')
 }
 
-function openAdvanceModal() {
+function kindLabel(kind?: string) {
+  return kind === 'company' ? t('tri.contacts.kind_company') : t('tri.contacts.kind_person')
+}
+
+function defaultBillingClientId(contacts: TriJobContact[], stored: number | null): number | null {
+  const company = contacts.find((c) => c.party_kind === 'company')
+  if (company) return company.client_id
+  const person = contacts.find((c) => c.party_kind === 'person' || c.party_kind === 'private')
+  if (person) return person.client_id
+  return contacts.length === 0 ? stored : null
+}
+
+function openInvoiceModal(mode: 'advance' | 'final') {
+  invoiceMode.value = mode
   advancePercent.value = 50
   advanceAmount.value = ''
   advanceText.value = job.value ? `Záloha na objednávku č.${job.value.number}` : ''
-  advanceModalOpen.value = true
+  const contacts = job.value?.contacts ?? []
+  const choices: BillingChoice[] = contacts.map((c) => ({
+    client_id: c.client_id,
+    label: contactDisplayName(c),
+    party_kind: c.party_kind,
+  }))
+  const stored = job.value?.customer_client_id ?? null
+  if (choices.length === 0 && stored && job.value?.customer_name) {
+    choices.push({ client_id: stored, label: job.value.customer_name })
+  }
+  billingChoices.value = choices
+  billingClientId.value = defaultBillingClientId(contacts, stored)
+  billingSearchValue.value = null
+  billingSearchOptions.value = []
+  invoiceModalOpen.value = true
 }
 
-async function createAdvance() {
-  if (!job.value) return
-  advanceBusy.value = true
+async function onBillingSearch(q: string) {
+  billingSearchLoading.value = true
   try {
-    const payload: { percent?: number; amount?: number; text?: string } = { text: advanceText.value || undefined }
-    if (advanceAmount.value !== '' && Number(advanceAmount.value) > 0) {
-      payload.amount = Number(advanceAmount.value)
-    } else {
-      payload.percent = Number(advancePercent.value) || 50
-    }
-    const r = await triApi.jobInvoices.createAdvance(jobId.value, payload)
-    advanceModalOpen.value = false
+    const res = await clientsApi.list({ q: q || undefined, archived: false, per_page: 50, role: 'all' })
+    const taken = new Set(billingChoices.value.map((c) => c.client_id))
+    const meta = new Map<number, { label: string; party_kind?: string }>()
+    billingSearchOptions.value = res.data
+      .filter((c) => !taken.has(c.id))
+      .map((c) => {
+        const label = contactDisplayName(c)
+        meta.set(c.id, { label, party_kind: c.party_kind })
+        return { value: c.id, label, secondary: c.ic ?? undefined }
+      })
+    billingSearchMeta.value = meta
+  } catch {
+    billingSearchOptions.value = []
+  } finally {
+    billingSearchLoading.value = false
+  }
+}
+
+function onBillingSearchPicked(id: number | null) {
+  if (id == null) return
+  const option = billingSearchMeta.value.get(id)
+  if (!billingChoices.value.some((c) => c.client_id === id)) {
+    billingChoices.value = [...billingChoices.value, {
+      client_id: id,
+      label: option?.label || t('tri.invoices.billing_unnamed'),
+      party_kind: option?.party_kind,
+    }]
+  }
+  billingClientId.value = id
+  billingSearchValue.value = null
+}
+
+function openNewBillingContact() {
+  editingContactId.value = null
+  contactModalPurpose.value = 'create'
+  retryAdvanceAfterContact.value = false
+  contactModalOpen.value = true
+}
+
+function invoiceErrorText(e: unknown): string {
+  const msg = apiErrorMessage(e, t('common.error'))
+  if (/#\s*\d+/.test(msg) && /zakázk|projekt|klient|client|project/i.test(msg)) {
+    return t('tri.invoices.billing_failed_plain')
+  }
+  return msg
+}
+
+async function submitInvoice() {
+  if (!job.value) return
+  if (!billingClientId.value) {
+    toast.error(t('tri.invoices.need_billing_customer'))
+    return
+  }
+  advanceBusy.value = true
+  const clientId = billingClientId.value
+  try {
+    const r = invoiceMode.value === 'final'
+      ? await triApi.jobInvoices.createFinal(jobId.value, { client_id: clientId })
+      : await triApi.jobInvoices.createAdvance(jobId.value, {
+          text: advanceText.value || undefined,
+          client_id: clientId,
+          ...(advanceAmount.value !== '' && Number(advanceAmount.value) > 0
+            ? { amount: Number(advanceAmount.value) }
+            : { percent: Number(advancePercent.value) || 50 }),
+        })
+    invoiceModalOpen.value = false
     router.push(`/tri/invoices/${r.invoice_id}/edit`)
   } catch (e) {
     const code = (e as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code
-    toast.error(apiErrorMessage(e, t('common.error')))
-    if (code === 'billing_incomplete' && job.value?.customer_client_id) {
-      editingContactId.value = job.value.customer_client_id
+    toast.error(invoiceErrorText(e))
+    if (code === 'billing_incomplete') {
+      editingContactId.value = clientId
+      contactModalPurpose.value = 'address'
       retryAdvanceAfterContact.value = true
       contactModalOpen.value = true
     }
@@ -250,31 +357,28 @@ function closeContactModal() {
   contactModalOpen.value = false
   editingContactId.value = null
   retryAdvanceAfterContact.value = false
+  contactModalPurpose.value = null
 }
 
 async function onBillingContactSaved(client: Client) {
   const retry = retryAdvanceAfterContact.value
+  const purpose = contactModalPurpose.value
   contactModalOpen.value = false
   editingContactId.value = null
   retryAdvanceAfterContact.value = false
+  contactModalPurpose.value = null
+  const label = contactDisplayName(client)
+  const next = { client_id: client.id, label, party_kind: client.party_kind }
+  if (!billingChoices.value.some((c) => c.client_id === client.id)) {
+    billingChoices.value = [...billingChoices.value, next]
+  } else {
+    billingChoices.value = billingChoices.value.map((c) => (c.client_id === client.id ? { ...c, ...next } : c))
+  }
+  billingClientId.value = client.id
   if (job.value && client.id === job.value.customer_client_id) {
-    job.value.customer_name = client.company_name
+    job.value.customer_name = label
   }
-  if (retry) await createAdvance()
-}
-
-async function createFinal() {
-  if (!job.value) return
-  if (!job.value.customer_client_id) {
-    openInvoiceDraft('invoice')
-    return
-  }
-  try {
-    const r = await triApi.jobInvoices.createFinal(jobId.value)
-    router.push(`/tri/invoices/${r.invoice_id}/edit`)
-  } catch (e) {
-    toast.error(apiErrorMessage(e, t('common.error')))
-  }
+  if (purpose === 'address' && retry) await submitInvoice()
 }
 
 async function openLinkModal() {
@@ -449,10 +553,10 @@ onMounted(() => load())
         <h3 class="font-semibold text-neutral-900">{{ t('tri.invoices.section_title') }}</h3>
         <div v-if="auth.canWrite" class="flex flex-wrap gap-2 items-center">
           <span :title="invoiceBlockedReason || undefined">
-            <UiButton size="sm" :disabled="!canInvoice" @click="openAdvanceModal">{{t('tri.invoices.create_advance')}}</UiButton>
+            <UiButton size="sm" :disabled="!canInvoice" @click="openInvoiceModal('advance')">{{t('tri.invoices.create_advance')}}</UiButton>
           </span>
           <p v-if="invoiceBlockedReason" class="text-xs text-neutral-500">{{ invoiceBlockedReason }}</p>
-          <OfficeMenu><button :disabled="!canInvoice" @click="createFinal">{{t('tri.invoices.create_final')}}</button><button :disabled="!job.customer_client_id" @click="openLinkModal">{{t('tri.invoices.link_existing')}}</button><button :disabled="invoicesLoading" @click="refreshInvoices">{{t('tri.invoices.refresh_from_myucto')}}</button><button v-if="!job.myucto_project_id" :disabled="projectBusy" @click="ensureProject">{{t('tri.invoices.sync_project')}}</button></OfficeMenu>
+          <OfficeMenu><button :disabled="!canInvoice" @click="openInvoiceModal('final')">{{t('tri.invoices.create_final')}}</button><button :disabled="!job.customer_client_id" @click="openLinkModal">{{t('tri.invoices.link_existing')}}</button><button :disabled="invoicesLoading" @click="refreshInvoices">{{t('tri.invoices.refresh_from_myucto')}}</button><button v-if="!job.myucto_project_id" :disabled="projectBusy" @click="ensureProject">{{t('tri.invoices.sync_project')}}</button></OfficeMenu>
         </div>
       </div>
 
@@ -569,18 +673,48 @@ onMounted(() => load())
 
     </div>
 
-    <!-- Modal: zálohová faktura -->
-    <div v-if="advanceModalOpen" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="advanceModalOpen = false">
-      <div class="bg-surface rounded-xl shadow-lg max-w-md w-full p-5 space-y-4">
-        <h3 class="text-lg font-semibold text-neutral-900">{{ t('tri.invoices.create_advance') }}</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <UiInput v-model="advancePercent" type="number" min="1" max="100" :label="t('tri.invoices.advance_percent')" />
-          <UiInput v-model="advanceAmount" type="number" min="0" step="0.01" :label="t('tri.invoices.advance_amount')" :placeholder="t('tri.invoices.advance_amount_optional')" />
+    <!-- Modal: záloha i konečná faktura, se stejným výběrem odběratele -->
+    <div v-if="invoiceModalOpen" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="invoiceModalOpen = false">
+      <div class="bg-surface rounded-xl shadow-lg max-w-md w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-neutral-900">{{ invoiceMode === 'final' ? t('tri.invoices.create_final') : t('tri.invoices.create_advance') }}</h3>
+        <div class="space-y-2">
+          <p class="text-sm font-medium text-neutral-700">{{ t('tri.invoices.billing_contact') }}</p>
+          <div v-if="billingChoices.length" class="max-h-48 overflow-y-auto divide-y divide-neutral-100 border border-neutral-200">
+            <label
+              v-for="choice in billingChoices"
+              :key="choice.client_id"
+              class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-neutral-50"
+            >
+              <input v-model="billingClientId" type="radio" name="billing-contact" class="shrink-0" :value="choice.client_id" />
+              <span class="min-w-0 flex-1 truncate text-sm text-neutral-900">{{ choice.label }}</span>
+              <span v-if="choice.party_kind" class="shrink-0 text-xs text-neutral-400">{{ kindLabel(choice.party_kind) }}</span>
+            </label>
+          </div>
+          <p v-else class="text-sm text-neutral-500">{{ t('tri.invoices.billing_none_on_job') }}</p>
+          <SearchableSelect
+            :model-value="billingSearchValue"
+            remote
+            :loading="billingSearchLoading"
+            :options="billingSearchOptions"
+            :placeholder="t('tri.invoices.billing_search')"
+            :clearable="true"
+            @search="onBillingSearch"
+            @update:model-value="onBillingSearchPicked"
+          />
+          <UiButton type="button" variant="outline" size="sm" @click="openNewBillingContact">
+            {{ t('tri.invoices.billing_new') }}
+          </UiButton>
         </div>
-        <UiInput v-model="advanceText" :label="t('tri.invoices.advance_text')" />
+        <template v-if="invoiceMode === 'advance'">
+          <div class="grid grid-cols-2 gap-3">
+            <UiInput v-model="advancePercent" type="number" min="1" max="100" :label="t('tri.invoices.advance_percent')" />
+            <UiInput v-model="advanceAmount" type="number" min="0" step="0.01" :label="t('tri.invoices.advance_amount')" :placeholder="t('tri.invoices.advance_amount_optional')" />
+          </div>
+          <UiInput v-model="advanceText" :label="t('tri.invoices.advance_text')" />
+        </template>
         <div class="flex justify-end gap-2">
-          <UiButton type="button" variant="secondary" size="sm" @click="advanceModalOpen = false">{{ t('common.cancel') }}</UiButton>
-          <UiButton type="button" size="sm" :loading="advanceBusy" :disabled="advanceBusy" @click="createAdvance">{{ t('common.create') }}</UiButton>
+          <UiButton type="button" variant="secondary" size="sm" @click="invoiceModalOpen = false">{{ t('common.cancel') }}</UiButton>
+          <UiButton type="button" size="sm" :loading="advanceBusy" :disabled="advanceBusy || !billingClientId" @click="submitInvoice">{{ t('common.create') }}</UiButton>
         </div>
       </div>
     </div>

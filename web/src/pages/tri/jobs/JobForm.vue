@@ -32,6 +32,7 @@ const contactCache = ref(new Map<number, ContactOption>())
 const contactOptions = ref<ContactOption[]>([])
 const contactsLoading = ref(false)
 const contactPickerValue = ref<number | null>(null)
+const contactDragIndex = ref<number | null>(null)
 const contactModalOpen = ref(false)
 const editingContactId = ref<number | null>(null)
 
@@ -66,12 +67,12 @@ function clientToOption(c: { id: number; company_name: string; ic?: string | nul
   return { value: c.id, label: c.company_name, secondary: c.ic ?? undefined, party_kind: c.party_kind ?? undefined }
 }
 
-function cacheContact(c: { id: number; company_name: string; ic?: string | null }) {
+function cacheContact(c: { id: number; company_name: string; ic?: string | null; party_kind?: string | null }) {
   const opt = clientToOption(c)
   contactCache.value.set(c.id, opt)
 }
 
-function cacheContacts(list: Array<{ id: number; company_name: string; ic?: string | null }>) {
+function cacheContacts(list: Array<{ id: number; company_name: string; ic?: string | null; party_kind?: string | null }>) {
   for (const c of list) cacheContact(c)
 }
 
@@ -181,6 +182,25 @@ function removeContact(id: number) {
   form.value.contacts = form.value.contacts.filter((c) => c.client_id !== id)
 }
 
+function kindLabel(kind?: string) {
+  return kind === 'company' ? t('tri.contacts.kind_company') : t('tri.contacts.kind_person')
+}
+
+function reorderContacts(from: number, to: number) {
+  if (from === to || from < 0 || to < 0 || to >= form.value.contacts.length) return
+  const rows = form.value.contacts.slice()
+  const [row] = rows.splice(from, 1)
+  if (!row) return
+  rows.splice(to, 0, row)
+  form.value.contacts = rows
+}
+
+function dropContact(to: number) {
+  if (contactDragIndex.value === null) return
+  reorderContacts(contactDragIndex.value, to)
+  contactDragIndex.value = null
+}
+
 async function loadUsers() {
   usersLoading.value = true
   try {
@@ -243,7 +263,7 @@ async function loadJob() {
   if (!jobId.value) return
   const job = await triApi.jobs.get(jobId.value)
   for (const c of job.contacts ?? []) {
-    cacheContact({ id: c.client_id, company_name: c.company_name, ic: c.ic })
+    cacheContact({ id: c.client_id, company_name: c.company_name, ic: c.ic, party_kind: c.party_kind })
     cacheContactAddress(c.client_id, c.company_name, c)
   }
   form.value = {
@@ -383,8 +403,26 @@ onMounted(async () => {
         </UiButton>
       </div>
       <div class="space-y-3">
-        <div v-for="c in selectedContacts" :key="c.value" class="flex items-center gap-2 border border-neutral-200 p-3">
+        <div
+          v-for="(c, index) in selectedContacts"
+          :key="c.value"
+          class="flex items-center gap-2 border border-neutral-200 p-3"
+          @dragover.prevent
+          @drop.prevent="dropContact(index)"
+        >
+          <button
+            type="button"
+            draggable="true"
+            class="drag-handle cursor-grab px-1 text-neutral-500"
+            :aria-label="t('office.move_hint')"
+            :title="t('office.move_hint')"
+            @dragstart="contactDragIndex = index"
+            @dragend="contactDragIndex = null"
+            @keydown.alt.up.prevent="reorderContacts(index, index - 1)"
+            @keydown.alt.down.prevent="reorderContacts(index, index + 1)"
+          >⠿</button>
           <p class="min-w-0 flex-1 truncate text-sm font-medium text-neutral-900">{{ c.label }}</p>
+          <span v-if="c.party_kind" class="shrink-0 text-xs text-neutral-400">{{ kindLabel(c.party_kind) }}</span>
           <UiButton type="button" variant="outline" size="sm" @click="openEditContact(c.value)">{{ t('common.edit') }}</UiButton>
           <UiButton type="button" variant="outline" size="sm" @click="removeContact(c.value)">{{ t('common.remove') }}</UiButton>
         </div>

@@ -27,13 +27,16 @@ final class CreateFinalInvoiceAction
         $supplierId = TriRequest::supplierId($request);
         $userId = TriRequest::userId($request);
         $jobId = (int) ($args['id'] ?? 0);
+        $body = (array) ($request->getParsedBody() ?? []);
 
         try {
-            $result = $this->builder->buildFinalDraft($jobId, $supplierId, $userId);
+            $result = $this->builder->buildFinalDraft($jobId, $supplierId, $userId, [
+                'client_id' => $body['client_id'] ?? null,
+            ]);
         } catch (\MyInvoice\Tri\MyUcto\MyUctoApiException $e) {
-            return InvoiceError::fromException($response, $e);
+            return InvoiceError::fromException($response, $e, true);
         } catch (\Throwable $e) {
-            return Json::error($response, 'create_failed', $e->getMessage(), 409);
+            return Json::error($response, 'create_failed', InvoiceError::withoutRecordIds($e->getMessage()), 409);
         }
 
         $invoiceId = $result['invoice_id'];

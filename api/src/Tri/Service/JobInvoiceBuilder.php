@@ -6,8 +6,7 @@ namespace MyInvoice\Tri\Service;
 
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Tri\Contact\BillingContactPublisher;
-use MyInvoice\Tri\Contact\ContactParty;
-use MyInvoice\Tri\Contact\JobContacts;
+use MyInvoice\Tri\Contact\JobContactOrder;
 use MyInvoice\Tri\MyUcto\InvoiceGateway;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
 use MyInvoice\Tri\MyUcto\ProjectGateway;
@@ -36,12 +35,12 @@ final class JobInvoiceBuilder
     }
 
     /**
-     * @param array{percent?: float|null, amount?: float|null, text?: string|null} $options
+     * @param array{percent?: float|null, amount?: float|null, text?: string|null, client_id?: int|null} $options
      * @return array{invoice_id: int, invoice: array<string, mixed>}
      */
     public function buildAdvanceDraft(int $jobId, int $supplierId, int $userId, array $options = []): array
     {
-        $ctx = $this->context($jobId, $supplierId);
+        $ctx = $this->context($jobId, $supplierId, self::requestedClientId($options));
         $variant = $ctx['variant'];
         $job = $ctx['job'];
 
@@ -95,11 +94,12 @@ final class JobInvoiceBuilder
     }
 
     /**
+     * @param array{client_id?: int|null} $options
      * @return array{invoice_id: int, invoice: array<string, mixed>}
      */
-    public function buildFinalDraft(int $jobId, int $supplierId, int $userId): array
+    public function buildFinalDraft(int $jobId, int $supplierId, int $userId, array $options = []): array
     {
-        $ctx = $this->context($jobId, $supplierId);
+        $ctx = $this->context($jobId, $supplierId, self::requestedClientId($options));
         $variant = $ctx['variant'];
         $job = $ctx['job'];
         $lineItems = $variant['line_items'] ?? [];
@@ -192,10 +192,9 @@ final class JobInvoiceBuilder
         float $netUnit,
         int $vatRateId,
     ): array {
-        return [
+        $input = [
             'invoice_type' => 'proforma',
             'client_id' => $clientId,
-            'project_id' => $projectId,
             'supplier_order_number' => $orderNumber,
             'issue_date' => $issueDate,
             'due_date' => $dueDate,
@@ -209,6 +208,11 @@ final class JobInvoiceBuilder
                 'order_index' => 0,
             ]],
         ];
+        if ($projectId > 0) {
+            $input['project_id'] = $projectId;
+        }
+
+        return $input;
     }
 
     /**
@@ -226,10 +230,9 @@ final class JobInvoiceBuilder
         mixed $noteAbove,
         mixed $noteBelow,
     ): array {
-        return [
+        $input = [
             'invoice_type' => 'invoice',
             'client_id' => $clientId,
-            'project_id' => $projectId,
             'supplier_order_number' => $orderNumber,
             'issue_date' => $issueDate,
             'tax_date' => $issueDate,
@@ -240,6 +243,11 @@ final class JobInvoiceBuilder
             'note_below_items' => $noteBelow,
             'items' => $items,
         ];
+        if ($projectId > 0) {
+            $input['project_id'] = $projectId;
+        }
+
+        return $input;
     }
 
     /** @param list<array<string, mixed>> $lines */
@@ -279,7 +287,7 @@ final class JobInvoiceBuilder
     /**
      * @return array{job: array<string, mixed>, variant: array<string, mixed>}
      */
-    private function context(int $jobId, int $supplierId): array
+    private function context(int $jobId, int $supplierId, ?int $requestedClientId = null): array
     {
         $job = $this->jobs->find($jobId, $supplierId);
         if ($job === null) {
@@ -288,9 +296,16 @@ final class JobInvoiceBuilder
         if (empty($job['approved_variant_id'])) {
             throw new \RuntimeException('Zakázka nemá odsouhlasenou variantu.');
         }
-        $clientId = self::billingClientId($job);
+        if ($requestedClientId !== null && $requestedClientId > 0) {
+            $this->jobs->appendContact($jobId, $supplierId, $requestedClientId);
+            $job = $this->jobs->find($jobId, $supplierId);
+            if ($job === null) {
+                throw new \RuntimeException('Zakázka nenalezena.');
+            }
+        }
+        $clientId = self::resolveBillingClientId($job, $requestedClientId);
         if ($clientId <= 0) {
-            throw new \RuntimeException('Zakázka nemá přiřazeného zákazníka.');
+            throw new \RuntimeException('Vyberte odběratele.');
         }
         $job['customer_client_id'] = $clientId;
         $variant = $this->quotes->findVariant((int) $job['approved_variant_id'], $supplierId);
@@ -298,52 +313,118 @@ final class JobInvoiceBuilder
             throw new \RuntimeException('Odsouhlasená varianta nenalezena.');
         }
         (new BillingContactPublisher($this->api, $this->db->pdo(), $supplierId))
-            ->ensure((int) $job['customer_client_id']);
-        $job = $this->projects($supplierId)->ensureProjectForJob($job);
-        if ((int) ($job['myucto_project_id'] ?? 0) <= 0) {
-            throw new \RuntimeException('Zakázku se nepodařilo napojit na projekt MyÚčta.');
-        }
+            ->ensure($clientId);
+        $job = $this->projectForChosenClient($job, $supplierId, $clientId);
 
         return ['job' => $job, 'variant' => $variant];
     }
 
     /**
-     * Odběratel zálohy: uložený zákazník, jinak fakturovatelný kontakt zakázky.
-     * Nemění řádek zakázky.
+     * Projekt zakázky jde na doklad jen když patří stejnému odběrateli.
+     * Jinak se nepošle. Uložené myucto_project_id se kvůli tomu nemění.
+     * Když zakázka projekt ještě nemá, založí se pro zvolený kontakt.
+     *
+     * @param array<string, mixed> $job
+     * @return array<string, mixed>
+     */
+    private function projectForChosenClient(array $job, int $supplierId, int $clientId): array
+    {
+        $storedProjectId = (int) ($job['myucto_project_id'] ?? 0);
+        if ($storedProjectId > 0) {
+            $job['myucto_project_id'] = self::projectIdForBilling(
+                $storedProjectId,
+                $this->projectClientMyuctoId($storedProjectId),
+                $this->localClientMyuctoId($clientId, $supplierId),
+            );
+
+            return $job;
+        }
+
+        $job = $this->projects($supplierId)->ensureProjectForJob($job);
+        if ((int) ($job['myucto_project_id'] ?? 0) <= 0) {
+            throw new \RuntimeException('Zakázku se nepodařilo napojit na projekt MyÚčta.');
+        }
+
+        return $job;
+    }
+
+    private function projectClientMyuctoId(int $projectId): int
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT client_myucto_id FROM mu_projects WHERE id = ? AND deleted_at IS NULL'
+        );
+        $stmt->execute([$projectId]);
+        $id = $stmt->fetchColumn();
+
+        return $id === false || $id === null ? 0 : (int) $id;
+    }
+
+    private function localClientMyuctoId(int $clientId, int $supplierId): int
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT myucto_id FROM clients WHERE id = ? AND supplier_id = ?'
+        );
+        $stmt->execute([$clientId, $supplierId]);
+        $id = $stmt->fetchColumn();
+
+        return $id === false || $id === null ? 0 : (int) $id;
+    }
+
+    /** @param array{client_id?: int|null} $options */
+    private static function requestedClientId(array $options): ?int
+    {
+        $id = (int) ($options['client_id'] ?? 0);
+
+        return $id > 0 ? $id : null;
+    }
+
+    /**
+     * Výchozí odběratel nové faktury a zálohy: první firma, jinak první osoba.
+     * Uložené customer_client_id se použije jen když zakázka žádný kontakt nemá.
+     * Nemění řádek zakázky ani už vystavený doklad.
      *
      * @param array<string, mixed> $job
      */
     public static function billingClientId(array $job): int
     {
-        $stored = (int) ($job['customer_client_id'] ?? 0);
-        if ($stored > 0) {
-            return $stored;
+        return self::resolveBillingClientId($job, null);
+    }
+
+    /**
+     * Zvolený kontakt z okna má přednost. Jinak první firma, jinak první osoba.
+     * Uložené customer_client_id se použije jen když zakázka žádný kontakt nemá
+     * a okno nikoho nevybralo.
+     *
+     * @param array<string, mixed> $job
+     */
+    public static function resolveBillingClientId(array $job, ?int $requestedClientId): int
+    {
+        if ($requestedClientId !== null && $requestedClientId > 0) {
+            return $requestedClientId;
         }
         $contacts = is_array($job['contacts'] ?? null) ? $job['contacts'] : [];
-        $fallback = 0;
-        $linkedCompany = 0;
-        foreach ($contacts as $contact) {
-            if (!is_array($contact)) {
-                continue;
-            }
-            $id = (int) ($contact['client_id'] ?? 0);
-            $companyId = (int) ($contact['company_client_id'] ?? 0);
-            $kind = (string) ($contact['party_kind'] ?? '');
-            if ($id > 0 && ContactParty::isBillable($kind, $companyId > 0 ? $companyId : null)) {
-                if ((string) ($contact['role'] ?? '') === JobContacts::CUSTOMER) {
-                    return $id;
-                }
-                if ($fallback === 0) {
-                    $fallback = $id;
-                }
-                continue;
-            }
-            if ($companyId > 0 && $linkedCompany === 0) {
-                $linkedCompany = $companyId;
-            }
+        $fromContacts = JobContactOrder::billingClientId($contacts);
+        if ($fromContacts > 0) {
+            return $fromContacts;
         }
 
-        return $fallback > 0 ? $fallback : $linkedCompany;
+        return (int) ($job['customer_client_id'] ?? 0);
+    }
+
+    /**
+     * Číslo projektu na doklad, jen když patří stejnému odběrateli v MyÚčtu.
+     * Nula znamená projekt na doklad nepřidávat.
+     */
+    public static function projectIdForBilling(int $jobProjectId, int $projectClientMyuctoId, int $billingMyuctoId): int
+    {
+        if ($jobProjectId <= 0) {
+            return 0;
+        }
+        if ($projectClientMyuctoId > 0 && $billingMyuctoId > 0 && $projectClientMyuctoId === $billingMyuctoId) {
+            return $jobProjectId;
+        }
+
+        return 0;
     }
 
     /** @param array<string, mixed> $job */
