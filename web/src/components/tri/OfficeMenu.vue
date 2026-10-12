@@ -76,7 +76,7 @@ onBeforeUnmount(() => {
     <button
       ref="trigger"
       type="button"
-      class="w-9 h-9 cursor-pointer text-neutral-500 hover:bg-primary-50 focus-ring"
+      class="office-overflow focus-ring"
       :aria-label="t('office.actions')"
       aria-haspopup="menu"
       :aria-expanded="open"
