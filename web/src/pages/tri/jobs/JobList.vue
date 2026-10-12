@@ -63,6 +63,11 @@ function openJob(job: TriJob, e?: MouseEvent) {
   navigateRow({ name: 'tri-job-detail', params: { id: job.id } }, e)
 }
 
+function ownerLabel(job: TriJob): string {
+  const names = (job.assignees ?? []).map((person) => person.name.trim()).filter((name) => name !== '')
+  return names.length ? names.join(', ') : '—'
+}
+
 onMounted(() => load())
 watch([status, archive], () => load())
 watch(q, () => { clearTimeout(timer); timer = setTimeout(() => load(), 250) })
@@ -84,12 +89,12 @@ watch(q, () => { clearTimeout(timer); timer = setTimeout(() => load(), 250) })
       <TableSkeleton v-if="loading" :rows="8" :cols="5" />
       <EmptyState v-else-if="!items.length && !error" :title="t('tri.jobs.no_jobs')" />
       <UiTable v-else table-class="table-fixed min-w-[950px]">
-        <template #head><tr><th class="text-left px-4 w-[98px]">{{ t('tri.jobs.number') }}</th><th class="text-left px-4">{{ t('tri.jobs.title_field') }}</th><th class="text-left px-4">{{ t('tri.jobs.customer') }}</th><th class="text-left px-4 w-[198px]">{{ t('office.author') }}</th><th class="text-left px-4 w-[156px]">{{ t('tri.jobs.status') }}</th><th class="w-14"><span class="sr-only">{{t('office.actions')}}</span></th></tr></template>
+        <template #head><tr><th class="text-left px-4 w-[98px]">{{ t('tri.jobs.number') }}</th><th class="text-left px-4">{{ t('tri.jobs.title_field') }}</th><th class="text-left px-4">{{ t('tri.jobs.customer') }}</th><th class="text-left px-4 w-[220px]">{{ t('tri.jobs.owners') }}</th><th class="text-left px-4 w-[156px]">{{ t('tri.jobs.status') }}</th><th class="w-14"><span class="sr-only">{{t('office.actions')}}</span></th></tr></template>
         <tr v-for="job in items" :key="job.id" class="cursor-pointer" @click="openJob(job, $event)" @auxclick.prevent="openJob(job, $event)">
           <td class="px-4 text-primary-700"><RouterLink :to="{ name: 'tri-job-detail', params: { id: job.id } }" @click.stop>{{ job.number }}</RouterLink></td>
           <td class="px-4 font-semibold text-neutral-900 min-w-[220px]">{{ job.title }}</td>
           <td class="px-4 text-neutral-600">{{ job.customer_name || '—' }}</td>
-          <td class="px-4 text-neutral-600">{{ job.owner_name || '—' }}</td>
+          <td class="px-4 text-neutral-600 whitespace-normal">{{ ownerLabel(job) }}</td>
           <td class="px-4"><UiBadge :variant="statusBadgeVariant(job.status)">{{ t(statusLabels[job.status] || job.status) }}</UiBadge></td>
           <td @click.stop><OfficeMenu><button @click="router.push(`/tri/jobs/${job.id}`)">{{t('common.detail')}}</button><button v-if="auth.canWrite" @click="router.push(`/tri/jobs/${job.id}/edit`)">{{t('common.edit')}}</button></OfficeMenu></td>
         </tr>
