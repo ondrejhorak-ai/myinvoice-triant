@@ -97,6 +97,58 @@ final class InvoiceGatewayTest extends TestCase
         $this->assertSame(1, $mirrored);
     }
 
+    public function testCreateDraftReplaysALiveDraft(): void
+    {
+        $pdo = $this->sqlite();
+        $created = $this->draftPayload(55);
+        $gw = new InvoiceGateway($this->api([
+            new Response(201, ['Content-Type' => 'application/json'], json_encode($created)),
+            new Response(200, ['Content-Type' => 'application/json'], json_encode($created)),
+        ]), $pdo, 1);
+        $body = $this->draftBody();
+
+        $first = $gw->createDraft($body, 'same-advance');
+        $second = $gw->createDraft($body, 'same-advance');
+
+        $this->assertSame(55, $first['id']);
+        $this->assertSame(55, $second['id']);
+        $commands = (int) $pdo->query("SELECT COUNT(*) FROM mu_commands WHERE kind = 'invoice.create'")->fetchColumn();
+        $this->assertSame(1, $commands);
+    }
+
+    public function testCreateDraftAfterDeletedDraftOpensANewOne(): void
+    {
+        $pdo = $this->sqlite();
+        $gw = new InvoiceGateway($this->api([
+            new Response(201, ['Content-Type' => 'application/json'], json_encode($this->draftPayload(55))),
+            new Response(201, ['Content-Type' => 'application/json'], json_encode($this->draftPayload(56))),
+        ]), $pdo, 1);
+        $body = $this->draftBody();
+
+        $first = $gw->createDraft($body, 'job:99:advance:100');
+        $pdo->prepare('UPDATE mu_invoices SET deleted_at = ? WHERE id = ?')->execute(['2026-10-12 14:22:36', $first['id']]);
+        $second = $gw->createDraft($body, 'job:99:advance:100');
+
+        $this->assertSame(55, $first['id']);
+        $this->assertSame(56, $second['id']);
+    }
+
+    public function testCreateDraftAfterRemoteNotFoundOpensANewOne(): void
+    {
+        $pdo = $this->sqlite();
+        $gw = new InvoiceGateway($this->api([
+            new Response(201, ['Content-Type' => 'application/json'], json_encode($this->draftPayload(55))),
+            new Response(404, ['Content-Type' => 'application/json'], '{"error":{"code":"not_found","message":"Faktura nenalezena."}}'),
+            new Response(201, ['Content-Type' => 'application/json'], json_encode($this->draftPayload(56))),
+        ]), $pdo, 1);
+        $body = $this->draftBody();
+
+        $gw->createDraft($body, 'job:99:advance:100');
+        $second = $gw->createDraft($body, 'job:99:advance:100');
+
+        $this->assertSame(56, $second['id']);
+    }
+
     public function testCreateDraftTimeoutReconcilesExistingDraft(): void
     {
         $pdo = $this->sqlite();
@@ -484,6 +536,33 @@ final class InvoiceGatewayTest extends TestCase
         $this->assertSame(155, $out['id']);
         $this->assertSame(2000.0, $out['total_with_vat']);
         $this->assertSame(1652.89, $out['items'][0]['unit_price_without_vat']);
+    }
+
+    /** @return array<string, mixed> */
+    private function draftBody(): array
+    {
+        return [
+            'client_id' => 10,
+            'invoice_type' => 'proforma',
+            'supplier_order_number' => 'Z-1',
+            'items' => [['description' => 'TEST', 'quantity' => 1, 'unit_price_without_vat' => 100, 'vat_rate_id' => 3]],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function draftPayload(int $id): array
+    {
+        return [
+            'id' => $id,
+            'client_id' => 101,
+            'status' => 'draft',
+            'invoice_type' => 'proforma',
+            'currency' => 'CZK',
+            'supplier_order_number' => 'Z-1',
+            'items' => [['description' => 'TEST', 'quantity' => 1, 'unit_price_without_vat' => 100, 'vat_rate_id' => 3]],
+            'totals' => ['without_vat' => 100, 'vat' => 21, 'with_vat' => 121],
+            'updated_at' => '2026-10-12 14:22:25',
+        ];
     }
 
     private function sqlite(): PDO

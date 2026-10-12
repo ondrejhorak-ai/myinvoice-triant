@@ -28,7 +28,10 @@ final class InvoiceGateway
             $status = (string) $existing['status'];
             $myuctoId = (int) ($existing['myucto_id'] ?? 0);
             if ($status === 'done' && $myuctoId > 0) {
-                return $this->getDetail($myuctoId);
+                $replay = $this->replayDraft($myuctoId);
+                if ($replay !== null) {
+                    return $replay;
+                }
             }
             if (in_array($status, ['pending', 'unknown'], true)) {
                 $found = $this->reconcileDraft($input);
@@ -693,6 +696,36 @@ final class InvoiceGateway
         }
 
         return is_array($best) ? $best : null;
+    }
+
+    /**
+     * Stejný klíč vrátí existující koncept. Smazaný doklad se nevrací:
+     * další pokus založí nový.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function replayDraft(int $id): ?array
+    {
+        if ($this->isLocallyDeleted($id)) {
+            return null;
+        }
+        try {
+            return $this->getDetail($id);
+        } catch (MyUctoApiException $e) {
+            if ($e->httpStatus === 404 || $e->errorCode === 'not_found') {
+                return null;
+            }
+            throw $e;
+        }
+    }
+
+    private function isLocallyDeleted(int $id): bool
+    {
+        $stmt = $this->pdo->prepare('SELECT deleted_at FROM mu_invoices WHERE id = ?');
+        $stmt->execute([$id]);
+        $deleted = $stmt->fetchColumn();
+
+        return $deleted !== false && $deleted !== null && $deleted !== '';
     }
 
     /**
