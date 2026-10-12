@@ -6,6 +6,8 @@ namespace MyInvoice\Tri\Service;
 
 use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Tri\Contact\BillingContactPublisher;
+use MyInvoice\Tri\Contact\ContactParty;
+use MyInvoice\Tri\Contact\JobContacts;
 use MyInvoice\Tri\MyUcto\InvoiceGateway;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
 use MyInvoice\Tri\MyUcto\ProjectGateway;
@@ -286,9 +288,11 @@ final class JobInvoiceBuilder
         if (empty($job['approved_variant_id'])) {
             throw new \RuntimeException('Zakázka nemá odsouhlasenou variantu.');
         }
-        if (empty($job['customer_client_id'])) {
+        $clientId = self::billingClientId($job);
+        if ($clientId <= 0) {
             throw new \RuntimeException('Zakázka nemá přiřazeného zákazníka.');
         }
+        $job['customer_client_id'] = $clientId;
         $variant = $this->quotes->findVariant((int) $job['approved_variant_id'], $supplierId);
         if ($variant === null) {
             throw new \RuntimeException('Odsouhlasená varianta nenalezena.');
@@ -301,6 +305,45 @@ final class JobInvoiceBuilder
         }
 
         return ['job' => $job, 'variant' => $variant];
+    }
+
+    /**
+     * Odběratel zálohy: uložený zákazník, jinak fakturovatelný kontakt zakázky.
+     * Nemění řádek zakázky.
+     *
+     * @param array<string, mixed> $job
+     */
+    public static function billingClientId(array $job): int
+    {
+        $stored = (int) ($job['customer_client_id'] ?? 0);
+        if ($stored > 0) {
+            return $stored;
+        }
+        $contacts = is_array($job['contacts'] ?? null) ? $job['contacts'] : [];
+        $fallback = 0;
+        $linkedCompany = 0;
+        foreach ($contacts as $contact) {
+            if (!is_array($contact)) {
+                continue;
+            }
+            $id = (int) ($contact['client_id'] ?? 0);
+            $companyId = (int) ($contact['company_client_id'] ?? 0);
+            $kind = (string) ($contact['party_kind'] ?? '');
+            if ($id > 0 && ContactParty::isBillable($kind, $companyId > 0 ? $companyId : null)) {
+                if ((string) ($contact['role'] ?? '') === JobContacts::CUSTOMER) {
+                    return $id;
+                }
+                if ($fallback === 0) {
+                    $fallback = $id;
+                }
+                continue;
+            }
+            if ($companyId > 0 && $linkedCompany === 0) {
+                $linkedCompany = $companyId;
+            }
+        }
+
+        return $fallback > 0 ? $fallback : $linkedCompany;
     }
 
     /** @param array<string, mixed> $job */

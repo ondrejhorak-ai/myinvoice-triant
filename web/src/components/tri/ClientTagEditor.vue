@@ -73,16 +73,18 @@ defineExpose({ save, selected })
   <div class="space-y-2">
     <label class="text-sm font-medium text-neutral-700">{{ t('tri.tags.label') }}</label>
     <div v-if="loading" class="text-sm text-neutral-500">{{ t('common.loading') }}</div>
-    <div v-else class="flex flex-wrap gap-2">
+    <div v-else class="flex flex-wrap gap-2.5">
       <button
         v-for="tag in allTags"
         :key="tag.id"
         type="button"
-        class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+        class="office-role border transition-colors"
         :class="selected.includes(tag.id)
-          ? 'border-transparent text-white'
-          : 'border-neutral-200 bg-surface text-neutral-700 hover:border-neutral-300'"
-        :style="selected.includes(tag.id) ? { backgroundColor: tag.color } : {}"
+          ? 'border-transparent'
+          : 'border-neutral-200 hover:border-neutral-300'"
+        :style="selected.includes(tag.id)
+          ? { backgroundColor: tag.color, borderColor: tag.color, color: '#fff' }
+          : { backgroundColor: 'transparent', color: 'var(--color-neutral-700)' }"
         :disabled="readonly"
         :aria-pressed="selected.includes(tag.id)"
         @click="toggle(tag.id)"

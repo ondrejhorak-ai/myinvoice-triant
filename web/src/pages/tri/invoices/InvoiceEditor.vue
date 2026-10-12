@@ -93,6 +93,19 @@ function mergeClients(list: Client[]) {
 function contactIsBillable(c: { party_kind?: string | null; company_client_id?: number | null }): boolean {
   return !((c.party_kind === 'person' || c.party_kind === 'private') && (c.company_client_id ?? 0) > 0)
 }
+function jobBillingClientId(job: {
+  customer_client_id: number | null
+  contacts?: Array<{ client_id: number; role?: string; party_kind?: string; company_client_id?: number | null }>
+}): number | null {
+  if (job.customer_client_id) return job.customer_client_id
+  const contacts = job.contacts ?? []
+  const billable = contacts.filter(contactIsBillable)
+  const customer = billable.find((c) => c.role === 'customer')
+  if (customer) return customer.client_id
+  if (billable[0]) return billable[0].client_id
+  const linked = contacts.find((c) => (c.company_client_id ?? 0) > 0)
+  return linked?.company_client_id ?? null
+}
 async function onClientSearch(q: string) {
   clientsLoading.value = true
   try {
@@ -471,10 +484,11 @@ onMounted(async () => {
       if (jobId > 0) {
         triJobId.value = jobId
         const job = await triApi.jobs.get(jobId)
-        if (job.customer_client_id) {
-          form.value.client_id = job.customer_client_id
-          await ensureClientLoaded(job.customer_client_id, job.customer_name ?? undefined)
-          await applyClientDefaults(job.customer_client_id)
+        const billingId = jobBillingClientId(job)
+        if (billingId) {
+          form.value.client_id = billingId
+          await ensureClientLoaded(billingId, job.customer_client_id === billingId ? (job.customer_name ?? undefined) : undefined)
+          await applyClientDefaults(billingId)
         }
       }
     }

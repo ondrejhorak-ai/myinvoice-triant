@@ -67,7 +67,7 @@ const labelClass =
         <input
           v-model.number="discountValueModel"
           type="number"
-          step="0.01"
+          step="1"
           min="0"
           :placeholder="discountTypeModel === 'percent' ? '%' : 'Kč'"
           :class="[inputClass, 'w-full text-right font-mono tabular-nums']"

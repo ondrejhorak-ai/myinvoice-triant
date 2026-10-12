@@ -186,7 +186,7 @@ onMounted(() => autosizeTitle())
     <UiSelect
       v-model.number="row.vat_rate"
       size="inline"
-      class="w-full self-center"
+      class="w-full self-start"
       :disabled="!canWrite"
       :aria-label="t('tri.quote.vat_rate')"
     >

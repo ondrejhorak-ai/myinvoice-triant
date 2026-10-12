@@ -414,21 +414,6 @@ async function submit() {
         </UiSelect>
         <p class="text-xs text-neutral-500">{{ t('tri.contacts.kind_hint') }}</p>
 
-        <div v-if="isPerson">
-          <label class="mb-1 block text-sm font-medium text-neutral-700">{{ t('tri.contacts.person_company') }}</label>
-          <SearchableSelect
-            :model-value="form.company_client_id ?? null"
-            remote
-            :loading="companyLoading"
-            :options="companyOptions"
-            :selected-option="selectedCompany"
-            :placeholder="t('tri.contacts.person_company_placeholder')"
-            :clearable="true"
-            @search="onCompanySearch"
-            @update:model-value="onCompanyPicked"
-          />
-        </div>
-
         <div v-if="suggestions.length" class="border border-neutral-200 p-3">
           <p class="text-xs font-semibold text-neutral-700 mb-2">{{ t('tri.contacts.suggestions') }}</p>
           <ul class="space-y-2">
@@ -551,6 +536,21 @@ async function submit() {
               <option v-for="c in countries" :key="c.iso2" :value="c.iso2">{{ locale === 'en' ? c.name_en : c.name_cs }}</option>
             </UiSelect>
           </div>
+        </div>
+
+        <div v-if="isPerson">
+          <label class="mb-1 block text-sm font-medium text-neutral-700">{{ t('tri.contacts.person_company') }}</label>
+          <SearchableSelect
+            :model-value="form.company_client_id ?? null"
+            remote
+            :loading="companyLoading"
+            :options="companyOptions"
+            :selected-option="selectedCompany"
+            :placeholder="t('tri.contacts.person_company_placeholder')"
+            :clearable="true"
+            @search="onCompanySearch"
+            @update:model-value="onCompanyPicked"
+          />
         </div>
 
         <!-- Role flagy -->

@@ -60,7 +60,7 @@ final class BillingContactPublisher
         if (!ContactParty::isBillable($kind, $companyId)) {
             throw new MyUctoApiException(
                 'person_not_billable',
-                'Osoba u firmy se do MyÚčta neposílá. Na dokladu vyberte firmu, nebo osobu bez firmy.',
+                'Osoba, která patří k firmě, se do MyÚčta neposílá. Na dokladu vyberte firmu, nebo osobu bez firmy.',
                 422,
             );
         }

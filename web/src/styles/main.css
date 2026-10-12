@@ -290,7 +290,7 @@ html, body {
 .office-tabs > * { padding: 12px 0; border-bottom: 2px solid transparent; }
 .office-tabs > [aria-selected=true], .office-tabs > .router-link-exact-active { color: var(--color-primary-700); border-color: var(--color-primary-600); }
 .office-save-bar { position: sticky; bottom: 0; z-index: 10; background: var(--color-surface); border: 1px solid var(--color-neutral-200); padding: 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.office-role { display:inline-flex; font-size:11px; line-height:16px; border-radius:2px; padding:2px 6px; background:var(--color-role-customer-bg); color:var(--color-role-customer-fg); }
+.office-role { display:inline-flex; align-items:center; font-size:11px; line-height:16px; font-weight:400; border-radius:2px; padding:2px 8px; background:var(--color-role-customer-bg); color:var(--color-role-customer-fg); }
 .office-role[data-role=architect] { background:var(--color-role-architect-bg); color:var(--color-role-architect-fg); }
 .office-role[data-role=contact] { background:var(--color-neutral-100); color:var(--color-neutral-700); }
 .office-sidebar input { border-radius:0; min-height:40px; font-size:13px; }
@@ -305,7 +305,7 @@ html, body {
 .offer-row > * { min-width: 0; }
 .offer-table-head { align-items:center; min-height:44px; padding-block:8px; background:var(--color-neutral-100); font-size:11px; font-weight:600; color:var(--color-neutral-600); position:sticky; top:0; z-index:5; }
 .offer-row input, .offer-row select, .offer-row textarea { font-size:13px; background:var(--color-surface); }
-.offer-title { field-sizing: content; min-height: 2.75rem; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.35; padding-block: 0.5rem; }
+.offer-title { box-sizing: border-box; min-height: 44px; overflow: hidden; resize: none; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 20px; padding-block: 11px; }
 .offer-row p { overflow-wrap: anywhere; }
 .offer-price { -moz-appearance: textfield; appearance: textfield; }
 .offer-price::-webkit-outer-spin-button, .offer-price::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }

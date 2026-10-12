@@ -105,11 +105,19 @@ Options -Indexes -MultiViews
 # takže používáme rewrite-env trick: nastavíme proměnnou NOCACHE pro /api/*
 # a PWA soubory a Header Cache-Control podle ní pošleme.
 <IfModule mod_rewrite.c>
+    # PDF v prohlížeči: no-store a CORP nechají vestavěný prohlížeč prázdný.
+    RewriteCond %{REQUEST_URI} /pdf(\?|$)
+    RewriteRule ^ - [E=PDF_INLINE:1]
     RewriteCond %{REQUEST_URI} ^/api/
+    RewriteCond %{REQUEST_URI} !/pdf(\?|$)
     RewriteRule ^ - [E=NOCACHE:1]
 </IfModule>
 <IfModule mod_headers.c>
     Header set Cache-Control "no-store" env=NOCACHE
+    Header always unset Cross-Origin-Resource-Policy env=PDF_INLINE
+    Header always unset Cross-Origin-Opener-Policy env=PDF_INLINE
+    Header always unset X-Frame-Options env=PDF_INLINE
+    Header set Cache-Control "private, max-age=60" env=PDF_INLINE
 </IfModule>
 
 # Blokovat citlivé soubory.

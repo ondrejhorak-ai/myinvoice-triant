@@ -214,10 +214,6 @@ function openInvoiceDraft(type: 'proforma' | 'invoice') {
 }
 
 function openAdvanceModal() {
-  if (!job.value?.customer_client_id) {
-    openInvoiceDraft('proforma')
-    return
-  }
   advancePercent.value = 50
   advanceAmount.value = ''
   advanceText.value = job.value ? `Záloha na objednávku č.${job.value.number}` : ''
@@ -371,14 +367,10 @@ onMounted(() => load())
             <dt class="text-neutral-500">{{ t('tri.quote.created_date') }}</dt>
             <dd>{{ formatDate(jobCreationDate) }}</dd>
           </div>
-          <div class="flex justify-between gap-4">
-            <dt class="text-neutral-500">{{ t('office.author') }}</dt>
-            <dd>{{ job.owner_name }}</dd>
-          </div>
-          <div v-if="job.assignees?.length">
-            <dt class="mb-2 text-neutral-500">{{ t('tri.jobs.owners') }}</dt>
-            <dd class="flex flex-wrap gap-2">
-              <span v-for="person in job.assignees" :key="person.user_id" class="inline-flex h-10 items-center border border-neutral-200 px-3">{{ person.name }}</span>
+          <div class="flex items-center justify-between gap-4">
+            <dt class="text-neutral-500">{{ t('tri.jobs.owners') }}</dt>
+            <dd class="flex flex-wrap justify-end gap-2">
+              <span v-for="person in job.assignees ?? []" :key="person.user_id" class="inline-flex h-10 items-center border border-neutral-200 px-3">{{ person.name }}</span>
             </dd>
           </div>
         </dl>

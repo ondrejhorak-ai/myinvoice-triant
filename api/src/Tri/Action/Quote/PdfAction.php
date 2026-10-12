@@ -53,7 +53,7 @@ final class PdfAction
             ->withHeader('Content-Type', 'application/pdf')
             ->withHeader('Content-Disposition', $disposition)
             ->withHeader('Content-Length', (string) filesize($path))
-            ->withHeader('Cache-Control', 'no-store')
+            ->withHeader('Cache-Control', 'private, max-age=60')
             ->withBody($stream);
 
         register_shutdown_function(static function () use ($path): void {

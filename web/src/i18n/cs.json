@@ -441,7 +441,7 @@
       "kind_company": "Firma",
       "kind_private": "Osoba",
       "kind_person": "Osoba",
-      "kind_hint": "Osoba bez firmy je soukromý zákazník a do MyÚčta se odešle s prvním dokladem, jakmile má adresu. Osoba u firmy se do MyÚčta neposílá. Firma potřebuje IČO; adresa stačí až před dokladem.",
+      "kind_hint": "Osoba bez firmy je soukromý zákazník a do MyÚčta se odešle s prvním dokladem, jakmile má adresu. Osoba, která patří k firmě, se do MyÚčta neposílá. Firma potřebuje IČO; adresa stačí až před dokladem.",
       "person_address_hint": "Adresa je volitelná. U osoby bez firmy je potřeba až před prvním dokladem.",
       "person_company": "Patří k firmě",
       "person_company_placeholder": "Vyhledat firmu…",
