@@ -133,11 +133,13 @@
     "job_status_cancelled": "Cancelled"
   },
   "search": {
-    "placeholder": "Search… (menu, clients, invoices)",
+    "placeholder": "Search… (menu, jobs, contacts, invoices)",
     "no_results": "Nothing found",
     "group_menu": "Menu",
-    "group_clients": "Clients / vendors",
-    "group_invoices": "Issued invoices",
+    "group_jobs": "Jobs",
+    "group_clients": "Contacts",
+    "group_invoices": "Invoices",
+    "invoice_fallback": "Invoice",
     "group_purchase": "Received invoices"
   },
   "logbook": {
@@ -760,7 +762,7 @@
       "date": "Date",
       "description": "Description",
       "note": "Note",
-      "paper": "Keep the paper receipt in the drawer. An in-app attachment is optional.",
+      "paper": "Keep the paper receipt in the drawer.",
       "link": "Description and link",
       "empty": "No movements yet",
       "saved": "Movement saved",

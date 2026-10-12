@@ -33,25 +33,31 @@ final class ClientRepository
      * Rychlé hledání pro globální search box — název / e-mail / IČ / DIČ.
      * Jen aktivní (nearchivovaní) klienti tenanta, malý limit (dropdown).
      *
-     * @return list<array{id:int, company_name:string, main_email:?string, is_customer:bool, is_vendor:bool}>
+     * @return list<array{id:int, company_name:string, first_name:?string, last_name:?string, party_kind:string, main_email:?string, is_customer:bool, is_vendor:bool}>
      */
     public function searchQuick(string $q, int $supplierId, int $limit = 6): array
     {
         $q = trim($q);
         if ($q === '') return [];
         $esc = addcslashes($q, '%_\\');
+        $like = '%' . $esc . '%';
+        $person = "TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')))";
         $stmt = $this->db->pdo()->prepare(
-            "SELECT id, company_name, main_email, is_customer, is_vendor
+            "SELECT id, company_name, first_name, last_name, party_kind, main_email, is_customer, is_vendor
                FROM clients
               WHERE supplier_id = ? AND archived_at IS NULL
-                AND (company_name LIKE ? OR main_email LIKE ? OR ic LIKE ? OR dic LIKE ?)
+                AND (company_name LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR $person LIKE ?
+                     OR main_email LIKE ? OR ic LIKE ? OR dic LIKE ?)
               ORDER BY company_name
               LIMIT " . (int) $limit
         );
-        $stmt->execute([$supplierId, '%' . $esc . '%', '%' . $esc . '%', $esc . '%', $esc . '%']);
+        $stmt->execute([$supplierId, $like, $like, $like, $like, $like, $esc . '%', $esc . '%']);
         return array_map(static fn (array $r) => [
             'id'           => (int) $r['id'],
             'company_name' => (string) $r['company_name'],
+            'first_name'   => $r['first_name'] !== null && $r['first_name'] !== '' ? (string) $r['first_name'] : null,
+            'last_name'    => $r['last_name'] !== null && $r['last_name'] !== '' ? (string) $r['last_name'] : null,
+            'party_kind'   => (string) ($r['party_kind'] ?? ''),
             'main_email'   => $r['main_email'] !== null ? (string) $r['main_email'] : null,
             'is_customer'  => (bool) $r['is_customer'],
             'is_vendor'    => (bool) $r['is_vendor'],

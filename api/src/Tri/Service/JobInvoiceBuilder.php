@@ -8,6 +8,7 @@ use MyInvoice\Infrastructure\Database\Connection;
 use MyInvoice\Tri\Contact\BillingContactPublisher;
 use MyInvoice\Tri\Contact\JobContactOrder;
 use MyInvoice\Tri\MyUcto\InvoiceGateway;
+use MyInvoice\Tri\MyUcto\MyUctoApiException;
 use MyInvoice\Tri\MyUcto\MyUctoClient;
 use MyInvoice\Tri\MyUcto\ProjectGateway;
 use MyInvoice\Tri\Repository\JobInvoiceRepository;
@@ -89,6 +90,7 @@ final class JobInvoiceBuilder
             vatRateId: $vatRateId,
         );
         $invoice = $gw->createDraft($input, 'job:' . $jobId . ':advance:' . $targetGross);
+        $this->rememberJob((int) $invoice['id'], $jobId, $supplierId);
 
         return ['invoice_id' => (int) $invoice['id'], 'invoice' => $invoice];
     }
@@ -118,7 +120,8 @@ final class JobInvoiceBuilder
             throw new \RuntimeException('Varianta nemá fakturovatelné položky.');
         }
 
-        $advancePaid = $this->jobInvoices->paidAdvancesTotal($jobId, $supplierId);
+        $advances = $this->jobInvoices->paidAdvances($jobId, $supplierId);
+        $advancePaid = $advances['total'];
         $today = date('Y-m-d');
         $noteAbove = trim((string) ($variant['note_above_items'] ?? ''));
         if (!str_contains($noteAbove, 'TRI-SCEN')) {
@@ -138,8 +141,19 @@ final class JobInvoiceBuilder
         $keySuffix = $variantNet !== null ? (string) round($variantNet, 2) : '0';
         $keySuffix .= ':adv:' . (string) round($advancePaid, 2);
         $invoice = $gw->createDraft($input, 'job:' . $jobId . ':final:' . $keySuffix);
+        $invoiceId = (int) $invoice['id'];
+        $this->rememberJob($invoiceId, $jobId, $supplierId);
+        $parentId = self::settlementParentId($advances['ids']);
+        if ($parentId > 0) {
+            try {
+                $invoice = $gw->linkAdvance($invoiceId, ['advance_id' => $parentId]);
+            } catch (MyUctoApiException) {
+                // MyÚčto spojí zálohu jen se stejným odběratelem. Částka odpočtu
+                // na konceptu už je. Vystavená záloha se nemění.
+            }
+        }
 
-        return ['invoice_id' => (int) $invoice['id'], 'invoice' => $invoice];
+        return ['invoice_id' => $invoiceId, 'invoice' => $invoice];
     }
 
     /**
@@ -248,6 +262,33 @@ final class JobInvoiceBuilder
         }
 
         return $input;
+    }
+
+    /**
+     * MyÚčto má na vyúčtování jednoho rodiče (parent_invoice_id = záloha).
+     * Více zaplacených záloh se sečte do částky, ale jedna z nich se rodičem nestane.
+     *
+     * @param list<int> $advanceIds
+     */
+    public static function settlementParentId(array $advanceIds): int
+    {
+        $ids = [];
+        foreach ($advanceIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+
+        return count($ids) === 1 ? (int) array_key_first($ids) : 0;
+    }
+
+    private function rememberJob(int $invoiceId, int $jobId, int $supplierId): void
+    {
+        if ($invoiceId <= 0 || $jobId <= 0) {
+            return;
+        }
+        $this->jobInvoices->link($invoiceId, $jobId, $supplierId);
     }
 
     /** @param list<array<string, mixed>> $lines */

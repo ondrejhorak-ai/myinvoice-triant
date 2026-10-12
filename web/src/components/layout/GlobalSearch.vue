@@ -2,12 +2,12 @@
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { searchApi, type SearchResults } from '@/api/search'
+import { searchApi, type SearchClient, type SearchInvoice, type SearchJob, type SearchResults } from '@/api/search'
 
 interface MenuItem { to: string; label: string; icon: string; external?: boolean }
 
 /**
- * Globální vyhledávač — našeptává menu + hledá klienty/faktury.
+ * Globální vyhledávač — našeptává menu a hledá zakázky, kontakty a faktury.
  * variant=topbar: kompaktní input do horní lišty; default = drawer.
  */
 const props = withDefaults(defineProps<{
@@ -25,18 +25,50 @@ const q = ref('')
 const open = ref(false)
 const loading = ref(false)
 const activeIndex = ref(0)
-const results = ref<SearchResults>({ q: '', clients: [], invoices: [] })
+const results = ref<SearchResults>({ q: '', jobs: [], clients: [], invoices: [] })
 const inputEl = ref<HTMLInputElement | null>(null)
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
 let seq = 0
 
-interface Option { kind: 'menu' | 'client' | 'invoice'; label: string; sub: string; run: () => void }
+interface Option { kind: 'menu' | 'job' | 'client' | 'invoice'; label: string; sub: string; run: () => void }
 
 const GROUP_LABEL: Record<Option['kind'], string> = {
   menu:     'search.group_menu',
+  job:      'search.group_jobs',
   client:   'search.group_clients',
   invoice:  'search.group_invoices',
+}
+
+const emptyResults = (needle = ''): SearchResults => ({ q: needle, jobs: [], clients: [], invoices: [] })
+
+function personName(first?: string | null, last?: string | null): string {
+  return `${first ?? ''} ${last ?? ''}`.replace(/\s+/g, ' ').trim()
+}
+
+function contactLabel(c: SearchClient): string {
+  const person = personName(c.first_name, c.last_name)
+  if (person && (c.party_kind === 'person' || c.party_kind === 'private')) return person
+  return c.company_name
+}
+
+function contactSub(c: SearchClient): string {
+  const label = contactLabel(c)
+  const parts: string[] = []
+  if (c.company_name && c.company_name !== label) parts.push(c.company_name)
+  if (c.main_email) parts.push(c.main_email)
+  return parts.join(' · ')
+}
+
+function jobSub(job: SearchJob): string {
+  const title = job.title.trim()
+  const contact = (job.contact ?? '').trim()
+  if (title && contact && title !== contact) return `${title} · ${contact}`
+  return title || contact
+}
+
+function invoiceLabel(invoice: SearchInvoice): string {
+  return invoice.varsymbol || invoice.supplier_order_number || t('search.invoice_fallback')
 }
 
 const menuMatches = computed<MenuItem[]>(() => {
@@ -51,12 +83,16 @@ const options = computed<Option[]>(() => {
     out.push({ kind: 'menu', label: m.label, sub: '',
       run: () => { m.external ? window.open(m.to, '_blank', 'noopener') : router.push(m.to) } })
   }
+  for (const job of results.value.jobs) {
+    out.push({ kind: 'job', label: job.number, sub: jobSub(job),
+      run: () => router.push(`/tri/jobs/${job.id}`) })
+  }
   for (const c of results.value.clients) {
-    out.push({ kind: 'client', label: c.company_name, sub: c.main_email || '',
+    out.push({ kind: 'client', label: contactLabel(c), sub: contactSub(c),
       run: () => router.push(`/tri/contacts/${c.id}`) })
   }
   for (const i of results.value.invoices) {
-    out.push({ kind: 'invoice', label: i.varsymbol || `#${i.id}`, sub: i.company_name,
+    out.push({ kind: 'invoice', label: invoiceLabel(i), sub: i.company_name,
       run: () => router.push(`/tri/invoices/${i.id}`) })
   }
   return out
@@ -68,7 +104,7 @@ watch(q, (val) => {
   clearTimeout(debounceTimer)
   const needle = val.trim()
   if (needle.length < 2) {
-    results.value = { q: needle, clients: [], invoices: [] }
+    results.value = emptyResults(needle)
     loading.value = false
     return
   }
@@ -79,7 +115,7 @@ watch(q, (val) => {
       const r = await searchApi.query(needle)
       if (mySeq === seq) results.value = r
     } catch {
-      if (mySeq === seq) results.value = { q: needle, clients: [], invoices: [] }
+      if (mySeq === seq) results.value = emptyResults(needle)
     } finally {
       if (mySeq === seq) loading.value = false
     }
@@ -98,7 +134,7 @@ function reset() {
   q.value = ''
   open.value = false
   activeIndex.value = 0
-  results.value = { q: '', clients: [], invoices: [] }
+  results.value = emptyResults()
   inputEl.value?.blur()
 }
 
@@ -131,7 +167,7 @@ onBeforeUnmount(() => clearTimeout(debounceTimer))
 </script>
 
 <template>
-  <div class="relative" :class="isTopbar ? 'w-full min-w-0' : 'px-0.5 pb-2'">
+  <div class="relative z-20" :class="isTopbar ? 'w-full min-w-0' : 'px-0.5 pb-2'">
     <div class="relative">
       <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none"
            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

@@ -19,7 +19,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useSupplierStore } from '@/stores/supplier'
 import { useHotkey } from '@/composables/useHotkey'
 import { useToast } from '@/composables/useToast'
-import { triApi, type TriJobLink } from '@/api/tri'
+import TriJobLinkField from '@/components/tri/TriJobLinkField.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
@@ -46,17 +46,11 @@ function formatRate(rate: number): string {
 const route = useRoute()
 const router = useRouter()
 
-function jobCrumb(number: string, title?: string | null): string {
-  const name = title?.trim() ?? ''
-  return name ? `${number} ${name}` : number
-}
-
 const invoice = ref<Invoice | null>(null)
 const clientForWarnings = ref<Client | null>(null)
 const clientAddressMissing = computed(() =>
   clientForWarnings.value ? clientMissingAddress(clientForWarnings.value) : false,
 )
-const triJob = ref<TriJobLink | null>(null)
 const loading = ref(true)
 const busy = ref<string | null>(null)
 
@@ -141,9 +135,6 @@ async function load() {
   invoicesApi.listAttachments(Number(route.params.id))
     .then(items => { attachments.value = items })
     .catch(() => {})
-  triApi.invoices.getJob(Number(route.params.id))
-    .then((job) => { triJob.value = job })
-    .catch(() => { triJob.value = null })
 }
 
 async function loadSignatureProfiles() {
@@ -890,14 +881,8 @@ async function sendReminder() {
             {{ invoice.client_company_name }}
           </RouterLink>
         </div>
-        <div v-if="triJob" class="text-sm text-neutral-600">
-          <span class="text-neutral-500">{{ t('tri.invoices.job_label') }}:</span>
-          <RouterLink
-            :to="{ name: 'tri-job-detail', params: { id: triJob.id } }"
-            class="text-primary-700 hover:text-primary-800 hover:underline font-mono ml-1"
-          >
-            {{ jobCrumb(triJob.number, triJob.title) }}
-          </RouterLink>
+        <div class="max-w-md pt-1">
+          <TriJobLinkField :invoice-id="invoice.id" :readonly="!auth.canWrite" />
         </div>
         <div v-if="invoice.created_by_name" class="text-sm text-neutral-600">
           <span class="text-neutral-500">{{ t('tri.invoices.issued_by') }}:</span>

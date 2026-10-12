@@ -91,6 +91,54 @@ final class JobRepository
         ];
     }
 
+    /**
+     * Rychlé hledání zakázek pro sidebar: číslo, název a kterýkoli kontakt zakázky.
+     *
+     * @return list<array{id:int, number:string, title:string, contact:?string}>
+     */
+    public function searchQuick(string $q, int $supplierId, int $limit = 6): array
+    {
+        $q = trim($q);
+        if ($q === '' || $supplierId <= 0) {
+            return [];
+        }
+        $like = '%' . addcslashes($q, '%_\\') . '%';
+        $person = "TRIM(CONCAT(COALESCE(shown.first_name, ''), ' ', COALESCE(shown.last_name, '')))";
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT j.id, j.number, j.title
+               FROM tri_jobs j
+              WHERE j.supplier_id = ?
+                AND (
+                     j.number LIKE ?
+                  OR j.title LIKE ?
+                  OR EXISTS (
+                       SELECT 1
+                         FROM tri_job_contacts jc
+                         JOIN clients shown ON shown.id = jc.client_id
+                        WHERE jc.job_id = j.id
+                          AND (
+                               shown.company_name LIKE ?
+                            OR shown.first_name LIKE ?
+                            OR shown.last_name LIKE ?
+                            OR $person LIKE ?
+                          )
+                     )
+                )
+              ORDER BY j.updated_at DESC, j.id DESC
+              LIMIT " . (int) $limit
+        );
+        $stmt->execute([$supplierId, $like, $like, $like, $like, $like, $like]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $labels = JobContactOrder::labelsForJobs($this->db->pdo(), array_column($rows, 'id'));
+
+        return array_map(static fn (array $r) => [
+            'id'      => (int) $r['id'],
+            'number'  => (string) $r['number'],
+            'title'   => (string) $r['title'],
+            'contact' => $labels[(int) $r['id']] ?? null,
+        ], $rows);
+    }
+
     public function find(int $id, int $supplierId): ?array
     {
         $stmt = $this->db->pdo()->prepare(

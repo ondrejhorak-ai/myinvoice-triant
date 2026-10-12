@@ -420,6 +420,8 @@ onMounted(async () => {
     }
     editedStatus.value = inv.status
     editedVarsymbol.value = inv.varsymbol
+    const linkedJobId = Number((inv as { tri_job_id?: number | null }).tri_job_id ?? 0)
+    if (linkedJobId > 0) triJobId.value = linkedJobId
     Object.assign(form.value, {
       invoice_type: (inv.invoice_type === 'proforma' || inv.invoice_type === 'credit_note')
         ? inv.invoice_type

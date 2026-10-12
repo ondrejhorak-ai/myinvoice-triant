@@ -106,26 +106,50 @@ final class JobInvoiceRepository
 
     public function paidAdvancesTotal(int $jobId, int $supplierId): float
     {
-        $job = $this->jobRow($jobId, $supplierId);
-        $projectId = (int) ($job['myucto_project_id'] ?? 0);
-        if ($projectId <= 0) {
-            return 0.0;
-        }
-        $stmt = $this->db->pdo()->prepare(
-            "SELECT COALESCE(SUM(total_with_vat), 0)
-               FROM mu_invoices
-              WHERE project_id = ?
-                AND deleted_at IS NULL
-                AND invoice_type = 'proforma'
-                AND (
-                    status = 'paid'
-                    OR payment_status IN ('paid', 'overpaid')
-                    OR (paid_at IS NOT NULL AND paid_total > 0)
-                )"
-        );
-        $stmt->execute([$projectId]);
+        return $this->paidAdvances($jobId, $supplierId)['total'];
+    }
 
-        return (float) $stmt->fetchColumn();
+    /**
+     * Zaplacené zálohy zakázky: stejný projekt MyÚčta, nebo ruční vazba Office.
+     * Jedna záloha se počítá jednou, i když splňuje obojí.
+     *
+     * @return array{total: float, ids: list<int>}
+     */
+    public function paidAdvances(int $jobId, int $supplierId): array
+    {
+        $job = $this->jobRow($jobId, $supplierId);
+        if ($job === null) {
+            return ['total' => 0.0, 'ids' => []];
+        }
+        $projectId = (int) ($job['myucto_project_id'] ?? 0);
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT i.id, i.total_with_vat
+               FROM mu_invoices i
+              WHERE i.deleted_at IS NULL
+                AND i.invoice_type = 'proforma'
+                AND (
+                    i.status = 'paid'
+                    OR i.payment_status IN ('paid', 'overpaid')
+                    OR (i.paid_at IS NOT NULL AND i.paid_total > 0)
+                )
+                AND (
+                    (? > 0 AND i.project_id = ?)
+                    OR EXISTS (
+                        SELECT 1 FROM tri_job_invoice_overrides o
+                         WHERE o.invoice_id = i.id AND o.job_id = ?
+                    )
+                )
+              ORDER BY i.id"
+        );
+        $stmt->execute([$projectId, $projectId, $jobId]);
+        $ids = [];
+        $total = 0.0;
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $ids[] = (int) $row['id'];
+            $total += (float) $row['total_with_vat'];
+        }
+
+        return ['total' => round($total, 2), 'ids' => $ids];
     }
 
     public function link(int $invoiceId, int $jobId, int $supplierId): void
@@ -383,6 +407,71 @@ final class JobInvoiceRepository
                 'pages' => (int) max(1, ceil($total / max(1, $perPage))),
             ],
         ];
+    }
+
+    /**
+     * Rychlé hledání dokladů v zrcadle MyÚčta: číslo dokladu, číslo zakázky na dokladu
+     * a jméno odběratele. Smazané koncepty se nevrací.
+     *
+     * @return list<array{id:int, varsymbol:?string, supplier_order_number:?string, invoice_type:string, status:string, issue_date:?string, total_with_vat:float, currency:string, company_name:string}>
+     */
+    public function searchQuick(string $q, int $supplierId, int $limit = 6): array
+    {
+        $q = trim($q);
+        if ($q === '' || $supplierId <= 0) {
+            return [];
+        }
+        $like = '%' . addcslashes($q, '%_\\') . '%';
+        $person = "TRIM(CONCAT(COALESCE(c.first_name, ''), ' ', COALESCE(c.last_name, '')))";
+        $stmt = $this->db->pdo()->prepare(
+            "SELECT i.id, i.varsymbol, i.supplier_order_number, i.invoice_type, i.status,
+                    i.issue_date, i.total_with_vat, i.currency,
+                    CASE
+                      WHEN c.party_kind IN ('person', 'private') AND $person <> '' THEN $person
+                      ELSE COALESCE(c.company_name, i.client_main_email, '')
+                    END AS company_name
+               FROM mu_invoices i
+          LEFT JOIN clients c ON c.myucto_id = i.client_myucto_id AND c.supplier_id = ?
+              WHERE i.deleted_at IS NULL
+                AND (
+                     i.varsymbol LIKE ?
+                  OR i.supplier_order_number LIKE ?
+                  OR c.company_name LIKE ?
+                  OR c.first_name LIKE ?
+                  OR c.last_name LIKE ?
+                  OR $person LIKE ?
+                  OR i.client_main_email LIKE ?
+                  OR EXISTS (
+                       SELECT 1
+                         FROM tri_jobs j
+                        WHERE j.supplier_id = ?
+                          AND j.number LIKE ?
+                          AND (
+                               (i.project_id IS NOT NULL AND j.myucto_project_id = i.project_id)
+                            OR EXISTS (
+                                 SELECT 1 FROM tri_job_invoice_overrides o
+                                  WHERE o.invoice_id = i.id AND o.job_id = j.id
+                               )
+                          )
+                     )
+                )
+              ORDER BY i.issue_date DESC, i.id DESC
+              LIMIT " . (int) $limit
+        );
+        $stmt->execute([$supplierId, $like, $like, $like, $like, $like, $like, $like, $supplierId, $like]);
+
+        return array_map(static fn (array $r) => [
+            'id'                    => (int) $r['id'],
+            'varsymbol'             => $r['varsymbol'] !== null && $r['varsymbol'] !== '' ? (string) $r['varsymbol'] : null,
+            'supplier_order_number' => $r['supplier_order_number'] !== null && $r['supplier_order_number'] !== ''
+                ? (string) $r['supplier_order_number'] : null,
+            'invoice_type'          => (string) $r['invoice_type'],
+            'status'                => (string) $r['status'],
+            'issue_date'            => $r['issue_date'] !== null ? (string) $r['issue_date'] : null,
+            'total_with_vat'        => (float) $r['total_with_vat'],
+            'currency'              => (string) ($r['currency'] ?: 'CZK'),
+            'company_name'          => (string) $r['company_name'],
+        ], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
     }
 
     /** @return array<string, mixed>|null */

@@ -59,22 +59,25 @@ final class SetInvoiceJobAction
                 if ($job === null) {
                     return Json::error($response, 'not_found', 'Zakázka nenalezena.', 404);
                 }
-                $billingId = JobInvoiceClient::id($job, $detail);
-                $billing = $billingId > 0 ? $this->clientRow($supplierId, $billingId) : null;
-                if ($billing !== null && (int) ($job['customer_client_id'] ?? 0) > 0 && $billing['myucto_id'] <= 0) {
-                    (new BillingContactPublisher($this->api, $this->db->pdo(), $supplierId))->ensure($billing['id']);
-                    $billing = $this->clientRow($supplierId, $billing['id']) ?? $billing;
-                }
-                $projectId = (int) ($job['myucto_project_id'] ?? 0);
-                if ($projectId <= 0 && $billing !== null && $billing['myucto_id'] > 0) {
-                    $forProject = $job;
-                    $forProject['customer_client_id'] = $billing['id'];
-                    try {
-                        $job = (new ProjectGateway($this->api, $this->db->pdo(), $supplierId))->ensureProjectForJob($forProject);
-                        $projectId = (int) ($job['myucto_project_id'] ?? 0);
-                    } catch (MyUctoApiException $e) {
-                        if ($e->errorCode !== 'not_linked') {
-                            throw $e;
+                $projectId = 0;
+                if ($isDraft) {
+                    $billingId = JobInvoiceClient::id($job, $detail);
+                    $billing = $billingId > 0 ? $this->clientRow($supplierId, $billingId) : null;
+                    if ($billing !== null && (int) ($job['customer_client_id'] ?? 0) > 0 && $billing['myucto_id'] <= 0) {
+                        (new BillingContactPublisher($this->api, $this->db->pdo(), $supplierId))->ensure($billing['id']);
+                        $billing = $this->clientRow($supplierId, $billing['id']) ?? $billing;
+                    }
+                    $projectId = (int) ($job['myucto_project_id'] ?? 0);
+                    if ($projectId <= 0 && $billing !== null && $billing['myucto_id'] > 0) {
+                        $forProject = $job;
+                        $forProject['customer_client_id'] = $billing['id'];
+                        try {
+                            $job = (new ProjectGateway($this->api, $this->db->pdo(), $supplierId))->ensureProjectForJob($forProject);
+                            $projectId = (int) ($job['myucto_project_id'] ?? 0);
+                        } catch (MyUctoApiException $e) {
+                            if ($e->errorCode !== 'not_linked') {
+                                throw $e;
+                            }
                         }
                     }
                 }

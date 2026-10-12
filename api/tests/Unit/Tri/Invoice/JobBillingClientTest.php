@@ -80,6 +80,13 @@ final class JobBillingClientTest extends TestCase
         $this->assertSame(55, $final['client_id']);
     }
 
+    public function testSettlementNamesASingleDepositAsParent(): void
+    {
+        $this->assertSame(4, JobInvoiceBuilder::settlementParentId([4]));
+        $this->assertSame(0, JobInvoiceBuilder::settlementParentId([4, 9]));
+        $this->assertSame(0, JobInvoiceBuilder::settlementParentId([]));
+    }
+
     public function testProjectMismatchMessageHidesRecordIds(): void
     {
         $plain = InvoiceError::withoutRecordIds('Zakázka #47 nepatří klientovi #55.');

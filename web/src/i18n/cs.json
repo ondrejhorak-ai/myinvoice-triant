@@ -133,11 +133,13 @@
     "job_status_cancelled": "Zrušeno"
   },
   "search": {
-    "placeholder": "Hledat… (menu, klienti, faktury)",
+    "placeholder": "Hledat… (menu, zakázky, kontakty, faktury)",
     "no_results": "Nic nenalezeno",
     "group_menu": "Menu",
-    "group_clients": "Klienti / dodavatelé",
-    "group_invoices": "Vydané faktury",
+    "group_jobs": "Zakázky",
+    "group_clients": "Kontakty",
+    "group_invoices": "Faktury",
+    "invoice_fallback": "Faktura",
     "group_purchase": "Přijaté faktury"
   },
   "logbook": {
@@ -760,7 +762,7 @@
       "date": "Datum",
       "description": "Popis",
       "note": "Poznámka",
-      "paper": "Papírový doklad uložte do pokladny. Příloha v aplikaci není povinná.",
+      "paper": "Papírový doklad uložte do pokladny.",
       "link": "Popis a vazba",
       "empty": "Zatím žádné pohyby",
       "saved": "Pohyb uložen",
