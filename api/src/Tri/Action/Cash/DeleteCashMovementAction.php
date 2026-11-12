@@ -24,13 +24,14 @@ final class DeleteCashMovementAction
             return Json::error($response, 'no_supplier', 'Chybí supplier kontext.', 400);
         }
         try {
-            $this->repo->deleteMovement((int) ($args['id'] ?? 0), $supplierId);
+            $this->repo->deleteMovement(
+                (int) ($args['id'] ?? 0),
+                $supplierId,
+                TriRequest::userId($request),
+                TriRequest::userRole($request) === 'admin',
+            );
         } catch (\InvalidArgumentException $e) {
-            return match ($e->getMessage()) {
-                'NOT_FOUND' => Json::error($response, 'not_found', 'Pohyb nenalezen.', 404),
-                'HANDED_OVER' => Json::error($response, 'handed_over', 'Pohyb je v předání a nejde smazat.', 409),
-                default => Json::error($response, 'validation_failed', $e->getMessage(), 400),
-            };
+            return CashErrors::from($e, $response);
         }
 
         return Json::ok($response, ['deleted' => true]);

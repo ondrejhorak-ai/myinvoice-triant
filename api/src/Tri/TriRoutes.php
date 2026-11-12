@@ -57,11 +57,12 @@ use MyInvoice\Tri\Action\PriceList\PdfAction as PriceListPdfAction;
 use MyInvoice\Tri\Action\PriceList\SearchPriceListItemsAction;
 use MyInvoice\Tri\Action\PriceList\UpdatePriceListAction;
 use MyInvoice\Tri\Action\PriceList\UploadPriceListImageAction;
-use MyInvoice\Tri\Action\Cash\CreateCashHandoverAction;
+use MyInvoice\Tri\Action\Cash\AccountCashMovementsAction;
 use MyInvoice\Tri\Action\Cash\CreateCashMovementAction;
 use MyInvoice\Tri\Action\Cash\DeleteCashMovementAction;
+use MyInvoice\Tri\Action\Cash\GetCashMovementAction;
 use MyInvoice\Tri\Action\Cash\ListCashAction;
-use MyInvoice\Tri\Action\Cash\PreviewCashHandoverAction;
+use MyInvoice\Tri\Action\Cash\RestoreCashMovementAction;
 use MyInvoice\Tri\Action\Cash\UpdateCashMovementAction;
 use MyInvoice\Tri\Action\Calendar\CreateCalendarEventAction;
 use MyInvoice\Tri\Action\Calendar\DeleteCalendarEventAction;
@@ -215,10 +216,11 @@ final class TriRoutes
         // Cash desk (Pokladna)
         $app->get('/api/tri/cash', ListCashAction::class);
         $app->post('/api/tri/cash/movements', CreateCashMovementAction::class);
+        $app->post('/api/tri/cash/movements/account', AccountCashMovementsAction::class);
+        $app->get('/api/tri/cash/movements/{id:[0-9]+}', GetCashMovementAction::class);
         $app->put('/api/tri/cash/movements/{id:[0-9]+}', UpdateCashMovementAction::class);
         $app->delete('/api/tri/cash/movements/{id:[0-9]+}', DeleteCashMovementAction::class);
-        $app->get('/api/tri/cash/handover-preview', PreviewCashHandoverAction::class);
-        $app->post('/api/tri/cash/handovers', CreateCashHandoverAction::class);
+        $app->post('/api/tri/cash/movements/{id:[0-9]+}/restore', RestoreCashMovementAction::class);
 
         // Calendar (Kalendář TRI)
         $app->get('/api/tri/calendar', ListCalendarEventsAction::class);

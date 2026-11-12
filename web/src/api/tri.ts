@@ -271,7 +271,7 @@ export interface TriTravelerHoursSummary {
   by_station: Array<{ station: TriTravelerStation; hours: number }>
 }
 
-export type TriCashKind = 'cash_in' | 'cash_out' | 'card' | 'remittance'
+export type TriCashKind = 'cash_in' | 'cash_out' | 'card'
 export interface TriCashMovement {
   id: number
   kind: TriCashKind
@@ -279,42 +279,37 @@ export interface TriCashMovement {
   occurred_on: string
   description: string
   note: string | null
-  handover_id: number | null
-  handover_number: string | null
+  accounted: boolean
+  accounted_at: string | null
+  accounted_by_name: string | null
+  party_user_id: number | null
+  party_name: string | null
+  job_id: number | null
+  job_number: string | null
+  job_title: string | null
   recorded_by_name: string | null
+  deleted_at: string | null
 }
-export interface TriCashHandover {
+export interface TriCashAuditEntry {
   id: number
-  number: string
-  handed_on: string
-  book_amount: string
-  counted_amount: string
-  difference_amount: string
-  keep_amount: string
-  remitted_amount: string
-  note: string | null
-  handed_by_name: string | null
+  action: 'created' | 'updated' | 'deleted' | 'restored' | 'accounted' | 'unaccounted' | string
+  user_name: string | null
+  created_at: string
+  changes: Record<string, { from: string | number | boolean | null; to: string | number | boolean | null }> | null
 }
 export interface TriCashSummary {
   drawer: string
-  card_open: string
-  open_documents: number
-  float: string
+  to_hand_over: string
+  unaccounted: number
 }
 export interface TriCashList {
   summary: TriCashSummary
   data: TriCashMovement[]
-  handovers: TriCashHandover[]
   meta: { page: number; per_page: number; total: number; pages: number }
 }
-export interface TriCashHandoverPreview {
-  book: string
-  counted: string
-  keep: string
-  difference: string
-  remitted: string
-  remain: string
-  documents: Array<{ id: number; occurred_on: string; description: string; kind: TriCashKind; amount: string }>
+export interface TriCashDetail {
+  movement: TriCashMovement
+  audit: TriCashAuditEntry[]
 }
 
 export type TriCalendarKind = 'shifts' | 'dispatch' | 'production'
@@ -554,17 +549,19 @@ export const triApi = {
     delete: (id: number) => api.delete(`/tri/calendar/${id}`),
   },
   cash: {
-    list: (params?: Record<string, string | number>) =>
+    list: (params?: Record<string, string | number | boolean>) =>
       api.get<TriCashList>('/tri/cash', { params }).then((r) => r.data),
+    getMovement: (id: number) =>
+      api.get<TriCashDetail>(`/tri/cash/movements/${id}`).then((r) => r.data),
     createMovement: (payload: Record<string, unknown>) =>
       api.post<TriCashMovement>('/tri/cash/movements', payload).then((r) => r.data),
     updateMovement: (id: number, payload: Record<string, unknown>) =>
       api.put<TriCashMovement>(`/tri/cash/movements/${id}`, payload).then((r) => r.data),
     deleteMovement: (id: number) => api.delete(`/tri/cash/movements/${id}`),
-    previewHandover: (params: { counted: string; keep: string; occurred_on?: string }) =>
-      api.get<TriCashHandoverPreview>('/tri/cash/handover-preview', { params }).then((r) => r.data),
-    createHandover: (payload: Record<string, unknown>) =>
-      api.post<TriCashHandover>('/tri/cash/handovers', payload).then((r) => r.data),
+    restoreMovement: (id: number) =>
+      api.post<TriCashMovement>(`/tri/cash/movements/${id}/restore`).then((r) => r.data),
+    accountMovements: (ids: number[]) =>
+      api.post<{ updated: number }>('/tri/cash/movements/account', { ids }).then((r) => r.data),
   },
   complaints: {
     list: (params?: Record<string, string | number>) =>

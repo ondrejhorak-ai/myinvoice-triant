@@ -14,23 +14,43 @@ final class CashLedgerRepository
     public function __construct(private readonly Connection $db) {}
 
     /**
-     * @param array{q?:string,kind?:string,handed?:string} $filters
-     * @return array{summary: array<string, mixed>, data: list<array<string, mixed>>, handovers: list<array<string, mixed>>, meta: array<string, int>}
+     * @param array{q?:string,kind?:string,accounted?:string,date_from?:string,date_to?:string,party_user_id?:int,trash?:bool} $filters
+     * @return array{summary: array<string, mixed>, data: list<array<string, mixed>>, meta: array<string, int>}
      */
     public function list(int $supplierId, array $filters, int $page, int $perPage): array
     {
         $where = ['m.supplier_id = ?'];
         $params = [$supplierId];
+        if (!empty($filters['trash'])) {
+            $where[] = 'm.deleted_at IS NOT NULL';
+        } else {
+            $where[] = 'm.deleted_at IS NULL';
+        }
         $kind = (string) ($filters['kind'] ?? '');
-        if ($kind !== '' && in_array($kind, ['cash_in', 'cash_out', 'card', 'remittance'], true)) {
+        if ($kind !== '' && in_array($kind, CashLedgerRules::KINDS, true)) {
             $where[] = 'm.kind = ?';
             $params[] = $kind;
         }
-        $handed = (string) ($filters['handed'] ?? 'all');
-        if ($handed === 'open') {
-            $where[] = 'm.handover_id IS NULL';
-        } elseif ($handed === 'handed') {
-            $where[] = 'm.handover_id IS NOT NULL';
+        $accounted = (string) ($filters['accounted'] ?? 'all');
+        if ($accounted === 'open') {
+            $where[] = 'm.accounted = 0';
+        } elseif ($accounted === 'done') {
+            $where[] = 'm.accounted = 1';
+        }
+        $from = (string) ($filters['date_from'] ?? '');
+        if ($from !== '') {
+            $where[] = 'm.occurred_on >= ?';
+            $params[] = $from;
+        }
+        $to = (string) ($filters['date_to'] ?? '');
+        if ($to !== '') {
+            $where[] = 'm.occurred_on <= ?';
+            $params[] = $to;
+        }
+        $party = (int) ($filters['party_user_id'] ?? 0);
+        if ($party > 0) {
+            $where[] = 'm.party_user_id = ?';
+            $params[] = $party;
         }
         $q = trim((string) ($filters['q'] ?? ''));
         if ($q !== '') {
@@ -43,10 +63,7 @@ final class CashLedgerRepository
         $total = (int) $count->fetchColumn();
         $offset = max(0, ($page - 1) * $perPage);
         $stmt = $this->db->pdo()->prepare(
-            "SELECT m.*, u.name AS recorded_by_name, h.number AS handover_number
-               FROM tri_cash_movements m
-          LEFT JOIN users u ON u.id = m.recorded_by
-          LEFT JOIN tri_cash_handovers h ON h.id = m.handover_id
+            "SELECT {$this->selectSql()}
               WHERE $whereSql
            ORDER BY m.occurred_on DESC, m.id DESC
               LIMIT ? OFFSET ?"
@@ -63,7 +80,6 @@ final class CashLedgerRepository
         return [
             'summary' => $this->summary($supplierId),
             'data' => $rows,
-            'handovers' => $this->handovers($supplierId),
             'meta' => [
                 'page' => $page,
                 'per_page' => $perPage,
@@ -82,34 +98,62 @@ final class CashLedgerRepository
                     WHEN kind = 'cash_in' THEN amount
                     WHEN kind IN ('cash_out','remittance') THEN -amount
                     ELSE 0 END), 0) AS drawer,
-                COALESCE(SUM(CASE WHEN kind = 'card' AND handover_id IS NULL THEN amount ELSE 0 END), 0) AS card_open,
-                SUM(CASE WHEN handover_id IS NULL THEN 1 ELSE 0 END) AS open_docs
+                COALESCE(SUM(CASE
+                    WHEN accounted = 0 AND kind = 'cash_in' THEN amount
+                    WHEN accounted = 0 AND kind IN ('cash_out','remittance') THEN -amount
+                    ELSE 0 END), 0) AS to_hand_over,
+                SUM(CASE WHEN accounted = 0 THEN 1 ELSE 0 END) AS unaccounted
                FROM tri_cash_movements
-              WHERE supplier_id = ?"
+              WHERE supplier_id = ? AND deleted_at IS NULL"
         );
         $stmt->execute([$supplierId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
         return [
             'drawer' => number_format((float) ($row['drawer'] ?? 0), 2, '.', ''),
-            'card_open' => number_format((float) ($row['card_open'] ?? 0), 2, '.', ''),
-            'open_documents' => (int) ($row['open_docs'] ?? 0),
-            'float' => CashLedgerRules::format(CashLedgerRules::FLOAT_CENTS),
+            'to_hand_over' => number_format((float) ($row['to_hand_over'] ?? 0), 2, '.', ''),
+            'unaccounted' => (int) ($row['unaccounted'] ?? 0),
+        ];
+    }
+
+    /**
+     * @return array{movement: array<string, mixed>, audit: list<array<string, mixed>>}
+     */
+    public function detail(int $id, int $supplierId, bool $admin): array
+    {
+        $movement = $this->findMovement($id, $supplierId);
+        if ($movement === null || ($movement['deleted_at'] !== null && !$admin)) {
+            throw new \InvalidArgumentException('NOT_FOUND');
+        }
+
+        return [
+            'movement' => $movement,
+            'audit' => $this->auditLog($id, $supplierId),
         ];
     }
 
     /** @param array<string, mixed> $data */
-    public function createMovement(int $supplierId, int $userId, array $data): array
+    public function createMovement(int $supplierId, int $userId, array $data, bool $admin): array
     {
         $existing = $this->findMovementByToken($supplierId, $data['client_token']);
         if ($existing !== null) {
             return $existing;
         }
+        $party = $data['party_user_id'] ?? null;
+        if ($party === null && $userId > 0) {
+            $party = $userId;
+        }
+        $this->assertUser($party);
+        $this->assertJob($supplierId, $data['job_id']);
+        $accounted = $admin && !empty($data['accounted']);
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
         try {
-            $stmt = $this->db->pdo()->prepare(
+            $stmt = $pdo->prepare(
                 'INSERT INTO tri_cash_movements
-                    (supplier_id, kind, amount, occurred_on, description, note, recorded_by, client_token)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+                    (supplier_id, kind, amount, occurred_on, description, note, job_id,
+                     recorded_by, party_user_id, accounted, accounted_at, accounted_by, client_token)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $supplierId,
@@ -118,159 +162,28 @@ final class CashLedgerRepository
                 $data['occurred_on'],
                 $data['description'],
                 $data['note'],
+                $data['job_id'],
                 $userId > 0 ? $userId : null,
+                $party,
+                $accounted ? 1 : 0,
+                $accounted ? date('Y-m-d H:i:s') : null,
+                $accounted && $userId > 0 ? $userId : null,
                 $data['client_token'],
             ]);
-        } catch (PDOException $e) {
-            $again = $this->findMovementByToken($supplierId, $data['client_token']);
-            if ($again !== null && $this->isDuplicate($e)) {
-                return $again;
+            $id = (int) $pdo->lastInsertId();
+            $created = $this->findMovement($id, $supplierId);
+            if ($created === null) {
+                throw new \RuntimeException('CASH_MOVEMENT_MISSING');
             }
-            throw $e;
-        }
-
-        return $this->findMovement((int) $this->db->pdo()->lastInsertId(), $supplierId) ?? [];
-    }
-
-    /** @param array<string, mixed> $data */
-    public function updateMovement(int $id, int $supplierId, array $data): array
-    {
-        $current = $this->findMovement($id, $supplierId);
-        if ($current === null) {
-            throw new \InvalidArgumentException('NOT_FOUND');
-        }
-        CashLedgerRules::assertMutable($current['handover_id'], (string) $current['kind']);
-        $stmt = $this->db->pdo()->prepare(
-            'UPDATE tri_cash_movements
-                SET kind = ?, amount = ?, occurred_on = ?, description = ?, note = ?
-              WHERE id = ? AND supplier_id = ? AND handover_id IS NULL AND kind <> \'remittance\''
-        );
-        $stmt->execute([
-            $data['kind'],
-            $data['amount'],
-            $data['occurred_on'],
-            $data['description'],
-            $data['note'],
-            $id,
-            $supplierId,
-        ]);
-        $updated = $this->findMovement($id, $supplierId);
-        if ($updated === null) {
-            throw new \InvalidArgumentException('NOT_FOUND');
-        }
-        CashLedgerRules::assertMutable($updated['handover_id'], (string) $updated['kind']);
-
-        return $updated;
-    }
-
-    public function deleteMovement(int $id, int $supplierId): void
-    {
-        $current = $this->findMovement($id, $supplierId);
-        if ($current === null) {
-            throw new \InvalidArgumentException('NOT_FOUND');
-        }
-        CashLedgerRules::assertMutable($current['handover_id'], (string) $current['kind']);
-        $stmt = $this->db->pdo()->prepare(
-            'DELETE FROM tri_cash_movements
-              WHERE id = ? AND supplier_id = ? AND handover_id IS NULL AND kind <> \'remittance\''
-        );
-        $stmt->execute([$id, $supplierId]);
-        if ($stmt->rowCount() === 0 && $this->findMovement($id, $supplierId) !== null) {
-            throw new \InvalidArgumentException('HANDED_OVER');
-        }
-    }
-
-    /** @param array<string, mixed> $input */
-    public function previewHandover(int $supplierId, array $input): array
-    {
-        $book = CashLedgerRules::cents($this->summary($supplierId)['drawer']);
-        $plan = CashLedgerRules::handover($book, CashLedgerRules::cents($input['counted']), CashLedgerRules::cents($input['keep']));
-
-        return $this->previewPayload($supplierId, $book, $plan, $input);
-    }
-
-    /** @param array<string, mixed> $input */
-    public function createHandover(int $supplierId, int $userId, array $input): array
-    {
-        $existing = $this->findHandoverByToken($supplierId, $input['client_token']);
-        if ($existing !== null) {
-            return $existing;
-        }
-        $pdo = $this->db->pdo();
-        $pdo->beginTransaction();
-        try {
-            $lock = $pdo->prepare(
-                'SELECT id FROM tri_cash_movements WHERE supplier_id = ? AND handover_id IS NULL FOR UPDATE'
-            );
-            $lock->execute([$supplierId]);
-            $openIds = array_map('intval', $lock->fetchAll(PDO::FETCH_COLUMN) ?: []);
-            $again = $this->findHandoverByToken($supplierId, $input['client_token']);
-            if ($again !== null) {
-                $pdo->commit();
-
-                return $again;
-            }
-            $book = CashLedgerRules::cents($this->summary($supplierId)['drawer']);
-            $plan = CashLedgerRules::handover($book, CashLedgerRules::cents($input['counted']), CashLedgerRules::cents($input['keep']));
-            if ($openIds === [] && $plan['remitted_cents'] === 0) {
-                throw new \InvalidArgumentException('NOTHING_TO_HAND_OVER');
-            }
-            $number = $this->nextNumber($supplierId, $input['occurred_on']);
-            $insert = $pdo->prepare(
-                'INSERT INTO tri_cash_handovers
-                    (supplier_id, number, handed_on, book_amount, counted_amount, difference_amount,
-                     keep_amount, remitted_amount, note, handed_by, client_token)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-            );
-            $insert->execute([
-                $supplierId,
-                $number,
-                $input['occurred_on'],
-                CashLedgerRules::format($book),
-                $input['counted'],
-                CashLedgerRules::format($plan['difference_cents']),
-                $input['keep'],
-                CashLedgerRules::format($plan['remitted_cents']),
-                $input['note'],
-                $userId > 0 ? $userId : null,
-                $input['client_token'],
-            ]);
-            $handoverId = (int) $pdo->lastInsertId();
-            if ($plan['remitted_cents'] > 0) {
-                $move = $pdo->prepare(
-                    'INSERT INTO tri_cash_movements
-                        (supplier_id, kind, amount, occurred_on, description, handover_id, recorded_by, client_token)
-                     VALUES (?, \'remittance\', ?, ?, ?, ?, ?, ?)'
-                );
-                $token = $input['client_token'] !== null ? $input['client_token'] . '-r' : null;
-                if ($token !== null && strlen($token) > 36) {
-                    $token = substr(hash('sha256', $token), 0, 32);
-                }
-                $move->execute([
-                    $supplierId,
-                    CashLedgerRules::format($plan['remitted_cents']),
-                    $input['occurred_on'],
-                    'Odvod hotovosti účetní · ' . $number,
-                    $handoverId,
-                    $userId > 0 ? $userId : null,
-                    $token,
-                ]);
-            }
-            if ($openIds !== []) {
-                $place = implode(',', array_fill(0, count($openIds), '?'));
-                $update = $pdo->prepare(
-                    "UPDATE tri_cash_movements SET handover_id = ? WHERE supplier_id = ? AND id IN ($place)"
-                );
-                $update->execute(array_merge([$handoverId, $supplierId], $openIds));
-            }
+            $this->writeAudit($id, $supplierId, $userId, 'created', ['after' => $this->snapshot($created)]);
             $pdo->commit();
 
-            return $this->findHandover($handoverId, $supplierId) ?? [];
+            return $created;
         } catch (PDOException $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            $again = $this->findHandoverByToken($supplierId, $input['client_token']);
+            $again = $this->findMovementByToken($supplierId, $data['client_token']);
             if ($again !== null && $this->isDuplicate($e)) {
                 return $again;
             }
@@ -283,85 +196,263 @@ final class CashLedgerRepository
         }
     }
 
-    /** @return list<array<string, mixed>> */
-    private function handovers(int $supplierId): array
+    /** @param array<string, mixed> $data */
+    public function updateMovement(int $id, int $supplierId, int $userId, array $data, bool $admin): array
     {
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT h.*, u.name AS handed_by_name
-               FROM tri_cash_handovers h
-          LEFT JOIN users u ON u.id = h.handed_by
-              WHERE h.supplier_id = ?
-           ORDER BY h.handed_on DESC, h.id DESC
-              LIMIT 24'
-        );
-        $stmt->execute([$supplierId]);
-
-        return array_map([$this, 'castHandover'], $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []);
-    }
-
-    /**
-     * @param array{difference_cents:int,remitted_cents:int,remain_cents:int} $plan
-     * @param array<string, mixed> $input
-     * @return array<string, mixed>
-     */
-    private function previewPayload(int $supplierId, int $book, array $plan, array $input): array
-    {
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT id, occurred_on, description, kind, amount
-               FROM tri_cash_movements
-              WHERE supplier_id = ? AND handover_id IS NULL
-           ORDER BY occurred_on, id'
-        );
-        $stmt->execute([$supplierId]);
-
-        return [
-            'book' => CashLedgerRules::format($book),
-            'counted' => $input['counted'],
-            'keep' => $input['keep'],
-            'difference' => CashLedgerRules::format($plan['difference_cents']),
-            'remitted' => CashLedgerRules::format($plan['remitted_cents']),
-            'remain' => CashLedgerRules::format($plan['remain_cents']),
-            'documents' => array_map(static function (array $row): array {
-                return [
-                    'id' => (int) $row['id'],
-                    'occurred_on' => (string) $row['occurred_on'],
-                    'description' => (string) $row['description'],
-                    'kind' => (string) $row['kind'],
-                    'amount' => number_format((float) $row['amount'], 2, '.', ''),
-                ];
-            }, $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []),
-        ];
-    }
-
-    private function nextNumber(int $supplierId, string $date): string
-    {
-        $prefix = 'PR-' . substr($date, 0, 7);
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT number FROM tri_cash_handovers WHERE supplier_id = ? AND number LIKE ?'
-        );
-        $stmt->execute([$supplierId, $prefix . '%']);
-        $taken = array_fill_keys(array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []), true);
-        if (!isset($taken[$prefix])) {
-            return $prefix;
-        }
-        for ($n = 2; $n < 100; $n++) {
-            $candidate = $prefix . '-' . $n;
-            if (!isset($taken[$candidate])) {
-                return $candidate;
+        $this->assertUser($data['party_user_id']);
+        $this->assertJob($supplierId, $data['job_id']);
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+        try {
+            $this->lock($id, $supplierId);
+            $current = $this->requireActive($id, $supplierId);
+            CashLedgerRules::assertEditable((bool) $current['accounted'], $admin);
+            $accounted = $admin ? !empty($data['accounted']) : (bool) $current['accounted'];
+            $accountedAt = $current['accounted_at'];
+            $accountedBy = $current['accounted_by'];
+            if ($accounted && !$current['accounted']) {
+                $accountedAt = date('Y-m-d H:i:s');
+                $accountedBy = $userId > 0 ? $userId : null;
+            } elseif (!$accounted) {
+                $accountedAt = null;
+                $accountedBy = null;
             }
+            $stmt = $pdo->prepare(
+                'UPDATE tri_cash_movements
+                    SET kind = ?, amount = ?, occurred_on = ?, description = ?, note = ?,
+                        job_id = ?, party_user_id = ?, accounted = ?, accounted_at = ?, accounted_by = ?
+                  WHERE id = ? AND supplier_id = ? AND deleted_at IS NULL'
+            );
+            $stmt->execute([
+                $data['kind'],
+                $data['amount'],
+                $data['occurred_on'],
+                $data['description'],
+                $data['note'],
+                $data['job_id'],
+                $data['party_user_id'],
+                $accounted ? 1 : 0,
+                $accountedAt,
+                $accountedBy,
+                $id,
+                $supplierId,
+            ]);
+            $updated = $this->requireActive($id, $supplierId);
+            $changes = CashLedgerRules::changes($this->snapshot($current), $this->snapshot($updated));
+            if ($changes !== []) {
+                $this->writeAudit($id, $supplierId, $userId, CashLedgerRules::auditAction($changes), $changes);
+            }
+            $pdo->commit();
+
+            return $updated;
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
         }
-        throw new \RuntimeException('HANDOVER_NUMBER');
+    }
+
+    public function deleteMovement(int $id, int $supplierId, int $userId, bool $admin): void
+    {
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+        try {
+            $this->lock($id, $supplierId);
+            $current = $this->requireActive($id, $supplierId);
+            CashLedgerRules::assertEditable((bool) $current['accounted'], $admin);
+            $stmt = $pdo->prepare(
+                'UPDATE tri_cash_movements
+                    SET deleted_at = NOW(), deleted_by = ?
+                  WHERE id = ? AND supplier_id = ? AND deleted_at IS NULL'
+            );
+            $stmt->execute([$userId > 0 ? $userId : null, $id, $supplierId]);
+            $this->writeAudit($id, $supplierId, $userId, 'deleted', null);
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public function restoreMovement(int $id, int $supplierId, int $userId): array
+    {
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+        try {
+            $this->lock($id, $supplierId);
+            $current = $this->findMovement($id, $supplierId);
+            if ($current === null) {
+                throw new \InvalidArgumentException('NOT_FOUND');
+            }
+            if ($current['deleted_at'] === null) {
+                $pdo->commit();
+
+                return $current;
+            }
+            $stmt = $pdo->prepare(
+                'UPDATE tri_cash_movements
+                    SET deleted_at = NULL, deleted_by = NULL
+                  WHERE id = ? AND supplier_id = ? AND deleted_at IS NOT NULL'
+            );
+            $stmt->execute([$id, $supplierId]);
+            $this->writeAudit($id, $supplierId, $userId, 'restored', null);
+            $restored = $this->findMovement($id, $supplierId) ?? $current;
+            $pdo->commit();
+
+            return $restored;
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /** @param list<int> $ids */
+    public function markAccounted(int $supplierId, int $userId, array $ids): int
+    {
+        $pdo = $this->db->pdo();
+        $pdo->beginTransaction();
+        $updated = 0;
+        try {
+            $place = implode(',', array_fill(0, count($ids), '?'));
+            $lock = $pdo->prepare(
+                "SELECT id FROM tri_cash_movements
+                  WHERE supplier_id = ? AND deleted_at IS NULL AND accounted = 0 AND id IN ($place)
+                  FOR UPDATE"
+            );
+            $lock->execute(array_merge([$supplierId], $ids));
+            $open = array_map('intval', $lock->fetchAll(PDO::FETCH_COLUMN) ?: []);
+            if ($open !== []) {
+                $markPlace = implode(',', array_fill(0, count($open), '?'));
+                $stmt = $pdo->prepare(
+                    "UPDATE tri_cash_movements
+                        SET accounted = 1, accounted_at = NOW(), accounted_by = ?
+                      WHERE supplier_id = ? AND deleted_at IS NULL AND accounted = 0 AND id IN ($markPlace)"
+                );
+                $stmt->execute(array_merge([$userId > 0 ? $userId : null, $supplierId], $open));
+                $updated = count($open);
+                foreach ($open as $id) {
+                    $this->writeAudit($id, $supplierId, $userId, 'accounted', [
+                        'accounted' => ['from' => false, 'to' => true],
+                    ]);
+                }
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        return $updated;
+    }
+
+    /** @return array<string, mixed> */
+    private function requireActive(int $id, int $supplierId): array
+    {
+        $current = $this->findMovement($id, $supplierId);
+        if ($current === null) {
+            throw new \InvalidArgumentException('NOT_FOUND');
+        }
+        if ($current['deleted_at'] !== null) {
+            throw new \InvalidArgumentException('DELETED');
+        }
+
+        return $current;
+    }
+
+    private function lock(int $id, int $supplierId): void
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT id FROM tri_cash_movements WHERE id = ? AND supplier_id = ? FOR UPDATE'
+        );
+        $stmt->execute([$id, $supplierId]);
+        if ($stmt->fetchColumn() === false) {
+            throw new \InvalidArgumentException('NOT_FOUND');
+        }
+    }
+
+    private function assertJob(int $supplierId, ?int $jobId): void
+    {
+        if ($jobId === null) {
+            return;
+        }
+        $stmt = $this->db->pdo()->prepare('SELECT id FROM tri_jobs WHERE id = ? AND supplier_id = ?');
+        $stmt->execute([$jobId, $supplierId]);
+        if ($stmt->fetchColumn() === false) {
+            throw new \InvalidArgumentException('INVALID_JOB');
+        }
+    }
+
+    private function assertUser(?int $userId): void
+    {
+        if ($userId === null) {
+            return;
+        }
+        $stmt = $this->db->pdo()->prepare('SELECT id FROM users WHERE id = ?');
+        $stmt->execute([$userId]);
+        if ($stmt->fetchColumn() === false) {
+            throw new \InvalidArgumentException('INVALID_USER');
+        }
+    }
+
+    /** @param array<string, mixed>|null $changes */
+    private function writeAudit(int $movementId, int $supplierId, int $userId, string $action, ?array $changes): void
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'INSERT INTO tri_cash_movement_audit (movement_id, supplier_id, user_id, action, changes)
+             VALUES (?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            $movementId,
+            $supplierId,
+            $userId > 0 ? $userId : null,
+            $action,
+            $changes === null ? null : json_encode($changes, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function auditLog(int $movementId, int $supplierId): array
+    {
+        $stmt = $this->db->pdo()->prepare(
+            'SELECT a.id, a.action, a.changes, a.created_at, u.name AS user_name
+               FROM tri_cash_movement_audit a
+          LEFT JOIN users u ON u.id = a.user_id
+              WHERE a.movement_id = ? AND a.supplier_id = ?
+           ORDER BY a.id DESC
+              LIMIT 50'
+        );
+        $stmt->execute([$movementId, $supplierId]);
+        $rows = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $changes = null;
+            if ($row['changes'] !== null && $row['changes'] !== '') {
+                $decoded = json_decode((string) $row['changes'], true);
+                $changes = is_array($decoded) ? $decoded : null;
+            }
+            $rows[] = [
+                'id' => (int) $row['id'],
+                'action' => (string) $row['action'],
+                'user_name' => $row['user_name'] !== null ? (string) $row['user_name'] : null,
+                'created_at' => (string) $row['created_at'],
+                'changes' => $changes,
+            ];
+        }
+
+        return $rows;
     }
 
     /** @return array<string, mixed>|null */
     private function findMovement(int $id, int $supplierId): ?array
     {
         $stmt = $this->db->pdo()->prepare(
-            'SELECT m.*, u.name AS recorded_by_name, h.number AS handover_number
-               FROM tri_cash_movements m
-          LEFT JOIN users u ON u.id = m.recorded_by
-          LEFT JOIN tri_cash_handovers h ON h.id = m.handover_id
-              WHERE m.id = ? AND m.supplier_id = ?'
+            "SELECT {$this->selectSql()} WHERE m.id = ? AND m.supplier_id = ?"
         );
         $stmt->execute([$id, $supplierId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -384,34 +475,15 @@ final class CashLedgerRepository
         return $id === false ? null : $this->findMovement((int) $id, $supplierId);
     }
 
-    /** @return array<string, mixed>|null */
-    private function findHandover(int $id, int $supplierId): ?array
+    private function selectSql(): string
     {
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT h.*, u.name AS handed_by_name
-               FROM tri_cash_handovers h
-          LEFT JOIN users u ON u.id = h.handed_by
-              WHERE h.id = ? AND h.supplier_id = ?'
-        );
-        $stmt->execute([$id, $supplierId]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        return $row === false ? null : $this->castHandover($row);
-    }
-
-    /** @return array<string, mixed>|null */
-    private function findHandoverByToken(int $supplierId, ?string $token): ?array
-    {
-        if ($token === null || $token === '') {
-            return null;
-        }
-        $stmt = $this->db->pdo()->prepare(
-            'SELECT id FROM tri_cash_handovers WHERE supplier_id = ? AND client_token = ?'
-        );
-        $stmt->execute([$supplierId, $token]);
-        $id = $stmt->fetchColumn();
-
-        return $id === false ? null : $this->findHandover((int) $id, $supplierId);
+        return 'm.*, u.name AS recorded_by_name, p.name AS party_name,
+                a.name AS accounted_by_name, j.number AS job_number, j.title AS job_title
+               FROM tri_cash_movements m
+          LEFT JOIN users u ON u.id = m.recorded_by
+          LEFT JOIN users p ON p.id = m.party_user_id
+          LEFT JOIN users a ON a.id = m.accounted_by
+          LEFT JOIN tri_jobs j ON j.id = m.job_id AND j.supplier_id = m.supplier_id';
     }
 
     private function isDuplicate(PDOException $e): bool
@@ -422,33 +494,45 @@ final class CashLedgerRepository
     /** @param array<string, mixed> $row */
     private function castMovement(array $row): array
     {
+        $jobNumber = isset($row['job_number']) && $row['job_number'] !== null ? (string) $row['job_number'] : null;
+        $jobTitle = isset($row['job_title']) && $row['job_title'] !== null ? (string) $row['job_title'] : null;
+
         return [
             'id' => (int) $row['id'],
             'kind' => (string) $row['kind'],
             'amount' => number_format((float) $row['amount'], 2, '.', ''),
-            'occurred_on' => (string) $row['occurred_on'],
+            'occurred_on' => substr((string) $row['occurred_on'], 0, 10),
             'description' => (string) $row['description'],
             'note' => $row['note'] !== null ? (string) $row['note'] : null,
-            'handover_id' => $row['handover_id'] !== null ? (int) $row['handover_id'] : null,
-            'handover_number' => isset($row['handover_number']) && $row['handover_number'] !== null ? (string) $row['handover_number'] : null,
+            'accounted' => (int) ($row['accounted'] ?? 0) === 1,
+            'accounted_at' => isset($row['accounted_at']) && $row['accounted_at'] !== null ? (string) $row['accounted_at'] : null,
+            'accounted_by' => isset($row['accounted_by']) && $row['accounted_by'] !== null ? (int) $row['accounted_by'] : null,
+            'accounted_by_name' => isset($row['accounted_by_name']) && $row['accounted_by_name'] !== null ? (string) $row['accounted_by_name'] : null,
+            'party_user_id' => isset($row['party_user_id']) && $row['party_user_id'] !== null ? (int) $row['party_user_id'] : null,
+            'party_name' => isset($row['party_name']) && $row['party_name'] !== null ? (string) $row['party_name'] : null,
+            'job_id' => isset($row['job_id']) && $row['job_id'] !== null ? (int) $row['job_id'] : null,
+            'job_number' => $jobNumber,
+            'job_title' => $jobTitle,
             'recorded_by_name' => isset($row['recorded_by_name']) && $row['recorded_by_name'] !== null ? (string) $row['recorded_by_name'] : null,
+            'deleted_at' => isset($row['deleted_at']) && $row['deleted_at'] !== null ? (string) $row['deleted_at'] : null,
         ];
     }
 
-    /** @param array<string, mixed> $row */
-    private function castHandover(array $row): array
+    /** @param array<string, mixed> $cast @return array<string, mixed> */
+    private function snapshot(array $cast): array
     {
+        $number = trim((string) ($cast['job_number'] ?? ''));
+        $title = trim((string) ($cast['job_title'] ?? ''));
+
         return [
-            'id' => (int) $row['id'],
-            'number' => (string) $row['number'],
-            'handed_on' => (string) $row['handed_on'],
-            'book_amount' => number_format((float) $row['book_amount'], 2, '.', ''),
-            'counted_amount' => number_format((float) $row['counted_amount'], 2, '.', ''),
-            'difference_amount' => number_format((float) $row['difference_amount'], 2, '.', ''),
-            'keep_amount' => number_format((float) $row['keep_amount'], 2, '.', ''),
-            'remitted_amount' => number_format((float) $row['remitted_amount'], 2, '.', ''),
-            'note' => $row['note'] !== null ? (string) $row['note'] : null,
-            'handed_by_name' => isset($row['handed_by_name']) && $row['handed_by_name'] !== null ? (string) $row['handed_by_name'] : null,
+            'kind' => $cast['kind'] ?? null,
+            'amount' => $cast['amount'] ?? null,
+            'occurred_on' => $cast['occurred_on'] ?? null,
+            'description' => $cast['description'] ?? null,
+            'note' => $cast['note'] ?? null,
+            'party_name' => $cast['party_name'] ?? null,
+            'job_label' => $number === '' ? null : trim($number . ' ' . $title),
+            'accounted' => (bool) ($cast['accounted'] ?? false),
         ];
     }
 }

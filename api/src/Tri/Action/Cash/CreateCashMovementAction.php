@@ -26,9 +26,14 @@ final class CreateCashMovementAction
         }
         try {
             $data = CashLedgerRules::normalizeMovement((array) ($request->getParsedBody() ?? []));
-            $created = $this->repo->createMovement($supplierId, TriRequest::userId($request), $data);
+            $created = $this->repo->createMovement(
+                $supplierId,
+                TriRequest::userId($request),
+                $data,
+                TriRequest::userRole($request) === 'admin',
+            );
         } catch (\InvalidArgumentException $e) {
-            return Json::error($response, 'validation_failed', $e->getMessage(), 400);
+            return CashErrors::from($e, $response);
         }
 
         return Json::ok($response, $created, 201);

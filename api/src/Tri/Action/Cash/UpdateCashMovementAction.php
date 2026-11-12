@@ -26,20 +26,17 @@ final class UpdateCashMovementAction
         }
         try {
             $data = CashLedgerRules::normalizeMovement((array) ($request->getParsedBody() ?? []));
-            $updated = $this->repo->updateMovement((int) ($args['id'] ?? 0), $supplierId, $data);
+            $updated = $this->repo->updateMovement(
+                (int) ($args['id'] ?? 0),
+                $supplierId,
+                TriRequest::userId($request),
+                $data,
+                TriRequest::userRole($request) === 'admin',
+            );
         } catch (\InvalidArgumentException $e) {
-            return self::fromRule($response, $e);
+            return CashErrors::from($e, $response);
         }
 
         return Json::ok($response, $updated);
-    }
-
-    private static function fromRule(Response $response, \InvalidArgumentException $e): Response
-    {
-        return match ($e->getMessage()) {
-            'NOT_FOUND' => Json::error($response, 'not_found', 'Pohyb nenalezen.', 404),
-            'HANDED_OVER' => Json::error($response, 'handed_over', 'Pohyb je v předání a nejde upravit.', 409),
-            default => Json::error($response, 'validation_failed', $e->getMessage(), 400),
-        };
     }
 }
