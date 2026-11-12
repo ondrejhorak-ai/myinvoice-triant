@@ -236,11 +236,12 @@ s předchozí prací, žádný automatický commit ani migrace.
   zaplacená faktura bez zakázky. Záloha a dobropis v pohledu nejsou. Vstup
   smaže filtr stavu, typu, nezaplaceno, po splatnosti a zakázky. Není to
   nová databáze prodeje ani položka menu.
-- Pokladna je lokální kniha `tri_cash_movements` / `tri_cash_handovers`
-  (migrace 9022). Hotovost mění zásuvku, karta ne. Předání: základ 5 000 Kč,
-  odvod `max(0, napočítáno − základ)`, rozdíl se uloží a kniha se nepřepíše.
-  Číslo je ASCII `PR-RRRR-MM`. Opakovaný `client_token` vrátí existující řádek.
-  Příloha je poznámka. Menu: Další agendy. Role readonly smí jen číst.
+- Pokladna je lokální deník `tri_cash_movements` (migrace 9022 a 9027).
+  Zůstatek je příjem minus výdaj, karta ho nemění. Značka `accounted` nahrazuje
+  předání; nezaúčtovaný řádek smí změnit kdokoli se zápisem, zaúčtovaný jen
+  admin. Odvod je běžný výdaj. Smazání je měkké. Opakovaný `client_token`
+  vrátí existující řádek. Příloha je poznámka. Menu: Další agendy.
+  Role readonly smí jen číst. `tri_cash_handovers` zůstává jen jako historie.
 - Částečná úhrada faktury se nezadává. Kontakt žije v Office (migrace 9024 a 9026):
   jen **Firma** a **Osoba**. Osoba bez firmy je soukromý zákazník a do MyÚčta se
   zapíše s prvním dokladem, jakmile má adresu. Osoba u firmy se neposílá. Firma

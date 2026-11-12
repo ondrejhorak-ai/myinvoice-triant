@@ -1,36 +1,43 @@
 # 46. Pokladna
 
-Pokladna v menu **TRIANT → Další agendy → Pokladna** je evidence hotovosti
-a dokladů na prodejně. Není to zaúčtování v MyÚčtu a nezakládá fakturu.
+Pokladna v menu **TRIANT → Další agendy → Pokladna** je deník hotovosti
+a karet na prodejně. Není to zaúčtování v MyÚčtu a nezakládá fakturu.
+Papírové doklady zůstávají v pokladně.
 
 ## 46.1 Pohyby
 
-Tlačítko **Nový pohyb** uloží jeden doklad:
+Tlačítko **Nový pohyb** uloží jeden záznam:
 
-| Druh | Co udělá se zásuvkou |
+| Operace | Co udělá se zůstatkem |
 |---|---|
-| Hotovostní příjem | Přičte částku |
-| Hotovostní výdaj | Odečte částku |
-| Platba kartou | Zásuvku nemění. Částka se sčítá jen do předání |
+| Příjem | Přičte částku |
+| Výdaj | Odečte částku |
+| Kartou | Zůstatek nemění |
 
-Papírový doklad patří do pokladny. Poznámka v aplikaci je volitelná, soubor
-se nenahrává. Stejné uložení se nezdvojí, když ho prohlížeč pošle znovu.
+Název, datum a kladná částka jsou povinné. **Převzal / Odevzdal** je uživatel
+Office, výchozí je přihlášený. Zakázka je volitelná. Poznámka je volitelná,
+soubor se nenahrává. Stejné uložení se nezdvojí, když ho prohlížeč pošle znovu.
 
-Seznam filtruješ podle druhu a podle toho, jestli už byl pohyb předaný.
-Další řádky načte **Další**.
+Odvod peněz účetní (třeba „Pokladna do KH“) je běžný **Výdaj**.
 
-Pohyb, který ještě není v žádném předání, jde **upravit** nebo **smazat**.
-Po předání je řádek zamčený, včetně odvodu hotovosti.
+Seznam má sloupce Název, Datum, Částka, Operace, Převzal/Odevzdal, Zakázka
+a Zaúčtováno. Výchozí filtr jsou nezaúčtované pohyby. Dál jde filtrovat
+operaci, datum a člověka, který peníze převzal nebo odevzdal. Další řádky
+načte **Další**.
 
-## 46.2 Předání účetní
+**Zůstatek hotovosti** je součet příjmů minus výdajů. Kartou se nepočítá.
+Smazané pohyby v zůstatku nejsou.
 
-**Předání účetní** spočítá hotovost v zásuvce a porovná ji s evidencí.
+## 46.2 Zaúčtováno
 
-- Výchozí základ, který v pokladně zůstane, je **5 000 Kč**.
-- Odvod je napočítaná hotovost minus základ. Když je napočítáno méně než
-  základ, odvod je 0 Kč.
-- Rozdíl proti evidenci se uloží. Evidence se nepřepíše na napočítanou částku.
-- Předání označí otevřené doklady a případný odvod zapíše jako převod
-  hotovosti. Tím se nepotvrzuje, že účetní doklady zaúčtovala.
+Nezaúčtovaný pohyb může upravit nebo smazat kdokoli, kdo smí do pokladny
+zapisovat. Zaúčtovaný pohyb smí upravit, smazat nebo odznačit jen správce.
+Ostatní ho vidí jen ke čtení.
 
-Číslo předání má tvar `PR-2026-10`. Historie je vpravo na stejné stránce.
+Správce může na stránce vybrat řádky a hromadně je označit **Zaúčtováno**.
+
+Smazání je měkké. Řádek zmizí ze seznamu a správce ho najde filtrem **Koš**,
+kde ho může obnovit. U detailu je historie změn: kdo, kdy a co se změnilo,
+včetně značky Zaúčtováno.
+
+Role jen ke čtení pohyby nezakládá ani nemění.
