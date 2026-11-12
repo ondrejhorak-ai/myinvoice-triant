@@ -20,13 +20,15 @@ soubor se nenahrává. Stejné uložení se nezdvojí, když ho prohlížeč po�
 
 Odvod peněz účetní (třeba „Pokladna do KH“) je běžný **Výdaj**.
 
-Seznam má sloupce Název, Datum, Částka, Operace, Převzal/Odevzdal, Zakázka
-a Zaúčtováno. Výchozí filtr jsou nezaúčtované pohyby. Dál jde filtrovat
+Seznam má sloupce Název, Datum, Částka, Operace, Převzal/Odevzdal, Založil,
+Zakázka a Zaúčtováno. **Založil** je člověk, který záznam uložil, a nejde
+ho přepsat. Výchozí filtr jsou nezaúčtované pohyby. Dál jde filtrovat
 operaci, datum a člověka, který peníze převzal nebo odevzdal. Další řádky
 načte **Další**.
 
-**Zůstatek hotovosti** je součet příjmů minus výdajů. Kartou se nepočítá.
-Smazané pohyby v zůstatku nejsou.
+**Zůstatek hotovosti** je součet příjmů minus výdajů. **K odevzdání** je
+stejný součet jen z nezaúčtovaných pohybů. Kartou se nepočítá.
+Smazané pohyby v obou částkách nejsou.
 
 ## 46.2 Zaúčtováno
 

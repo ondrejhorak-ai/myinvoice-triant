@@ -26,7 +26,7 @@ const { t } = useI18n()
 const auth = useAuthStore()
 const toast = useToast()
 
-const summary = ref({ drawer: '0.00', unaccounted: 0 })
+const summary = ref({ drawer: '0.00', to_hand_over: '0.00', unaccounted: 0 })
 const rows = ref<TriCashMovement[]>([])
 const loading = ref(true)
 const loadingMore = ref(false)
@@ -57,6 +57,7 @@ const marking = ref(false)
 const users = ref<Array<{ id: number; name: string }>>([])
 const jobs = ref<TriJob[]>([])
 const editingJob = ref<{ id: number; label: string } | null>(null)
+const editingAuthor = ref<string | null>(null)
 const confirmState = ref<null | { message: string; run: () => Promise<void> }>(null)
 const form = ref(emptyForm())
 let token = ''
@@ -224,6 +225,7 @@ function fillForm(row: TriCashMovement) {
     accounted: row.accounted,
   }
   editingJob.value = row.job_id ? { id: row.job_id, label: jobLabel(row) || String(row.job_id) } : null
+  editingAuthor.value = row.recorded_by_name
 }
 
 async function openForm() {
@@ -231,6 +233,7 @@ async function openForm() {
   readOnly.value = false
   audit.value = []
   editingJob.value = null
+  editingAuthor.value = null
   form.value = emptyForm()
   formError.value = ''
   token = crypto.randomUUID()
@@ -411,11 +414,16 @@ onMounted(() => {
       </template>
     </UiPageHeader>
 
-    <div class="grid gap-4 sm:grid-cols-2 mb-6">
+    <div class="grid gap-4 sm:grid-cols-3 mb-6">
       <div class="office-stat">
         <p class="text-xs text-neutral-500">{{ t('tri.cash.drawer') }}</p>
         <strong>{{ money(summary.drawer) }}</strong>
         <p class="mt-1 text-xs text-neutral-500">{{ t('tri.cash.drawer_hint') }}</p>
+      </div>
+      <div class="office-stat">
+        <p class="text-xs text-neutral-500">{{ t('tri.cash.to_hand_over') }}</p>
+        <strong>{{ money(summary.to_hand_over) }}</strong>
+        <p class="mt-1 text-xs text-neutral-500">{{ t('tri.cash.to_hand_over_hint') }}</p>
       </div>
       <div class="office-stat">
         <p class="text-xs text-neutral-500">{{ t('tri.cash.unaccounted') }}</p>
@@ -438,7 +446,7 @@ onMounted(() => {
     <OfficeAppliedFilters :conditions="conditions" @remove="removeFilter" @clear="clearFilters" />
 
     <UiCard>
-      <TableSkeleton v-if="loading" :rows="6" :cols="7" />
+      <TableSkeleton v-if="loading" :rows="6" :cols="8" />
       <EmptyState v-else-if="rows.length === 0" :title="trash ? t('tri.cash.empty_trash') : accounted === 'open' ? t('tri.cash.empty_open') : t('tri.cash.empty')">
         <UiButton v-if="auth.canWrite && !trash" size="sm" @click="openForm">{{ t('tri.cash.new_movement') }}</UiButton>
       </EmptyState>
@@ -461,6 +469,7 @@ onMounted(() => {
               <th class="text-right px-4 py-2.5 font-medium">{{ t('tri.cash.amount') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.kind') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.party') }}</th>
+              <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.created_by') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.job') }}</th>
               <th class="text-left px-4 py-2.5 font-medium">{{ t('tri.cash.accounted') }}</th>
               <th class="px-4 py-2.5"></th>
@@ -485,6 +494,7 @@ onMounted(() => {
             <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">{{ signed(row) }}</td>
             <td class="px-4 py-3"><UiBadge :variant="kindVariant(row.kind)">{{ kindLabel(row.kind) }}</UiBadge></td>
             <td class="px-4 py-3">{{ row.party_name || '—' }}</td>
+            <td class="px-4 py-3">{{ row.recorded_by_name || '—' }}</td>
             <td class="px-4 py-3">
               <RouterLink
                 v-if="row.job_id"
@@ -532,6 +542,7 @@ onMounted(() => {
           <div class="mt-1 text-xs text-neutral-500">
             {{ formatDate(row.occurred_on) }}
             <span v-if="row.party_name"> · {{ row.party_name }}</span>
+            <span v-if="row.recorded_by_name"> · {{ t('tri.cash.created_by') }} {{ row.recorded_by_name }}</span>
             <span v-if="row.job_id"> · {{ jobLabel(row) }}</span>
           </div>
           <div class="mt-2 flex items-center gap-3">
@@ -564,6 +575,9 @@ onMounted(() => {
     <Modal v-if="formOpen" :title="editingId ? (readOnly ? t('tri.cash.detail') : t('tri.cash.edit')) : t('tri.cash.new_movement')" width-class="max-w-lg" @close="formOpen = false">
       <form class="office-page grid gap-4" @submit.prevent="save">
         <p v-if="readOnly" class="text-sm text-neutral-500">{{ t('tri.cash.readonly') }}</p>
+        <p v-if="editingId" class="text-sm text-neutral-700">
+          {{ t('tri.cash.created_by') }}: {{ editingAuthor || '—' }}
+        </p>
         <UiInput v-model="form.description" :label="t('tri.cash.name')" :disabled="readOnly" required />
         <UiInput v-model="form.occurred_on" type="date" :label="t('tri.cash.date')" :disabled="readOnly" required />
         <UiInput v-model="form.amount" inputmode="decimal" :label="t('tri.cash.amount')" :disabled="readOnly" required />

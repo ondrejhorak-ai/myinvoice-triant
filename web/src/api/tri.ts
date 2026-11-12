@@ -299,6 +299,7 @@ export interface TriCashAuditEntry {
 }
 export interface TriCashSummary {
   drawer: string
+  to_hand_over: string
   unaccounted: number
 }
 export interface TriCashList {

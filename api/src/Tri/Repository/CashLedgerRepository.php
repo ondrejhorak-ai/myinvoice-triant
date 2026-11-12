@@ -98,6 +98,10 @@ final class CashLedgerRepository
                     WHEN kind = 'cash_in' THEN amount
                     WHEN kind IN ('cash_out','remittance') THEN -amount
                     ELSE 0 END), 0) AS drawer,
+                COALESCE(SUM(CASE
+                    WHEN accounted = 0 AND kind = 'cash_in' THEN amount
+                    WHEN accounted = 0 AND kind IN ('cash_out','remittance') THEN -amount
+                    ELSE 0 END), 0) AS to_hand_over,
                 SUM(CASE WHEN accounted = 0 THEN 1 ELSE 0 END) AS unaccounted
                FROM tri_cash_movements
               WHERE supplier_id = ? AND deleted_at IS NULL"
@@ -107,6 +111,7 @@ final class CashLedgerRepository
 
         return [
             'drawer' => number_format((float) ($row['drawer'] ?? 0), 2, '.', ''),
+            'to_hand_over' => number_format((float) ($row['to_hand_over'] ?? 0), 2, '.', ''),
             'unaccounted' => (int) ($row['unaccounted'] ?? 0),
         ];
     }
